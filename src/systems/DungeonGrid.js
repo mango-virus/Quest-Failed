@@ -43,8 +43,8 @@ export function entryDoorCp(entry) {
 }
 
 // Which edge the entrance doorway sits on: 'N' | 'S' | 'E' | 'W'. Derived
-// from the cp's position (matches DungeonRenderer._cpDoorRect) so it stays
-// correct however the room was rotated.
+// from the cp's position (matches DungeonRenderer._doorBlockCells) so it
+// stays correct however the room was rotated.
 export function entryDoorSide(entry) {
   const cp = entryDoorCp(entry)
   if (!cp || !entry) return 'N'
@@ -65,7 +65,7 @@ export function entryDoorTile(entry) {
 }
 
 // World-space centre + anchor tile of the 2 × WALL_THICKNESS doorway block.
-// Mirrors DungeonRenderer._cpDoorRect so the spawn / leave fade snaps the
+// Mirrors DungeonRenderer._doorBlockCells so the spawn / leave fade snaps the
 // adventurer to exactly where the door art is drawn.
 export function entryDoorWorldCenter(entry) {
   if (!entry) return null

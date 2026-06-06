@@ -423,9 +423,6 @@ export class MinionRenderer {
       if (m._hidden && !String(m.definitionId ?? '').startsWith('golem')) {
         alpha *= HIDDEN_ALPHA
       }
-      const tx = (m.worldX / TS) | 0
-      const ty = (m.worldY / TS) | 0
-      if (this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)) alpha *= 0.55
       s.container.setAlpha(alpha)
 
       // HP bars hidden for minions per user request — bar+bg are still

@@ -161,41 +161,6 @@ const DOOR_ARCH_INNER     = 0x2a3548    // thin arched-shadow line under capston
 // ease-out for a slightly punchy slide.
 const DOOR_OPEN_DURATION_S = 0.5
 
-// Doorway architecture — jambs (frame stones flanking the opening),
-// threshold (worn slab at the floor-side edge), and an inner bevel that
-// sells "the passage is recessed". Drawn whether the door is open or closed
-// (door fits within the frame). Jambs go on _gOverhead so adventurers
-// passing through the doorway visually walk UNDER them; threshold + bevel
-// go on _gTiles so adventurers walk ON them at floor level.
-const JAMB_W      = 3
-const THRESHOLD_W = 4
-const ARCH_STYLES = {
-  regular: {
-    jamb:        0x6a7888,    // light stone
-    jambHi:      0x8a98a8,    // bright stone bevel
-    jambShadow:  0x4a5868,    // inner shadow at jamb edge
-    threshold:   0x4a5868,    // worn stone slab
-    thresholdHi: 0x6a7888,    // top edge highlight
-    bevel:       0x121826,    // dark recess at passage edge
-  },
-  entrance: {
-    jamb:        0x8a8a4a,    // brass-iron framing
-    jambHi:      0xb0a060,    // bright brass
-    jambShadow:  0x5a5a2a,
-    threshold:   0x6a5a3a,    // weathered bronze sill
-    thresholdHi: 0x9a8a4a,
-    bevel:       0x121826,
-  },
-  boss: {
-    jamb:        0x3a1414,    // dark crimson stone
-    jambHi:      0x6a2020,    // blood red bevel
-    jambShadow:  0x1a0808,
-    threshold:   0x2a0a0a,    // black-blood sill
-    thresholdHi: 0x4a1010,
-    bevel:       0x080000,
-  },
-}
-
 // Stone bedrock palette — warm gray-brown, deliberately contrasting with the
 // blue-gray brick walls so the player reads the empty grid as "uncarved
 // rock" rather than just background. Used by _drawBackground +
@@ -357,14 +322,6 @@ export class DungeonRenderer {
     this._outerCellMaskG = scene.make.graphics({ x: 0, y: 0, add: false })
     this._cDoorSpritesLow.setMask(this._innerCellMaskG.createGeometryMask())
     this._cDoorSpritesHigh.setMask(this._outerCellMaskG.createGeometryMask())
-    // Set of "x,y" tile keys for ALL doorway cells (Inner threshold +
-    // Outer panel). AdventurerRenderer / MinionRenderer dim entities
-    // standing on any of these cells to sell stepping into the doorway
-    // shadow. Inner-only would let chars pop back to full alpha while
-    // walking across the Outer cells (they're hidden by the door art
-    // there but can briefly peek through at sub-tile fractional
-    // positions), so we dim across the entire 4×2 doorway zone.
-    this._doorwayShadowCells = new Set()
     // Decoration layers. Floor decor (rugs, runes, markings) renders just
     // above floor sprites but below entities so characters walk over them.
     // Object decor (torches, banners, chandeliers) renders above entities,
@@ -393,21 +350,6 @@ export class DungeonRenderer {
     // visually frames entities passing underneath. The dark passage floor
     // and threshold stay on _gTiles (depth 1) so entities walk over them.
     this._gOverhead  = scene.add.graphics().setDepth(9)
-    // Passage shadow — the dark "underpass" gradient inside an open
-    // doorway. Renders ABOVE characters (minion 7, adventurer 8) so
-    // anyone standing in / walking through a doorway is partially
-    // swallowed by the shadow gradient (sells the recessed depth of
-    // the passage), but BELOW the door panel (8.8) so the door slab
-    // still visibly overlaps the gradient when closed. Sits below the
-    // wall capstone overhead (9) and the void mask (12) so wall
-    // framing and void-area occlusion still win.
-    this._gPassageShadow = scene.add.graphics().setDepth(8.7)
-    // Door jambs (the stone posts framing each opening). Sit BELOW
-    // characters so an adventurer standing in or walking through a
-    // doorway appears in front of the jamb stones rather than peeking
-    // out from behind them. Capstones / wall tops still go on
-    // _gOverhead (depth 9) above characters.
-    this._gJambs = scene.add.graphics().setDepth(6)
     // Void mask — re-paints VOID tile fills on a layer ABOVE characters
     // (which sit at depth 7-8) so any sprite whose head intrudes into a
     // void cell gets occluded by the gap. Same colour family as _gBg so
@@ -455,14 +397,11 @@ export class DungeonRenderer {
     this._cDoorSpritesHigh.removeAll(true)
     this._innerCellMaskG.clear()
     this._outerCellMaskG.clear()
-    this._doorwayShadowCells.clear()
     this._gTints.clear()
     this._gOverlay.clear()
     this._gIcon.clear()
     this._gCollision.clear()
     this._gOverhead.clear()
-    this._gPassageShadow.clear()
-    this._gJambs.clear()
     this._gVoidMask.clear()
 
     this._wallOrient = this._buildWallOrientation()
@@ -476,7 +415,6 @@ export class DungeonRenderer {
     this._drawCategoryTints()
     this._drawRoomDecorations()
     this._drawRoomOverlays()
-    this._drawDoorwayArchitecture()
     this._drawVoidMask()
     if (DebugOverlay.showCollision) this._drawCollisionOverlay()
   }
@@ -565,8 +503,6 @@ export class DungeonRenderer {
     this._gCollision.destroy()
     this._gIcon.destroy()
     this._gOverhead.destroy()
-    this._gPassageShadow.destroy()
-    this._gJambs.destroy()
     this._gVoidMask.destroy()
   }
 
@@ -1378,13 +1314,10 @@ export class DungeonRenderer {
         const isOwner = !pairedRoom || cp.direction === 'S' || cp.direction === 'E'
 
         // Mark a doorway cell into the inner / outer mask graphics so the
-        // split-depth doorway containers know which cells they should
-        // make visible. Inner = swatch row 1 or 3 (closer to room
-        // interior), Outer = row 0 or 2 (closer to seam / outer face).
-        // Also record Inner cells in `_doorwayInnerCells` so the
-        // AdventurerRenderer / MinionRenderer can dim entities standing
-        // on the threshold (they're rendered ABOVE the door art at low
-        // depth, so dimming sells "stepping into the doorway shadow").
+        // split-depth doorway containers (incl. the low/high door-skin
+        // copies) know which cells they should make visible. Inner = swatch
+        // row 1 or 3 (closer to room interior), Outer = row 0 or 2 (closer
+        // to seam / outer face).
         const markMaskCell = (wx, wy) => {
           const cellInfo = this._paintingCellForDoorCell(room, cp, wx, wy)
           if (!cellInfo) return
@@ -1392,7 +1325,6 @@ export class DungeonRenderer {
           const target = isInner ? this._innerCellMaskG : this._outerCellMaskG
           target.fillStyle(0xffffff, 1)
           target.fillRect(wx * TS, wy * TS, TS, TS)
-          this._doorwayShadowCells.add(`${wx},${wy}`)
         }
 
         for (let i = 0; i < 4; i++) {
@@ -2633,10 +2565,8 @@ export class DungeonRenderer {
   _drawDoorCell(g, x, y) {
     const px = x * TS, py = y * TS
     // Passage floor is intentionally darker than the room floor so the
-    // doorway reads as a recessed underpass. The graduated shadow added by
-    // _drawPassageShadow (above entities) deepens this further toward the
-    // outward face, so adventurers visually emerge from darkness as they
-    // reach the threshold.
+    // doorway reads as a recessed underpass (fallback for unskinned doors;
+    // skinned doors suppress this cell and supply their own art).
     g.fillStyle(DOOR_PASSAGE_DARK, 1)
     g.fillRect(px, py, TS, TS)
     const over = this._gOverhead
@@ -2666,160 +2596,6 @@ export class DungeonRenderer {
     else if (dr === 0) this._drawCapstoneBand(over, null, px + TS - CAPSTONE_W, py, CAPSTONE_W, TS, 'right')
   }
 
-  // Doorway architecture (jambs + threshold + inner bevel) — drawn for
-  // every cp regardless of door state, so the frame is visible whether the
-  // door is closed, animating, or fully open. Jambs sit on _gOverhead
-  // (above entities, so adventurers pass under the frame); threshold and
-  // bevel go on _gTiles (below entities, so adventurers walk on/over them).
-  _drawDoorwayArchitecture() {
-    const tiles    = this._gTiles
-    const passage  = this._gPassageShadow
-    const jambs    = this._gJambs
-    for (const room of this._gameState.dungeon.rooms ?? []) {
-      for (const cp of room.connectionPoints ?? []) {
-        const rect = this._cpDoorRect(room, cp)
-        if (!rect) continue
-        // When the door (and its 4 surrounding jamb cells) are fully
-        // resolved by sprite art — either via the swatch painting or via
-        // the theme's door slots — the painted sprites already supply the
-        // jamb / threshold / shadow look. Drawing the procedural arch on
-        // top would overlay our sprites with a red panel + dark stripes,
-        // hiding the user's painting.
-        if (this._doorCpRenderable(room, cp)) continue
-        const style = this._effectiveDoorStyle(room, cp)
-        const pal   = ARCH_STYLES[style] || ARCH_STYLES.regular
-        // Jambs now on _gJambs (depth 6, below characters) so adventurers
-        // walk in FRONT of the door-frame stones, not behind them.
-        this._drawDoorJambs(jambs, rect, pal)
-        this._drawDoorThreshold(tiles, rect, pal)
-        // Passage shadow on _gPassageShadow (depth 8.7) — ABOVE
-        // characters so doorway shadow swallows anyone passing through.
-        this._drawPassageShadow(passage, rect)
-      }
-    }
-  }
-
-  // Graduated dark overlay on _gOverhead, inset between the jambs, fading
-  // from heavy darkness at the outward face (the "deep underpass beyond
-  // the door") to nearly transparent at the threshold. Renders above
-  // adventurers — they appear to emerge from shadow as they cross the
-  // doorway. Stays out of the threshold strip so the floor-side stays clean.
-  _drawPassageShadow(g, rect) {
-    const ALPHAS = [0.9, 0.7, 0.5, 0.25]
-    const { px, py, pw, ph, axis, outerSide } = rect
-
-    if (axis === 'h') {
-      const sx = px + JAMB_W
-      const sw = pw - 2 * JAMB_W
-      // Carve the threshold strip out of the shadow zone.
-      const sy = (outerSide === 'top') ? py : py + THRESHOLD_W
-      const sh = ph - THRESHOLD_W
-      const stripeH = Math.max(1, Math.floor(sh / ALPHAS.length))
-      for (let i = 0; i < ALPHAS.length; i++) {
-        g.fillStyle(0x000000, ALPHAS[i])
-        // i=0 is the heaviest stripe; place it at the outward face.
-        const sy_i = (outerSide === 'top')
-          ? sy + i * stripeH
-          : sy + sh - (i + 1) * stripeH
-        const sh_i = (i === ALPHAS.length - 1)
-          ? Math.max(0, sh - i * stripeH)
-          : stripeH
-        if (sw > 0 && sh_i > 0) g.fillRect(sx, sy_i, sw, sh_i)
-      }
-    } else {
-      const sy = py + JAMB_W
-      const sh = ph - 2 * JAMB_W
-      const sx = (outerSide === 'left') ? px : px + THRESHOLD_W
-      const sw = pw - THRESHOLD_W
-      const stripeW = Math.max(1, Math.floor(sw / ALPHAS.length))
-      for (let i = 0; i < ALPHAS.length; i++) {
-        g.fillStyle(0x000000, ALPHAS[i])
-        const sx_i = (outerSide === 'left')
-          ? sx + i * stripeW
-          : sx + sw - (i + 1) * stripeW
-        const sw_i = (i === ALPHAS.length - 1)
-          ? Math.max(0, sw - i * stripeW)
-          : stripeW
-        if (sw_i > 0 && sh > 0) g.fillRect(sx_i, sy, sw_i, sh)
-      }
-    }
-  }
-
-  // Two stone strips flanking the passage. For h-axis doorways (top/bottom
-  // walls) jambs are vertical at the left and right edges of the rect; for
-  // v-axis (left/right walls) they're horizontal at the top and bottom.
-  // Each jamb is JAMB_W px thick with a bright outer-edge highlight and a
-  // 1-px shadow on its inner edge for depth.
-  _drawDoorJambs(g, rect, pal) {
-    const { px, py, pw, ph, axis } = rect
-    if (axis === 'h') {
-      g.fillStyle(pal.jamb, 1)
-      g.fillRect(px,             py, JAMB_W, ph)              // left jamb
-      g.fillRect(px + pw - JAMB_W, py, JAMB_W, ph)            // right jamb
-      g.fillStyle(pal.jambHi, 0.85)
-      g.fillRect(px,             py, 1, ph)                   // outer left highlight
-      g.fillRect(px + pw - 1,    py, 1, ph)                   // outer right highlight
-      g.fillStyle(pal.jambShadow, 0.7)
-      g.fillRect(px + JAMB_W - 1,    py, 1, ph)               // inner left shadow
-      g.fillRect(px + pw - JAMB_W,   py, 1, ph)               // inner right shadow
-      g.fillStyle(pal.bevel, 0.55)
-      g.fillRect(px + JAMB_W,        py, 1, ph)               // recess bevel
-      g.fillRect(px + pw - JAMB_W - 1, py, 1, ph)
-    } else {
-      g.fillStyle(pal.jamb, 1)
-      g.fillRect(px, py,                   pw, JAMB_W)
-      g.fillRect(px, py + ph - JAMB_W,     pw, JAMB_W)
-      g.fillStyle(pal.jambHi, 0.85)
-      g.fillRect(px, py,                   pw, 1)
-      g.fillRect(px, py + ph - 1,          pw, 1)
-      g.fillStyle(pal.jambShadow, 0.7)
-      g.fillRect(px, py + JAMB_W - 1,      pw, 1)
-      g.fillRect(px, py + ph - JAMB_W,     pw, 1)
-      g.fillStyle(pal.bevel, 0.55)
-      g.fillRect(px, py + JAMB_W,          pw, 1)
-      g.fillRect(px, py + ph - JAMB_W - 1, pw, 1)
-    }
-  }
-
-  // Worn-stone slab at the floor-facing edge of the doorway opening, with a
-  // bright top-edge highlight and a 1-px dark bevel on its passage-facing
-  // edge (inner shadow that sells "the passage is recessed").
-  _drawDoorThreshold(g, rect, pal) {
-    const { px, py, pw, ph, outerSide } = rect
-    let tx, ty, tw, th, hiSide, bevelSide
-    switch (outerSide) {
-      case 'top':    tx = px;            ty = py + ph - THRESHOLD_W; tw = pw;          th = THRESHOLD_W; hiSide = 'bottom'; bevelSide = 'top';    break
-      case 'bottom': tx = px;            ty = py;                    tw = pw;          th = THRESHOLD_W; hiSide = 'top';    bevelSide = 'bottom'; break
-      case 'left':   tx = px + pw - THRESHOLD_W; ty = py;            tw = THRESHOLD_W; th = ph;          hiSide = 'right';  bevelSide = 'left';   break
-      case 'right':  tx = px;            ty = py;                    tw = THRESHOLD_W; th = ph;          hiSide = 'left';   bevelSide = 'right';  break
-      default: return
-    }
-    g.fillStyle(pal.threshold, 1)
-    g.fillRect(tx, ty, tw, th)
-    g.fillStyle(pal.thresholdHi, 0.85)
-    if      (hiSide === 'bottom') g.fillRect(tx, ty + th - 1, tw, 1)
-    else if (hiSide === 'top')    g.fillRect(tx, ty,          tw, 1)
-    else if (hiSide === 'right')  g.fillRect(tx + tw - 1, ty, 1, th)
-    else if (hiSide === 'left')   g.fillRect(tx,          ty, 1, th)
-    g.fillStyle(pal.bevel, 0.6)
-    if      (bevelSide === 'top')    g.fillRect(tx, ty - 1,        tw, 1)
-    else if (bevelSide === 'bottom') g.fillRect(tx, ty + th,       tw, 1)
-    else if (bevelSide === 'left')   g.fillRect(tx - 1,        ty, 1, th)
-    else if (bevelSide === 'right')  g.fillRect(tx + tw,       ty, 1, th)
-  }
-
-  // Lightweight wrapper: does the door cell map already say this cp is
-  // renderable? Built fresh each `_drawTiles`, so `_drawDoorwayArchitecture`
-  // (which runs afterwards in `redraw()`) reads a current map and skips the
-  // procedural arch for any door whose sprites/skin already supply the frame.
-  _doorCpRenderable(room, cp) {
-    if (!this._doorCellMap) return false
-    const block = this._doorBlockCells(room, cp)
-    if (!block) return false
-    const entry = this._doorCellMap.get(`${block.x0},${block.y0}`)
-    return !!(entry && entry.cp === cp && entry.renderable)
-  }
-
   // Per-frame door-open timer. The open SKIN already swapped to its open
   // variant the instant openDoor() ran (cp.opening flips _doorStateFor to
   // 'open' → redrawDoors), so there's nothing to animate here — this just
@@ -2841,15 +2617,6 @@ export class DungeonRenderer {
         }
       }
     }
-  }
-
-  // Public — true if (tileX, tileY) is ANY doorway cell (Inner threshold
-  // OR Outer panel). Used by AdventurerRenderer / MinionRenderer to dim
-  // entities walking through the doorway, selling the illusion of
-  // stepping into the underpass shadow for the entire crossing — not
-  // just the threshold cells. Rebuilt every redraw.
-  isDoorwayShadowCell(tileX, tileY) {
-    return this._doorwayShadowCells?.has(`${tileX},${tileY}`) ?? false
   }
 
   // Public helper — kicks an opening animation on this cp. Idempotent: a
@@ -2937,7 +2704,6 @@ export class DungeonRenderer {
       // state at render time, so re-painting the same shapes is fine.
       this._innerCellMaskG?.clear()
       this._outerCellMaskG?.clear()
-      this._doorwayShadowCells?.clear()
 
       // Rebuild the door cell map — this captures fresh per-cell `state`
       // and `renderable` flags. Without it, the sprite resolver keeps using
@@ -2977,94 +2743,6 @@ export class DungeonRenderer {
     this._drawDoorSkins()
     this._cDoorAprons.removeAll(true)
     this._drawDoorAprons()
-  }
-
-  // Pixel rect of the 2 × WALL_THICKNESS DOOR block belonging to this cp.
-  // Returns null for a cp that doesn't sit on the room's edge (corner /
-  // interior cps don't paint a door block — see DungeonGrid._writeTiles).
-  _cpDoorRect(room, cp) {
-    const WT = Balance.WALL_THICKNESS
-    const onTop = cp.y === 0
-    const onBot = cp.y === room.height - 1
-    const onLft = cp.x === 0
-    const onRgt = cp.x === room.width - 1
-    if ((onTop || onBot) && (onLft || onRgt)) return null
-    if (!onTop && !onBot && !onLft && !onRgt)  return null
-
-    let rect
-    if (onTop || onBot) {
-      // Horizontal wall — door block is 2 cells wide × WT cells tall.
-      // Auto-connect cps store an explicit alongDx so paired rooms agree on
-      // which two cells the door occupies; fall back to the widen heuristic
-      // for hand-authored cps.
-      const alongDx = (cp.alongDx === 1 || cp.alongDx === -1)
-        ? cp.alongDx
-        : (((room.width - 1) - cp.x) >= cp.x ? 1 : -1)
-      const xStart  = Math.min(cp.x, cp.x + alongDx)
-      const yStart  = onTop ? 0 : room.height - WT
-      rect = {
-        px: (room.gridX + xStart) * TS,
-        py: (room.gridY + yStart) * TS,
-        pw: 2 * TS,
-        ph: WT * TS,
-        axis: 'h',
-        outerSide: onTop ? 'top' : 'bottom',
-      }
-    } else {
-      // Vertical wall — door block is WT cells wide × 2 cells tall.
-      const alongDy = (cp.alongDy === 1 || cp.alongDy === -1)
-        ? cp.alongDy
-        : (((room.height - 1) - cp.y) >= cp.y ? 1 : -1)
-      const yStart  = Math.min(cp.y, cp.y + alongDy)
-      const xStart  = onLft ? 0 : room.width - WT
-      rect = {
-        px: (room.gridX + xStart) * TS,
-        py: (room.gridY + yStart) * TS,
-        pw: WT * TS,
-        ph: 2 * TS,
-        axis: 'v',
-        outerSide: onLft ? 'left' : 'right',
-      }
-    }
-    // Shrink by CAPSTONE_W on the outward side so the wall cap (drawn on
-    // each DOOR cell by _drawDoorCell) shows above the closed door.
-    switch (rect.outerSide) {
-      case 'top':    rect.py += CAPSTONE_W; rect.ph -= CAPSTONE_W; break
-      case 'bottom': rect.ph -= CAPSTONE_W; break
-      case 'left':   rect.px += CAPSTONE_W; rect.pw -= CAPSTONE_W; break
-      case 'right':  rect.pw -= CAPSTONE_W; break
-    }
-    return rect
-  }
-
-  // Effective style for the door: cp.style verbatim unless the doorway
-  // partners with the boss chamber, in which case both sides render boss.
-  _effectiveDoorStyle(room, cp) {
-    const own = cp.style || 'regular'
-    if (own === 'boss')                         return 'boss'
-    if (room.definitionId === 'boss_chamber')   return 'boss'
-    if (cp.external)                            return own
-    // Find the paired room by tracing 2 cells outward (matches the snap
-    // model — rooms share a 1-cell gap between their outer wall rings).
-    const v = DIR_VECS[cp.direction]
-    if (!v) return own
-    const matchX = room.gridX + cp.x + v.dx * 2
-    const matchY = room.gridY + cp.y + v.dy * 2
-    for (const other of this._gameState.dungeon.rooms ?? []) {
-      if (other.instanceId === room.instanceId)            continue
-      if (matchX < other.gridX || matchX >= other.gridX + other.width)  continue
-      if (matchY < other.gridY || matchY >= other.gridY + other.height) continue
-      if (other.definitionId === 'boss_chamber') {
-        // Boss-paired doors normally render boss-style on the neighbour's side
-        // too. But when the boss has a door SKIN for this state, the boss shows
-        // its skin on its OWN wall and the neighbour keeps its OWN (normal)
-        // door — so each room shows the door set for it.
-        if (this._doorSkinKeyFor(other, this._doorStateFor(cp))) break
-        return 'boss'
-      }
-      break
-    }
-    return own
   }
 
   // Plain dark-passage render for the 1-tile gap between two adjacent

@@ -655,26 +655,10 @@ export class AdventurerRenderer {
       // Invisibility (Rogue) takes precedence — when invisible the
       // alpha override is already 0.15, applied directly to the LPC
       // sprite below.
-      // Doorway shadow dim: standing on a doorway INNER (threshold) cell
-      // dims the adv to 0.55, so they look like they're stepping into the
-      // dark of the underpass. Multiplies with spawn/leave alpha.
       const spawnA = this._spawnAlpha(adv)
       const leaveA = this._leaveAlpha(adv)
-      const tx = (adv.worldX / TS) | 0
-      const ty = (adv.worldY / TS) | 0
-      const inDoorwayShadow = this._scene._dungeonRenderer?.isDoorwayShadowCell(tx, ty)
-      const shadowA = inDoorwayShadow ? 0.55 : 1
-      const fadeA  = Math.min(spawnA, leaveA) * shadowA * this._monarchFadeAlpha(s)
+      const fadeA  = Math.min(spawnA, leaveA) * this._monarchFadeAlpha(s)
       if (s.container) s.container.setAlpha(fadeA)
-
-      // Rival Dungeon boss is big enough to overflow a 2-tile doorway. While
-      // it transits a doorway, drop its container below the door-jamb layer
-      // (DungeonRenderer `_gJambs`, depth 6) so the jamb posts + door framing
-      // render IN FRONT of it — it reads as squeezing through the opening
-      // instead of clipping over the walls beside the door.
-      if (adv._rivalBoss && inDoorwayShadow) {
-        s.container.setDepth(5.5)
-      }
 
       // Phase 1b.8 — Wraith Fear Meter bar. 0..100. Hidden at 0; full purple
       // fill at 100. Cheap re-render only when the rounded value changes.
