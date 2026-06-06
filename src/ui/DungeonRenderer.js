@@ -640,28 +640,22 @@ export class DungeonRenderer {
     // those cells (doors still render so they overlay the skin).
     this._drawRoomSkins()
 
-    // Skinned doors. `_skinnedDoorCells` = the owning side's door block, fully
-    // skipped (the one skin image stands alone, drawn by _drawDoorSkins).
-    // `_skinnedSeamCells` = the PAIRED room's door block — the skin only covers
-    // the owner's side, so the far side would otherwise fall through to the red
-    // procedural door. We suppress just that procedural draw there (the wall
-    // sprite under the door still renders), so the back of the door reads as a
-    // solid wall instead of a stray red rectangle.
+    // Skinned doors: the skin is drawn on BOTH the owning room's door block AND
+    // the paired room's (by _drawDoorSkins, one 4×3 image per side), so the
+    // per-cell / procedural door art is skipped on both — the connected room
+    // sees the door too, not a red procedural rectangle.
     this._skinnedDoorCells = new Set()
-    this._skinnedSeamCells = new Set()
+    const addBlock = (b) => {
+      if (!b) return
+      for (let dx = 0; dx < b.w; dx++) for (let dy = 0; dy < b.h; dy++) this._skinnedDoorCells.add(`${b.x0 + dx},${b.y0 + dy}`)
+    }
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
-        const block = this._doorBlockCells(room, cp)
-        if (block) for (let dx = 0; dx < block.w; dx++) for (let dy = 0; dy < block.h; dy++) {
-          this._skinnedDoorCells.add(`${block.x0 + dx},${block.y0 + dy}`)
-        }
+        addBlock(this._doorBlockCells(room, cp))
         const pair = this._findPairedCp(room, cp)
-        const pblock = pair && this._doorBlockCells(pair.pairedRoom, pair.pairedCp)
-        if (pblock) for (let dx = 0; dx < pblock.w; dx++) for (let dy = 0; dy < pblock.h; dy++) {
-          this._skinnedSeamCells.add(`${pblock.x0 + dx},${pblock.y0 + dy}`)
-        }
+        if (pair) addBlock(this._doorBlockCells(pair.pairedRoom, pair.pairedCp))
       }
     }
 
@@ -697,9 +691,7 @@ export class DungeonRenderer {
         } else if (t === TILE.WALL || t === TILE.BOSS_WALL) {
           this._drawWallCellByTag(g, x, y, this._wallOrient.get(`${x},${y}`))
         } else if (t === TILE.DOOR) {
-          // On the far side of a skinned seam, skip the procedural red door —
-          // the wall sprite under it (already drawn) shows the door's back.
-          if (!this._skinnedSeamCells.has(`${x},${y}`)) this._drawDoorCell(g, x, y)
+          this._drawDoorCell(g, x, y)
         } else if (t === TILE.WALL_CAP) {
           g.fillStyle(WALL_CAP_FILL, 1)
           g.fillRect(x * TS, y * TS, TS, TS)
@@ -754,20 +746,30 @@ export class DungeonRenderer {
   }
   _drawDoorSkins() {
     const rooms = this._gameState?.dungeon?.rooms || []
+    // Draw one 4×3 skin image over a single cp's door block (its own side).
+    const drawOne = (forRoom, forCp, key, colorRoom) => {
+      const rect = this._doorSkinRect(forRoom, forCp)
+      if (!rect) return
+      // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
+      // apron). setAngle rotates it into the dungeon's door orientation.
+      const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
+      img.setDisplaySize(4 * TS, 3 * TS)
+      if (rect.rot) img.setAngle(rect.rot)
+      this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
+      this._cDoorSkins.add(img)
+    }
     for (const room of rooms) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         const key = this._doorSkinKeyFor(room, this._doorStateFor(cp))
         if (!key) continue
-        const rect = this._doorSkinRect(room, cp)
-        if (!rect) continue
-        // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
-        // apron). setAngle rotates it into the dungeon's door orientation.
-        const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
-        img.setDisplaySize(4 * TS, 3 * TS)
-        if (rect.rot) img.setAngle(rect.rot)
-        this._applyColorAdj(img, room.colorAdjust?.walls, true)
-        this._cDoorSkins.add(img)
+        // Own side (verified-correct boss-side rendering — unchanged).
+        drawOne(room, cp, key, room)
+        // Paired side: the same door image on the connected room's wall, using
+        // ITS door-block geometry/rotation, so the door is visible from both
+        // rooms (otherwise the connected room shows a red procedural door).
+        const pair = this._findPairedCp(room, cp)
+        if (pair) drawOne(pair.pairedRoom, pair.pairedCp, key, room)
       }
     }
   }
