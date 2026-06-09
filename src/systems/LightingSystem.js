@@ -116,6 +116,19 @@ export class LightingSystem {
     if (rec) { try { rec.sprite.destroy() } catch (e) {} this._lights.delete(id) }
   }
 
+  // Reposition + (optionally) set the live alpha on an EXTERNALLY-DRIVEN light —
+  // one registered via setLight() WITHOUT a follow() fn (e.g. torches, whose
+  // owner computes the anchor + flicker each frame). update() leaves these
+  // alone, so the owner drives them through this. No-ops if lighting is off /
+  // the id is unknown.
+  moveLight(id, x, y, alpha) {
+    const rec = this._lights.get(id)
+    if (!rec) return
+    rec.sprite.setVisible(true)
+    rec.sprite.setPosition(x, y)
+    if (alpha != null) rec.sprite.setAlpha(alpha)
+  }
+
   // Transient burst of light — grows + fades, then self-destroys. Call from any
   // VFX/system so explosions / fireballs / casts light their surroundings.
   flash(x, y, opts = {}) {
@@ -142,7 +155,10 @@ export class LightingSystem {
     if (!this._enabled) return
     const now = this._scene.time?.now ?? 0
     for (const [, rec] of this._lights) {
-      const pos = rec.follow ? rec.follow() : null
+      // Externally-driven lights (no follow fn — e.g. torches) are positioned +
+      // alpha'd by their owner via moveLight(); skip them here.
+      if (!rec.follow) continue
+      const pos = rec.follow()
       if (!pos) { rec.sprite.setVisible(false); continue }
       rec.sprite.setVisible(true)
       rec.sprite.setPosition(pos.x, pos.y)

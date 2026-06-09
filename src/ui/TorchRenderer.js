@@ -25,9 +25,12 @@
 //
 // Rendering: each torch / brazier is an animated sprite (6 frames @ 8 fps,
 // starting at a random offset so the dungeon doesn't flicker in lockstep)
-// plus a 3-layer additive-blend warm glow underneath. Glow alpha jitters
-// over time for a subtle "live flame" feel; glow sits below the entity
-// layer so adventurers walking through aren't tinted, only the floor.
+// plus a warm light pool underneath. As of Frontier #2 the pool is delegated
+// to the shared LightingSystem (a smooth radial-gradient texture — so torches
+// match the boss/ability lighting), driven here via moveLight() each frame:
+// positioned on the flame and alpha-flickered for a "live flame" feel. The
+// pool sits below the entity layer so adventurers aren't tinted, only the
+// floor. If lighting is disabled (qf.video.lighting), the flame still renders.
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
@@ -38,21 +41,25 @@ const TS = Balance.TILE_SIZE
 const TORCH_FRAMES     = 6
 const ANIM_FRAME_RATE  = 8
 
-// Glow layers (radius, alpha) for the additive-blend warm light. Alphas
-// are deliberately low — the dungeon view shouldn't read as floodlit, the
-// torches just warm the floor around them.
-const TORCH_GLOW_COLOR   = 0xff8844
-const TORCH_GLOW_LAYERS  = [[14, 0.16], [28, 0.09], [48, 0.045]]
-const BRAZIER_GLOW_COLOR = 0xffaa55
-const BRAZIER_GLOW_LAYERS = [[18, 0.19], [36, 0.11], [62, 0.055]]
+// Warm light pools (radius px, peak alpha) for the additive glow under each
+// flame. As of the Frontier-#2 migration these are delegated to the shared
+// LightingSystem (smooth radial-gradient texture) instead of hand-drawn
+// concentric circles — so torches/braziers match the boss/ability light. The
+// dungeon shouldn't read as floodlit; alphas are deliberately low so torches
+// just warm the floor around them. If lighting is OFF (qf.video.lighting), the
+// flame sprite still renders — just without the floor pool.
+const TORCH_GLOW_COLOR    = 0xff8844
+const TORCH_LIGHT_R       = 56
+const TORCH_LIGHT_ALPHA   = 0.42
+const BRAZIER_GLOW_COLOR  = 0xffaa55
+const BRAZIER_LIGHT_R     = 74
+const BRAZIER_LIGHT_ALPHA = 0.52
 
-// Depths. Sprite sits ABOVE jambs/decor-floor (~1.5–6) but BELOW the
-// entity layer (boss/minions/adventurers Y-sort at 7 + worldY * 0.0005,
-// i.e. ~7.0–7.5) so creatures walk IN FRONT of the torches/braziers
-// instead of looking like they're walking under them. Glow sits even
-// lower (above floor tiles, below most decor) so the light warms the
-// floor without tinting characters.
-const DEPTH_GLOW   = 2.6
+// Sprite depth — ABOVE jambs/decor-floor (~1.5–6) but BELOW the entity layer
+// (boss/minions/adventurers Y-sort at 7 + worldY * 0.0005, i.e. ~7.0–7.5) so
+// creatures walk IN FRONT of the torches/braziers instead of looking like
+// they're walking under them. The light pool sits lower still (LightingSystem
+// LIGHT_DEPTH ~2.5) so the glow warms the floor without tinting characters.
 const DEPTH_SPRITE = 6.5
 
 // Subtle alpha modulation for "the flame breathes" — sine wave over time.
@@ -406,20 +413,17 @@ export class TorchRenderer {
           this._sprites[t.instanceId] = rec
         } else {
           rec.sprite?.setPosition(wx, wy)
-          // Glow sits a half-tile above the sprite anchor (≈ the flame
-          // of the torch / top of the brazier) so its halo is centered
-          // on the actual light source rather than the mount.
-          rec.glow?.setPosition(wx, wy - TS / 2)
           // Sprite depth is fixed (set in _createSprite) and intentionally
           // below the entity layer so creatures pass IN FRONT of the
           // light source instead of looking like they're walking under it.
         }
-        // Flicker — sine wave over time, phase-offset per torch.
-        if (rec.glow) {
-          const phase = (now / FLICKER_FREQ_MS) + rec.flickerSeed
-          const flicker = 1 + FLICKER_AMPL * Math.sin(phase)
-          rec.glow.setAlpha(flicker)
-        }
+        // Drive the light pool — reposition it a half-tile above the sprite
+        // anchor (≈ the flame / top of the brazier so the halo centres on the
+        // actual light source) and flicker its alpha with a per-torch sine so
+        // "the flame breathes". Delegated to the shared LightingSystem.
+        const phase = (now / FLICKER_FREQ_MS) + rec.flickerSeed
+        const flicker = 1 + FLICKER_AMPL * Math.sin(phase)
+        this._scene.lightingSystem?.moveLight(rec.lightId, wx, wy - TS / 2, (rec.lightAlpha ?? 0.4) * flicker)
       }
     }
     // Drop sprites whose torches are gone (room removed / sold / pruned).
@@ -435,21 +439,16 @@ export class TorchRenderer {
     const animKey = isBrazier ? 'brazier-burn' : 'torch-burn'
     if (!s.textures.exists(texKey)) return null
 
-    // Glow first — additive blend, layered concentric circles to fake a
-    // radial gradient. Sits below the entity layer so it warms the floor
-    // around the light without tinting characters that walk through.
-    const layers = isBrazier ? BRAZIER_GLOW_LAYERS : TORCH_GLOW_LAYERS
-    const color  = isBrazier ? BRAZIER_GLOW_COLOR  : TORCH_GLOW_COLOR
-    const glow = s.add.graphics()
-    // Draw from outermost to innermost so the bright core sits on top.
-    for (let i = layers.length - 1; i >= 0; i--) {
-      const [r, a] = layers[i]
-      glow.fillStyle(color, a)
-      glow.fillCircle(0, 0, r)
-    }
-    glow.setBlendMode(Phaser.BlendModes.ADD)
-    glow.setDepth(DEPTH_GLOW)
-    glow.setPosition(wx, wy - TS / 2)
+    // Light pool — delegated to the shared LightingSystem (smooth radial-
+    // gradient texture, ADD-blended, drawn below the entity layer so it warms
+    // the floor without tinting characters). Registered WITHOUT a follow() fn,
+    // so this renderer drives its position + flicker each frame via moveLight().
+    const color     = isBrazier ? BRAZIER_GLOW_COLOR  : TORCH_GLOW_COLOR
+    const lightR    = isBrazier ? BRAZIER_LIGHT_R     : TORCH_LIGHT_R
+    const lightA    = isBrazier ? BRAZIER_LIGHT_ALPHA : TORCH_LIGHT_ALPHA
+    const lightId   = `torch_${t.instanceId}`
+    // setLight no-ops if lighting is disabled — the flame sprite still renders.
+    s.lightingSystem?.setLight(lightId, { x: wx, y: wy - TS / 2, radius: lightR, color, intensity: lightA, pulse: 0 })
 
     // Sprite — bottom-center origin so positioning at the south edge of
     // the tile lands the mount on the wall / floor and the flame above.
@@ -461,7 +460,8 @@ export class TorchRenderer {
 
     return {
       sprite,
-      glow,
+      lightId,
+      lightAlpha: lightA,
       // Random phase so each light flickers on its own schedule.
       flickerSeed: Math.random() * Math.PI * 2,
     }
@@ -471,7 +471,7 @@ export class TorchRenderer {
     const rec = this._sprites[id]
     if (!rec) return
     rec.sprite?.destroy()
-    rec.glow?.destroy()
+    if (rec.lightId) this._scene.lightingSystem?.removeLight(rec.lightId)
     delete this._sprites[id]
   }
 }
