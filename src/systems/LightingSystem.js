@@ -112,7 +112,9 @@ export class LightingSystem {
     const b = this._gameState?.boss
     const color = BOSS_LIGHT_COLOR[b?.definitionId] ?? BOSS_LIGHT_FALLBACK
     const sprite = this._makeSprite(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0.0)
-    this._lights.set('boss', { sprite, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.5, pulse: 0.12, seed: 1.7, color })
+    // Lower intensity — at LIGHT_DEPTH 9.5 the pool also tints the boss sprite,
+    // so 0.5 read too hot; 0.3 keeps an ominous glow without washing the boss out.
+    this._lights.set('boss', { sprite, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.3, pulse: 0.12, seed: 1.7, color })
   }
 
   _bossPos() {
