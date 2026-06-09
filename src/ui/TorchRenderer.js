@@ -74,9 +74,13 @@ const FLICKER_FREQ_MS = 220   // ~4.5 Hz per torch (phase-offset per sprite)
 // it reads as mounted on the wall facing the room, not stuck on the rim.
 const TORCH_INSET = 8
 
-// Minimum tile-distance between two torches on the same wall, so a
-// multi-torch room doesn't cluster them on adjacent cells.
-const MIN_TORCH_SPACING = 3
+// Room light count: a regular room rolls 2–4 light sources, at most ONE torch
+// per wall. With some chance, 1–2 of those slots become free-standing floor
+// braziers at the room's interior corners instead of wall torches.
+const ROOM_LIGHTS_MIN     = 2
+const ROOM_LIGHTS_MAX     = 4
+const ROOM_BRAZIER_CHANCE = 0.35   // chance a regular room gets corner braziers
+const ROOM_BRAZIER_MAX    = 2      // up to this many braziers when it does
 
 let _nextId = 1
 
@@ -169,61 +173,61 @@ export class TorchRenderer {
     // been written).
   }
 
-  // 0..3 torches spread across the room's interior walls. We draw round-
-  // robin from the four walls in randomised order and enforce
-  // MIN_TORCH_SPACING between picks on the same wall so a multi-torch
-  // room doesn't cluster two torches on adjacent cells.
-  // Corner cells and connection-point doorway cells are excluded; cells
-  // are validated against the live dungeon tile grid so pillar /
-  // decorative non-wall cells don't get a torch.
+  // Roll a regular room's lights: 2–4 total sources, at most ONE TORCH PER WALL,
+  // with a chance for 1–2 of the slots to be free-standing floor BRAZIERS at the
+  // interior corners instead. Wall cells exclude flanking corners + doorways and
+  // are validated against the live tile grid; brazier corners are validated as
+  // floor. The torch sprite reads fine on any of the four interior walls
+  // (_anchorFor handles the per-side inward offset).
   _rollTorches(room) {
-    // Consider all four walls. The torch sprite shows a wall-mounted
-    // bracket with a flame rising — in a top-down view this reads fine
-    // on any of the four interior walls. _anchorFor handles the inward
-    // offset per side. Drawing from all four walls also gives multi-
-    // torch rooms more variety than a strict N/S split (which tended
-    // to read as "always N" when one wall's pool was thinned by an
-    // auto-connect doorway).
-    const dirs = this._shuffle(['N', 'S', 'W', 'E'])
-    const pools = {}
-    for (const d of dirs) pools[d] = this._shuffle(this._wallCandidates(room, d))
-    const used = { N: [], S: [], W: [], E: [] }
+    const total = ROOM_LIGHTS_MIN + Math.floor(Math.random() * (ROOM_LIGHTS_MAX - ROOM_LIGHTS_MIN + 1)) // 2..4
 
-    const count = Math.floor(Math.random() * 4)   // 0..3 uniform
-    const picked = []
-    let guard = 0
-    while (picked.length < count && guard < 32) {
-      guard++
-      let placed = false
-      for (const d of dirs) {
-        const pool = pools[d]
-        if (!pool || pool.length === 0) continue
-        // Find the first candidate that respects MIN_TORCH_SPACING
-        // from already-placed torches on this wall.
-        const axis = (d === 'N' || d === 'S') ? 'localX' : 'localY'
-        let chosenIdx = -1
-        for (let i = 0; i < pool.length; i++) {
-          const c = pool[i]
-          const ok = used[d].every(u => Math.abs(c[axis] - u[axis]) >= MIN_TORCH_SPACING)
-          if (ok) { chosenIdx = i; break }
-        }
-        if (chosenIdx < 0) continue
-        const c = pool.splice(chosenIdx, 1)[0]
-        used[d].push(c)
-        picked.push(c)
-        placed = true
-        if (picked.length >= count) break
-      }
-      if (!placed) break  // no wall can satisfy spacing → stop
+    // How many of the slots are corner braziers (chance-gated, capped).
+    let brazierCount = 0
+    if (Math.random() < ROOM_BRAZIER_CHANCE) {
+      brazierCount = Math.min(1 + Math.floor(Math.random() * ROOM_BRAZIER_MAX), ROOM_BRAZIER_MAX, total)
+    }
+    const torchTarget = total - brazierCount
+
+    const out = []
+
+    // Torches — one per wall, walls picked in random order until we hit the
+    // target (or run out of usable walls). One candidate cell per wall.
+    const dirs = this._shuffle(['N', 'S', 'W', 'E'])
+    for (const d of dirs) {
+      if (out.length >= torchTarget) break
+      const pool = this._wallCandidates(room, d)
+      if (pool.length === 0) continue
+      const c = pool[Math.floor(Math.random() * pool.length)]
+      out.push({ localX: c.localX, localY: c.localY, kind: 'torch', instanceId: _nextId++, frameOffset: Math.floor(Math.random() * TORCH_FRAMES) })
     }
 
-    return picked.map(c => ({
-      localX:      c.localX,
-      localY:      c.localY,
-      kind:        'torch',
-      instanceId:  _nextId++,
-      frameOffset: Math.floor(Math.random() * TORCH_FRAMES),
-    }))
+    // Braziers — random interior floor corners (free-standing on the floor).
+    if (brazierCount > 0) {
+      const corners = this._shuffle(this._floorCornerCandidates(room))
+      for (let i = 0; i < brazierCount && i < corners.length; i++) {
+        const c = corners[i]
+        out.push({ localX: c.localX, localY: c.localY, kind: 'brazier', instanceId: _nextId++, frameOffset: Math.floor(Math.random() * TORCH_FRAMES) })
+      }
+    }
+
+    return out
+  }
+
+  // Interior floor corners of a room (one cell in from each outer wall),
+  // validated as actual floor tiles so odd/small rooms don't drop a brazier
+  // on a wall or doorway.
+  _floorCornerCandidates(room) {
+    const wt = Balance.WALL_THICKNESS ?? 1
+    const w = room.width, h = room.height
+    const tiles = this._gameState.dungeon?.tiles
+    const cand = [[wt, wt], [w - 1 - wt, wt], [wt, h - 1 - wt], [w - 1 - wt, h - 1 - wt]]
+    const out = []
+    for (const [lx, ly] of cand) {
+      const t = tiles?.[room.gridY + ly]?.[room.gridX + lx]
+      if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) out.push({ localX: lx, localY: ly })
+    }
+    return out
   }
 
   // Candidate wall cells on the given direction's interior edge.
