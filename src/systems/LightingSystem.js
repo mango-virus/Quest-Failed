@@ -20,6 +20,7 @@ import { Balance } from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
 const TEX_KEY = '__qf_lightpool'
+const TEX_KEY_SOFT = '__qf_lightpool_soft'  // wider/gentler falloff — torches only
 const TEX_R = 96                 // half-size of the gradient texture
 const LIGHT_DEPTH = 2.5          // above floor (~0–2), below entities (~7)
 const MAX_EPHEMERAL = 40         // perf cap on simultaneous flashes
@@ -54,20 +55,45 @@ function _ensureTexture(scene) {
   } catch (e) { return null }
 }
 
+// A SOFTER, wider radial gradient for torch pools: lower centre (no hot spot)
+// + brightness carried much further out before a gentle fade, so a big torch
+// light FILLS the room evenly instead of reading as a bright disc. Kept
+// separate from the main texture so braziers / boss / ability lights are
+// unaffected.
+function _ensureSoftTexture(scene) {
+  if (scene.textures.exists(TEX_KEY_SOFT)) return TEX_KEY_SOFT
+  try {
+    const cv = scene.textures.createCanvas(TEX_KEY_SOFT, TEX_R * 2, TEX_R * 2)
+    const ctx = cv.getContext()
+    const g = ctx.createRadialGradient(TEX_R, TEX_R, 0, TEX_R, TEX_R, TEX_R)
+    g.addColorStop(0,    'rgba(255,255,255,0.70)')
+    g.addColorStop(0.55, 'rgba(255,255,255,0.42)')
+    g.addColorStop(0.85, 'rgba(255,255,255,0.13)')
+    g.addColorStop(1,    'rgba(255,255,255,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, TEX_R * 2, TEX_R * 2)
+    cv.refresh()
+    return TEX_KEY_SOFT
+  } catch (e) { return null }
+}
+
 export class LightingSystem {
   constructor(scene, gameState) {
     this._scene = scene
     this._gameState = gameState
     this._enabled = _lightingOn()
     this._tex = this._enabled ? _ensureTexture(scene) : null
+    this._texSoft = this._enabled ? _ensureSoftTexture(scene) : null
     this._lights = new Map()   // id -> { sprite, follow, baseR, baseAlpha, pulse, seed }
     this._ephemeral = []       // { sprite } (self-cleaning via tween)
     if (this._enabled && this._tex) this._registerBossLight()
   }
 
-  // Make a tinted, additive radial pool sprite of pixel-radius r.
-  _makeSprite(x, y, r, color, alpha) {
-    const spr = this._scene.add.image(x, y, this._tex)
+  // Make a tinted, additive radial pool sprite of pixel-radius r. `soft` picks
+  // the wider/gentler torch texture (falls back to the main one if unbuilt).
+  _makeSprite(x, y, r, color, alpha, soft = false) {
+    const tex = (soft && this._texSoft) ? this._texSoft : this._tex
+    const spr = this._scene.add.image(x, y, tex)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setDepth(LIGHT_DEPTH)
       .setTint(color)
@@ -100,7 +126,7 @@ export class LightingSystem {
     const r = opts.radius ?? TS * 2
     const color = opts.color ?? 0xffffff
     if (!rec) {
-      rec = { sprite: this._makeSprite(0, 0, r, color, 0), seed: Math.random() * 6.28 }
+      rec = { sprite: this._makeSprite(0, 0, r, color, 0, !!opts.soft), seed: Math.random() * 6.28 }
       this._lights.set(id, rec)
     }
     rec.follow = opts.follow ?? rec.follow
