@@ -22,7 +22,13 @@ const TS = Balance.TILE_SIZE
 const TEX_KEY = '__qf_lightpool'
 const TEX_KEY_SOFT = '__qf_lightpool_soft'  // wider/gentler falloff — torches only
 const TEX_R = 96                 // half-size of the gradient texture
-const LIGHT_DEPTH = 2.5          // above floor (~0–2), below entities (~7)
+// Light pools are a FLOOR glow: above the floor + floor-art (tiles 1, room skins
+// 1.08, tile sprites 1.1, tints 1.2) so they warm the floor, but BELOW the door
+// aprons (1.45) / decor (1.5) / DOOR SKINS (1.6) / entities (7) so those occlude
+// the glow instead of it bleeding over/under them (was 2.5, which painted over
+// the low door-skin layer → "light under the door skins"). See DungeonRenderer
+// depth map.
+const LIGHT_DEPTH = 1.3
 const MAX_EPHEMERAL = 40         // perf cap on simultaneous flashes
 
 // Per-archetype boss light tint — a little flavour (hot demon, sickly myconid,
