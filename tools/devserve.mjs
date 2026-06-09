@@ -8,14 +8,18 @@
 // http server is async, so all those parallel fetches resolve immediately and the
 // game boots in well under 10s, reliably.
 //
-// USAGE: `npm run serve` (or `node tools/devserve.mjs`), then open
-// http://localhost:8080/ in a browser. Serves the repo root. Dev only.
+// USAGE: `npm run serve` (or `node tools/devserve.mjs [port]`), then open
+// http://localhost:<port>/ in a browser. Default port 8080; the preview launch
+// config passes 8767. Serves the REPO ROOT (derived from this file's location,
+// so it works no matter what cwd it's launched from). Dev only.
 import http from 'node:http'
 import { createReadStream, promises as fs } from 'node:fs'
-import { extname, normalize, join } from 'node:path'
+import { extname, normalize, join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = process.cwd()
-const PORT = Number(process.env.PORT) || 8080
+// tools/devserve.mjs → repo root is the parent of tools/.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const PORT = Number(process.argv[2] || process.env.PORT) || 8080
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.json': 'application/json', '.css': 'text/css',
