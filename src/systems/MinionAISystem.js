@@ -1241,19 +1241,24 @@ export class MinionAISystem {
       if (!isFollowingAlly) return
     }
 
-    // Owner-following allies (necromancer raises, beast-master tames) AND
-    // extracted shadows — all skip the ½-tile doorway-lane shift + lane
-    // L-shape logic below. The diagnosis (shadows frozen at the first doorway,
-    // then later reported with necromancer summons stuck in doors): the
-    // lane-centre target lands exactly on a doorway seam (world coord = N×TS)
-    // and the dist<0.5 snap parks the follower ON that seam, with every
-    // subsequent approach/lane waypoint re-targeting the same seam — so it
-    // never moves off it. Hits faster at 2× speed (shadows) but surfaces on
-    // any speed-matched follower whose step lands near the seam. Followers
-    // don't need the single-file lane prettiness, and A* already routes them
-    // down the canonical (walkable) door column, so a dead-simple
-    // centre-to-centre step is both correct and deadlock-proof.
-    if (minion._shadowExtracted || minion.raisedByAdvId || minion.tamedByAdvId) {
+    // Owner-following allies (necromancer raises, beast-master tames),
+    // extracted shadows, AND any minion currently crossing a doorway all skip
+    // the ½-tile doorway-lane shift + lane L-shape logic below. The diagnosis
+    // (shadows frozen at the first doorway, necromancer summons stuck in doors,
+    // and the Gnoll Hunters-Pack jamming at the boss-room entrance — only one
+    // gets out, the rest stand on the threshold): the lane-centre target lands
+    // exactly on a doorway seam (world coord = N×TS) and the dist<0.5 snap parks
+    // the unit ON that seam, with every subsequent approach/lane waypoint
+    // re-targeting the same seam — so it never moves off it. Hits faster at 2×
+    // speed (shadows) but surfaces on ANY minion whose step lands near the seam,
+    // which is why a whole pack funnelling through one door reliably jams.
+    // Nobody needs the single-file lane prettiness badly enough to deadlock —
+    // A* already routes everyone down the canonical (walkable) door column, so a
+    // dead-simple centre-to-centre step through the doorway is both correct and
+    // deadlock-proof. Off-doors, minions keep the lane motion below.
+    const nearDoorway = !!(this._dungeonGrid?.isLaneOrApproach?.(minion.tileX, minion.tileY)
+                        ||  this._dungeonGrid?.isLaneOrApproach?.(targetTile.x, targetTile.y))
+    if (minion._shadowExtracted || minion.raisedByAdvId || minion.tamedByAdvId || nearDoorway) {
       const cx = targetTile.x * TS + TS / 2
       const cy = targetTile.y * TS + TS / 2
       const sdx = cx - minion.worldX
