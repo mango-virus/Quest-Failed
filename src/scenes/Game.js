@@ -53,6 +53,7 @@ import { TunnelPortalRenderer } from '../ui/TunnelPortalRenderer.js'
 import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
 import { BossRenderer }       from '../ui/BossRenderer.js'
 import { SuccubusBatRenderer } from '../ui/SuccubusBatRenderer.js'
+import { CharmVfxRenderer } from '../ui/CharmVfxRenderer.js'
 import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
 import { SellFxRenderer }     from '../ui/SellFxRenderer.js'
 import { TorchRenderer }      from '../ui/TorchRenderer.js'
@@ -397,6 +398,9 @@ export class Game extends Phaser.Scene {
     // camera-zoom hooks below that pair with the overlay's intro slate.
     this.bossRenderer        = track(new BossRenderer(this, this.gameState))
     this.succubusBatRenderer = track(new SuccubusBatRenderer(this, this.gameState))
+    // Boss-aware "charmed adventurer" VFX (succubus seduction hearts vs vampire
+    // blood thrall) — apply burst + the persistent thrall aura.
+    this.charmVfxRenderer = track(new CharmVfxRenderer(this, this.gameState))
     this.coinBurstRenderer   = track(new CoinBurstRenderer(this, this.gameState))
     this.sellFxRenderer      = track(new SellFxRenderer(this))
     this.torchRenderer       = track(new TorchRenderer(this, this.gameState))
@@ -2056,6 +2060,7 @@ export class Game extends Phaser.Scene {
       rtick('minionRenderer',      () => this.minionRenderer?.update())
       rtick('bossRenderer',        () => this.bossRenderer?.update())
       rtick('succubusBatRenderer', () => this.succubusBatRenderer?.update())
+      rtick('charmVfxRenderer',    () => this.charmVfxRenderer?.update())
       rtick('trapRenderer',        () => this.trapRenderer?.update())
       rtick('lootPileRenderer',    () => this.lootPileRenderer?.update())
       rtick('keyChestRenderer',    () => this.keyChestRenderer?.update())

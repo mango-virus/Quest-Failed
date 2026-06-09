@@ -1,4 +1,4 @@
-// Renders all of the Succubus boss's day-phase VFX:
+// Renders the Succubus boss's shapeshift choreography (her day-phase VFX):
 //
 //   1. Boss transform   — when a flight starts (TRANSFORM_OUT) or ends
 //      (TRANSFORM_IN), a one-shot `succubus-transform-{left|right}` sprite
@@ -10,19 +10,13 @@
 //      only during the 'going' and 'return' phases so the transform
 //      sequence reads boss → smoke → bat (and bat → smoke → boss on
 //      return). BossRenderer hides the body sprite during those phases.
-//   3. Charm flash      — short pink ring pulse on the target adv when
-//      SUCCUBUS_CHARM_APPLIED fires.
-//   4. Heart aura       — every charmed adv emits a stream of pink hearts
-//      that float up + fade. Continuous while aiState === 'charmed'.
+//
+// The "charmed adventurer" VFX (the apply burst + the persistent thrall aura)
+// moved to CharmVfxRenderer (2026-06-09) — it's boss-aware (succubus seduction
+// hearts vs vampire blood thrall), so it can't live in a succubus-only renderer.
 
 import { EventBus } from '../systems/EventBus.js'
-import { Balance }  from '../config/balance.js'
 
-const TS = Balance.TILE_SIZE
-// Pink heart palette
-const HEART_OUTER = 0xff66aa
-const HEART_INNER = 0xffaadd
-const HEART_SPAWN_MS = 220
 // Match BossRenderer's BOSS_SPRITE_SCALE so the transform anim + smoke
 // puff visually replace the boss at the same physical footprint.
 const BOSS_SCALE = 2.0
@@ -35,31 +29,22 @@ export class SuccubusBatRenderer {
     this._batSprite     = null   // active bat sprite during a flight
     this._batPhase      = null   // tracks last-applied flight phase for direction re-pick
     this._transformFx   = []     // one-shot sprites currently animating
-    this._charmFx       = []     // charm-flash ring graphics currently animating
-    this._hearts        = []     // floating heart particles
 
     this._onTransformOut  = this._onTransformOut.bind(this)
     this._onTransformIn   = this._onTransformIn.bind(this)
-    this._onCharm         = this._onCharm.bind(this)
     this._onFlightEnded   = this._onFlightEnded.bind(this)
     EventBus.on('SUCCUBUS_TRANSFORM_OUT',  this._onTransformOut)
     EventBus.on('SUCCUBUS_TRANSFORM_IN',   this._onTransformIn)
-    EventBus.on('SUCCUBUS_CHARM_APPLIED',  this._onCharm)
     EventBus.on('SUCCUBUS_FLIGHT_ENDED',   this._onFlightEnded)
   }
 
   destroy() {
     EventBus.off('SUCCUBUS_TRANSFORM_OUT',  this._onTransformOut)
     EventBus.off('SUCCUBUS_TRANSFORM_IN',   this._onTransformIn)
-    EventBus.off('SUCCUBUS_CHARM_APPLIED',  this._onCharm)
     EventBus.off('SUCCUBUS_FLIGHT_ENDED',   this._onFlightEnded)
     this._destroyBat()
     for (const o of this._transformFx) o?.destroy?.()
-    for (const o of this._charmFx)     o?.destroy?.()
-    for (const h of this._hearts)      h?.destroy?.()
     this._transformFx = []
-    this._charmFx     = []
-    this._hearts      = []
   }
 
   // ── Bat sprite ──────────────────────────────────────────────────────────
@@ -109,21 +94,11 @@ export class SuccubusBatRenderer {
     this._destroyBat()
   }
 
-  _onCharm(payload) {
-    const advs = this._gameState?.adventurers?.active ?? []
-    const t = advs.find(a => a.instanceId === payload?.targetId)
-    if (!t) return
-    const x = t.worldX ?? (t.tileX * TS + TS / 2)
-    const y = t.worldY ?? (t.tileY * TS + TS / 2)
-    this._spawnCharmFlash(x, y)
-  }
-
   // ── Per-frame update ────────────────────────────────────────────────────
 
   update() {
     const now = this._scene.time?.now ?? 0
     this._updateBat(now)
-    this._updateHearts(now)
   }
 
   _updateBat(now) {
@@ -228,80 +203,4 @@ export class SuccubusBatRenderer {
     }
   }
 
-  // ── Charm flash (target adv, on apply) ──────────────────────────────────
-
-  _spawnCharmFlash(cx, cy) {
-    const g = this._scene.add.graphics().setDepth(52)
-    this._charmFx.push(g)
-    const draw = (r, alpha) => {
-      g.clear()
-      g.lineStyle(3, 0xff66aa, alpha)
-      g.strokeCircle(cx, cy, r)
-      g.lineStyle(2, 0xffaadd, alpha * 0.8)
-      g.strokeCircle(cx, cy, r * 0.65)
-    }
-    draw(6, 1)
-    this._scene.tweens.addCounter({
-      from: 0, to: 1,
-      duration: 520,
-      ease: 'Quad.easeOut',
-      onUpdate: tw => {
-        const v = tw.getValue()
-        draw(6 + v * 28, 1 - v)
-      },
-      onComplete: () => {
-        const i = this._charmFx.indexOf(g)
-        if (i >= 0) this._charmFx.splice(i, 1)
-        g.destroy()
-      },
-    })
-  }
-
-  // ── Heart aura on charmed advs ──────────────────────────────────────────
-
-  _updateHearts(now) {
-    const advs = this._gameState?.adventurers?.active ?? []
-    for (const a of advs) {
-      if (a.aiState !== 'charmed') continue
-      if ((a.resources?.hp ?? 0) <= 0) continue
-      a._heartNextAt ??= 0
-      if (now < a._heartNextAt) continue
-      a._heartNextAt = now + HEART_SPAWN_MS + Math.floor(Math.random() * 80)
-      this._spawnHeart(a.worldX ?? (a.tileX * TS + TS / 2),
-                       a.worldY ?? (a.tileY * TS + TS / 2))
-    }
-  }
-
-  _spawnHeart(sx, sy) {
-    const g = this._scene.add.graphics().setDepth(46)
-    g.fillStyle(HEART_OUTER, 1)
-    g.fillCircle(-3, -2, 4)
-    g.fillCircle( 3, -2, 4)
-    g.fillTriangle(-6, 0,  6, 0,  0, 7)
-    g.fillStyle(HEART_INNER, 1)
-    g.fillCircle(-3, -3, 2)
-    g.fillCircle( 3, -3, 2)
-    g.fillTriangle(-3, 0,  3, 0,  0, 4)
-    g.x = sx + (Math.random() - 0.5) * 16
-    g.y = sy - 8 + (Math.random() - 0.5) * 6
-    g.alpha = 0.95
-    this._hearts.push(g)
-
-    const driftX = (Math.random() - 0.5) * 24
-    this._scene.tweens.add({
-      targets:  g,
-      y:        g.y - 32,
-      x:        g.x + driftX,
-      alpha:    0,
-      scaleX:   0.5,
-      scaleY:   0.5,
-      duration: 1100 + Math.random() * 300,
-      ease:     'Sine.easeOut',
-      onComplete: () => {
-        const i = this._hearts.indexOf(g)
-        if (i >= 0) this._hearts.splice(i, 1)
-        g.destroy()
-      },
-    })
-  }
 }
