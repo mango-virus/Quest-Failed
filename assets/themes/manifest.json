@@ -363,9 +363,6 @@
     "gemini_generated_image_wfw7g7wfw7g7wfw7_1": {
       "file": "assets/themes/roomskins/gemini_generated_image_wfw7g7wfw7g7wfw7_1.png"
     },
-    "gemini_generated_image_wfw7g7wfw7g7wfw7": {
-      "file": "assets/themes/roomskins/gemini_generated_image_wfw7g7wfw7g7wfw7.png"
-    },
     "lizardman_boss_room": {
       "file": "assets/themes/roomskins/lizardman_boss_room.png"
     },
@@ -377,6 +374,12 @@
     },
     "myconid_boss_room": {
       "file": "assets/themes/roomskins/myconid_boss_room.png"
+    },
+    "beholder_boss_room": {
+      "file": "assets/themes/roomskins/beholder_boss_room.png"
+    },
+    "basic_boss_room": {
+      "file": "assets/themes/roomskins/basic_boss_room.png"
     }
   },
   "doorSkins": {

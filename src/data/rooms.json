@@ -13,9 +13,9 @@
                 null,
                 "pillar2_l",
                 null,
-                "door_closed_l",
+                "wall_l",
                 null,
-                "door_closed_r",
+                "wall_r",
                 null,
                 "pillar3_r",
                 null,
@@ -157,7 +157,7 @@
             ],
             [
                 {
-                    "id": "wall_c",
+                    "id": "wall_r",
                     "rot": 270
                 },
                 null,
@@ -191,7 +191,7 @@
                 },
                 null,
                 {
-                    "id": "door_locked_l",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -216,7 +216,7 @@
             ],
             [
                 {
-                    "id": "wall_c",
+                    "id": "wall_l",
                     "rot": 270
                 },
                 null,
@@ -253,7 +253,7 @@
                 },
                 null,
                 {
-                    "id": "door_locked_r",
+                    "id": "wall_r",
                     "rot": 90
                 },
                 null
@@ -426,15 +426,13 @@
                 },
                 null,
                 {
-                    "id": "door_open_l",
-                    "rot": 0,
-                    "flipV": true
+                    "id": "wall_r",
+                    "rot": 180
                 },
                 null,
                 {
-                    "id": "door_open_r",
-                    "rot": 0,
-                    "flipV": true
+                    "id": "wall_l",
+                    "rot": 180
                 },
                 null,
                 {
@@ -495,16 +493,16 @@
         "doorTiles": {
             "closed": [
                 [
-                    "dskin_boss_chamber_default_closed_00",
-                    "dskin_boss_chamber_default_closed_10",
-                    "dskin_boss_chamber_default_closed_20",
-                    "dskin_boss_chamber_default_closed_30"
+                    null,
+                    null,
+                    null,
+                    null
                 ],
                 [
-                    "dskin_boss_chamber_default_closed_01",
-                    "dskin_boss_chamber_default_closed_11",
-                    "dskin_boss_chamber_default_closed_21",
-                    "dskin_boss_chamber_default_closed_31"
+                    null,
+                    null,
+                    null,
+                    null
                 ]
             ],
             "open": [
@@ -538,25 +536,12 @@
         },
         "backgroundImageByBoss": {
             "gnoll": "gemini_generated_image_wfw7g7wfw7g7wfw7_1",
-            "beholder": "gemini_generated_image_wfw7g7wfw7g7wfw7",
             "lizardman": "lizardman_boss_room",
             "vampire": "vampire_boss_room",
             "wraith": "wraith_boss_room",
-            "myconid": "myconid_boss_room"
-        },
-        "doorApron": {
-            "closed": [
-                "dskin_boss_chamber_default_closed_02",
-                "dskin_boss_chamber_default_closed_12",
-                "dskin_boss_chamber_default_closed_22",
-                "dskin_boss_chamber_default_closed_32"
-            ],
-            "locked": [
-                null,
-                null,
-                null,
-                null
-            ]
+            "myconid": "myconid_boss_room",
+            "beholder": "beholder_boss_room",
+            "golem": "basic_boss_room"
         },
         "doorSkinByBoss": {
             "gnoll": {
@@ -584,7 +569,16 @@
             "myconid": {
                 "closed": "myconid_closed",
                 "open": "myconid_open"
+            },
+            "slime": {
+                "closed": "basic_door_closed_skin",
+                "open": "basic_open",
+                "locked": "basic_locked"
             }
+        },
+        "backgroundImage": "basic_boss_room",
+        "doorSkin": {
+            "closed": "basic_door_closed_skin"
         }
     },
     {
