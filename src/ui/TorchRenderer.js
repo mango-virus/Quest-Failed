@@ -53,7 +53,7 @@ const ANIM_FRAME_RATE  = 8
 // disc). Braziers are grander, so they spread a little further than torches.
 const TORCH_GLOW_COLOR    = 0xff8844
 const TORCH_LIGHT_R       = 108
-const TORCH_LIGHT_ALPHA   = 0.50
+const TORCH_LIGHT_ALPHA   = 0.30   // matches the brazier dimness
 const BRAZIER_GLOW_COLOR  = 0xffaa55
 const BRAZIER_LIGHT_R     = 138    // keep the wide spread…
 const BRAZIER_LIGHT_ALPHA = 0.30   // …but much lower intensity (4 braziers in the boss room were too hot)
