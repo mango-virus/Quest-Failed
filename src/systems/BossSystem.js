@@ -68,7 +68,6 @@ export class BossSystem {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
     this._fxGraphics?.destroy();   this._fxGraphics  = null
-    this._arenaGlowG?.destroy();   this._arenaGlowG  = null
     this._decalsG?.destroy();      this._decalsG     = null
   }
 
@@ -366,16 +365,9 @@ export class BossSystem {
       this._fxGraphics = this._scene.add.graphics().setDepth(2.7)
       this._fxParticles = []
     }
-    // Tier 3 — boss-room atmosphere layers.
-    //   _arenaGlowG : redrawn each tick while a fight is active. Tints the
-    //                 boss-room floor red, intensifying as boss HP drops
-    //                 below 50 % then 25 %. Sits above the floor (depth 1)
-    //                 but below entities (~7).
+    // Tier 3 — boss-room atmosphere layer.
     //   _decalsG    : persistent corpse splatters stamped during fights.
     //                 Cleared on NIGHT_PHASE_STARTED via _wire's listener.
-    if (!this._arenaGlowG) {
-      this._arenaGlowG = this._scene.add.graphics().setDepth(1.7).setBlendMode(Phaser.BlendModes.ADD)
-    }
     if (!this._decalsG) {
       this._decalsG = this._scene.add.graphics().setDepth(1.55)
     }
@@ -406,41 +398,6 @@ export class BossSystem {
       this._tickFightCombat(dt)
     }
     this._tickFightFx(dt)
-    this._tickArenaGlow()
-  }
-
-  // Boss-room floor glow — draws an additive red rectangle over the
-  // boss room, with alpha proportional to "how hurt the boss is".
-  // 100 % HP → invisible. 50 % HP → faint red. 25 % HP → strong red.
-  // Drawn fresh each fight-tick and cleared when no fight is active.
-  _tickArenaGlow() {
-    const g = this._arenaGlowG
-    if (!g) return
-    g.clear()
-    if (!this._fighting || this._fightEnded) return
-    const room = this._bossRoom
-    if (!room) return
-    const boss = this._gameState.boss
-    if (!boss) return
-    const hpFrac = Math.max(0, Math.min(1, (boss.hp ?? 0) / Math.max(1, boss.maxHp ?? 1)))
-    // Empirical curve: alpha 0 at full HP, ramps faster as HP drops.
-    // (1 - hpFrac)² gives a soft start and a strong finish.
-    const intensity = (1 - hpFrac) * (1 - hpFrac)
-    if (intensity <= 0.01) return
-    // Subtle slow pulse below 25 % so the room feels alive at low HP.
-    const pulse = hpFrac < 0.25
-      ? 0.85 + 0.15 * Math.sin((this._scene.time?.now ?? 0) / 220)
-      : 1
-    const alpha = Math.min(0.55, intensity * 0.55 * pulse)
-    const TS = Balance.TILE_SIZE
-    const WT = Balance.WALL_THICKNESS
-    // Inset by wall thickness so the glow sits inside the masonry, not on top.
-    const x = (room.gridX + WT) * TS
-    const y = (room.gridY + WT) * TS
-    const w = (room.width  - WT * 2) * TS
-    const h = (room.height - WT * 2) * TS
-    g.fillStyle(0xff2211, alpha)
-    g.fillRect(x, y, w, h)
   }
 
   // Reconcile our internal fight-state map with the live AT_BOSS adventurer
@@ -3320,9 +3277,6 @@ export class BossSystem {
   // throne reddens as the boss is worn down (matching the normal fight cam).
   // Deliberately tiny — the choreography lives in the tween-driven beats.
   _tickLightPartyDuel(delta) {
-    // Reuse the standard arena glow so the floor reacts to boss HP. Guard
-    // so a missing graphics layer can't throw mid-duel.
-    try { this._tickArenaGlow?.() } catch {}
     // Once the duel resolves, an outro cutscene owns the rest of the timeline
     // (duty banner + dialogue + recall/death beats). Tick it and skip the
     // duel backstop below (which keys off _lpDuel, now null during the outro).
@@ -4136,8 +4090,6 @@ export class BossSystem {
     // own 400ms window.setTimeout restore. Resetting here would cancel that
     // slow-mo instantly. (The beats no longer touch timeScale at all, so
     // there's nothing else that could leave it stuck.)
-    // Clear the arena glow that _tickLightPartyDuel kept drawing.
-    try { this._arenaGlowG?.clear?.() } catch {}
   }
 
   // Solo Leveling — match Sung Jinwoo's combat stats to the boss for a 1:1
