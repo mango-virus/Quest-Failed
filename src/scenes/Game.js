@@ -73,6 +73,7 @@ import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
 import { StatusVfxSystem }    from '../systems/StatusVfxSystem.js'
 import { ScenePostFxSystem }  from '../systems/ScenePostFxSystem.js'
+import { LightingSystem }     from '../systems/LightingSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
@@ -291,6 +292,9 @@ export class Game extends Phaser.Scene {
     // Scene-wide post-processing pipeline (grade + bloom + vignette) on the
     // dungeon camera; cross-fades by mood (day/night/boss/death/victory).
     this.scenePostFx         = track(new ScenePostFxSystem(this, this.gameState))
+    // Fake dynamic lighting — additive radial light pools that follow the boss
+    // + flash from fire/abilities (scene.lightingSystem.flash(x,y,opts)).
+    this.lightingSystem      = track(new LightingSystem(this, this.gameState))
     // Wild glitch-burst overlay on every cheater swing — fires after
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.
@@ -1829,6 +1833,8 @@ export class Game extends Phaser.Scene {
     // Scene-wide post-processing (grade/bloom/vignette mood cross-fade + pulse
     // decay) runs every frame in both phases — cheap, and no-ops if disabled.
     this.scenePostFx?.update(delta)
+    // Dynamic lighting (boss follow-light + ephemeral flashes) — both phases.
+    this.lightingSystem?.update()
 
     // Mango cheat — refill gold floor every tick so spends instantly
     // restore. Cheap (one int compare + maybe one assignment per

@@ -121,6 +121,7 @@ export const AbilityVfx = {
     emitter.setDepth(o.depth)
     emitter.explode(Math.max(3, Math.round(o.count * mult)))
     created.push(emitter)
+    scene.lightingSystem?.flash(x, y, { color: o.color, radius: 78, durationMs: Math.max(300, o.durationMs), intensity: 0.7 })
 
     // 2) bright additive core flash with a Glow post-FX (WebGL only).
     const core = scene.add.circle(x, y, 6, o.color, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)
@@ -302,6 +303,7 @@ export const AbilityVfx = {
       onComplete: () => {
         try { trail?.stop() } catch (e) {}
         this.impactFx(scene, x2, y2, { tint: o.accent ?? o.color, color: 0xffffff, slow })
+        scene.lightingSystem?.flash(x2, y2, { color: o.accent ?? o.color, radius: 88, durationMs: 360 })
         scene.time.delayedCall(420 * slow, () => { try { trail?.destroy() } catch (e) {} })
         orb.destroy()
       },
@@ -604,6 +606,7 @@ export const AbilityVfx = {
         head.destroy(); glow.destroy(); trail.remove(false)
         AbilityVfx.shockwave(scene, x, y, { color: o.color, toR: 150, thickness: 8, durationMs: 600 })
         AbilityVfx.particleBurst(scene, x, y, { color: o.color, count: 18, speed: 130, durationMs: 600 })
+        scene.lightingSystem?.flash(x, y, { color: o.color, radius: 150, durationMs: 650, intensity: 1.0 })
         if (typeof o.onImpact === 'function') o.onImpact()
       } })
     return head

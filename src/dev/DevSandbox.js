@@ -386,6 +386,30 @@ export function installDevSandbox(scene) {
       return { ok: false }
     },
 
+    // Inspect / test the dynamic lighting (VFX frontier #2).
+    //   __qfDev.light()        → report (enabled? boss-light present? light count)
+    //   __qfDev.light('flash') → fire a few test light flashes near the boss
+    //   __qfDev.light('boss')  → pump the boss light bright so it's easy to see
+    light(arg) {
+      const sys = scene.lightingSystem
+      if (!sys) { log('no lightingSystem on this scene'); return { ok: false } }
+      const b = gs()?.boss ?? {}
+      const bx = b.worldX ?? ((b.tileX ?? 10) * 32 + 16), by = b.worldY ?? ((b.tileY ?? 10) * 32 + 16)
+      if (arg === 'flash') {
+        const cols = [0xff7a3a, 0x66ccff, 0x9b6bff, 0x66dd88]
+        cols.forEach((c, i) => sys.flash(bx + (i - 1.5) * 60, by, { color: c, radius: 90, durationMs: 1200, intensity: 1 }))
+        log('fired 4 test light flashes near the boss')
+        return { ok: true }
+      }
+      if (arg === 'boss') {
+        const rec = sys._lights.get('boss')
+        if (rec) { rec.baseAlpha = 1; rec.baseR = 32 * 4 }
+        log('boss light pumped bright (baseAlpha=1, r=4 tiles)')
+        return { ok: true, has: !!rec }
+      }
+      return { ok: true, enabled: sys._enabled, hasTex: !!sys._tex, lights: sys._lights.size, ephemeral: sys._ephemeral.length, bossLight: sys._lights.has('boss') }
+    },
+
     // Slow-mo filmstrip: dismiss blocking popups, fire one effect heavily slowed,
     // and report the window — the operator screenshots ~6 frames across it to
     // review motion/timing and iterate. (Capture clarity > the busy dungeon bg:
