@@ -741,6 +741,7 @@ export class AISystem {
     if (!adv) return
     adv._lastHitBy   = sourceId
     adv._lastHitType = damageType
+    adv._lastHitAt   = this._scene?.time?.now ?? 0   // retaliation window (_findEngageableMinion)
     this._checkFleeTrigger(adv)
   }
 
@@ -2758,18 +2759,27 @@ export class AISystem {
     // engage at their declared attackRange instead of melee. Falls back to
     // MELEE_RANGE_TILES (1.5) for melee classes.
     const reach = Math.max(adv.attackRange ?? 1, Balance.MELEE_RANGE_TILES)
+    const nowMs = this._scene?.time?.now ?? 0
+    // Retaliation (2026-06-09, by user): a minion that hit this adv within the
+    // window may be fought back even across a room boundary / while the adv is
+    // in a doorway — but ONLY if it's within reach (adjacent). So a hero never
+    // ignores something hitting it at a threshold, yet still won't chase a
+    // ranged attacker off its path (out-of-reach attackers fall through the
+    // reach gate below). Mirrors the minion-side retaliation in _pickTarget.
+    const RETALIATE_WINDOW_MS = 2500
+    const retaliateId = (adv._lastHitBy && (nowMs - (adv._lastHitAt ?? 0)) < RETALIATE_WINDOW_MS)
+      ? adv._lastHitBy : null
     // Doorway pass-through: an adventurer in a doorway keeps walking and
-    // ignores all targets. Stops the adv from halting path mid-doorway.
-    if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
+    // ignores all targets — UNLESS it's retaliating against an adjacent attacker.
+    if (!retaliateId && this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) return null
     // Same-room only (2026-06-02, by user): an adventurer engages ONLY minions
     // in its own room — no attacking (melee OR ranged) across a doorway. A
     // minion in an adjacent room within raw range is ignored, so the adv keeps
     // pathing toward its goal (into that room, where it then engages same-room)
     // instead of freezing at the threshold swinging through the wall. Mirrors
-    // the CombatSystem.tryAttack same-room gate.
+    // the CombatSystem.tryAttack same-room gate. (The retaliator is exempt.)
     const advRoomId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null
-    if (advRoomId == null) return null
-    const nowMs = this._scene?.time?.now ?? 0
+    if (!retaliateId && advRoomId == null) return null
     let best = null, bestDist = Infinity
     // Manhattan-bounds early-exit BEFORE the per-pair hypot. With `reach`
     // capped at ~6 tiles and minion counts climbing into the dozens on big
@@ -2779,12 +2789,16 @@ export class AISystem {
     for (const m of this._gameState.minions) {
       if (m.aiState === 'dead' || m.resources.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      // The minion we're retaliating against (it just hit us) skips the
+      // same-room + doorway gates below — we swing back at an adjacent attacker
+      // regardless of which room each tile belongs to. Still gated on reach.
+      const isRetaliator = !!retaliateId && m.instanceId === retaliateId
       const dxAbs = Math.abs(m.tileX - adv.tileX)
       const dyAbs = Math.abs(m.tileY - adv.tileY)
       if (dxAbs > reachCeil || dyAbs > reachCeil) continue
       // Same-room gate — skip minions in a different room (or on a door /
       // corridor tile that isn't the adv's room). No cross-door engagement.
-      if (this._dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)?.instanceId !== advRoomId) continue
+      if (!isRetaliator && this._dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)?.instanceId !== advRoomId) continue
       // Beast Master tame protection — a minion a Beast Master has tamed,
       // OR is actively trying to tame (recent _tameTargetedAt stamp from
       // ClassAbilitySystem), is off-limits to every other adventurer's
@@ -2821,7 +2835,8 @@ export class AISystem {
       if (adv.flags?.idolizedMinionClass === m.definitionId) continue
       // Skip minions standing in a doorway — they're mid-passage and
       // untouchable; the adventurer walks through rather than stopping to fight.
-      if (this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
+      // (A doorway minion that's actively hitting us — the retaliator — is fair game.)
+      if (!isRetaliator && this._dungeonGrid?.getTileType?.(m.tileX, m.tileY) === TILE.DOOR) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > reach + 0.01) continue
       // No overlap-attacks: an adv standing on the same tile as a minion
@@ -2830,6 +2845,8 @@ export class AISystem {
       if (d < 0.99) continue
       // Phase 8: any minion within engagement range is also "observed"
       this._knowledgeSystem?.observeMinion(adv, m)
+      // Retaliator wins immediately — fight the thing hitting you over a bystander.
+      if (isRetaliator) return m
       if (d < bestDist) { best = m; bestDist = d }
     }
     return best

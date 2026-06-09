@@ -1043,6 +1043,18 @@ export class MinionAISystem {
       if (isFleeingAdv && canChaseFleeing && wasMyTarget && advRoom?.definitionId === 'entry_hall') continue
       const isFleeChaseTarget = isFleeingAdv && canChaseFleeing && wasMyTarget &&
                                 advRoom?.definitionId !== 'entry_hall'
+      // Short leash (2026-06-09, by user): a NON-fleeing adv this minion is
+      // ALREADY fighting (currentTargetId) stays engaged a few tiles past the
+      // room boundary, so a hero just walking through can't make the minion
+      // abruptly give up mid-fight. Anchored to the HOME room (not the minion)
+      // and capped tight so the minion stays a room defender, never a dungeon-
+      // wide chaser — once the quarry is >LEASH from home the leash breaks and
+      // the no-target return-home flow takes over. (Fleeing advs use the wider
+      // isFleeChaseTarget path above.)
+      const LEASH_TILES = 4
+      const _lx = Math.max(homeRoom.gridX - adv.tileX, 0, adv.tileX - (homeRoom.gridX + homeRoom.width - 1))
+      const _ly = Math.max(homeRoom.gridY - adv.tileY, 0, adv.tileY - (homeRoom.gridY + homeRoom.height - 1))
+      const isLeashedTarget = wasMyTarget && !isFleeingAdv && Math.hypot(_lx, _ly) <= LEASH_TILES
 
       // Is this adv inside the minion's home room, or the room the
       // minion is currently standing in? A minion that drifted out of
@@ -1070,7 +1082,7 @@ export class MinionAISystem {
       }
       const inMinionRoom = inHome || (inStanding && !isGarrison) || inGuardPostBeat
 
-      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isFleeChaseTarget) continue
+      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isFleeChaseTarget && !isLeashedTarget) continue
 
       // Distance gate. An adv sharing the minion's room is ALWAYS
       // engageable — a guard notices any intruder who walks in, no
@@ -1081,7 +1093,7 @@ export class MinionAISystem {
       // limits cross-room targets — an alerted / hunt / whisperersTongue
       // minion scanning neighbouring rooms.
       const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (!inMinionRoom && !isRetaliationTarget && !isFleeChaseTarget) {
+      if (!inMinionRoom && !isRetaliationTarget && !isFleeChaseTarget && !isLeashedTarget) {
         const range = isAlerted ? aggro * 2.5 : aggro
         if (d > range) continue
       }
@@ -1094,7 +1106,7 @@ export class MinionAISystem {
       // fleeing adv mid-pursuit (which would let the original quarry
       // escape).
       const basePriority = isRetaliationTarget ? Math.max(2, _adventurerPriority(adv)) : _adventurerPriority(adv)
-      const priority = isFleeChaseTarget ? Math.max(2, basePriority) : basePriority
+      const priority = (isFleeChaseTarget || isLeashedTarget) ? Math.max(2, basePriority) : basePriority
       if (priority > bestPriority || (priority === bestPriority && d < bestDist)) {
         best = adv
         bestDist = d
