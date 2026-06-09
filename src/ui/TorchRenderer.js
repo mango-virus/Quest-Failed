@@ -48,14 +48,14 @@ const ANIM_FRAME_RATE  = 8
 // dungeon shouldn't read as floodlit; alphas are deliberately low so torches
 // just warm the floor around them. If lighting is OFF (qf.video.lighting), the
 // flame sprite still renders — just without the floor pool.
-// Torches use a BIGGER radius + the LightingSystem's soft texture so each one
-// fills much more of the room with a gentle warm glow (not a tight bright disc).
-// Braziers are deliberately left as they were (good already) — normal texture.
+// Both torches AND braziers use a BIG radius + the LightingSystem's soft texture
+// so each fills more of the room with a gentle, wide warm glow (not a tight bright
+// disc). Braziers are grander, so they spread a little further than torches.
 const TORCH_GLOW_COLOR    = 0xff8844
 const TORCH_LIGHT_R       = 108
 const TORCH_LIGHT_ALPHA   = 0.50
 const BRAZIER_GLOW_COLOR  = 0xffaa55
-const BRAZIER_LIGHT_R     = 74
+const BRAZIER_LIGHT_R     = 138
 const BRAZIER_LIGHT_ALPHA = 0.52
 
 // Sprite depth — ABOVE jambs/decor-floor (~1.5–6) but BELOW the entity layer
@@ -464,9 +464,9 @@ export class TorchRenderer {
     const lightA    = isBrazier ? BRAZIER_LIGHT_ALPHA : TORCH_LIGHT_ALPHA
     const lightId   = `torch_${t.instanceId}`
     // setLight no-ops if lighting is disabled — the flame sprite still renders.
-    // Torches use the soft (wider/gentler) texture to fill the room; braziers
-    // keep the normal texture (unchanged look).
-    s.lightingSystem?.setLight(lightId, { x: wx, y: wy - TS / 2, radius: lightR, color, intensity: lightA, pulse: 0, soft: !isBrazier })
+    // Both torches and braziers use the soft (wider/gentler) texture so the glow
+    // fills the room instead of reading as a tight bright disc.
+    s.lightingSystem?.setLight(lightId, { x: wx, y: wy - TS / 2, radius: lightR, color, intensity: lightA, pulse: 0, soft: true })
 
     // Sprite — bottom-center origin so positioning at the south edge of
     // the tile lands the mount on the wall / floor and the flame above.
