@@ -115,7 +115,9 @@ export class LightingSystem {
   _registerBossLight() {
     const b = this._gameState?.boss
     const color = BOSS_LIGHT_COLOR[b?.definitionId] ?? BOSS_LIGHT_FALLBACK
-    const sprite = this._makeSprite(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0.0)
+    // soft texture (like torches/braziers) so it reads the same dimness, not a
+    // sharper/brighter pool at the same alpha.
+    const sprite = this._makeSprite(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0.0, true)
     sprite.setDepth(BOSS_LIGHT_DEPTH)   // under the boss sprite — pools on the floor, no tint
     this._lights.set('boss', { sprite, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.3, pulse: 0.12, seed: 1.7, color })
   }
