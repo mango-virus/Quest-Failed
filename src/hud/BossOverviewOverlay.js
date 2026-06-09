@@ -60,6 +60,14 @@ export class BossOverviewOverlay {
     if (this._overlay) this._overlay.setBody(this._renderBody())
   }
 
+  // True when the active tab changed since last render — drives the tab-swap
+  // fade (fires on tab switches, not on passive refreshes).
+  _consumeTabSwap() {
+    const changed = this._tab !== this._lastRenderedTab
+    this._lastRenderedTab = this._tab
+    return changed
+  }
+
   // ── Data helpers ────────────────────────────────────────────────
   _cachedJson(key) {
     const scenes = window.__game?.scene?.scenes || []
@@ -372,8 +380,8 @@ export class BossOverviewOverlay {
           on: { click: () => { this._tab = t.id; this._rerender() } },
         }, t.label))
       ),
-      // Tab content
-      h('div', { className: 'qf-boss-content' }, this._renderTab(abilities, pacts)),
+      // Tab content — fades in on tab change.
+      h('div', { className: `qf-boss-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, this._renderTab(abilities, pacts)),
     ])
   }
 

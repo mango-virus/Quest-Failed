@@ -574,7 +574,9 @@ export class AchievementsOverlay {
       .filter(def => this._defMatchesTab(def, this._activeTab))
       .sort((a, b) => (TIER_RANK[achievementTier(a)] ?? 1) - (TIER_RANK[achievementTier(b)] ?? 1))
       .map(def => this._card(def, unlocked, myUnlocked))
-    return h('div', { className: 'qf-ach-grid' }, cards)
+    // Cards cascade in on open + each tab switch (both rebuild this grid
+    // fresh; the capped 6-cycle stagger keeps even a full grid snappy).
+    return h('div', { className: 'qf-ach-grid qf-stagger-in' }, cards)
   }
 
   // Does an achievement belong under the given tab?

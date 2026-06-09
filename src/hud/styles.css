@@ -15110,3 +15110,91 @@ body {
 .qf-skins__item .qf-skins__thumb { width: 120px; height: 120px; }
 .qf-skins__item-id { font-size: var(--fs-xs); color: var(--text-mute); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qf-skins__item-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+/* ===========================================================================
+   UI POLISH SWEEP (2026-06-09) — reusable entrance/swap/hover/focus utilities
+   for the "flat" modal bodies (roster, leaderboard, settings, boss overview,
+   achievements). Appended last so these rules win cascade ties. Built from the
+   existing animation vocabulary (panel-rise / grim-fade / fade-up easing).
+   =========================================================================== */
+
+/* --- First-open list/grid entrance stagger -------------------------------
+   Applied (JS) to a list container ONLY on its first paint, so it never
+   re-fires on the rebuild-everything _rerender() pattern these overlays use.
+   Delay is a 6-step modulo cycle: total added delay caps at ~150ms no matter
+   how many items, so a 60-card grid shimmers in fast instead of crawling. */
+.qf-stagger-in > * {
+  animation: panel-rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.qf-stagger-in > *:nth-child(6n + 1) { animation-delay: 0ms; }
+.qf-stagger-in > *:nth-child(6n + 2) { animation-delay: 32ms; }
+.qf-stagger-in > *:nth-child(6n + 3) { animation-delay: 64ms; }
+.qf-stagger-in > *:nth-child(6n + 4) { animation-delay: 96ms; }
+.qf-stagger-in > *:nth-child(6n + 5) { animation-delay: 128ms; }
+.qf-stagger-in > *:nth-child(6n + 6) { animation-delay: 152ms; }
+
+/* --- Tab-content swap fade ------------------------------------------------
+   Applied (JS) to the tab body ONLY when the active tab actually changes, so
+   in-tab interactions (toggling a setting, selecting a row) don't flash.
+   Opacity-only + tiny lift; no layout-shifting transform on the container. */
+@keyframes qf-tab-swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.qf-tab-swap { animation: qf-tab-swap 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* --- Dense-row hover (roster / leaderboard / settings) --------------------
+   Background wash + inset accent bar + faint brightness. Deliberately NO
+   translate — these rows sit flush in a list and a transform would jitter
+   neighbours. The accent bar reads as "this row is live". */
+.qf-roster-row:not([data-active="true"]):hover {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), transparent) !important;
+  box-shadow: inset 3px 0 0 var(--poison);
+}
+.qf-lb-row:not([data-active="true"]):hover {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), transparent);
+  box-shadow: inset 3px 0 0 var(--rumor);
+}
+.qf-settings-row { transition: background 140ms, border-color 140ms, box-shadow 140ms; }
+.qf-settings-row:hover {
+  border-color: var(--line-3, rgba(255, 255, 255, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* --- Selected-row glow (smooths the data-active state) -------------------- */
+.qf-roster-row[data-active="true"],
+.qf-lb-row[data-active="true"] {
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35), inset 2px 0 0 currentColor;
+}
+
+/* --- Text-input focus polish (name entry) --------------------------------
+   The input already gets a border/glow on :focus; add a transition so it
+   eases in instead of snapping, plus an animated underline sweep. */
+.qf-nameentry-input {
+  transition: border-color 160ms ease, box-shadow 200ms ease, background 160ms ease;
+}
+.qf-nameentry-input:focus {
+  animation: qf-input-focus 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes qf-input-focus {
+  from { box-shadow: 0 0 0 1px var(--blood), 0 0 0 rgba(220, 60, 80, 0); }
+  to   { box-shadow: 0 0 0 1px var(--blood), 0 0 14px rgba(220, 60, 80, 0.30); }
+}
+
+/* --- Treasury reacts on ANY gold change ----------------------------------
+   Scale-bump the amount WRAPPER (the digits' own infinite gold-glow owns the
+   `animation` slot on the number, so we bump its parent instead). */
+@keyframes qf-treasury-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.13); }
+  100% { transform: scale(1); }
+}
+.qf-treasury-amount.bump { animation: qf-treasury-bump 360ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* Spend variant of the floating delta — blood-red instead of gold. */
+.qf-gold-gain.spend {
+  color: #ff8a8a;
+  text-shadow: 1px 1px 0 #3a0808, 0 0 8px rgba(220, 60, 80, 0.9);
+}
+/* Brief red tint on the digits while spending (more specific than the
+   .qf-gold-number base so it wins without touching the glow animation). */
+.qf-gold-number.qf-gold-spend { color: #ff9a9a; transition: color 120ms ease; }

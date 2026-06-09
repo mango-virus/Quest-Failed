@@ -203,6 +203,14 @@ export class SettingsOverlay {
     this._rerender()
   }
 
+  // True when the active tab changed since the last render — drives the
+  // qf-tab-swap fade so it fires on tab switches, not on in-tab edits.
+  _consumeTabSwap() {
+    const changed = this._tab !== this._lastRenderedTab
+    this._lastRenderedTab = this._tab
+    return changed
+  }
+
   _onApply() {
     this._persistAll(this._draft)
     this._savedState = { ...this._draft }
@@ -252,8 +260,9 @@ export class SettingsOverlay {
             ])
           })
         ),
-        // Content panel
-        h('div', { className: 'qf-settings-content' }, this._renderTabContent()),
+        // Content panel — fades on tab CHANGE only (not on in-tab option
+        // toggles, which also _rerender), so adjusting a slider doesn't flash.
+        h('div', { className: `qf-settings-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, this._renderTabContent()),
       ]),
       // Footer
       h('div', { className: 'qf-settings-footer' }, [

@@ -197,6 +197,11 @@ export class RosterOverlay {
       : '0.0'
     const wounded = counts.WOUNDED
 
+    // First paint of the body gets a one-shot row-entrance stagger; later
+    // _rerender()s (filter/select) skip it so rows don't re-cascade on click.
+    const firstOpen = !this._opened
+    this._opened = true
+
     return h('div', { className: 'qf-roster-body' }, [
       // Summary strip
       h('div', { className: 'qf-roster-summary' }, [
@@ -207,7 +212,7 @@ export class RosterOverlay {
       ]),
       // Two-column layout
       h('div', { className: 'qf-roster-main' }, [
-        this._renderList(minions, filtered, counts),
+        this._renderList(minions, filtered, counts, firstOpen),
         this._renderDetail(sel),
       ]),
     ])
@@ -223,7 +228,7 @@ export class RosterOverlay {
     ])
   }
 
-  _renderList(allMinions, filtered, counts) {
+  _renderList(allMinions, filtered, counts, firstOpen = false) {
     return h('div', { className: 'panel bevel qf-roster-listpanel' }, [
       // Filter row
       h('div', { className: 'qf-roster-filters' },
@@ -252,7 +257,7 @@ export class RosterOverlay {
         h('div', { style: { color: 'var(--blood)' } }, 'KILLS'),
       ]),
       // Body
-      h('div', { className: 'qf-roster-listbody' },
+      h('div', { className: `qf-roster-listbody${firstOpen ? ' qf-stagger-in' : ''}` },
         filtered.length === 0
           ? h('div', { className: 'qf-roster-listempty' }, '— no minions match this filter —')
           : filtered.map((m, idx) => this._renderRow(m, idx, allMinions))
@@ -388,7 +393,13 @@ export class RosterOverlay {
       ? `A fallen ${advClassName} raised by The Undying Court — an undead minion that keeps its class abilities. Sells for nothing.`
       : (def?.description ?? def?.flavorText ?? '—')
 
-    return h('div', { className: 'panel bevel qf-roster-detail' }, [
+    // Fade the detail in only when the SHOWN minion actually changes (clicking
+    // a new row), not on every list rerender (filter toggles, etc.).
+    const selKey = sel.id ?? sel.definitionId ?? this._selIdx
+    const changed = selKey !== this._lastDetailKey
+    this._lastDetailKey = selKey
+
+    return h('div', { className: `panel bevel qf-roster-detail${changed ? ' grim-fade' : ''}` }, [
       // Portrait card
       h('div', {
         className: 'qf-roster-portrait',

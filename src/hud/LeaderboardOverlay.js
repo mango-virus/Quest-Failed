@@ -651,6 +651,14 @@ export class LeaderboardOverlay {
     this._rerender()
   }
 
+  // True when the active tab changed since last render — fades the content on
+  // tab switch but not on row-selection rerenders.
+  _consumeTabSwap() {
+    const changed = this._tab !== this._lastRenderedTab
+    this._lastRenderedTab = this._tab
+    return changed
+  }
+
   _filteredRows() {
     if (this._tab === 'global') {
       // GLOBAL shows ALL rows — finished, fresh-live (green LIVE chip),
@@ -725,7 +733,7 @@ export class LeaderboardOverlay {
             : '— no entries in this view —')
     }
     const top3 = rows.slice(0, 3)
-    return h('div', { className: 'qf-lb-content' }, [
+    return h('div', { className: `qf-lb-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, [
       // Podium row (top 3)
       h('div', { className: 'qf-lb-podium' }, [
         top3[1] ? this._podiumCard(top3[1], 2) : h('div', { className: 'qf-lb-podium-empty' }),

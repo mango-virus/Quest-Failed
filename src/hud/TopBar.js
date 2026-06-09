@@ -579,6 +579,11 @@ export class TopBar {
       })
       // Wealth tier — escalate the coin icon + glow as the hoard grows.
       this._applyWealthTier(gold)
+      // Tactile bump on ANY change (gain or spend) — the counter "reacts".
+      // Bump the amount wrapper, not the number (whose infinite gold-glow
+      // animation would override a competing .pop on the same element).
+      const amt = this._refs.treasury
+      if (amt) { amt.classList.remove('bump'); void amt.offsetWidth; amt.classList.add('bump') }
       // Gain feedback — coin spin, brightness flash, floating +Ng, sparkle.
       if (gold > from) {
         const coin = this._refs.coin
@@ -590,6 +595,12 @@ export class TopBar {
         setTimeout(() => num.classList.remove('gold-pulse'), 700)
         this._spawnGoldGain(gold - from)
         this._spawnCoinSparkle()
+      } else if (gold < from) {
+        // Spend feedback — red "−Ng" floater + a brief red tint on the digits.
+        this._spawnGoldGain(gold - from)
+        const num = this._refs.gold
+        num.classList.add('qf-gold-spend')
+        setTimeout(() => num.classList.remove('qf-gold-spend'), 440)
       }
     }
 
@@ -610,13 +621,15 @@ export class TopBar {
     t.classList.add(`wealth-${tier}`)
   }
 
-  // Floating "+Ng" that rises off the counter when gold is earned.
+  // Floating "+Ng" / "−Ng" that rises off the counter when gold changes.
+  // Positive delta = gold (gain); negative = blood-red (spend).
   _spawnGoldGain(delta) {
     const host = this._refs.treasury
-    if (!host || delta <= 0) return
+    if (!host || delta === 0) return
+    const spend = delta < 0
     const f = document.createElement('div')
-    f.className = 'qf-gold-gain'
-    f.textContent = `+${delta}`
+    f.className = `qf-gold-gain${spend ? ' spend' : ''}`
+    f.textContent = `${spend ? '−' : '+'}${Math.abs(delta)}`
     host.appendChild(f)
     f.addEventListener('animationend', () => f.remove())
   }
