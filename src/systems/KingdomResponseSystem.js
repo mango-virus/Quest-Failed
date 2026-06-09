@@ -86,7 +86,7 @@ export class KingdomResponseSystem {
     // The champion raid's payoff — putting down the response's champion breaks
     // that Kingdom Response (the act's intended challenge).
     EventBus.on('ADVENTURER_DIED', this._onAdventurerDied, this)
-    // Mango-dev QA hook (DevKingdomButton) — force a response live without
+    // Mango-dev QA hook (DevMenu → KINGDOM tab) — force a response live without
     // grinding to a drafted act.
     EventBus.on('DEV_FORCE_KINGDOM_RESPONSE', this._onDevForce, this)
   }

@@ -36,9 +36,7 @@ import { PostWaveOverlay }      from './PostWaveOverlay.js'
 import { GameOverOverlay }      from './GameOverOverlay.js'
 import { PactPicker }           from './PactPicker.js'
 import { TinkererPicker }       from './TinkererPicker.js'
-import { DevEventsButton }      from './DevEventsButton.js'
-import { DevKingdomButton }     from './DevKingdomButton.js'
-import { DevSpawnClassButton }  from './DevSpawnClassButton.js'
+import { DevMenu }              from './DevMenu.js'
 import { AltarRewardSlot }      from './AltarRewardSlot.js'
 import { DungeonFx }            from './DungeonFx.js'
 import { EventFx }              from './EventFx.js'
@@ -191,19 +189,13 @@ export class HudRoot {
     this._championBar = isActsEnabled() ? new ChampionBar(this._gameState) : null
     // (The persistent act/modifier indicator now lives in the TopBar — an
     //  eyebrow above the day stamp — so it never overlaps the play area.)
-    // Mango-only dev affordance — small floating button that force-fires
-    // any dungeon event for testing. Self-gates on PlayerProfile.isCheatName()
-    // so the button doesn't appear for real players. MUST construct
-    // AFTER the mount() above — its constructor appends to #hud-stage
-    // immediately, and mount() would otherwise wipe it (same reason
-    // DungeonFx / EventFx are constructed down here).
-    this._devEventsButton  = new DevEventsButton()
-    // Mango-dev: force any Kingdom Response live for QA (self-gates on mango +
-    // the `acts` flag). Sibling of the TEST EVENT button.
-    this._devKingdomButton = new DevKingdomButton()
-    // Mango-dev: spawn one adventurer of any class into the current day to watch
-    // its sprite / animations / ability VFX. Sibling, stacked above TEST KR.
-    this._devSpawnClassButton = new DevSpawnClassButton()
+    // Mango-only dev affordance — ONE consolidated "⚙ DEV" button that opens a
+    // tabbed dev menu (STAGE / SPAWN / PACTS / EVENTS / KINGDOM). Self-gates on
+    // PlayerProfile.isCheatName() so it never appears for real players. MUST
+    // construct AFTER the mount() above — its constructor appends to #hud-stage
+    // immediately, and mount() would otherwise wipe it (same reason DungeonFx /
+    // EventFx are constructed down here).
+    this._devMenu = new DevMenu()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
     // Solo Leveling — Shadow Monarch entrance title card + shadow vignette.
@@ -393,9 +385,7 @@ export class HudRoot {
     this._pactPicker?.destroy();     this._pactPicker = null
     this._tinkererPicker?.destroy(); this._tinkererPicker = null
     this._altarRewardSlot?.destroy(); this._altarRewardSlot = null
-    this._devEventsButton?.destroy(); this._devEventsButton = null
-    this._devKingdomButton?.destroy(); this._devKingdomButton = null
-    this._devSpawnClassButton?.destroy(); this._devSpawnClassButton = null
+    this._devMenu?.destroy(); this._devMenu = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null

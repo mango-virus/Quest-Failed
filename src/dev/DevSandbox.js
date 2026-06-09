@@ -22,6 +22,7 @@ import { currentActResponseId } from '../config/acts.js'
 import { TILE } from '../systems/DungeonGrid.js'
 import { installDevInvariants } from './DevInvariants.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { DebugOverlay } from '../systems/DebugOverlay.js'
 
 const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
@@ -123,6 +124,97 @@ export function installDevSandbox(scene) {
       const ran = kms._betrayerNightSabotage()
       log(ran ? 'betrayer sabotage dash started' : 'no minions to send — populate first')
       return { ok: !!ran }
+    },
+
+    // ── BOSS CONTROLS ─────────────────────────────────────────────────────────
+    // Set the boss to any level and rescale HP/ATK/DEF (current HP % preserved).
+    setBossLevel(n) {
+      const g = gs(); if (!g?.boss) { log('no boss'); return { ok: false } }
+      g.boss.level = Math.max(1, Math.round(Number(n) || 1))
+      scene.bossSystem?._recomputeBossFightStats?.()
+      log(`boss level → ${g.boss.level}  (hp ${Math.round(g.boss.hp)}/${Math.round(g.boss.maxHp)}, atk ${Math.round(g.boss.attack)})`)
+      return { ok: true, level: g.boss.level }
+    },
+    // Force the boss's evolution-tier SPRITE (1–4) so the evolved art can be
+    // previewed without grinding acts. Visual only — no act/stat change.
+    bossTier(t) {
+      const tier = Math.max(1, Math.min(4, Math.round(Number(t) || 1)))
+      if (typeof scene.bossRenderer?._applyTier !== 'function') { log('bossRenderer not ready'); return { ok: false } }
+      scene.bossRenderer._applyTier(tier)
+      log(`boss sprite → tier T${tier}`)
+      return { ok: true, tier }
+    },
+    // Restore the boss to full HP.
+    healBoss() {
+      const g = gs(); if (!g?.boss) { log('no boss'); return { ok: false } }
+      const before = Math.round(g.boss.hp ?? 0)
+      g.boss.hp = g.boss.maxHp ?? g.boss.hp
+      log(`boss healed ${before} → ${Math.round(g.boss.hp)} (full)`)
+      return { ok: true }
+    },
+    // Toggle boss invincibility — _applyDamageToBoss skips all damage while ON.
+    invincible(on = true) {
+      const g = gs(); if (!g?.boss) { log('no boss'); return { ok: false } }
+      g.boss._devInvuln = !!on
+      log(`boss invincible ${on ? 'ON — takes no damage' : 'OFF'}`)
+      return !!on
+    },
+
+    // ── RUN CONTROL ───────────────────────────────────────────────────────────
+    // Force a run WIN — fires RUN_VICTORY → the Victory screen.
+    forceWin() {
+      const g = gs(); const act = g?.meta?.act?.current ?? 1
+      EventBus.emit('RUN_VICTORY', { act, cause: 'dev_force' })
+      log('forced RUN_VICTORY → Victory screen')
+      return { ok: true }
+    },
+    // Force a run LOSS — runs the REAL final-death path → Game Over screen
+    // (deletes the save, exactly like a true defeat).
+    forceLose() {
+      const g = gs(); if (g?.boss) g.boss.deathsRemaining = 0
+      if (typeof scene._onBossFinal === 'function') { scene._onBossFinal(); log('forced final death → Game Over'); return { ok: true } }
+      EventBus.emit('SHOW_GAME_OVER'); return { ok: true }
+    },
+
+    // ── SPRITE VIEWER — spawn one specific minion ─────────────────────────────
+    // Spawn ONE minion of any type id near the boss. Each evolution tier is its
+    // own id (beholder1 / beholder2 / beholder_tyrant), so this views any tier's
+    // sprite + animations. Tagged _devSandbox (cleared by clear()).
+    spawnMinion(id) {
+      const g = gs(); if (!g) { log('no gameState'); return { ok: false } }
+      const def = (scene.cache.json.get('minionTypes') ?? []).find(d => d.id === id)
+      if (!def) { log(`unknown minion id '${id}'`); return { ok: false } }
+      const t = floorTilesNearBoss(1)[0]
+      if (!t) { log('no walkable tile near the boss — build a dungeon first'); return { ok: false } }
+      const bossLv = g.boss?.level ?? 8, day = g.meta?.dayNumber ?? 1
+      const roomId = grid()?.getRoomAtTile?.(g.boss?.tileX, g.boss?.tileY)?.instanceId ?? null
+      const m = createMinion(def, { x: t.x, y: t.y }, roomId, { bossLevel: bossLv, dayNumber: day })
+      applyMinionScaling(m, bossLv, day)
+      m.aiState = 'idle'; m._devSandbox = true
+      g.minions.push(m)
+      EventBus.emit('MINION_PLACED', {})
+      log(`spawned minion '${id}' near the boss`)
+      return { ok: true, id }
+    },
+    // Swap the ACTIVE companion (portrait + barks). Companions are ambient HUD
+    // portrait/dialogue, not field units — this just changes who's on the HUD.
+    setCompanion(id) {
+      const g = gs(); if (!g?.player) { log('no player'); return { ok: false } }
+      g.player.companionId = id || null
+      EventBus.emit('COMPANION_CHANGED', { companionId: id || null })
+      log(`active companion → ${id || '(none)'}  (portrait refreshes on next companion render)`)
+      return { ok: true, id: id || null }
+    },
+
+    // ── DEBUG OVERLAYS ────────────────────────────────────────────────────────
+    // Toggle a DebugOverlay flag: 'showCollision' | 'showDoors' | 'aiDiagnostics'.
+    // Pass no 2nd arg to flip; pass true/false to set. Returns the new value.
+    debug(flag, on) {
+      const valid = ['showCollision', 'showDoors', 'aiDiagnostics']
+      if (!valid.includes(flag)) { log(`usage: __qfDev.debug("showCollision"[, true]) — flags: ${valid.join(', ')}`); return null }
+      const next = (on == null) ? DebugOverlay.toggle(flag) : (DebugOverlay.set(flag, on), !!on)
+      log(`debug ${flag} → ${next}`)
+      return next
     },
 
     // Fire a champion raid by responseId (spawns the champion + retinue). Needs an

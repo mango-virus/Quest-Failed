@@ -1652,6 +1652,9 @@ export class BossSystem {
   }
 
   _applyDamageToBoss(boss, dmg) {
+    // DEV — mango invincibility toggle (__qfDev.invincible / dev menu). Skip ALL
+    // boss damage while on, so a long fight can be watched without the boss dying.
+    if (boss?._devInvuln) return
     // LEGENDARY pact modifiers on incoming boss damage:
     const lf  = this._gameState?._mechanicFlags ?? {}
     const now = this._scene?.time?.now ?? 0
