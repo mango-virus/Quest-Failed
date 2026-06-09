@@ -362,6 +362,21 @@
   "roomSkins": {
     "gemini_generated_image_wfw7g7wfw7g7wfw7_1": {
       "file": "assets/themes/roomskins/gemini_generated_image_wfw7g7wfw7g7wfw7_1.png"
+    },
+    "gemini_generated_image_wfw7g7wfw7g7wfw7": {
+      "file": "assets/themes/roomskins/gemini_generated_image_wfw7g7wfw7g7wfw7.png"
+    },
+    "lizardman_boss_room": {
+      "file": "assets/themes/roomskins/lizardman_boss_room.png"
+    },
+    "vampire_boss_room": {
+      "file": "assets/themes/roomskins/vampire_boss_room.png"
+    },
+    "wraith_boss_room": {
+      "file": "assets/themes/roomskins/wraith_boss_room.png"
+    },
+    "myconid_boss_room": {
+      "file": "assets/themes/roomskins/myconid_boss_room.png"
     }
   },
   "doorSkins": {
@@ -382,6 +397,39 @@
     },
     "basic_locked": {
       "file": "assets/themes/doorskins/basic_locked.png"
+    },
+    "beholder_closed": {
+      "file": "assets/themes/doorskins/beholder_closed.png"
+    },
+    "beholder_opened": {
+      "file": "assets/themes/doorskins/beholder_opened.png"
+    },
+    "lizardman_closed": {
+      "file": "assets/themes/doorskins/lizardman_closed.png"
+    },
+    "lizardman_opened": {
+      "file": "assets/themes/doorskins/lizardman_opened.png"
+    },
+    "lizardman_locked": {
+      "file": "assets/themes/doorskins/lizardman_locked.png"
+    },
+    "vampire_closed": {
+      "file": "assets/themes/doorskins/vampire_closed.png"
+    },
+    "vampire_open": {
+      "file": "assets/themes/doorskins/vampire_open.png"
+    },
+    "wraith_closed": {
+      "file": "assets/themes/doorskins/wraith_closed.png"
+    },
+    "wraith_open": {
+      "file": "assets/themes/doorskins/wraith_open.png"
+    },
+    "myconid_closed": {
+      "file": "assets/themes/doorskins/myconid_closed.png"
+    },
+    "myconid_open": {
+      "file": "assets/themes/doorskins/myconid_open.png"
     }
   },
   "active": "Basic"

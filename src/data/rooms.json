@@ -537,7 +537,12 @@
             ]
         },
         "backgroundImageByBoss": {
-            "gnoll": "gemini_generated_image_wfw7g7wfw7g7wfw7_1"
+            "gnoll": "gemini_generated_image_wfw7g7wfw7g7wfw7_1",
+            "beholder": "gemini_generated_image_wfw7g7wfw7g7wfw7",
+            "lizardman": "lizardman_boss_room",
+            "vampire": "vampire_boss_room",
+            "wraith": "wraith_boss_room",
+            "myconid": "myconid_boss_room"
         },
         "doorApron": {
             "closed": [
@@ -558,6 +563,27 @@
                 "closed": "gnoll_closed",
                 "open": "image_7",
                 "locked": "image_8"
+            },
+            "beholder": {
+                "closed": "beholder_closed",
+                "open": "beholder_opened"
+            },
+            "lizardman": {
+                "closed": "lizardman_closed",
+                "open": "lizardman_opened",
+                "locked": "lizardman_locked"
+            },
+            "vampire": {
+                "closed": "vampire_closed",
+                "open": "vampire_open"
+            },
+            "wraith": {
+                "closed": "wraith_closed",
+                "open": "wraith_open"
+            },
+            "myconid": {
+                "closed": "myconid_closed",
+                "open": "myconid_open"
             }
         }
     },
