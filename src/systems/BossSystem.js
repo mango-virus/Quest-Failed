@@ -1351,8 +1351,14 @@ export class BossSystem {
     // boss actually died.
     if (p.kind === 'shockwave') {
       this._scene.cameras?.main?.shake?.(200, 0.005)
+      this._scene.lightingSystem?.flash(p.x, p.y, { color: p.color ?? 0xffaa55, radius: 120, durationMs: 460, intensity: 0.85 })
+      this._scene.scenePostFx?.pulse(0.55)
     } else if (p.kind === 'wall_hit') {
       this._scene.cameras?.main?.shake?.(120, 0.003)
+    } else if (p.kind === 'monarch_burst') {
+      // Solo Leveling duel ult — blue-black surge.
+      this._scene.lightingSystem?.flash(p.x, p.y, { color: 0x6a9bff, radius: 120, durationMs: 460, intensity: 0.95 })
+      this._scene.scenePostFx?.pulse(0.7)
     }
   }
 
@@ -2643,6 +2649,8 @@ export class BossSystem {
         AbilityVfx.shockwave?.(sc, nx(), ny(), { color: 0xffffff, fromR: 8, toR: 80, core: true })
         AbilityVfx.screenFlash?.(sc, { color: 0xffffff, intensity: 0.28, durationMs: 200 })
         shake(120, 0.005)
+        sc.lightingSystem?.flash(nx(), ny(), { color: 0xffffff, radius: 100, durationMs: 420, intensity: 0.85 })
+        sc.scenePostFx?.pulse(0.5)
         break
       case 'v_surge':
         beat('v_surge', "USURPER'S SURGE")
@@ -2673,6 +2681,8 @@ export class BossSystem {
           { color: 0xffffff, segments: 10, jitter: 24, thickness: 4, durationMs: 360 })
         AbilityVfx.shockwave?.(sc, nx(), ny(), { color: 0xffffff, fromR: 10, toR: 120, core: true })
         shake(320, 0.011); this._hitstop(90, 0.2)
+        sc.lightingSystem?.flash(nx(), ny(), { color: 0xffffff, radius: 150, durationMs: 600, intensity: 1.0 })
+        sc.scenePostFx?.pulse(1.0)
         break
       case 'overload': {
         const W = D.bossWins
@@ -2684,6 +2694,8 @@ export class BossSystem {
         AbilityVfx.magicCircle?.(sc, wx, wft, { color: wc, radius: 66 })                  // ground ring at the feet
         AbilityVfx.burstRays?.(sc, wx, wch, { color: wc2, count: 16, length: 110 })       // rays burst from the chest
         shake(280, 0.009)
+        sc.lightingSystem?.flash(wx, wch, { color: wc, radius: 140, durationMs: 620, intensity: 0.95 })
+        sc.scenePostFx?.pulse(0.85)
         break
       }
       case 'collapse': {
@@ -2699,6 +2711,8 @@ export class BossSystem {
         AbilityVfx.impactBurst?.(sc, lx, lch, { color: 0xffffff, radius: 90, sparks: 14, debris: 8, durationMs: 520 })
         AbilityVfx.crater?.(sc, lx, lft, { color: lc, radius: 64 })
         shake(420, 0.014); this._hitstop(120, 0.18)
+        sc.lightingSystem?.flash(lx, lch, { color: 0xffffff, radius: 170, durationMs: 720, intensity: 1.0 })
+        sc.scenePostFx?.pulse(1.2)
         break
       }
     }
@@ -2800,6 +2814,8 @@ export class BossSystem {
         this._nemSfx('ult')
         AbilityVfx.chargeUp?.(sc, boss.worldX, boss.worldY, { color: 0xff5544, radius: 54 })
         AbilityVfx.groundTelegraph?.(sc, boss.worldX, boss.worldY, { color: 0xff3322, radius: 90, shape: 'circle' })
+        sc.lightingSystem?.flash(boss.worldX, boss.worldY, { color: 0xff5544, radius: 110, durationMs: 480, intensity: 0.9 })
+        sc.scenePostFx?.pulse(0.6)
         break
       }
       case 'bladelock':
@@ -2816,6 +2832,8 @@ export class BossSystem {
         if (D.form === 'radiant') AbilityVfx.godRays?.(sc, adv.worldX, adv.worldY, { color: col2, radius: 90 })
         else                       AbilityVfx.emberField?.(sc, adv.worldX, adv.worldY, { color: col, radius: 70 })
         sc?.cameras?.main?.shake?.(220, 0.006)
+        sc.lightingSystem?.flash(adv.worldX, adv.worldY, { color: col, radius: 120, durationMs: 560, intensity: 0.95 })
+        sc.scenePostFx?.pulse(0.7)
         EventBus.emit(D.evt + '_BEAT', { kind: 'surge', label: 'THE TIDE TURNS' })
         break
       case 'apex':
@@ -2827,6 +2845,8 @@ export class BossSystem {
         if (D.form === 'radiant') AbilityVfx.godRays?.(sc, adv.worldX, adv.worldY, { color: col2, radius: 120 })
         AbilityVfx.burstRays?.(sc, adv.worldX, adv.worldY, { color: col, count: 14, length: 90 })
         sc?.cameras?.main?.shake?.(300, 0.009)
+        sc.lightingSystem?.flash(adv.worldX, adv.worldY, { color: col2, radius: 150, durationMs: 700, intensity: 1.0 })
+        sc.scenePostFx?.pulse(1.0)
         break
     }
   }
