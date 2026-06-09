@@ -129,9 +129,17 @@ function _ensureCss() {
    320px right panel. pointer-events:none so only the bubble is interactive. */
 .qf-nemesis { position:absolute; right:0; bottom:0; width:560px; height:560px; z-index:8;
   pointer-events:none; --nem-tint:#ffd24a;
-  transform:translateX(112%); transition:transform .5s cubic-bezier(.16,.84,.3,1);
+  /* Parked OFF the right edge AND visibility:hidden so the rig can never peek
+     into the right letterbox bar when Aldric isn't active — #hud-stage /
+     #hud-root don't clip overflow, so a translate alone leaves a sliver
+     showing past the 1920px stage edge. visibility flips to visible instantly
+     on .show, and back to hidden only AFTER the .5s slide-out completes (the
+     delayed visibility transition), so both the slide-in and slide-out still play. */
+  transform:translateX(112%); visibility:hidden;
+  transition:transform .5s cubic-bezier(.16,.84,.3,1), visibility 0s linear .5s;
   font-family:'Press Start 2P','Courier New',monospace; }
-.qf-nemesis.show { transform:translateX(0); }
+.qf-nemesis.show { transform:translateX(0); visibility:visible;
+  transition:transform .5s cubic-bezier(.16,.84,.3,1), visibility 0s; }
 
 /* Portrait box — two stacked <img> layers cross-fade between expressions. Sits
    just left of the right panel (mirror of the companion's left:326). */
