@@ -29,6 +29,10 @@ const TEX_R = 96                 // half-size of the gradient texture
 // sprites / overhead / decor-object, all ~8.9–9) and below the void mask (12),
 // so the glow lights floor + walls + doors + creatures but stays inside rooms.
 const LIGHT_DEPTH = 9.5
+// The boss follow-light renders UNDER the boss (and other entities) so it pools
+// on the floor without tinting the sprite — below the boss's Y-sort depth
+// (7 + worldY*0.0005 ≈ 7.3+) but above the floor.
+const BOSS_LIGHT_DEPTH = 6.5
 const MAX_EPHEMERAL = 40         // perf cap on simultaneous flashes
 
 // Per-archetype boss light tint — a little flavour (hot demon, sickly myconid,
@@ -112,8 +116,7 @@ export class LightingSystem {
     const b = this._gameState?.boss
     const color = BOSS_LIGHT_COLOR[b?.definitionId] ?? BOSS_LIGHT_FALLBACK
     const sprite = this._makeSprite(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0.0)
-    // Lower intensity — at LIGHT_DEPTH 9.5 the pool also tints the boss sprite,
-    // so 0.5 read too hot; 0.3 keeps an ominous glow without washing the boss out.
+    sprite.setDepth(BOSS_LIGHT_DEPTH)   // under the boss sprite — pools on the floor, no tint
     this._lights.set('boss', { sprite, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.3, pulse: 0.12, seed: 1.7, color })
   }
 
