@@ -55,8 +55,8 @@ const TORCH_GLOW_COLOR    = 0xff8844
 const TORCH_LIGHT_R       = 108
 const TORCH_LIGHT_ALPHA   = 0.50
 const BRAZIER_GLOW_COLOR  = 0xffaa55
-const BRAZIER_LIGHT_R     = 138
-const BRAZIER_LIGHT_ALPHA = 0.52
+const BRAZIER_LIGHT_R     = 138    // keep the wide spread…
+const BRAZIER_LIGHT_ALPHA = 0.30   // …but much lower intensity (4 braziers in the boss room were too hot)
 
 // Sprite depth — ABOVE jambs/decor-floor (~1.5–6) but BELOW the entity layer
 // (boss/minions/adventurers Y-sort at 7 + worldY * 0.0005, i.e. ~7.0–7.5) so
