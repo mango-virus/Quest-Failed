@@ -359,6 +359,33 @@ export function installDevSandbox(scene) {
       return { ok: true, type, ticks, count: n, hasMinionAbilities: !!ma }
     },
 
+    // Live-tune the scene post-processing pipeline (VFX frontier #1).
+    //   __qfDev.postfx()                      → report current state
+    //   __qfDev.postfx('boss')                → cross-fade to a mood
+    //   __qfDev.postfx('off') / ('on')        → disable / enable the whole pipeline
+    //   __qfDev.postfx('pulse')               → fire a big-hit lens/bloom punch
+    //   __qfDev.postfx({ bloom:1.2, vig:0.5, sat:-0.3, bright:0.05, contrast:0.2 })
+    //                                          → override live grade params (instant)
+    postfx(arg) {
+      const sys = scene.scenePostFx
+      if (!sys) { log('no scenePostFx on this scene'); return { ok: false } }
+      if (arg == null) {
+        return { ok: true, enabled: sys._enabled, mood: sys._mood, cur: { ...sys._cur }, target: { ...sys._target } }
+      }
+      if (arg === 'off')   { sys.disable(); log('post-fx OFF'); return { ok: true, enabled: false } }
+      if (arg === 'on')    { sys.enable();  log('post-fx ON');  return { ok: true, enabled: sys._enabled } }
+      if (arg === 'pulse') { sys.pulse(1.2); log('fired post-fx pulse'); return { ok: true } }
+      if (typeof arg === 'string') { sys.setMood(arg); log(`mood → ${arg}`); return { ok: true, mood: arg } }
+      if (typeof arg === 'object') {
+        // direct live override of the eased grade params (snap, don't fade)
+        for (const k of Object.keys(arg)) { if (k in sys._cur) { sys._cur[k] = arg[k]; sys._target[k] = arg[k]; } }
+        sys._dirty = true
+        log(`post-fx params set: ${JSON.stringify(arg)}`)
+        return { ok: true, cur: { ...sys._cur } }
+      }
+      return { ok: false }
+    },
+
     // Slow-mo filmstrip: dismiss blocking popups, fire one effect heavily slowed,
     // and report the window — the operator screenshots ~6 frames across it to
     // review motion/timing and iterate. (Capture clarity > the busy dungeon bg:

@@ -72,6 +72,7 @@ import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
 import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
 import { StatusVfxSystem }    from '../systems/StatusVfxSystem.js'
+import { ScenePostFxSystem }  from '../systems/ScenePostFxSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
@@ -287,6 +288,9 @@ export class Game extends Phaser.Scene {
     // Persistent poison/burn DoT auras on afflicted entities (lingering status
     // read). Phaser objects live in the system, not on entities (save-safe).
     this.statusVfxSystem     = track(new StatusVfxSystem(this, this.gameState))
+    // Scene-wide post-processing pipeline (grade + bloom + vignette) on the
+    // dungeon camera; cross-fades by mood (day/night/boss/death/victory).
+    this.scenePostFx         = track(new ScenePostFxSystem(this, this.gameState))
     // Wild glitch-burst overlay on every cheater swing — fires after
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.
@@ -1822,6 +1826,10 @@ export class Game extends Phaser.Scene {
   }
 
   update(_time, delta) {
+    // Scene-wide post-processing (grade/bloom/vignette mood cross-fade + pulse
+    // decay) runs every frame in both phases — cheap, and no-ops if disabled.
+    this.scenePostFx?.update(delta)
+
     // Mango cheat — refill gold floor every tick so spends instantly
     // restore. Cheap (one int compare + maybe one assignment per
     // frame), gated by the cheat flag so non-mango runs pay nothing.
