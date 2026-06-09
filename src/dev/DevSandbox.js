@@ -190,19 +190,22 @@ export function installDevSandbox(scene) {
 
     // ONE-CLICK ARENA — build a small CONNECTED starter dungeon (the dev day-jumps
     // leave only a bare boss room). A compact cluster: the boss anchors the bottom-
-    // right; the LIBRARY + ENTRY HALL stack UP from it; the BARRACKS + TRAP FACTORY
-    // sit to the LEFT.
+    // right; the LIBRARY stacks above it with the ENTRY HALL beside/above the
+    // library; the BARRACKS + TRAP FACTORY sit to the LEFT.
     //
-    //        [entry]
-    //        [library]
+    //        [entry?]
+    //        [library] [entry?]
     //   [trap] [ boss ]
     //   [barr] [      ]
     //
-    // ORDER matters: the entry hall's own auto-connect is SKIPPED (it owns a pre-
-    // authored external entrance + getNeighborRooms ignores external cps), so it
-    // links only when a neighbour is placed against it afterward. So place the entry
-    // FIRST, then the library beneath it — the library's auto-connect cuts the door
-    // to BOTH the entry (above) and the boss (below). `noSnap` keeps exact positions.
+    // The entry hall's own auto-connect can't link it to a neighbour that doesn't
+    // exist yet (and its pre-authored external entrance never pairs), so the entry
+    // is placed LAST, flush against the already-placed library — placeRoom's
+    // auto-connect then cuts the entry↔library door. The entry tries the spot
+    // ABOVE the library first (classic column) and falls back to a side when the
+    // boss sits too near the grid's top edge for a full stack to fit. `noSnap`
+    // keeps exact positions; offsets/sizes are read from the room defs so resizing
+    // any kit room can't make these overlap or run off-grid.
     arena() {
       const g = gs(); const gridApi = grid()
       if (!g || !gridApi) { log('no game'); return { ok: false } }
@@ -226,12 +229,29 @@ export function installDevSandbox(scene) {
       const dH = id => defOf(id)?.height ?? 8
       const dW = id => defOf(id)?.width  ?? 8
       const libH = dH('library_of_whispers')
-      // Up the column above the boss: library flush to the boss top, entry above it.
-      place('library_of_whispers', bx, by - libH)               // bottom edge meets boss top row
-      place('entry_hall',          bx, by - libH - dH('entry_hall'))
+      // Library flush to the boss top row — auto-connects to the boss below.
+      const lib = place('library_of_whispers', bx, by - libH)
       // Left of the boss: barracks flush to the left wall, trap factory above it.
+      // Placed BEFORE the entry so the entry's adaptive side-search can't land
+      // on top of them.
       place('starter_barracks',    bx - dW('starter_barracks'), by + 2)
       place('trap_factory',        bx - dW('trap_factory'),     by + 2 - dH('trap_factory'))
+      // Entry hall flush against the library. Prefer ABOVE it (the classic
+      // column), but the boss can sit too close to the grid's top edge for a
+      // full entry+library stack to fit — then the above-spot lands at a
+      // negative row and place() bails, leaving the entry an unconnected island
+      // (the old bug). So fall back to the library's E / W / S side, taking the
+      // first in-bounds, non-overlapping spot. placeRoom auto-connects whichever
+      // side lands, so the entry always wires into the library.
+      if (lib) {
+        const ew = dW('entry_hall'), eh = dH('entry_hall')
+        for (const [gx, gy] of [
+          [lib.gridX,              lib.gridY - eh],          // N — classic column above
+          [lib.gridX + lib.width,  lib.gridY],               // E — right of library
+          [lib.gridX - ew,         lib.gridY],               // W — left of library
+          [lib.gridX,              lib.gridY + lib.height],  // S — below library
+        ]) { if (place('entry_hall', gx, gy)) break }
+      }
 
       // Forced multi-entry (2nd @ L5, 3rd @ L10) — add entries to the RIGHT of the
       // boss, then re-run the boss's auto-connect so the new doors form.
