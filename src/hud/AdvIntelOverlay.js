@@ -31,7 +31,7 @@
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
-import { snapshotAdventurerEntity } from './inGameSnapshot.js'
+import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
 
 const THREAT_TIERS = [
@@ -111,6 +111,7 @@ export class AdvIntelOverlay {
       body:   this._renderBody(),
     })
     this._overlay.open()
+    this._warmSprites()
   }
 
   close() {
@@ -118,8 +119,17 @@ export class AdvIntelOverlay {
     this._overlay = null
   }
 
-  _rerender() {
-    if (this._overlay) this._overlay.setBody(this._renderBody())
+  _rerender(skipWarm = false) {
+    if (!this._overlay) return
+    this._overlay.setBody(this._renderBody())
+    if (!skipWarm) this._warmSprites()
+  }
+
+  // Warm the on-demand LPC base sheets for the adventurers shown, then
+  // re-render (DOM-only, skipWarm=true so the warmer isn't re-armed) as each
+  // sheet lands — so portraits show the real sprite instead of an empty box.
+  _warmSprites() {
+    warmAdvSnapshotsThen(this._adventurers(), () => this._rerender(true), 'advintel')
   }
 
   // ── Data helpers ────────────────────────────────────────────────
@@ -881,16 +891,17 @@ export class AdvIntelOverlay {
     return snap
   }
 
-  // Class sprite — uses the existing per-class portrait if available, falls
-  // back to a colored gradient block.
+  // Neutral dark disc placeholder behind the portrait. The real LPC sprite
+  // layers on top via _renderAdvSprite once its on-demand sheet streams in
+  // (warmed by _warmSprites). NOTE: adventurer classes ship NO bestiary
+  // portrait — only the 12 boss archetypes do — so we must not request a
+  // per-class `${id}_p.png` here (it 404s for every adventurer card).
   _classSpriteBg(adv) {
-    const id = String(adv.classId || '').toLowerCase()
-    if (!id) return {}
     return {
-      backgroundImage: `url('assets/ui/bestiary/portraits/${id}_p.png'), radial-gradient(circle at center, var(--bg-2), var(--bg-0))`,
-      backgroundSize: 'contain, cover',
-      backgroundRepeat: 'no-repeat, no-repeat',
-      backgroundPosition: 'center, center',
+      backgroundImage: 'radial-gradient(circle at center, var(--bg-2), var(--bg-0))',
+      backgroundSize: 'cover',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
       imageRendering: 'pixelated',
     }
   }

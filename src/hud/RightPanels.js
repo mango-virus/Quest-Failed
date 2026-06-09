@@ -24,7 +24,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { adventurerDisplayLevel } from '../config/balance.js'
 import { getEligibleClasses } from '../util/classSpawn.js'
 import { pixelSprite } from './sprites.js'
-import { snapshotAdventurerEntity } from './inGameSnapshot.js'
+import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { pactLabel } from '../util/displayNames.js'
 
 import { fleeReasonFlavor } from '../util/fleeFlavor.js'
@@ -373,10 +373,17 @@ export class RightPanels {
   // DayPhase._spawnDailyAdventurers uses. Class breakdown isn't computed
   // here (DayPhase picks classes at spawn time, not in advance); the
   // panel shows count + threat as a "best-effort" preview.
-  _renderWave() {
+  _renderWave(opts = {}) {
     const body = this._refs.waveBody
     if (!body) return
     const forecast = this._forecastWave()
+    // Warm the upcoming wave's on-demand LPC sheets so the party tiles show the
+    // REAL adventurer sprites, not the procedural-circle fallback. Re-renders
+    // (DOM-only) as each sheet streams in. Guarded so the re-render doesn't
+    // re-arm the warmer (no timer stacking / recursion).
+    if (!opts.skipWarm && forecast?.party?.length) {
+      warmAdvSnapshotsThen(forecast.party, () => this._renderWave({ skipWarm: true }), 'wave')
+    }
     if (!forecast) {
       mount(body, h('div', { className: 'qf-wave-stub' }, [
         h('div', { className: 'pix qf-wave-stub-label' }, 'PARTY · UNKNOWN'),

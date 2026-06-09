@@ -14,6 +14,8 @@
 // = false`) and the resulting canvas tags itself `image-rendering:
 // pixelated` so CSS upscale stays crisp.
 
+import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
+
 // ── Frame source resolution ────────────────────────────────────────
 function _getFrameSource(textureKey, frameIdx = 0) {
   const game = window.__game
@@ -418,6 +420,87 @@ export function snapshotAdventurerEntity(adv, size = 64) {
     }
   }
   return snapshotAdventurer(adv.spriteVariant || adv.classId || adv.kind, size)
+}
+
+// ── On-demand sheet warming for DOM previews ───────────────────────
+// The 64×64 base adventurer sheets stream in ON DEMAND the first time a
+// variant renders in the dungeon (AdventurerBaseLoader). During the Night
+// phase the incoming wave hasn't spawned yet, so its sheets aren't loaded and
+// snapshotAdventurer*() returns null — leaving DOM preview panels (Incoming
+// Wave, Adventurer Intel) on the procedural-circle fallback / empty box.
+//
+// These helpers let a preview panel proactively warm the sheets it needs and
+// re-render once they land, so it shows the real LPC sprites — mirroring the
+// in-game renderer's "circle now, upgrade when loaded" behaviour.
+
+function _gameScene() {
+  const sm = window.__game?.scene
+  return sm?.getScene?.('Game') ?? sm?.scenes?.find?.(s => s?.scene?.key === 'Game') ?? null
+}
+
+// The texture keys an adv object's snapshot can draw from, in priority order
+// (mirrors snapshotAdventurerEntity → snapshotAdventurer resolution). If ANY
+// of these exists the snapshot will render.
+function _advSnapshotKeys(adv) {
+  if (!adv) return []
+  if (adv._rivalBossSpriteKey) return [`${adv._rivalBossSpriteKey}-idle`]
+  if (adv._minionSheet)        return [`${adv._minionSheet}-idle`]
+  const raw = adv.spriteVariant || adv.classId || adv.kind
+  if (!raw) return []
+  let cls = String(raw), v = 'v01'
+  if (cls.includes('/')) { const [c, vv] = cls.split('/'); cls = c; v = vv || 'v01' }
+  if (cls === 'loot_goblin') return ['minion-goblin1-idle']
+  const keys = [`adv-${cls}-${v}`, `adv-${cls}-v01`]
+  const src = _classSpriteSource(cls)
+  if (src && src !== cls) keys.push(`adv-${src}-v01`)
+  return [...new Set(keys)]
+}
+
+// True if a snapshot for this adv can render right now (its sheet is loaded).
+export function advSnapshotReady(adv) {
+  const game = window.__game
+  return _advSnapshotKeys(adv).some(k => game?.textures?.exists?.(k))
+}
+
+// Kick the on-demand stream for any base sheet this adv needs. No-op for
+// already-loaded / minion / boss-skin advs. Returns true if already renderable.
+function _warmAdv(scene, adv) {
+  const keys = _advSnapshotKeys(adv)
+  if (!keys.length) return true
+  if (keys.some(k => scene.textures.exists(k))) return true
+  for (const k of keys) {
+    const m = /^adv-(.+)-(v\d+)$/.exec(k)
+    if (m) ensureAdventurerBaseSheet(scene, m[1], m[2])
+  }
+  return false
+}
+
+const _warmPollers = new Map()  // surface key → pending timeout id
+
+// Warm the base sheets a list of adv objects needs, then call `refresh` (a
+// DOM-only re-render that must NOT itself call this again) as sheets land,
+// until all are renderable or a 10s cap. `key` namespaces the poll loop per
+// surface so a re-open cancels the previous loop instead of stacking timers.
+export function warmAdvSnapshotsThen(advs, refresh, key = 'default') {
+  const prev = _warmPollers.get(key)
+  if (prev) { clearTimeout(prev); _warmPollers.delete(key) }
+  const scene = _gameScene()
+  if (!scene || !Array.isArray(advs) || !advs.length) return
+  const list = advs.map(_advSnapshotKeys).filter(k => k.length)
+  if (!list.length) return
+  const readyCount = () => list.filter(keys => keys.some(k => scene.textures.exists(k))).length
+  let anyMissing = false
+  for (const a of advs) { if (!_warmAdv(scene, a)) anyMissing = true }
+  if (!anyMissing) return
+  let lastReady = readyCount()
+  const t0 = Date.now()
+  const tick = () => {
+    const ready = readyCount()
+    if (ready > lastReady) { lastReady = ready; try { refresh() } catch (_) {} }
+    if (ready >= list.length || Date.now() - t0 > 10000) { _warmPollers.delete(key); return }
+    _warmPollers.set(key, setTimeout(tick, 220))
+  }
+  _warmPollers.set(key, setTimeout(tick, 220))
 }
 
 // ── Room thumbnail ─────────────────────────────────────────────────
