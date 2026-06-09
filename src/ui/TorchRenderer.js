@@ -214,14 +214,17 @@ export class TorchRenderer {
     return out
   }
 
-  // Interior floor corners of a room (one cell in from each outer wall),
-  // validated as actual floor tiles so odd/small rooms don't drop a brazier
-  // on a wall or doorway.
+  // Near-corner floor cells for free-standing braziers. INSET ONE TILE further
+  // in from the interior corner (i.e. two floor cells off each wall) so the wide
+  // brazier sprite sits clearly on open floor instead of overlapping the (2-tile-
+  // thick) wall and reading as "mounted on the wall". Validated as actual floor
+  // tiles so odd/small rooms don't drop a brazier on a wall or doorway.
   _floorCornerCandidates(room) {
     const wt = Balance.WALL_THICKNESS ?? 1
     const w = room.width, h = room.height
     const tiles = this._gameState.dungeon?.tiles
-    const cand = [[wt, wt], [w - 1 - wt, wt], [wt, h - 1 - wt], [w - 1 - wt, h - 1 - wt]]
+    const a = wt + 1, bx = w - 2 - wt, by = h - 2 - wt
+    const cand = [[a, a], [bx, a], [a, by], [bx, by]]
     const out = []
     for (const [lx, ly] of cand) {
       const t = tiles?.[room.gridY + ly]?.[room.gridX + lx]
