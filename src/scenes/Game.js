@@ -74,6 +74,7 @@ import { HitSparkSystem }     from '../systems/HitSparkSystem.js'
 import { StatusVfxSystem }    from '../systems/StatusVfxSystem.js'
 import { ScenePostFxSystem }  from '../systems/ScenePostFxSystem.js'
 import { LightingSystem }     from '../systems/LightingSystem.js'
+import { CombatJuiceSystem }  from '../systems/CombatJuiceSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
@@ -295,6 +296,9 @@ export class Game extends Phaser.Scene {
     // Fake dynamic lighting — additive radial light pools that follow the boss
     // + flash from fire/abilities (scene.lightingSystem.flash(x,y,opts)).
     this.lightingSystem      = track(new LightingSystem(this, this.gameState))
+    // Combat juice — wires light flash / post-fx pulse / screen shake onto
+    // impactful combat events (hero deaths, boss slams, big boss hits).
+    this.combatJuiceSystem   = track(new CombatJuiceSystem(this, this.gameState))
     // Wild glitch-burst overlay on every cheater swing — fires after
     // HitSparkSystem in the listener chain so the cheater layer paints
     // over the hit spark.

@@ -47,6 +47,10 @@ export class ScreenShakeSystem {
     this._listeners = []
   }
 
+  // Public entry so other systems (e.g. CombatJuiceSystem) can request a shake
+  // that still respects the master toggle, the user setting, and the throttle.
+  shake(level) { this._shake(level) }
+
   _shake(level) {
     if (!Balance.VFX_SCREEN_SHAKE_ENABLED) return
     if (!userSettings.isShakeEnabled()) return
