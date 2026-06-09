@@ -14,6 +14,7 @@ import { TILE }             from './DungeonGrid.js'
 import { applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
 import { isPermadeadAtDawn, fallenRevivable } from '../util/minionRevive.js'
+import { applyCrowdSeparation } from '../util/crowdSeparation.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -191,6 +192,17 @@ export class MinionAISystem {
       this._tickMinion(minions[i], delta, i)
     }
     this._tickAdvsByRoom = null
+
+    // De-clump STANDING minions — idle guards / settled packs that share a tile
+    // fan out so they don't read as one blob. STATIONARY only (idle with no
+    // patrol target): walking minions are excluded (nudging them backfires) and
+    // so are combat / leashed / never-move defs. Doorway-safe (see crowdSeparation).
+    applyCrowdSeparation(minions, this._dungeonGrid, {
+      radius: 10,
+      eligible: (m) =>
+        m.aiState === 'idle' && !m._patrolTarget && (m.resources?.hp ?? 0) > 0 &&
+        !STATIONARY_DEF_IDS.has(m.definitionId),
+    })
     // Phase 1b — patrolling minions close (and re-lock) doors behind them.
     // Generic — applies to every patrolling minion regardless of archetype
     // (Vampire Thralls, Demon Imps, Wraith Haunt Ghosts).

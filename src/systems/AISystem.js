@@ -10,6 +10,7 @@ import { Balance, passiveIncomeMul } from '../config/balance.js'
 import { DebugOverlay }     from './DebugOverlay.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
 import { minionLabel, roomLabel } from '../util/displayNames.js'
+import { applyCrowdSeparation } from '../util/crowdSeparation.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -1087,6 +1088,16 @@ export class AISystem {
     for (let i = active.length - 1; i >= 0; i--) {
       this._tickAdventurer(active[i], delta, i)
     }
+
+    // De-clump STANDING adventurers — ones idling on the same tile fan out.
+    // STATIONARY only (aiState 'idle'): walking / fleeing / fighting / healing /
+    // at-boss advs are excluded (nudging movers backfires; combat is out of
+    // scope). Doorway-safe (see crowdSeparation).
+    applyCrowdSeparation(active, this._dungeonGrid, {
+      radius: 11,
+      eligible: (a) =>
+        a.aiState === 'idle' && (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
+    })
   }
 
   // Returns true if (tx,ty) is currently occupied by an adventurer other than `selfAdv`.
