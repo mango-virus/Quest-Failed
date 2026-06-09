@@ -199,10 +199,10 @@ export function installDevSandbox(scene) {
     // Swap the ACTIVE companion (portrait + barks). Companions are ambient HUD
     // portrait/dialogue, not field units — this just changes who's on the HUD.
     setCompanion(id) {
-      const g = gs(); if (!g?.player) { log('no player'); return { ok: false } }
-      g.player.companionId = id || null
+      const g = gs(); if (!g?.meta) { log('no run'); return { ok: false } }
+      g.meta.companionId = id || null   // canonical field the HUD (NpcCompanion) reads
       EventBus.emit('COMPANION_CHANGED', { companionId: id || null })
-      log(`active companion → ${id || '(none)'}  (portrait refreshes on next companion render)`)
+      log(`active companion → ${id || '(none)'}`)
       return { ok: true, id: id || null }
     },
 

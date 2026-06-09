@@ -246,9 +246,23 @@ export class HudRoot {
     syncPhaseVisibility()
     EventBus.on('NIGHT_PHASE_BEGAN', syncPhaseVisibility)
     EventBus.on('DAY_PHASE_BEGAN',   syncPhaseVisibility)
+    // Mango dev — the DevMenu's companion picker swaps gameState.meta.companionId
+    // live; NpcCompanion resolves its companion once in its constructor, so
+    // recreate it (clean destroy + new) to show the new portrait/barks.
+    const onCompanionChanged = () => {
+      const idx = this._panels.indexOf(this._npc)
+      this._npc?.destroy()
+      this._npc = new NpcCompanion(this._gameState)
+      if (idx >= 0) this._panels[idx] = this._npc
+      // mount() only ran once at construction, so the fresh instance's element
+      // isn't in the DOM yet — append it to the HUD stage like the original mount.
+      this._stage?.appendChild(this._npc.el)
+    }
+    EventBus.on('COMPANION_CHANGED', onCompanionChanged)
     this._phaseListeners = [
       ['NIGHT_PHASE_BEGAN', syncPhaseVisibility],
       ['DAY_PHASE_BEGAN',   syncPhaseVisibility],
+      ['COMPANION_CHANGED', onCompanionChanged],
     ]
   }
 
