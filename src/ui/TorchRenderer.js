@@ -81,6 +81,10 @@ const ROOM_LIGHTS_MIN     = 2
 const ROOM_LIGHTS_MAX     = 4
 const ROOM_BRAZIER_CHANCE = 0.35   // chance a regular room gets corner braziers
 const ROOM_BRAZIER_MAX    = 2      // up to this many braziers when it does
+// Minimum tile distance between ANY two lights (torch↔torch, torch↔brazier,
+// brazier↔brazier) so they don't cluster — e.g. a wall torch landing right next
+// to a corner brazier, or two torches by a shared corner.
+const MIN_LIGHT_SPACING   = 3
 
 let _nextId = 1
 
@@ -190,25 +194,29 @@ export class TorchRenderer {
     const torchTarget = total - brazierCount
 
     const out = []
+    // A candidate must sit ≥ MIN_LIGHT_SPACING tiles from every light already
+    // placed, so nothing clusters.
+    const farEnough = (lx, ly) => out.every(o => Math.hypot(o.localX - lx, o.localY - ly) >= MIN_LIGHT_SPACING)
+    const add = (lx, ly, kind) => out.push({ localX: lx, localY: ly, kind, instanceId: _nextId++, frameOffset: Math.floor(Math.random() * TORCH_FRAMES) })
 
-    // Torches — one per wall, walls picked in random order until we hit the
-    // target (or run out of usable walls). One candidate cell per wall.
-    const dirs = this._shuffle(['N', 'S', 'W', 'E'])
-    for (const d of dirs) {
-      if (out.length >= torchTarget) break
-      const pool = this._wallCandidates(room, d)
-      if (pool.length === 0) continue
-      const c = pool[Math.floor(Math.random() * pool.length)]
-      out.push({ localX: c.localX, localY: c.localY, kind: 'torch', instanceId: _nextId++, frameOffset: Math.floor(Math.random() * TORCH_FRAMES) })
+    // Braziers FIRST — interior floor corners (free-standing). Placed before the
+    // torches so the wall torches route around them. Corners that are too close
+    // to an already-placed brazier (tiny rooms) are skipped.
+    if (brazierCount > 0) {
+      let placed = 0
+      for (const c of this._shuffle(this._floorCornerCandidates(room))) {
+        if (placed >= brazierCount) break
+        if (farEnough(c.localX, c.localY)) { add(c.localX, c.localY, 'brazier'); placed++ }
+      }
     }
 
-    // Braziers — random interior floor corners (free-standing on the floor).
-    if (brazierCount > 0) {
-      const corners = this._shuffle(this._floorCornerCandidates(room))
-      for (let i = 0; i < brazierCount && i < corners.length; i++) {
-        const c = corners[i]
-        out.push({ localX: c.localX, localY: c.localY, kind: 'brazier', instanceId: _nextId++, frameOffset: Math.floor(Math.random() * TORCH_FRAMES) })
-      }
+    // Torches — one per wall, walls in random order, choosing a cell that's far
+    // enough from every light already placed (braziers + other torches).
+    const dirs = this._shuffle(['N', 'S', 'W', 'E'])
+    for (const d of dirs) {
+      if (out.filter(o => o.kind === 'torch').length >= torchTarget) break
+      const c = this._shuffle(this._wallCandidates(room, d)).find(cell => farEnough(cell.localX, cell.localY))
+      if (c) add(c.localX, c.localY, 'torch')
     }
 
     return out
