@@ -17,6 +17,18 @@ import { isPermadeadAtDawn, fallenRevivable } from '../util/minionRevive.js'
 
 const TS = Balance.TILE_SIZE
 
+// Wander anti-stuck watchdog (game-time ms). A roaming/patrolling minion must
+// never freeze forever on a target it can't actually reach — an unreachable
+// pick (target in a decor-boxed pocket / behind a contested doorway), or a rare
+// movement jam. If it makes NO tile progress for this long while heading to a
+// patrol target, it abandons the target and re-picks. Two thresholds because a
+// minion legitimately holds still on a doorway tile while the 0.5 s open
+// animation plays — and that animation runs on REAL time, so at the 16× HYPER
+// speed it eats ~8 s of GAME-time delta. The door threshold sits safely above
+// that; the off-door one is snappy (nothing should pin a minion in open floor).
+const PATROL_STUCK_MS      = 3500    // frozen in open floor → re-pick fast
+const PATROL_STUCK_DOOR_MS = 12000   // frozen at a doorway → above the 16× door-open hold
+
 // Defs that never move — they hold their home tile until aggro'd, never
 // wander. Single source of truth used by both the wander block (skip
 // patrol target picking) and _pickTarget (exempt from flee-chase
@@ -442,13 +454,37 @@ export class MinionAISystem {
       if (minion._patrolTarget) {
         if (minion.tileX === minion._patrolTarget.x && minion.tileY === minion._patrolTarget.y) {
           minion._patrolTarget = null
+          minion._patrolStuckMs = 0
           // Pass-3 Slime Bouncy Path — re-pick a new direction immediately
           // (no rest period), giving Bomb Slimes their erratic feel.
           minion._patrolAccum = isSlime ? patrolPauseMs : 0
         } else if (usePathfinder) {
           // A* routing for cross-room patrol (roam / guard post) and
           // intra-room patrol around obstacles (boss chamber).
-          this._walkAlongPath(minion, minion._patrolTarget, delta)
+          const reachable = this._walkAlongPath(minion, minion._patrolTarget, delta)
+          // Anti-stuck watchdog. A roamer must never stand frozen forever on a
+          // target it can't reach (the dominant "minion stuck at the door /
+          // never leaves the room" bug: an unreachable pick, or a movement jam,
+          // left _patrolTarget set — it only ever cleared on ARRIVAL). If A*
+          // found NO path, or the minion makes no tile progress for too long,
+          // drop the target and re-pick next cycle. This is a gentle re-pick —
+          // never a teleport across a door (see project_quest_failed_door_teleport).
+          const tileKey = minion.tileX + ',' + minion.tileY
+          if (minion._patrolProgressTile !== tileKey) {
+            minion._patrolProgressTile = tileKey
+            minion._patrolStuckMs = 0
+          } else {
+            minion._patrolStuckMs = (minion._patrolStuckMs ?? 0) + delta
+          }
+          const atDoorway = !!(this._dungeonGrid?.getCpForDoorTile?.(minion.tileX, minion.tileY)
+                            ||  this._dungeonGrid?.isLaneOrApproach?.(minion.tileX, minion.tileY))
+          const stuckLimit = atDoorway ? PATROL_STUCK_DOOR_MS : PATROL_STUCK_MS
+          if (reachable === false || (minion._patrolStuckMs ?? 0) >= stuckLimit) {
+            minion._patrolTarget = null
+            minion._chasePath = null
+            minion._patrolStuckMs = 0
+            minion._patrolAccum = patrolPauseMs   // re-pick on the next tick
+          }
         } else {
           this._moveToward(minion, minion._patrolTarget, delta)
         }
@@ -1200,9 +1236,10 @@ export class MinionAISystem {
         minion._chasePath = { targetX: targetTile.x, targetY: targetTile.y, path, computedAt: now }
       } else {
         // No path exists (target unreachable or in a sealed room) — stand
-        // still rather than straight-line through walls.
+        // still rather than straight-line through walls. Report the failure so
+        // a wandering caller abandons this target instead of freezing on it.
         minion._chasePath = null
-        return
+        return false
       }
     }
 
@@ -1213,6 +1250,7 @@ export class MinionAISystem {
       path.shift()
       if (path.length === 0) minion._chasePath = null
     }
+    return true
   }
 
   // ── Movement ──────────────────────────────────────────────────────────────
