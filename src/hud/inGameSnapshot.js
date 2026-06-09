@@ -155,11 +155,13 @@ export function snapshotMinion(defId, size = 64) {
 // Snapshot a REVIVED-ADVENTURER minion (The Undying Court) using its carried
 // LPC adventurer sprite (`adv-<class>-<variant>`) instead of the skeleton base
 // it's built on — so the roster / menus show the risen hero, not a skeleton.
-// Frame 0 (idle, down-facing). Returns null if the sheet isn't loaded.
+// Uses the south-facing idle frame (ADV_IDLE_SOUTH_FRAME) so the risen hero
+// faces the camera — NOT frame 0, which is the up-facing (back) row and made
+// the roster show their back. Returns null if the sheet isn't loaded.
 export function snapshotRaisedAdv(spriteVariant, size = 64) {
   if (!spriteVariant) return null
   const key = `adv-${String(spriteVariant).replace('/', '-')}`
-  const f = _getFrameSource(key, 0)
+  const f = _getFrameSource(key, ADV_IDLE_SOUTH_FRAME)
   if (!f) return null
   const c = _drawFit(f, size, { padPct: 0.02, autoCrop: true })
   c.className = 'qf-snap qf-snap-minion'
