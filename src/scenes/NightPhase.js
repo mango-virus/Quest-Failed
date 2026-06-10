@@ -1376,7 +1376,7 @@ export class NightPhase extends Phaser.Scene {
     this._rotLabel = gameScene.add.text(0, 0, '', {
       fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
       backgroundColor: '#00000099', padding: { x: 4, y: 2 },
-    }).setDepth(21).setVisible(false)
+    }).setDepth(21).setOrigin(0.5, 1).setVisible(false)   // bottom-center anchor so it sits ABOVE the ghost
     // Trap placement GHOST sprite — rebuilt on every cursor-move / R-rotate
     // via TrapRenderer.buildPreviewSprite() so the player sees the trap's
     // actual texture/orientation under the cursor (instead of a colored rect)
@@ -1832,11 +1832,11 @@ export class NightPhase extends Phaser.Scene {
         }
       }
       if (this._rotLabel && def.rotatable) {
-        const horiz = this._trapFacing === 'E' || this._trapFacing === 'W'
-        this._rotLabel.setText(def.id === 'saw_blade'
-          ? `↻ ${horiz ? 'HORIZONTAL' : 'VERTICAL'}   ·   [R] ROTATE`
-          : `↻ ${this._trapFacing}   ·   [R] ROTATE`)
-        this._rotLabel.setPosition(wx + 2, wy + 2)
+        // Sit just above the trap's footprint so the ghost sprite reads
+        // unobstructed (origin is 0.5,1, set at creation). 6px of breathing
+        // room over the top edge.
+        this._rotLabel.setText('[R] ROTATE')
+        this._rotLabel.setPosition(wx + ww / 2, wy - 6)
         this._rotLabel.setVisible(true)
       } else {
         this._rotLabel?.setVisible(false)
