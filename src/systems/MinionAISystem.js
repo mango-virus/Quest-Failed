@@ -15,6 +15,7 @@ import { applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
 import { isPermadeadAtDawn, fallenRevivable } from '../util/minionRevive.js'
 import { applyCrowdSeparation } from '../util/crowdSeparation.js'
+import { meleeSlotTile } from '../util/combatSlots.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -1219,7 +1220,24 @@ export class MinionAISystem {
       // walkable tiles (through doorways) instead of straight-lining
       // through walls. The previous straight-line _moveToward made
       // cross-room engagements look like teleports.
-      this._walkAlongPath(minion, { x: target.tileX, y: target.tileY }, delta)
+      //
+      // Surround the target: a melee swarm RINGS the adventurer (each minion
+      // claims a distinct adjacent slot) instead of all pathing to its exact
+      // tile and piling into one blob. Ranged minions keep pathing toward the
+      // target (they stop at range, so they don't stack). Falls back to the
+      // target's tile if no slot is free/walkable.
+      let dest = { x: target.tileX, y: target.tileY }
+      if ((minion.attackRange ?? 1) <= 1) {
+        const tgtRoom = this._dungeonGrid?.getRoomAtTile?.(target.tileX, target.tileY)
+        const tiles   = this._dungeonGrid?.getTiles?.()
+        dest = meleeSlotTile(minion, target, this._gameState.minions, (tx, ty) => {
+          if (!tiles?.[ty] || !PathfinderSystem.isWalkable(tiles[ty][tx])) return false
+          if (this._dungeonGrid?.isDoorBlocked?.(tx, ty)) return false
+          const rs = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
+          return !!(tgtRoom && rs && rs.instanceId === tgtRoom.instanceId)
+        })
+      }
+      this._walkAlongPath(minion, dest, delta)
     } finally {
       if (fleeing && minion.stats) minion.stats.speed = savedSpeed
     }
