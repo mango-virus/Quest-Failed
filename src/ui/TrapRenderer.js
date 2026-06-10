@@ -137,6 +137,19 @@ export class TrapRenderer {
   }
 
   _syncSprite(trap, s) {
+    // Move-tool re-place: trap.facing was rotated and the trap relocated, but
+    // texture / origin / angle / flip / scale / anim all depend on facing and
+    // were baked at create time. Rebuild the sprite from scratch when facing
+    // changes — simpler + bug-proof than mutating each visual property in place.
+    if (s._facing !== trap.facing) {
+      this._destroySprite(trap.instanceId)
+      const fresh = this._createSprite(trap)
+      if (!fresh) return
+      // _createSprite re-registered fresh under trap.instanceId, so subsequent
+      // per-frame work (saw-blade frame stepping, spike-pit reveal) should use
+      // the fresh sprite, not the stale handle we were passed.
+      s = fresh
+    }
     if (trap.definitionId === 'saw_blade') {
       // Static sprite — the frame shows the blade's position along the
       // track. Driven by a time-based wave so it animates during the night
@@ -196,7 +209,7 @@ export class TrapRenderer {
 
     if (vis.loopAnim && this._scene.anims.exists(vis.loopAnim)) body.play(vis.loopAnim)
 
-    const s = { body, vis }
+    const s = { body, vis, _facing: trap.facing }
     this._sprites[trap.instanceId] = s
     return s
   }
