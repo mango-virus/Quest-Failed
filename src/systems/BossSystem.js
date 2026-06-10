@@ -337,6 +337,8 @@ export class BossSystem {
 
     if (!this._fightStates) {
       this._fightStates = new Map()
+      this._meleeSlots  = null   // concentric orbit-slot pools (see _takeOrbitSlot)
+      this._rangedSlots = null
       this._bossState   = {
         action: 'chase', actionT: 0, actionDur: 0.6,
         targetId: null, slamFired: false, windUpEmitted: false,
@@ -462,12 +464,12 @@ export class BossSystem {
       if (!isAtBoss && !isFleeingInRoom) continue
       activeIds.add(a.instanceId)
       if (this._fightStates.has(a.instanceId)) continue
-      // New combatant — homeAngle spread relative to existing population.
-      const idx      = this._fightStates.size
-      const total    = idx + 1
-      const phase    = (Math.PI * 2 * idx) / Math.max(2, total) + Math.random() * 0.4
+      // New combatant — assign a CONCENTRIC orbit slot so a big wave forms RANKS
+      // around the boss (inner ring fills first; overflow spills to a second /
+      // third ring) instead of every melee adv overlapping on one fixed radius.
       const classDef = classes.find(c => c.id === a.classId)
       const isRanged = !!classDef?.tags?.includes('ranged')
+      const slot     = this._takeOrbitSlot(isRanged)
       a._bossFleeRolled = false   // fresh roll for every new fight entry
       this._fightStates.set(a.instanceId, {
         adv:        a,
@@ -479,7 +481,10 @@ export class BossSystem {
         action:     'approach',
         actionT:    0,
         actionDur:  4.0,    // long enough for any room; terminates on arrival
-        homeAngle:  phase,
+        homeAngle:  slot.angle,
+        ring:       slot.ring,
+        ringOffset: slot.ringOffset,   // px added to every orbit radius (rank spacing)
+        orbitSlot:  slot.index,
         vx: 0, vy: 0,
         strikeEmitted: false,
         isRanged,
@@ -487,8 +492,54 @@ export class BossSystem {
       })
     }
     for (const id of [...this._fightStates.keys()]) {
-      if (!activeIds.has(id)) this._fightStates.delete(id)
+      if (!activeIds.has(id)) {
+        this._freeOrbitSlot(this._fightStates.get(id))   // recycle the slot for a later arrival
+        this._fightStates.delete(id)
+      }
     }
+    // Fight emptied (resolved / everyone fled) — reset the slot pools so the
+    // next fight fills the inner ring from scratch.
+    if (this._fightStates.size === 0) { this._meleeSlots = null; this._rangedSlots = null }
+  }
+
+  // ── Concentric orbit slots ─────────────────────────────────────────────────
+  // Fill the inner ring first, then spill outward, so a big wave forms ranks
+  // around the boss instead of overlapping on one fixed-radius ring. Melee and
+  // ranged use separate pools (ranged orbits farther out). Freed slots (a
+  // combatant died / fled) are reused inner-first, so the formation stays tight.
+  _orbitRingCapacity(ring) {
+    // ~1 combatant per tile of circumference at this ring's nominal radius.
+    const baseRadiusTiles = 1.25 + ring * 1.1
+    return Math.max(5, Math.round(2 * Math.PI * baseRadiusTiles))
+  }
+
+  _orbitSlotLayout(index) {
+    let ring = 0, base = 0
+    for (;;) {
+      const cap = this._orbitRingCapacity(ring)
+      if (index - base < cap) {
+        const ai   = index - base
+        const half = (ring % 2) * (Math.PI / cap)   // interleave odd rings between even ones
+        return { ring, angle: (Math.PI * 2 * ai) / cap + half }
+      }
+      base += cap
+      ring++
+    }
+  }
+
+  _takeOrbitSlot(isRanged) {
+    const pool = isRanged
+      ? (this._rangedSlots ??= { next: 0, free: [] })
+      : (this._meleeSlots  ??= { next: 0, free: [] })
+    const index = pool.free.length ? pool.free.shift() : pool.next++
+    const lay   = this._orbitSlotLayout(index)
+    return { index, ring: lay.ring, angle: lay.angle, ringOffset: lay.ring * 1.1 * Balance.TILE_SIZE }
+  }
+
+  _freeOrbitSlot(fs) {
+    if (!fs || fs.orbitSlot == null) return
+    const pool = fs.isRanged ? this._rangedSlots : this._meleeSlots
+    if (pool) { pool.free.push(fs.orbitSlot); pool.free.sort((a, b) => a - b) }
   }
 
   _tickFightBoss(dt) {
@@ -800,7 +851,7 @@ export class BossSystem {
         // (forces _pickAdvAction next tick) once within ~0.1 tile of
         // the orbit slot — at which point the regular combat dance
         // (dash/strike/reposition/cast) takes over.
-        const RANGE = fs.isRanged ? RANGE_RANGED : 1.05 * TS
+        const RANGE = (fs.isRanged ? RANGE_RANGED : 1.05 * TS) + (fs.ringOffset || 0)
         const tx = boss.worldX + Math.cos(fs.homeAngle) * RANGE
         const ty = boss.worldY + Math.sin(fs.homeAngle) * RANGE
         const walk = (adv.stats?.speed ?? 1.5) * TS
@@ -810,7 +861,7 @@ export class BossSystem {
         break
       }
       case 'dash': {
-        const RANGE = 1.05 * TS
+        const RANGE = 1.05 * TS + (fs.ringOffset || 0)
         stepToward(
           boss.worldX + Math.cos(fs.homeAngle) * RANGE,
           boss.worldY + Math.sin(fs.homeAngle) * RANGE,
@@ -821,8 +872,9 @@ export class BossSystem {
       case 'strike': {
         const p     = fs.actionT / fs.actionDur
         const swing = Math.sin(p * Math.PI)         // 0..1..0
-        const RANGE_OUT = 1.20 * TS
-        const RANGE_IN  = 0.90 * TS
+        const off = fs.ringOffset || 0
+        const RANGE_OUT = 1.20 * TS + off
+        const RANGE_IN  = 0.90 * TS + off
         const r = RANGE_OUT - (RANGE_OUT - RANGE_IN) * swing
         stepToward(
           boss.worldX + Math.cos(fs.homeAngle) * r,
@@ -840,9 +892,10 @@ export class BossSystem {
         break
       }
       case 'cast': {
+        const RANGE = RANGE_RANGED + (fs.ringOffset || 0)
         stepToward(
-          boss.worldX + Math.cos(fs.homeAngle) * RANGE_RANGED,
-          boss.worldY + Math.sin(fs.homeAngle) * RANGE_RANGED,
+          boss.worldX + Math.cos(fs.homeAngle) * RANGE,
+          boss.worldY + Math.sin(fs.homeAngle) * RANGE,
           3 * TS,    // tiles/sec — slow re-anchor to firing position
         )
         const p = fs.actionT / fs.actionDur
@@ -859,7 +912,7 @@ export class BossSystem {
         break
       }
       case 'reposition': {
-        const RANGE = fs.isRanged ? RANGE_RANGED : 1.40 * TS
+        const RANGE = (fs.isRanged ? RANGE_RANGED : 1.40 * TS) + (fs.ringOffset || 0)
         stepToward(
           boss.worldX + Math.cos(fs.homeAngle) * RANGE,
           boss.worldY + Math.sin(fs.homeAngle) * RANGE,
