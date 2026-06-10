@@ -363,11 +363,11 @@
       "I'll cover the rear. Way back here.",
       "Let the brave ones lead.",
       "I don't like this. I'll be... back here.",
-      "Right behind you. Several tiles behind you.",
+      "Right behind you. Way behind you.",
       "Was that a sound?",
       "I have a very bad feeling about this.",
       "No fighting if we can help it, yeah?",
-      "I'm more of a 'watch from a distance' adventurer.",
+      "I'm a watch-from-a-distance type.",
       "My survival instinct says hang back.",
       "If they trigger it, I'll know not to.",
       "Keep going. I'll catch up. Eventually."
@@ -489,7 +489,7 @@
       "Stay together. Stay calm.",
       "I've buried better dungeons than this.",
       "Breathe. We do this by the numbers.",
-      "Nothing in here I haven't survived twice.",
+      "Survived worse than this. Twice.",
       "Eyes forward. Follow my lead.",
       "Panic gets people killed. Don't.",
       "This? This is a Tuesday.",
@@ -550,7 +550,7 @@
       "Tight space. Bad. Very bad.",
       "Keep moving, keep moving, keep MOVING.",
       "I can't breathe in these halls.",
-      "Give me a big room and I'm fine. Promise.",
+      "Just give me a big room. Please.",
       "Why is everything so... narrow.",
       "One more corridor and I'm done."
     ]
@@ -1145,6 +1145,56 @@
       "Hold fast!",
       "For each other!",
       "Don't you dare fall back!"
+    ],
+    "ghost": [
+      "Where's the treasure?!",
+      "It was RIGHT here.",
+      "Someone moved my loot.",
+      "Empty?! It was supposed to be loaded.",
+      "I came all this way for NOTHING.",
+      "The chest. Where's the chest?!",
+      "Robbed. Of being a robber.",
+      "My intel is garbage."
+    ],
+    "dread": [
+      "I do not like this room.",
+      "Something's very wrong in here.",
+      "This place reeks of death.",
+      "Every instinct says leave.",
+      "Nope. Bad room. Bad.",
+      "The air's all wrong here.",
+      "I don't want to meet what lives here.",
+      "My skin is crawling."
+    ],
+    "awe": [
+      "Whoa. Fancy.",
+      "Someone spent a FORTUNE on this.",
+      "Now THIS is a dungeon.",
+      "Okay, that's genuinely impressive.",
+      "We are out of our depth.",
+      "Big. Expensive. Bad sign.",
+      "Respect to the architect, honestly.",
+      "They committed to the aesthetic."
+    ],
+    "moraleBreak": [
+      "I can't. I CAN'T.",
+      "Nope. I'm done. DONE.",
+      "My nerve's gone. I'm gone.",
+      "That's it. That's my limit.",
+      "I didn't sign up for this.",
+      "Forget the loot. Forget all of it.",
+      "Breaking. I'm breaking. OUT.",
+      "No more. NO MORE."
+    ],
+    "avenge": [
+      "You'll PAY for that.",
+      "FOR THE FALLEN!",
+      "Now I'm ANGRY.",
+      "Big mistake. HUGE.",
+      "That just made it personal.",
+      "Blood for blood.",
+      "You shouldn't have done that.",
+      "Rage. Pure rage."
     ]
   },
   "byMinionType": {

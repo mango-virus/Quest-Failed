@@ -992,6 +992,7 @@ export class AISystem {
         // The fallen feed the frenzy — a nerve spike + a vengeance cue.
         if (s.nerve != null) s.nerve = Math.min(100, s.nerve + 20)
         EventBus.emit('ADV_AVENGE', { adventurer: s, fallen: adventurer })
+        EventBus.emit('SAY_avenge', { adventurer: s })
       } else if (has(s, 'raid_leader')) {
         // Hold the line — steady every remaining member.
         for (const m of survivors) if (m !== s && m.nerve != null) m.nerve = Math.min(100, m.nerve + 6)
@@ -3492,7 +3493,7 @@ export class AISystem {
     adv._breakingMs = (adv._breakingMs ?? 0) + (delta ?? 16)
     if (adv._breakingMs >= MORALE_BREAK_MS) {
       adv._breakingMs = 0
-      EventBus.emit('SAY_warnParty', { adventurer: adv })   // a cracked cry as they break
+      EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a cracked cry as they break
       this._setFleeGoal(adv, 'morale_break')
     }
   }
@@ -3716,7 +3717,7 @@ export class AISystem {
     if (ghost) {
       reaction = 'ghost'
       nudge(has('greedy') ? -8 : -4)   // a greedy adv hates a wasted trip most
-      EventBus.emit('SAY_avoidTrap', { adventurer: adv })   // placeholder frustrated bubble
+      EventBus.emit('SAY_ghost', { adventurer: adv })   // "where'd the loot go?!"
     } else {
       const rdef  = this._roomDef(def)
       const rtags = new Set(rdef?.tags ?? [])
@@ -3726,10 +3727,13 @@ export class AISystem {
         EventBus.emit('SAY_seekTreasure', { adventurer: adv })
       } else if (rtags.has('psychological') || rtags.has('undead')) {
         reaction = 'dread'; nudge((has('paranoid') || has('coward')) ? -7 : -3)
+        EventBus.emit('SAY_dread', { adventurer: adv })
       } else if (gold >= 60) {
         reaction = 'awe'; nudge(-2)                          // an imposing, costly chamber gives pause
+        EventBus.emit('SAY_awe', { adventurer: adv })
       } else if (def === 'starter_corridor' && Math.max(room.width, room.height) >= 6) {
         reaction = 'dread'; nudge(-2)                         // "this corridor's a death-trap"
+        EventBus.emit('SAY_dread', { adventurer: adv })
       }
     }
     if (reaction) EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction })
