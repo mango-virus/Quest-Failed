@@ -57,7 +57,6 @@ import { RivalShowdownCinematic } from './RivalShowdownCinematic.js'
 import { ChampionBar }           from './ChampionBar.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
-import { JamPortalCorner }      from './JamPortalCorner.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 import { EventBus }             from '../systems/EventBus.js'
 
@@ -108,9 +107,8 @@ export class HudRoot {
     // peeks into the lower-left of the dungeon view. Pure renderer;
     // NpcDirector (a Game-scene system) drives it.
     this._npc         = new NpcCompanion(this._gameState)
-    // Small spinning jam portal pinned to the bottom-right corner of the
-    // play area — same asset + click route as the main-menu jam portal.
-    this._jamPortal   = new JamPortalCorner()
+    // (Removed 2026-06-09) The in-game JamPortalCorner badge was deleted
+    // alongside the title-screen Venture button. portal.js SDK stays.
     // HotkeyHints strip removed at user request — the bottom-bar
     // buttons (PLACE/MOVE/SELL, speed, etc.) make the hint redundant.
     // The HotkeyHints class file stays in the repo per the project's
@@ -119,7 +117,6 @@ export class HudRoot {
       this._topBar, this._bottomBar,
       this._leftPanels, this._rightPanels, this._toastQueue,
       this._npc,
-      this._jamPortal,
     )
     // Event-driven overlays — no DOM until they open. Register separately
     // so they don't take up slots in the panels list.

@@ -1,8 +1,15 @@
-// JamPortalCorner — small spinning game-jam portal sitting at the right
-// end of the gameplay HUD's bottom bar. Same sprite sheet and lobby
-// target as the main-menu jam portal (see MainMenuOverlay._openJamPortal
-// / _drawJamPortal), scaled down to a bar-sized badge. Clicking it asks
-// for confirmation before leaving the current run for the jam lobby.
+// JamPortalCorner — SUPERSEDED 2026-06-09. The Venture jam portal was
+// removed from both the title screen AND the in-game HUD; this module is
+// orphan (no imports). Kept on disk per the repo's removal-not-deletion
+// policy; restore by re-importing in HudRoot.js if the portal needs to
+// come back. The CSS (.qf-jamportal-corner*) was deleted alongside the
+// title-screen menu rebuild — restore alongside the import.
+//
+// Original docs:
+// Small spinning game-jam portal sitting at the right end of the gameplay
+// HUD's bottom bar. Same sprite sheet and lobby target as the main-menu
+// jam portal, scaled down to a bar-sized badge. Clicking it asks for
+// confirmation before leaving the current run for the jam lobby.
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'

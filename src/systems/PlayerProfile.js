@@ -82,6 +82,13 @@ const LAST_FINISHED_RUNID_KEY_BASE    = 'qf.player.last_finished_runid'
 // visit so a player who was already below their historical peak before
 // this feature shipped doesn't get a spurious demotion notification.
 const LEADERBOARD_STANDING_KEY_BASE   = 'qf.player.leaderboard_standing'
+// Per-name memory of the archetype the player most recently committed to a run
+// (stamped in ArchetypeSelect when they start). The main-menu throne-room
+// backdrop reads this so the boss the player sees on the menu reflects WHO
+// they were last playing — even after the save is wiped on game-over. Falls
+// back to the first unlocked archetype when absent (fresh profile / never
+// played). Per-name so identity-switching shows the right boss per name.
+const LAST_ARCHETYPE_KEY_BASE         = 'qf.player.last_archetype'
 
 // Legacy global keys — wiped at module load (Option A from the user's
 // 2026-05-26 decision). Any data here was pre-refactor pollution and
@@ -132,6 +139,7 @@ function _reckoningTierKeyFor(name)        { return `${RECKONING_TIER_KEY_BASE}:
 function _celebratedTop3KeyFor(name)      { return `${CELEBRATED_TOP3_KEY_BASE}:${(name ?? '').trim()}` }
 function _lastFinishedRunIdKeyFor(name)   { return `${LAST_FINISHED_RUNID_KEY_BASE}:${(name ?? '').trim()}` }
 function _leaderboardStandingKeyFor(name) { return `${LEADERBOARD_STANDING_KEY_BASE}:${(name ?? '').trim()}` }
+function _lastArchetypeKeyFor(name)       { return `${LAST_ARCHETYPE_KEY_BASE}:${(name ?? '').trim()}` }
 
 // Generic helpers shared by the achievement + companion seen-id sets.
 // `getSet` parses a stored JSON array into a Set<string>; `writeSet`
@@ -516,6 +524,31 @@ export const PlayerProfile = {
         localStorage.removeItem(_activeTitleIdKeyFor(name))
       } else {
         localStorage.setItem(_activeTitleIdKeyFor(name), String(id))
+      }
+    } catch {}
+  },
+
+  // ── Last-played archetype (per-name) ───────────────────────────────────
+  // The title-screen throne-room backdrop (MainMenu Phaser scene) shows the
+  // archetype the player most recently committed to a run — surviving a
+  // game-over save-wipe so the menu still feels personal. Stamped by
+  // ArchetypeSelect on run start. Returns null when the player hasn't
+  // committed an archetype yet (fresh profile / never played); the caller
+  // chooses a fallback (the menu uses 'orc', the first unlock).
+  getLastArchetypeId() {
+    try {
+      const v = localStorage.getItem(_lastArchetypeKeyFor(this.getName()))
+      return v && v.length > 0 ? v : null
+    } catch { return null }
+  },
+
+  setLastArchetypeId(id) {
+    const name = this.getName()
+    try {
+      if (id == null || id === '') {
+        localStorage.removeItem(_lastArchetypeKeyFor(name))
+      } else {
+        localStorage.setItem(_lastArchetypeKeyFor(name), String(id))
       }
     } catch {}
   },

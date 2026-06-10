@@ -1,23 +1,31 @@
-// MainMenuOverlay — DOM port of the design's title screen
-// (moments.jsx → MainMenuOverlay). Replaces the Phaser MainMenu scene
-// when newhud is on. Mounts directly into #hud-root (independent of the
-// in-game HudRoot, since the MainMenu shows BEFORE a run starts and
-// after gameState is torn down).
+// MainMenuOverlay — DOM-hosted title screen (post-2026-06-09 rebuild).
 //
-// Layout: split 1fr | 520px.
-//   * Left stage: dark backdrop with CRT scanlines + vignette + the
-//     QUEST / FAILED logo (cream + blood-red, 120px each)
-//   * Right panel: "YOUR REIGN, MY LORD" eyebrow + current saved boss
-//     heading ("GNOLL ALPHA · Day 4 · 6 kills") + 7 menu buttons:
-//       CONTINUE  (red primary, gated by hasSave)  → load saved gameState
-//       NEW EVIL  (gold)                            → confirm overwrite + ArchetypeSelect
-//       LEADERBOARD (cyan)                          → LeaderboardOverlay
-//       ROOM EDITOR (poison)                        → start RoomTileEditor scene
-//       TILESET EDITOR (info)                       → start TilesetEditor scene
-//       OPTIONS (warn)                              → SettingsOverlay
-//       QUIT (mute)                                 → tries window.close()
-//     + "› PRESS Z TO CONTINUE" prompt + italic flavor + footer
-//     (version / SAVE OK / © BONEMAKER · MMXXVI).
+// Sits OVER the Phaser MainMenu scene, which renders the throne-room
+// backdrop (last-played archetype + flanking torches + slow camera pan —
+// see src/scenes/MainMenu.js). Mounts directly into #hud-stage (the
+// 1920×1080 logical stage), independent of the in-game HudRoot.
+//
+// Layout B — center-stacked, no side panel:
+//   * Top-center: QUEST / FAILED logo (flanked in-canvas by the torches)
+//   * Background: the Phaser boss throne scene shows through
+//   * Bottom-center slab: identity strip (player name + title pill) +
+//     reign-state line ("YOUR REIGN, MY LORD" + boss / day / kills) +
+//     vertical narrow button stack:
+//       CONTINUE (red primary, gated by hasSave) → load saved gameState
+//       NEW EVIL (gold)                          → confirm + ArchetypeSelect
+//       LEADERBOARD (cyan)                       → LeaderboardOverlay
+//       ACHIEVEMENTS / COMPANIONS                → respective overlays
+//       DEV TOOLS (mango-only)                   → DevToolsOverlay (editors etc.)
+//       WHAT'S NEW                               → WhatsNewOverlay
+//       OPTIONS (warn)                           → SettingsOverlay
+//       QUIT (mute)                              → tries window.close()
+//     + "› PRESS Z TO CONTINUE" prompt + italic flavor quote
+//   * Footer (bottom edge): version / SAVE OK · NO SAVE / © BONEMAKER · MMXXVI
+//
+// Removed in the 2026-06-09 rebuild: the boss-video shuffle pool, the CRT
+// scanline + vignette filters, the right-side panel + split-grid layout,
+// and the Venture jam-portal button (both here and the in-game
+// JamPortalCorner). portal.js SDK untouched per jam rules.
 
 import { h, mount } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
@@ -38,34 +46,32 @@ import {
   titleFxClassById, titleFxBorderClassById, titleColorById,
 } from './titleFx.js'
 
-// Title-screen boss video pool. File pattern is `assets/title-screen/
-// videos/bgNN.mp4` where NN is the zero-padded number from the list
-// below. Mirrors the TITLE_VIDEO_NUMBERS list the Phaser MainMenu used
-// to register video keys at preload — keeps the two surfaces drawing
-// from the same content set. Adding a clip is a number addition here +
-// dropping the file into the assets folder.
-const BOSS_VIDEO_NUMBERS = [2, 4, 5, 6, 9, 11, 12, 13, 14, 15, 16, 17]
-// Clips where the boss faces "wrong" relative to the QUEST/FAILED title
-// stack on the bottom-left. CSS flips them horizontally so the boss
-// always reads as facing INTO the menu, never out of frame.
-const BOSS_VIDEO_FLIP_NUMBERS = new Set([5, 11])
-const BOSS_VIDEO_PATH = (n) => `assets/title-screen/videos/bg${String(n).padStart(2, '0')}.mp4`
+// (2026-06-09 rebuild) Boss-video pool removed — the title-screen backdrop
+// is now an in-engine throne-room render owned by the Phaser MainMenu
+// scene (see src/scenes/MainMenu.js).
 
-// Mirrors PauseManager.GAMEPLAY_SCENES — the scene keys that hold all
-// the systems / renderers / event subscriptions belonging to an
-// in-flight run. We stop every one of them before booting CompanionSelect
-// or re-entering Game so the previous run's listeners can't leak into
-// the new one (e.g. an old DungeonRenderer responding to ROOM_PLACED
-// emitted during createGameState, or an old NpcDirector emitting old-
-// companion lines into the new bubble).
-const GAMEPLAY_SCENES = [
+// Scene keys to stop before any MainMenu→elsewhere transition. Two groups:
+//
+//   * The in-flight RUN scenes (mirrors PauseManager.GAMEPLAY_SCENES). The
+//     previous run's listeners must not leak into the new one — e.g. an old
+//     DungeonRenderer responding to ROOM_PLACED emitted during createGameState,
+//     or an old NpcDirector emitting old-companion lines into the new bubble.
+//
+//   * `MainMenu` itself. We use `game.scene.start(target)` (the GLOBAL scene
+//     plugin) which only starts the target — it does NOT stop the calling
+//     scene. Before the 2026-06-09 rebuild this leak was invisible (the
+//     Phaser MainMenu drew nothing), but the new throne-room backdrop (boss
+//     sprite + torches + gradient) was rendering through under the dungeon
+//     because MainMenu kept ticking. Explicit stop fixes it.
+const SCENES_TO_STOP_ON_LEAVE = [
   'Game', 'NightPhase', 'DayPhase', 'EndOfDay',
   'Graveyard', 'KnowledgeScreen', 'HudScene',
+  'MainMenu',
 ]
 
 function _stopAllGameplayScenes(sm) {
   if (!sm) return
-  for (const key of GAMEPLAY_SCENES) {
+  for (const key of SCENES_TO_STOP_ON_LEAVE) {
     if (sm.isActive(key) || sm.isPaused(key)) sm.stop(key)
   }
 }
@@ -99,13 +105,7 @@ export class MainMenuOverlay {
     this._confirm = new ConfirmPopup()
     this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
     if (!this._save) this._hovered = 'new'   // CONTINUE is disabled — default-focus NEW EVIL
-    // Set up the boss-video shuffle queue. Each play picks the next
-    // clip from the queue; when the queue empties we reshuffle and
-    // bias the head so the same clip doesn't repeat back-to-back.
-    this._bossVidQueue = null
-    this._bossVidLast  = null
     this._render()
-    this._spawnNextBossVideo()
     window.addEventListener('keydown', this._keyHandler)
     // Background prefetch of the top-3 leaderboard so the LEADERBOARD
     // button's NEW badge can compute correctly on the very first menu
@@ -180,15 +180,6 @@ export class MainMenuOverlay {
 
   close() {
     this._closed = true
-    // Stop the boss-video chain BEFORE detaching the DOM. In Chrome a
-    // <video> removed from the document keeps PLAYING, and its `ended`
-    // handler keeps re-spawning the next 1080p clip — so without this,
-    // leaving the title screen leaves a detached video decoding MP4s
-    // forever, which chokes the tab the instant the next screen opens.
-    const vid = this._refs?.video
-    if (vid) {
-      try { vid.pause(); vid.removeAttribute('src'); vid.load() } catch {}
-    }
     this._el?.remove()
     this._el = null
     this._refs = null
@@ -235,50 +226,37 @@ export class MainMenuOverlay {
   _renderInner() {
     const items = this._menuItems()
     return [
-      // LEFT STAGE — boss video (looping random clip) + logo + CRT effects
-      h('div', { className: 'qf-mm-stage' }, [
-        // Animated boss video. Cycles through the same MP4 pool the
-        // Phaser MainMenu used (assets/title-screen/videos/bgNN.mp4).
-        // Z-stack: video at bottom → scan/vignette overlays → logo on top.
-        h('video', {
-          className: 'qf-mm-video',
-          ref: el => { this._refs = { ...(this._refs || {}), video: el } },
-          muted: true,
-          autoplay: true,
-          playsInline: true,
-          on: {
-            ended:    () => this._spawnNextBossVideo(),
-            loadeddata: () => { this._refs?.video?.play?.().catch(() => {}) },
-          },
-        }),
-        h('div', { className: 'qf-mm-scan' }),
-        h('div', { className: 'qf-mm-vignette' }),
-        h('div', { className: 'qf-mm-logoblock' }, [
-          h('div', { className: 'pix mm-logo-eyebrow qf-mm-eyebrow' }, [
-            h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
-            'A DUNGEON-BUILDER ROGUELIKE',
-            h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
-          ]),
-          h('div', { className: 'pix mm-logo qf-mm-logo-quest' }, 'QUEST'),
-          h('div', {
-            className: 'pix mm-logo qf-mm-logo-failed',
-            style: { animationDelay: '180ms' },
-          }, 'FAILED'),
+      // TOP — QUEST / FAILED logo block, centered. Sits above the in-engine
+      // torches the Phaser MainMenu draws to either side (their positions
+      // mirror LOGO_CENTER_* / TORCH_OFFSET_X in src/scenes/MainMenu.js).
+      h('div', { className: 'qf-mm-logoblock qf-mm-logoblock-top' }, [
+        h('div', { className: 'pix mm-logo-eyebrow qf-mm-eyebrow' }, [
+          h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
+          'A DUNGEON-BUILDER ROGUELIKE',
+          h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
         ]),
+        h('div', { className: 'pix mm-logo qf-mm-logo-quest' }, 'QUEST'),
+        h('div', {
+          className: 'pix mm-logo qf-mm-logo-failed',
+          style: { animationDelay: '180ms' },
+        }, 'FAILED'),
       ]),
-      // RIGHT PANEL
-      h('div', { className: 'qf-mm-panel' }, [
-        h('div', { className: 'qf-mm-panelhead' }, [
+      // BOTTOM SLAB — identity strip + reign-state line + vertical button
+      // stack + flavor + footer. Centered, narrow. The throne-room boss
+      // sprite (Phaser canvas) is visible above the slab.
+      h('div', { className: 'qf-mm-slab' }, [
+        h('div', { className: 'qf-mm-identity' }, [
           // Player-name row — clickable to open NameEntryOverlay. Persistent
-          // identity above the boss heading so the player can see / change
-          // their name from the title screen at any time (drives the
-          // per-name boss-level unlock progression in PlayerProfile).
+          // identity above the reign info so the player can see / change
+          // their name from the title screen at any time.
           this._renderPlayerName(),
           // Equipped-title pill — shows the title the player is currently
           // wearing (rendered in its own fx/colour), click to change it
           // via TitlePickerOverlay. Hidden entirely until they unlock
           // their first title.
           this._renderTitlePill(),
+        ]),
+        h('div', { className: 'qf-mm-reign' }, [
           h('div', { className: 'pix qf-mm-eyebrow-sm mm-logo-eyebrow' },
             'YOUR REIGN, MY LORD'),
           h('div', {
@@ -293,29 +271,9 @@ export class MainMenuOverlay {
         h('div', {
           className: 'qf-mm-items',
           // Keep a ref so the cheat-name flip (mango on/off) can surgically
-          // swap the items without re-rendering the entire menu and
-          // restarting the boss-video chain.
+          // swap the items without re-rendering the entire menu.
           ref: el => { this._refs = { ...(this._refs || {}), menuItems: el } },
         }, items.map((m, i) => this._renderItem(m, i))),
-        h('div', { className: 'qf-mm-spacer' }),
-        // Jam Portal — animated sprite link to the game-jam lobby.
-        // Mirrors what the Phaser MainMenu drew via `_drawJamPortal()`.
-        // Click route: window.Portal.sendPlayerThroughPortal(LOBBY_URL)
-        // if the portal helper exists, else direct nav. Hidden when the
-        // sprite asset failed to load (rare — Preload background-fetches).
-        h('button', {
-          className: 'qf-mm-jamportal',
-          title: 'Jam Portal — enter the game-jam lobby',
-          on: { click: () => this._openJamPortal() },
-        }, [
-          // "VENTURE" label above the spinning portal — re-added so
-          // first-time players read the icon as a deliberate exit to
-          // the jam hub rather than just decoration. (Previously
-          // removed for visual quiet; the affordance cue is worth
-          // the extra noise.)
-          h('div', { className: 'pix qf-mm-jamportal-label' }, 'VENTURE'),
-          h('div', { className: 'qf-mm-jamportal-sprite' }),
-        ]),
         h('div', { className: 'qf-mm-bottom' }, [
           h('div', { className: 'pix mm-prompt qf-mm-prompt' },
             '› PRESS Z TO CONTINUE'),
@@ -324,15 +282,17 @@ export class MainMenuOverlay {
             h('br'),
             'They will leave bearing nothing."',
           ]),
-          h('div', { className: 'pix qf-mm-footer' }, [
-            h('span', null, 'v 0.1.4'),
-            h('span', {
-              ref: el => { (this._refs ||= {}).savePill = el },
-              style: { color: this._save ? 'var(--poison)' : 'var(--text-dim)' },
-            }, this._save ? 'SAVE OK' : 'NO SAVE'),
-            h('span', null, '© BONEMAKER · MMXXVI'),
-          ]),
         ]),
+      ]),
+      // FOOTER — version / save state / copyright, anchored to the very
+      // bottom edge of the 1920×1080 stage.
+      h('div', { className: 'pix qf-mm-footer qf-mm-footer-bottom' }, [
+        h('span', null, 'v 0.1.4'),
+        h('span', {
+          ref: el => { (this._refs ||= {}).savePill = el },
+          style: { color: this._save ? 'var(--poison)' : 'var(--text-dim)' },
+        }, this._save ? 'SAVE OK' : 'NO SAVE'),
+        h('span', null, '© BONEMAKER · MMXXVI'),
       ]),
     ]
   }
@@ -799,11 +759,8 @@ export class MainMenuOverlay {
     }, 250)
   }
 
-  // Swap just the player-name button without re-rendering the whole menu.
-  // A full _render() would recreate the boss-video <video> element with no
-  // `src` (the video src is set imperatively in `_spawnNextBossVideo`, not
-  // declaratively in the markup), which left the stage dark behind the
-  // QUEST/FAILED title after every name change.
+  // Swap just the player-name button without re-rendering the whole menu —
+  // a full _render() would re-fire the menu-item entrance animations.
   _refreshPlayerName() {
     const old = this._refs?.playerName
     if (!old || !old.parentNode) return
@@ -1031,6 +988,10 @@ export class MainMenuOverlay {
         break
       case 'rooms':
         this.close()
+        // Stop MainMenu so its throne-room backdrop (boss sprite + torches)
+        // doesn't keep rendering under the editor — `game.scene.start` only
+        // starts the target, it doesn't stop the calling scene.
+        _stopAllGameplayScenes(game.scene)
         game.scene.start('RoomTileEditor')
         break
       // 'tiles' (standalone Tileset Editor) retired — theme/tile authoring now
@@ -1058,78 +1019,6 @@ export class MainMenuOverlay {
         try { window.close() } catch {}
         break
     }
-  }
-
-  // Game-jam lobby portal. Clicking it leaves the game, so confirm first
-  // via the shared ConfirmPopup (SHOW_CONFIRM) — only navigate on confirm.
-  _openJamPortal() {
-    EventBus.emit('SHOW_CONFIRM', {
-      title: 'LEAVE QUEST FAILED?',
-      message: 'This takes you to the game-jam lobby and leaves Quest '
-             + 'Failed. Are you sure you want to leave?',
-      confirmLabel: 'LEAVE',
-      cancelLabel:  'STAY',
-      theme:        'shadow',
-      onConfirm: () => this._goToJamLobby(),
-    })
-  }
-
-  // Uses the shared `window.Portal` helper when available so the lobby
-  // gets the caller's referrer; falls back to a direct navigate if the
-  // helper isn't loaded.
-  _goToJamLobby() {
-    const LOBBY_URL = 'https://callumhyoung.github.io/gamejam1-lobby/'
-    try {
-      if (window.Portal?.sendPlayerThroughPortal) {
-        window.Portal.sendPlayerThroughPortal(LOBBY_URL)
-        return
-      }
-    } catch {}
-    window.location.href = LOBBY_URL
-  }
-
-  // ─── Boss video chain ─────────────────────────────────────────
-  // Pick the next clip from a shuffled queue and assign its src to
-  // the <video> element. When the queue empties, reshuffle the full
-  // pool and bias so the first pick isn't the clip that just ended.
-  // Bound to the <video> tag's `ended` event so playback chains
-  // continuously through every clip before repeating.
-  _spawnNextBossVideo() {
-    // Belt-and-suspenders: if the overlay was closed, never re-arm the
-    // chain (the `ended` event can still fire once on a detached video).
-    if (this._closed) return
-    const vid = this._refs?.video
-    if (!vid) return
-    if (!this._bossVidQueue?.length) {
-      const q = BOSS_VIDEO_NUMBERS.slice()
-      // Fisher-Yates shuffle.
-      for (let i = q.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[q[i], q[j]] = [q[j], q[i]]
-      }
-      // Bias the head away from a repeat across the queue boundary.
-      if (q.length > 1 && q[0] === this._bossVidLast) {
-        const swap = 1 + Math.floor(Math.random() * (q.length - 1))
-        ;[q[0], q[swap]] = [q[swap], q[0]]
-      }
-      this._bossVidQueue = q
-    }
-    const n = this._bossVidQueue.shift()
-    this._bossVidLast = n
-    vid.classList.toggle('qf-mm-video-flip', BOSS_VIDEO_FLIP_NUMBERS.has(n))
-    // Belt-and-suspenders mute: the `muted` attribute is set declaratively
-    // in the JSX but some browsers (and DevTools "unmute" actions) strip
-    // it on src change. Set both the property AND volume = 0 every spawn
-    // so no clip ever plays sound regardless of what the previous one
-    // did or how the user fiddled with the element.
-    vid.muted = true
-    vid.volume = 0
-    vid.src = BOSS_VIDEO_PATH(n)
-    // load() pumps the new src; autoplay + muted + playsinline lets
-    // browsers start playback without a user gesture on most engines.
-    // play() returns a promise that may reject if the browser blocks
-    // autoplay — swallow so the chain keeps trying on subsequent clips.
-    try { vid.load(); vid.play()?.catch?.(() => {}) } catch {}
   }
 
   _openSettings() {

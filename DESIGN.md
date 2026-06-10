@@ -905,6 +905,44 @@ A full visual reskin of the user interface, locked from a Claude Design handoff 
   - `QUIT` — closes game.
   - The design's "Bestiary" entry is dropped (ArchetypeSelect already serves that role).
 
+### Title screen — REBUILD (2026-06-09, supersedes the split-screen layout above)
+
+User-locked spec, verbatim. The title screen drops the boss-video shuffle pool +
+the right-side panel + the Venture jam-portal button, and rebuilds as a
+**center-stacked layout** with the player's last-played archetype rendered
+*in-engine* as a throne-room backdrop.
+
+User's structural choices (2026-06-09):
+> **Left/centre fill:** *#1 In-engine boss render* — live Phaser BossRenderer of
+> the currently equipped archetype in a throne room.
+> **Layout:** *B — center-stacked, no side panel.* Logo top, boss scene
+> full-screen, menu items as a tight strip overlaid bottom-center on a parchment
+> slab.
+> **Editor buttons:** mango-gated only (already the case via single DEV TOOLS row).
+> **Empty-save boss:** last-played archetype (PlayerProfile).
+> **Reign info placement:** above the menu button row.
+> **Companion in scene:** no — boss only.
+> **Button arrangement:** vertical stack, narrow.
+> **Ambient drift:** camera pan.
+> **Torch placement:** framing the logo at top.
+> **Venture jam portal:** removed everywhere (title screen + in-game corner). The
+> portal.js SDK file stays untouched per jam rules.
+
+Acceptance checklist (all ☑ verified live 2026-06-10):
+- ☑ No `<video>` element renders on the title screen. No MP4 fetched. `BOSS_VIDEO_*` constants gone. Verified: `document.querySelector('.qf-mm-video') === null`.
+- ☑ Phaser `MainMenu` scene renders the player's last-played archetype idle sprite, centered on the canvas, with a breathing tween. Verified: `mm._boss.texture.key === 'gnoll-idle'`, scaleX 5.0, scaleY 5.09 (mid-breath), `mm._breatheTween` active.
+- ☑ Throne-room ambience: 2 torch sprites flanking the `QUEST / FAILED` logo at the top + a slow ambient camera pan (~±22px over 13s). Verified: `mm._torches.length === 2`, both `torch` textured, `mm._panTween` active.
+- ☑ `PlayerProfile.getLastArchetypeId()` returns the archetype the most recent run committed; updated in `ArchetypeSelect._startRun` on run start. Per-name persistence (`qf.player.last_archetype:<name>`).
+- ☑ Fresh profile / no save / no past runs → boss scene shows the default (`orc`). Falls through: save → profile → `FALLBACK_ARCHETYPE`.
+- ☑ Logo (`QUEST` / `FAILED`) sits **top-center**. Verified in screenshot.
+- ☑ Menu items render as a centered narrow stack below the identity + reign-state strip (CONTINUE/NEW EVIL full-width primaries, secondaries flow 2-col, QUIT alone).
+- ☑ Player name + title pill + reign-state line ("YOUR REIGN, MY LORD" + boss/day/kills) live above the button stack. Verified: `.qf-mm-identity` + `.qf-mm-reign` both present.
+- ☑ Footer (version / SAVE OK / © BONEMAKER) at the bottom edge. Verified: `.qf-mm-footer-bottom` bottom = 1038, stage bottom = 1048 → fits within the 1080 stage.
+- ☑ Editor row stays mango-gated (no behaviour change). `DEV TOOLS` row shown only when `PlayerProfile.isCheatName()`.
+- ☑ Venture jam portal removed from both the title screen AND the in-game `JamPortalCorner`. `portal.js` SDK untouched. `JamPortalCorner.js` orphaned with a SUPERSEDED banner (kept per removal-not-deletion policy).
+- ☑ Stale header comment in `MainMenuOverlay.js` rewritten to describe the new layout.
+- ☑ No console errors at boot.
+
 ### Main HUD layout (replaces current chrome)
 
 The HUD is laid out as a single grid:

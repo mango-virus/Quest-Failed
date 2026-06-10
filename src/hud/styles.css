@@ -7533,90 +7533,36 @@ body {
   90% { transform: translate(3px, -2px); }
 }
 
-/* ---------- MainMenuOverlay ---------- */
+/* ---------- MainMenuOverlay (2026-06-09 rebuild — layout B) ---------- */
+/* Center-stacked: the Phaser MainMenu scene draws the throne-room backdrop
+   on the canvas behind, while this DOM overlay shows the logo at top, the
+   identity/reign/button slab at bottom-center, and the footer pinned to the
+   bottom edge. Background is TRANSPARENT so the in-engine boss + torches
+   show through. */
 .qf-mm {
-  /* Mounted inside #hud-stage, so absolute + inset:0 fills the 1920×1080
-     stage. The stage transform-scales to fit viewport, letterboxing on
-     non-16:9 aspects exactly like the in-game HUD. */
   position: absolute;
   inset: 0;
   z-index: 100;
-  background: #08040a;
+  background: transparent;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 520px;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  align-items: stretch;
   pointer-events: auto;
 }
-.qf-mm-stage {
+/* QUEST / FAILED logo, top-center. Flanked in-canvas by the two torch
+   sprites the Phaser MainMenu draws (their on-canvas centre matches the
+   DOM logo centre — see LOGO_CENTER_* in src/scenes/MainMenu.js). */
+.qf-mm-logoblock-top {
   position: relative;
-  background:
-    radial-gradient(ellipse at 50% 40%, rgba(60,30,40,0.4) 0%, transparent 65%),
-    linear-gradient(180deg, #14080c 0%, #08040a 100%);
-  border-right: 2px solid var(--line-2);
-  overflow: hidden;
-}
-/* Boss video — fills the left stage, cover-fit. Anchored to the LEFT
-   edge (object-position: left center) so the boss / focal art on the
-   left side of each clip is always fully visible; the right side
-   crops off as needed to keep the cover-fill. Sits BELOW the scan +
-   vignette overlays and logo block so the QUEST/FAILED stack stays
-   legible on every clip. */
-.qf-mm-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: left center;
+  z-index: 4;
+  text-align: center;
+  padding: 36px 40px 0;
   pointer-events: none;
-  z-index: 0;
 }
-.qf-mm-video.qf-mm-video-flip {
-  /* Anchor to RIGHT before the horizontal flip so the (now mirrored)
-     focal art still lands on the visible left edge. Without this, a
-     flipped clip's important content gets shoved off-screen by the
-     left-anchored crop. */
-  object-position: right center;
-  transform: scaleX(-1);
-}
-/* Darken wash so the title + menu seam stay readable across any clip
-   the player happens to land on. Stops the busiest frames from
-   flickering through the eyebrow + logo text. */
-.qf-mm-stage::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(8,4,10,0.35), rgba(8,4,10,0.55));
-  pointer-events: none;
-  z-index: 1;
-}
-/* Scanlines + vignette draw ABOVE the video and darken wash so the CRT
-   effect is visible on the moving footage. Without explicit z-index
-   the video's stacking context buries them. Bumped opacity so the
-   scan reads clearly against bright frames. */
-.qf-mm-scan {
-  z-index: 3;
-  opacity: 0.7;
-}
-.qf-mm-vignette { z-index: 3; }
-.qf-mm-logoblock { position: relative; z-index: 4; }
-.qf-mm-scan {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  opacity: 0.4;
-  background: repeating-linear-gradient(0deg,
-    transparent 0 2px,
-    rgba(0,0,0,0.18) 2px 3px);
-}
-.qf-mm-vignette {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
-}
-.qf-mm-logoblock {
-  position: absolute;
-  left: 40px; bottom: 40px; right: 40px;
-  pointer-events: none;
+.qf-mm-logoblock-top .qf-mm-eyebrow {
+  justify-content: center;
 }
 .qf-mm-eyebrow {
   font-size: 11px;
@@ -7640,20 +7586,53 @@ body {
   line-height: 0.95;
 }
 
-.qf-mm-panel {
+/* Bottom slab — narrow center column for identity / reign / button stack /
+   flavor. Semi-opaque so the buttons read against a busy throne backdrop
+   without obscuring the boss above. Width clamped narrow so the layout
+   feels stacked, not panelled. Vertical content is tightly packed because
+   the 9-button menu + identity + reign + flavor adds up — overflowing the
+   1080-logical stage was the v1 bug. */
+.qf-mm-slab {
   position: relative;
-  background: #0c060e;
-  /* Tightened (was 60px/24px) — the global line-height: 1.55 added in
-     the styles.css typography fix made every text block ~10% taller,
-     and the panel has `overflow: hidden`, which was clipping the
-     bottom footer (v 0.1.4 · SAVE OK · BONEMAKER · MMXXVI). Reduced
-     padding + the jam-portal and menu-item shrinks below recover the
-     ~80px we needed back. */
-  padding: 44px 32px 18px;
+  z-index: 4;
+  align-self: end;
+  justify-self: center;
+  width: 560px;
+  max-width: calc(100vw - 80px);
+  margin: 0 auto 12px;
+  padding: 12px 24px 10px;
+  background: linear-gradient(180deg, rgba(10,6,12,0.78), rgba(10,6,12,0.92));
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.6);
   display: flex; flex-direction: column;
-  overflow: hidden;
+  pointer-events: auto;
 }
-.qf-mm-panelhead { margin-bottom: 18px; }
+/* Identity strip — name pill above title pill. Reduced vertical bite on
+   the slab: the pill components own their own margin-bottom (16px each
+   from the global .qf-mm-playername / qf-mm-titlepill rules). */
+.qf-mm-identity {
+  margin-bottom: 0;
+}
+.qf-mm-identity .qf-mm-playername { margin-bottom: 6px; }
+.qf-mm-identity .qf-mm-titlepill   { margin-bottom: 0; }
+/* Reign state — eyebrow + boss name + sub. Centered text so it sits on
+   axis with the buttons below. Tightened vertical rhythm vs the legacy
+   right-panel layout. */
+.qf-mm-reign {
+  text-align: center;
+  margin: 8px 0 10px;
+}
+.qf-mm-reign .qf-mm-eyebrow-sm {
+  justify-content: center;
+}
+/* Tighten the reign block — every line gives 4-6px back to the footer. */
+.qf-mm-reign .qf-mm-currentboss { margin-bottom: 2px; font-size: 24px; }
+.qf-mm-reign .qf-mm-currentsub  { font-size: 14px; }
+/* Tighten the menu items so 9 entries (or 7 without mango) fit between the
+   reign info and the flavor / footer without overflowing the 1080 stage. */
+.qf-mm-slab .qf-mm-item { min-height: 50px; padding: 6px 10px; }
+.qf-mm-slab .qf-mm-items { gap: 4px; }
 /* Player-name button — sits above the "YOUR REIGN, MY LORD" eyebrow on
    the main menu, click to open NameEntryOverlay. Designed to UNAMBIGUOUSLY
    read as a button: full-width row, visible gold border at rest, an
@@ -8046,138 +8025,8 @@ body {
   }
 }
 
-.qf-mm-spacer { flex: 1; }
-
-/* ─── Jam Portal — animated sprite link to the game-jam lobby ────────── */
-.qf-mm-jamportal {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  /* Margin tightened (was 18px) — see .qf-mm-panel comment. */
-  margin: 0 auto 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  transition: transform 140ms ease;
-}
-.qf-mm-jamportal:hover { transform: scale(1.08); }
-.qf-mm-jamportal-sprite {
-  /* Shrunk from 192×192 → 128×128 to give the bottom footer back the
-     vertical space it needs (the line-height: 1.55 typography fix
-     pushed the panel content past the .qf-mm-panel `overflow: hidden`
-     boundary). 96×64 sheet, 3×2 grid of 32×32 frames → scale 4× so
-     each cell renders at 128px. Keyframe stride = 128px. */
-  width: 128px;
-  height: 128px;
-  background-image: url('../../assets/sprites/jam_portal.png');
-  background-size: 384px 256px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  image-rendering: pixelated;
-  /* steps(1, end) holds each keyframe value until the next one fires —
-     gives true frame-by-frame sprite animation rather than smooth tween. */
-  animation: qf-mm-jamportal-spin 750ms steps(1, end) infinite;
-}
-@keyframes qf-mm-jamportal-spin {
-  0%      { background-position:    0px    0px; }
-  16.66%  { background-position: -128px    0px; }
-  33.33%  { background-position: -256px    0px; }
-  50%     { background-position:    0px -128px; }
-  66.66%  { background-position: -128px -128px; }
-  83.33%  { background-position: -256px -128px; }
-}
-.qf-mm-jamportal-label {
-  font-size: 10px;
-  letter-spacing: 3px;
-  /* See note on .qf-jamportal-corner-label — left padding nudges the
-     word right so it optically centers over the spinning portal
-     sprite (empirically tuned, > the letter-spacing value). */
-  padding-left: 10px;
-  /* Sky-blue — matches .qf-jamportal-corner-label so the portal
-     affordance reads the same across menu + HUD. */
-  color: #87ceeb;
-  text-shadow: 1px 1px 0 #000;
-  transition: color 140ms ease;
-}
-.qf-mm-jamportal:hover .qf-mm-jamportal-label { color: #ffffff; }
-
-/* ---------- JamPortalCorner (in-game HUD) ---------- */
-/* Small spinning jam portal sitting at the right end of the bottom bar,
-   vertically centred within it. Same sprite sheet and frame animation as
-   the main-menu portal, scaled to a 60px badge. z-index sits above the
-   bottom bar (z-index 10) so the badge layers on top of it. */
-.qf-jamportal-corner {
-  position: absolute;
-  right: 16px;
-  bottom: calc((var(--hud-bottom) - 60px) / 2);
-  width: 60px;
-  height: 60px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  pointer-events: auto;
-  z-index: 11;
-  transition: transform 140ms ease;
-}
-.qf-jamportal-corner:hover { transform: scale(1.12); }
-.qf-jamportal-corner-sprite {
-  width: 60px;
-  height: 60px;
-  /* 96×64 sheet, 3 cols × 2 rows of 32×32 frames. Each cell scaled to
-     60px → background-size 180×120, keyframe stride 60px. */
-  background-image: url('../../assets/sprites/jam_portal.png');
-  background-size: 180px 120px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  image-rendering: pixelated;
-  animation: qf-jamportal-corner-spin 750ms steps(1, end) infinite;
-}
-@keyframes qf-jamportal-corner-spin {
-  0%      { background-position:    0px    0px; }
-  16.66%  { background-position:  -60px    0px; }
-  33.33%  { background-position: -120px    0px; }
-  50%     { background-position:    0px  -60px; }
-  66.66%  { background-position:  -60px  -60px; }
-  83.33%  { background-position: -120px  -60px; }
-}
-/* "TRAVEL" hint floating above the corner portal. Absolute-positioned
-   off the button's top edge so it doesn't shift the 60×60 sprite
-   footprint; pointer-events: none keeps the click target on the sprite
-   itself. Matches the main-menu portal label colour palette. */
-.qf-jamportal-corner-label {
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  transform: translateX(-50%);
-  margin-bottom: 2px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  /* letter-spacing adds trailing space after the last letter but none
-     before the first, so transform-based centering leaves the visible
-     glyphs huddled left of the bounding box. Left padding nudges the
-     word right so it optically centers over the portal. Empirically
-     tuned (matching the letter-spacing wasn't enough). */
-  padding-left: 8px;
-  /* Sky-blue picks the label out as a "portal / out-of-fiction"
-     affordance rather than a dungeon UI element (which leans red /
-     blood-coloured). Hover brightens to white. */
-  color: #87ceeb;
-  text-shadow: 1px 1px 0 #000;
-  white-space: nowrap;
-  pointer-events: none;
-  transition: color 140ms ease;
-}
-.qf-jamportal-corner:hover .qf-jamportal-corner-label { color: #ffffff; }
-
-/* Bottom block tightened (margin-top 24→12, prompt margin-bottom
-   14→8, quote margin-bottom 18→10, footer padding-top 14→8) so the
-   v 0.1.4 · SAVE OK · BONEMAKER · MMXXVI row stays inside the panel
-   even at the heavier line-height set on body. */
-.qf-mm-bottom { margin-top: 12px; text-align: center; }
+/* Bottom block within the slab — PRESS Z prompt + flavor quote. */
+.qf-mm-bottom { margin-top: 14px; text-align: center; }
 .qf-mm-prompt {
   font-size: 10px; color: var(--blood);
   letter-spacing: 3px; margin-bottom: 8px;
@@ -8185,15 +8034,24 @@ body {
 .qf-mm-quote {
   font-family: var(--term); font-size: 18px;
   color: var(--text-mute); font-style: italic;
-  line-height: 1.4; margin-bottom: 10px;
+  line-height: 1.4; margin-bottom: 4px;
 }
-.qf-mm-footer {
+/* Footer (version / SAVE OK / © BONEMAKER) — anchored to the very bottom
+   edge of the 1920×1080 stage, centered horizontally. Sits BELOW the slab
+   so it reads as a thin chrome strip, not as part of the menu card. */
+.qf-mm-footer-bottom {
+  align-self: end;
+  justify-self: center;
+  margin: 0 auto 14px;
+  width: 560px;
+  max-width: calc(100vw - 80px);
   display: flex; justify-content: space-between; align-items: baseline;
-  padding-top: 8px;
-  border-top: 1px solid var(--line-2);
+  padding-top: 0;
+  border-top: none;
   font-size: 8px;
   color: var(--text-dim);
   letter-spacing: 2px;
+  z-index: 4;
 }
 
 /* ---------- LeaderboardOverlay ---------- */

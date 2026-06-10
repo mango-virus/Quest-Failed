@@ -1189,6 +1189,10 @@ export class ArchetypeSelect extends Phaser.Scene {
     // of fresh-initialising at level 1.
     this._applyDevStartOverrides(state)
     SaveSystem.save(state)
+    // Stamp the chosen archetype into the per-name profile so the title-
+    // screen throne-room backdrop can still render "your boss" after the
+    // save is wiped on game-over (2026-06-09 menu rebuild).
+    try { PlayerProfile.setLastArchetypeId?.(this._selectedId) } catch {}
     // Title music carries through into the dungeon; Game.create() ducks
     // it to a quieter background level via TitleMusic.duckForGameplay.
     this.scene.start('Game', { gameState: state })
