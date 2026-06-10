@@ -105,11 +105,11 @@ export class SocialVfx {
     if (decision !== 'push') return
     const s = this._scene
     for (const a of (survivors ?? [])) {
-      if (a && Number.isFinite(a.worldX)) {
+      if (a && Number.isFinite(a.worldX) && Number.isFinite(a.worldY)) {
         AbilityVfx.pulseRing(s, a.worldX, a.worldY, { color: 0xff8844, fromR: 8, toR: 44, durationMs: 640, alpha: 0.9 })
       }
     }
-    const lead = (survivors ?? []).find(a => Number.isFinite(a?.worldX))
+    const lead = (survivors ?? []).find(a => Number.isFinite(a?.worldX) && Number.isFinite(a?.worldY))
     if (lead) AbilityVfx.floatingText(s, lead.worldX, lead.worldY - 24, 'WE PUSH ON!', { color: '#ff8844' })
   }
 }

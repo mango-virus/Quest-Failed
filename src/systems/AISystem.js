@@ -911,6 +911,10 @@ export class AISystem {
   // boost (currently just a flag — pathfinder hookup lands with AVOID_TRAP
   // in Phase 3).
   _maybeWarnParty(adv, roomId) {
+    // A lone wolf has no party to warn. This guard also stops the cross-party
+    // filter below from failing OPEN for a split solo (partyId=null) and
+    // broadcasting its warning to every nearby adventurer. (2026-06-10)
+    if (!adv.partyId) return
     const now = this._scene.time.now
     if ((adv._lastWarnAt ?? 0) + WARN_COOLDOWN_MS > now) return
     const room = this._gameState.dungeon.rooms.find(r => r.instanceId === roomId)
