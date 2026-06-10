@@ -300,6 +300,47 @@ export class AISystem {
     return bestUnclaimed ?? bestAny
   }
 
+  // Lever A — rooms currently targeted by ANOTHER active adventurer's
+  // EXPLORE_ROOM goal. "Claimed" rooms get deprioritised when a hero picks
+  // where to explore, so the wave fans out across the dungeon instead of
+  // several heroes converging on the same room. (Was Treasure-Hunters-only via
+  // _nearestRaidUnexploredRoom; now used by every explorer.)
+  _claimedExploreRooms(self) {
+    const claimed = new Set()
+    for (const a of (this._gameState.adventurers?.active ?? [])) {
+      if (a === self || a.aiState === 'dead') continue
+      if (a.goal?.type === 'EXPLORE_ROOM' && a.goal.roomId != null) claimed.add(a.goal.roomId)
+    }
+    return claimed
+  }
+
+  // Lever B — a stable, per-adventurer scatter tile inside `room` so explorers
+  // cover the room instead of all stacking on its centre tile. Hashed off the
+  // adv id + room id → the same adv always aims at the same spot in that room
+  // (no replan thrash), but different advs aim at different spots. Searches a
+  // few candidates for a walkable interior FLOOR tile; falls back to the centre
+  // for tiny / decor-packed rooms. Mirrors the phylactery split-across-sides idea.
+  _exploreTileInRoom(adv, room) {
+    const WT = Balance.WALL_THICKNESS
+    const cx = room.gridX + Math.floor(room.width  / 2)
+    const cy = room.gridY + Math.floor(room.height / 2)
+    const innerW = room.width  - 2 * WT
+    const innerH = room.height - 2 * WT
+    if (innerW < 3 || innerH < 3) return { x: cx, y: cy }   // too small to spread
+    let h = 0
+    const seed = String(adv.instanceId) + ':' + String(room.instanceId)
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+    h = h >>> 0
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const rx = room.gridX + WT + (h % innerW)
+      const ry = room.gridY + WT + (Math.floor(h / innerW) % innerH)
+      const t = this._dungeonGrid?.getTileType?.(rx, ry)
+      if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) return { x: rx, y: ry }
+      h = (h * 1103515245 + 12345) >>> 0   // LCG step → next candidate
+    }
+    return { x: cx, y: cy }
+  }
+
   // ── Treasure Chest ──────────────────────────────────────────────────
   // Iterate unopened chests highest-tier first. Greedy / vulture /
   // loot_seeker advs always pick the top tier they can reach. Other advs
@@ -3412,10 +3453,10 @@ export class AISystem {
     if (adv.goal.type === 'EXPLORE_ROOM') {
       const room = dungeon.rooms.find(r => r.instanceId === adv.goal.roomId)
       if (!room) return null
-      return {
-        x: room.gridX + Math.floor(room.width  / 2),
-        y: room.gridY + Math.floor(room.height / 2),
-      }
+      // Lever B — fan out WITHIN the room. Each adventurer scouts a different
+      // interior floor tile (stable per adv+room) instead of everyone walking
+      // to the dead-centre tile and huddling there.
+      return this._exploreTileInRoom(adv, room)
     }
     // Phase 1b.4 — Lich Phylactery: route the adv directly to the heart's
     // tile. If the heart is gone (destroyed mid-walk), fall back to FLEE.
@@ -4159,16 +4200,20 @@ export class AISystem {
     // visited (or unreachable), flee. Never engages combat goals.
     if (adv._cartographer) {
       const visited = new Set(adv.visitedRooms ?? [])
+      const claimed = this._claimedExploreRooms(adv)   // Lever A — fan out
       let best = null, bestDist = Infinity
+      let bestAny = null, bestAnyDist = Infinity
       for (const room of this._gameState.dungeon.rooms) {
         if (visited.has(room.instanceId)) continue
         if (room.definitionId === 'boss_chamber') continue
         const cx = room.gridX + Math.floor(room.width / 2)
         const cy = room.gridY + Math.floor(room.height / 2)
         const d = Math.hypot(adv.tileX - cx, adv.tileY - cy)
-        if (d < bestDist) { best = room; bestDist = d }
+        if (d < bestAnyDist) { bestAny = room; bestAnyDist = d }
+        if (!claimed.has(room.instanceId) && d < bestDist) { best = room; bestDist = d }
       }
-      if (best) return { type: 'EXPLORE_ROOM', roomId: best.instanceId }
+      const pick = best ?? bestAny
+      if (pick) return { type: 'EXPLORE_ROOM', roomId: pick.instanceId }
       return { type: 'FLEE', reason: 'tour_complete' }
     }
     // Phase D — Treasure chest pull. Greedy types always go for the
@@ -4236,11 +4281,17 @@ export class AISystem {
     }
 
     const visited = new Set(adv.visitedRooms ?? [])
-    const unvisited = this._gameState.dungeon.rooms.filter(r =>
+    const unvisitedAll = this._gameState.dungeon.rooms.filter(r =>
       !visited.has(r.instanceId) && r.definitionId !== 'boss_chamber' &&
       // Locked rooms are always skipped now that key-loot is gone.
       !r.locked
     )
+    // Lever A — prefer rooms no other adventurer is already heading to, so the
+    // wave spreads across the dungeon. Fall back to any unvisited room if every
+    // remaining one is claimed (a little overlap beats stalling / fleeing early).
+    const claimed = this._claimedExploreRooms(adv)
+    const unvisitedUnclaimed = unvisitedAll.filter(r => !claimed.has(r.instanceId))
+    const unvisited = unvisitedUnclaimed.length ? unvisitedUnclaimed : unvisitedAll
     return this._personalitySystem.evaluateGoal(adv, {
       unvisitedRooms: unvisited,
     })
