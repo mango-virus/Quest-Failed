@@ -383,15 +383,6 @@
     }
   },
   "doorSkins": {
-    "gnoll_closed": {
-      "file": "assets/themes/doorskins/gnoll_closed.png"
-    },
-    "image_7": {
-      "file": "assets/themes/doorskins/image_7.png"
-    },
-    "image_8": {
-      "file": "assets/themes/doorskins/image_8.png"
-    },
     "basic_door_closed_skin": {
       "file": "assets/themes/doorskins/basic_door_closed_skin.png"
     },
@@ -433,6 +424,12 @@
     },
     "myconid_open": {
       "file": "assets/themes/doorskins/myconid_open.png"
+    },
+    "gnoll_closed_v2": {
+      "file": "assets/themes/doorskins/gnoll_closed_v2.png"
+    },
+    "gnoll_open_v2": {
+      "file": "assets/themes/doorskins/gnoll_open_v2.png"
     }
   },
   "active": "Basic"

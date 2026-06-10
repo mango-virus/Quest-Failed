@@ -545,9 +545,8 @@
         },
         "doorSkinByBoss": {
             "gnoll": {
-                "closed": "gnoll_closed",
-                "open": "image_7",
-                "locked": "image_8"
+                "closed": "gnoll_closed_v2",
+                "open": "gnoll_open_v2"
             },
             "beholder": {
                 "closed": "beholder_closed",
