@@ -11,6 +11,7 @@ import { PauseManager }   from '../systems/PauseManager.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
+import { buildRoomGhost, tintRoomGhost } from '../ui/RoomGhostRenderer.js'
 import { pickWeightedClass, getEligibleClasses } from '../util/classSpawn.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
@@ -720,6 +721,14 @@ export class NightPhase extends Phaser.Scene {
     this._preview = null
     this._rotLabel?.destroy()
     this._rotLabel = null
+    this._previewTrapGhost?.destroy()
+    this._previewTrapGhost = null
+    this._roomGhost?.destroy()
+    this._roomGhost = null
+    this._roomGhostKey = null
+    this._doorGlow?.destroy()
+    this._doorGlow = null
+    this._doorGlowTiles = []
     this._disconnectedHighlight?.destroy()
     this._disconnectedHighlight = null
     this._disconnectedRoomIds   = new Set()
@@ -1383,6 +1392,15 @@ export class NightPhase extends Phaser.Scene {
     // and the preview matches what'll land on click. Owned here; torn down
     // in _clearPreview / shutdown.
     this._previewTrapGhost = null
+    // Room placement GHOST — Phaser Container with the room's actual tile
+    // sprites at the right rotation. Rebuilt only when (defId, rotation) or
+    // theme/skin changes; just repositioned + retinted on cursor moves.
+    this._roomGhost = null
+    this._roomGhostKey = null
+    // Predicted auto-connect doorway glow — soft pulsing gold radial blobs at
+    // each predicted door tile (both ends of the seam). Animated by update().
+    this._doorGlow = gameScene.add.graphics().setDepth(20.5)
+    this._doorGlowTiles = []
     // Disconnected-room highlight lives in world space too. Depth 19 sits
     // just under the placement preview so the preview never gets hidden
     // by the pulse outline when the player is mid-placement.
@@ -1424,6 +1442,11 @@ export class NightPhase extends Phaser.Scene {
     this._rotLabel?.setVisible(false)
     this._previewTrapGhost?.destroy()
     this._previewTrapGhost = null
+    this._roomGhost?.destroy()
+    this._roomGhost = null
+    this._roomGhostKey = null
+    this._doorGlow?.clear()
+    this._doorGlowTiles = []
     this._previewTileX = -1
     this._previewTileY = -1
   }
@@ -1471,6 +1494,33 @@ export class NightPhase extends Phaser.Scene {
   // automatically; we no-op when nothing is flagged so the common case
   // is free.
   update(time) {
+    // ── Predicted-doorway gold glow ──
+    // Soft pulsing radial blobs at every predicted auto-connect door tile
+    // (both ends of the seam). Drives the placement preview's "a door will
+    // form HERE" cue without an icon. _doorGlowTiles is set by _drawPreview.
+    const dg = this._doorGlow
+    if (dg) {
+      dg.clear()
+      if (this._doorGlowTiles && this._doorGlowTiles.length) {
+        // ~1.1s pulse, range 0.55..1.00 — gentle, not flashy.
+        const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(time / 175))
+        for (const t of this._doorGlowTiles) {
+          // Stacked translucent gold discs — outer wide + dim, inner tighter
+          // + brighter — approximates a smooth radial glow with Graphics.
+          dg.fillStyle(0xffd87a, 0.10 * pulse)
+          dg.fillCircle(t.x, t.y, TS * 1.30)
+          dg.fillStyle(0xffe9a8, 0.18 * pulse)
+          dg.fillCircle(t.x, t.y, TS * 0.95)
+          dg.fillStyle(0xfff4c4, 0.30 * pulse)
+          dg.fillCircle(t.x, t.y, TS * 0.55)
+          dg.fillStyle(0xffffff, 0.60 * pulse)
+          dg.fillCircle(t.x, t.y, TS * 0.22)
+        }
+      }
+    }
+
+    // ── Disconnected-room highlight ──
+    // Pulses an outline on rooms blocking Begin-Day until reconnected.
     const g = this._disconnectedHighlight
     if (!g || this._disconnectedRoomIds.size === 0) return
     g.clear()
@@ -1863,37 +1913,38 @@ export class NightPhase extends Phaser.Scene {
       this._preview.strokeRect(wx, wy, TS, TS)
       this._rotLabel?.setVisible(false)
     } else {
-      // Room rectangle preview — top-left derived from centered cursor position
+      // Room placement GHOST — render the actual room (tile-layout sprites or
+      // its skin) translucent at the cursor, tinted by validity. Replaces the
+      // old colored-rectangle + door-stamp preview so the player sees the room
+      // they're placing instead of an abstract box. Rebuilt only when the
+      // (defId, rotation) changes; otherwise we just reposition + retint each
+      // cursor move. See src/ui/RoomGhostRenderer.js.
       const wx = placeTx * TS
       const wy = placeTy * TS
-      const ww = rotDef.width  * TS
-      const wh = rotDef.height * TS
-      this._preview.fillStyle(color, fillA)
-      this._preview.fillRect(wx, wy, ww, wh)
-      this._preview.lineStyle(4, color, 0.25)
-      this._preview.strokeRect(wx - 2, wy - 2, ww + 4, wh + 4)
-      this._preview.lineStyle(2, color, 0.55)
-      this._preview.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2)
-      this._preview.lineStyle(1, color, 0.9)
-      this._preview.strokeRect(wx, wy, ww, wh)
-
-      // Door markers — every doorway is 2 tiles wide along the wall axis
-      // (DungeonGrid widens toward whichever side has more wall) AND under
-      // Option-B separation extends 1 tile outward into the inter-room
-      // gap stub. Show the full L of tiles each connection point occupies
-      // so the player sees the actual doorway footprint pre-placement.
       const rw = rotDef.width, rh = rotDef.height
-      this._preview.fillStyle(color, 0.9)
-      for (const cp of rotDef.connectionPoints ?? []) {
-        this._stampDoorFootprint(this._preview, cp, placeTx, placeTy, rw, rh)
+      const ghostKey = `${def.id}:${this._rotation}`
+      if (this._roomGhostKey !== ghostKey) {
+        this._roomGhost?.destroy()
+        this._roomGhost = buildRoomGhost(this.scene.get('Game'), def, this._rotation)
+        this._roomGhost?.setDepth(19.5)
+        this._roomGhostKey = ghostKey
       }
+      if (this._roomGhost) {
+        this._roomGhost.setPosition(wx, wy)
+        this._roomGhost.setAlpha(0.65)
+        // Soft validity tint — desaturated so the room art still reads.
+        // Greenish-mint for valid, washed-rose for invalid.
+        tintRoomGhost(this._roomGhost, check.valid ? 0xc6ffd2 : 0xffc6cf)
+      }
+      // Thin perimeter outline — sells "this is the footprint" without the
+      // old stacked-aura look. Single hairline at the validity colour.
+      this._preview.lineStyle(1, color, 0.85)
+      this._preview.strokeRect(wx, wy, rw * TS, rh * TS)
 
-      // Predicted auto-connect doors — runs the dry-run pairing against
-      // existing rooms and highlights every cp that would be auto-created
-      // (one on the new room, one on the existing neighbour). Drawn in a
-      // distinct gold so the player can tell at a glance "yes, placing
-      // here will give me a door" vs "no door, just a doorless adjacency."
-      // Skipped on invalid placements (already-red preview).
+      // Predicted auto-connect doorways — collect tile centres for the per-
+      // frame pulsing gold radial glow drawn in update(). Skipped on invalid
+      // placement (already-red preview reads as "won't connect anyway").
+      this._doorGlowTiles = []
       if (check.valid) {
         const candidate = {
           gridX: placeTx, gridY: placeTy,
@@ -1902,25 +1953,23 @@ export class NightPhase extends Phaser.Scene {
           connectionPoints: rotDef.connectionPoints ?? [],
         }
         const pairs = this._dungeonGrid.computeAutoConnectPairs?.(candidate) ?? []
-        if (pairs.length > 0) {
-          this._preview.fillStyle(0xffd870, 0.95)
-          this._preview.lineStyle(2, 0xffd870, 0.95)
-          for (const { newCp, otherRoom, otherCp } of pairs) {
-            // New-room door footprint (in candidate-local coords).
-            this._stampDoorFootprint(this._preview, newCp, placeTx, placeTy, rw, rh)
-            // Existing neighbour's door footprint (in dungeon coords).
-            this._stampDoorFootprint(this._preview, otherCp,
-              otherRoom.gridX, otherRoom.gridY, otherRoom.width, otherRoom.height)
-          }
+        for (const { newCp, otherRoom, otherCp } of pairs) {
+          this._doorGlowTiles.push({
+            x: (placeTx + newCp.x + 0.5) * TS,
+            y: (placeTy + newCp.y + 0.5) * TS,
+          })
+          this._doorGlowTiles.push({
+            x: (otherRoom.gridX + otherCp.x + 0.5) * TS,
+            y: (otherRoom.gridY + otherCp.y + 0.5) * TS,
+          })
         }
       }
 
-      // Rotation angle label — top-left corner of the preview rect, world
-      // space. Carries the [R] keybind hint so the player discovers room
-      // rotation without having to find it in the help strip.
+      // Rotation label — short, centred above the ghost (origin 0.5, 1 set at
+      // creation in _buildPreview). Matches the trap rotate hint.
       if (this._rotLabel) {
-        this._rotLabel.setText(`↻ ${this._rotation}°   ·   [R] ROTATE`)
-        this._rotLabel.setPosition(wx + 2, wy + 2)
+        this._rotLabel.setText('[R] ROTATE')
+        this._rotLabel.setPosition(wx + (rw * TS) / 2, wy - 6)
         this._rotLabel.setVisible(true)
       }
     }
