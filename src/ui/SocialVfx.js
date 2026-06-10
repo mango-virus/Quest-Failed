@@ -52,14 +52,14 @@ export class SocialVfx {
 
   _onTaunt({ adventurer } = {}) {
     const a = adventurer
-    if (!a || !Number.isFinite(a.worldX)) return
+    if (!a || !Number.isFinite(a.worldX) || !Number.isFinite(a.worldY)) return
     AbilityVfx.shockwaveFx(this._scene, a.worldX, a.worldY, { color: 0xffcc44, fromR: 8, toR: 66, durationMs: 540, rings: 2 })
     AbilityVfx.floatingText(this._scene, a.worldX, a.worldY - 22, 'TAUNT!', { color: '#ffcc44' })
   }
 
   _onReact({ adventurer, reaction } = {}) {
     const a = adventurer
-    if (!a || !Number.isFinite(a.worldX)) return
+    if (!a || !Number.isFinite(a.worldX) || !Number.isFinite(a.worldY)) return
     const s = this._scene, x = a.worldX, y = a.worldY
     switch (reaction) {
       case 'greed': AbilityVfx.sparkleFx(s, x, y - 12, { color: 0xffd23f, count: 10, r: 14 }); break
@@ -75,7 +75,7 @@ export class SocialVfx {
   // Sole survivor steels themselves — a defiant golden flare (Enhancement E).
   _onLastStand({ adventurer } = {}) {
     const a = adventurer
-    if (!a || !Number.isFinite(a.worldX)) return
+    if (!a || !Number.isFinite(a.worldX) || !Number.isFinite(a.worldY)) return
     const s = this._scene
     AbilityVfx.glowPulseFx(s, a.worldX, a.worldY, { color: 0xffcc44, r: 26, durationMs: 900, motes: 14 })
     AbilityVfx.shockwaveFx(s, a.worldX, a.worldY, { color: 0xffe066, fromR: 8, toR: 72, durationMs: 620, rings: 2 })
@@ -85,7 +85,7 @@ export class SocialVfx {
   // Berserker avenges a fallen ally — a red rage flare (avenge fork).
   _onAvenge({ adventurer } = {}) {
     const a = adventurer
-    if (!a || !Number.isFinite(a.worldX)) return
+    if (!a || !Number.isFinite(a.worldX) || !Number.isFinite(a.worldY)) return
     AbilityVfx.glowPulseFx(this._scene, a.worldX, a.worldY, { color: 0xcc2222, r: 22, durationMs: 700, motes: 12 })
     AbilityVfx.floatingText(this._scene, a.worldX, a.worldY - 22, 'AVENGE!', { color: '#ff5566' })
   }
@@ -93,7 +93,7 @@ export class SocialVfx {
   // Raid leader rallies the party after a loss — a steadying golden ring + glow.
   _onRally({ adventurer } = {}) {
     const a = adventurer
-    if (!a || !Number.isFinite(a.worldX)) return
+    if (!a || !Number.isFinite(a.worldX) || !Number.isFinite(a.worldY)) return
     AbilityVfx.pulseRing(this._scene, a.worldX, a.worldY, { color: 0xffe066, fromR: 10, toR: 50, durationMs: 680, alpha: 0.9 })
     AbilityVfx.glowPulseFx(this._scene, a.worldX, a.worldY, { color: 0xffe066, r: 18, durationMs: 640, motes: 8 })
     AbilityVfx.floatingText(this._scene, a.worldX, a.worldY - 22, 'RALLY!', { color: '#ffe066' })

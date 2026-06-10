@@ -69,6 +69,10 @@ export class NerveSystem {
     EventBus.on('BUFF_GAINED',        this._onLoot,       this)
     EventBus.on('FOUNTAIN_HEAL_USED', this._onHeal,       this)
     EventBus.on('MINION_OBSERVED',    this._onMinionSeen, this)
+    // The profile cache is keyed by instanceId and only seeded; evict it each night
+    // so it doesn't accumulate an entry per adventurer that ever lived (the next
+    // wave re-seeds on first tick).
+    EventBus.on('NIGHT_PHASE_STARTED', this._onNightNerve, this)
   }
 
   destroy() {
@@ -80,8 +84,11 @@ export class NerveSystem {
     EventBus.off('BUFF_GAINED',        this._onLoot,       this)
     EventBus.off('FOUNTAIN_HEAL_USED', this._onHeal,       this)
     EventBus.off('MINION_OBSERVED',    this._onMinionSeen, this)
+    EventBus.off('NIGHT_PHASE_STARTED', this._onNightNerve, this)
     this._profiles.clear()
   }
+
+  _onNightNerve() { this._profiles.clear() }
 
   // ── Personality nerve profile ───────────────────────────────────────────────
   // The profile is DERIVED from behaviorWeights (so even personalities without an
@@ -272,11 +279,13 @@ export class NerveSystem {
   }
 
   // ── Discrete impulse handlers ───────────────────────────────────────────────
-  _onKill({ source, victim } = {}) {
-    if (victim?.isBoss) return            // boss kill is its own flow
-    const adv = this._resolveAdv(source)
+  // COMBAT_KILL carries { sourceId, targetId, ... } (NOT { source, victim }). The
+  // KILLER is sourceId; only adventurer killers are in adventurers.active, so a
+  // minion/boss source resolves to null and is ignored (boss kills are their own
+  // flow + don't fire this with an adventurer source anyway).
+  _onKill({ sourceId } = {}) {
+    const adv = this._resolveAdv(sourceId)
     if (!adv || adv.aiState === 'dead') return
-    if (adv.faction === 'dungeon') return // a minion kill, not an adventurer's
     const prof = this._seed(adv)
     this._apply(adv, IMP_KILL)
     // Underdog — every kill emboldens (the snowball). Berserker — carnage feeds the frenzy.

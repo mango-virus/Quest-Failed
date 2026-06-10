@@ -813,11 +813,14 @@ export class AISystem {
   // Whenever an adventurer kills something, ~25% chance for a brief gloat
   // pause + chat line. Skipped for boss kills (BOSS_FIGHT_INCOMING flow
   // owns those reactions) and for fleeing/dying adventurers.
-  _onCombatKill({ source, victim }) {
-    if (!source?.instanceId) return
-    const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === source.instanceId)
+  _onCombatKill({ sourceId }) {
+    // COMBAT_KILL carries { sourceId, targetId, ... } — the killer is sourceId.
+    // (Was reading { source, victim }, which are always undefined, so the gloat
+    // never fired. Pre-existing bug fixed 2026-06-10.) A boss/minion sourceId
+    // resolves to null below, so non-adventurer killers are ignored.
+    if (!sourceId) return
+    const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === sourceId)
     if (!adv || adv.aiState === 'dead' || adv.aiState === 'fleeing') return
-    if (victim?.isBoss) return
     if (Math.random() >= GLOAT_CHANCE) return
     // Don't interrupt critical goals (charm, hunt phylactery, etc.).
     const t = adv.goal?.type
@@ -1037,7 +1040,9 @@ export class AISystem {
         EventBus.emit('COLLECTIVE_MORALE', { partyId: adventurer.partyId, decision: 'break', survivors })
       } else {
         for (const s of survivors) {
-          if (this._isScriptedRole(s)) continue
+          // Don't yank an already-fleeing (usually wounded) survivor back to the
+          // throne with permanent noFlee — let them keep bolting. (Fixed 2026-06-10.)
+          if (this._isScriptedRole(s) || s.aiState === 'fleeing') continue
           if (s.nerve != null) s.nerve = Math.max(s.nerve, 50)
           s.flags = s.flags ?? {}; s.flags.noFlee = true
           s._lastStand = true
@@ -2117,8 +2122,10 @@ export class AISystem {
     // detection picks them up after this point — they're effectively a lone
     // wolf for the rest of the run.
     if (this._personalitySystem && adv.partyId) {
-      const tags = this._personalitySystem.getTags(adv)
-      if (tags.has('solo') && !adv.flags?.soloSplit) {
+      // Check the personality ID, not a tag — the `solo` personality's tags are
+      // [solo_tendency, independent, scout] (no `solo` tag), so the old
+      // `tags.has('solo')` never matched and solo-split never fired. (Fixed 2026-06-10.)
+      if (adv.personalityIds?.includes('solo') && !adv.flags?.soloSplit) {
         adv.flags = adv.flags ?? {}
         adv.flags.soloSplit = true
         adv.flags.formerPartyId = adv.partyId
@@ -2725,7 +2732,11 @@ export class AISystem {
     // hustle to rejoin a straggling group; a coward only catches up if about to be
     // isolated (it otherwise trails behind by design).
     const cohesionMul = adv.aiState === 'fleeing' ? 1 : this._cohesionSpeedMultiplier(adv)
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * nerveMul * creepMul * berserkMul * cohesionMul * TS * delta) / 1000
+    // FLOOR the compounding SLOW factors (paranoid × nerve-creep × appraise-creep
+    // could reach ~0.29× and let a slow class graze the stagnation/oscillation
+    // watchdogs). Speedups (flee/song/cheater/roar/berserk/cohesion) are not floored.
+    const slowMul  = Math.max(0.5, speedMul * nerveMul * creepMul)
+    const stepPx   = (adv.stats.speed * slowMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * berserkMul * cohesionMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -3858,7 +3869,10 @@ export class AISystem {
     if (!adv.partyId || this._isScriptedRole(adv)) return
     const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
     if (!room) return
-    if (((this._roomDef(room.definitionId)?.connectionPoints?.length) ?? 0) < 3) return
+    // connectionPoints are computed onto the room INSTANCE at build time (the JSON
+    // def's array is empty), so read the instance — reading the def meant this
+    // never fired. (Fixed 2026-06-10.)
+    if (((room.connectionPoints?.length) ?? 0) < 3) return
     adv._junctionConferred ??= {}
     if (adv._junctionConferred[roomId]) return
     adv._junctionConferred[roomId] = true
