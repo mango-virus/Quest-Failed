@@ -2333,9 +2333,46 @@ export class RoomTileEditor extends Phaser.Scene {
     }
   }
 
+  // Read the on-disk rooms.json and return a Map<id, room> for the fields the
+  // editor doesn't surface and therefore shouldn't ever overwrite (currently
+  // unlockLevel — mango-flattened in the cache, but pristine on disk). Returns
+  // null if disk isn't reachable; callers must treat that as "preserve nothing".
+  async _readPreservedFieldsFromDisk() {
+    if (!FsHandle.isSupported() || !FsHandle.hasRoot()) return null
+    try {
+      const disk = await FsHandle.readJson('src/data/rooms.json')
+      if (!Array.isArray(disk)) return null
+      const map = new Map()
+      for (const r of disk) if (r?.id) map.set(r.id, r)
+      return map
+    } catch { return null }
+  }
+
+  // Fallback for the no-FS-API download path — apply the same preservation as
+  // the main save loop so an FS-less browser doesn't write a regressed file.
+  _applyPreserved(rooms, diskById) {
+    if (!diskById) return rooms
+    return rooms.map(r => {
+      const cleaned = { ...r }
+      const disk = diskById.get(r.id)
+      if (disk && 'unlockLevel' in disk) cleaned.unlockLevel = disk.unlockLevel
+      return cleaned
+    })
+  }
+
   async _save() {
+    // Re-read the on-disk rooms.json BEFORE writing, to capture the truthful
+    // value of fields the editor doesn't surface (currently: unlockLevel).
+    // Why this matters: the mango cheat (Game._applyMangoCheatUnlocks) mutates
+    // `cache.json.get('rooms')[i].unlockLevel = 1` in place. The editor reads
+    // from that same cache (line ~178), so a save during a mango session would
+    // write the flattened "1" to disk and silently regress room gating across
+    // every room. By overlaying the disk value here, the editor's save can't
+    // clobber a balance field it doesn't even let the user edit. (This bit us
+    // in d3754944 — restored in 3e829874.)
+    const diskById = await this._readPreservedFieldsFromDisk()
     if (!FsHandle.isSupported()) {
-      const blob = new Blob([JSON.stringify(this._rooms, null, 4)], { type: 'application/json' })
+      const blob = new Blob([JSON.stringify(this._applyPreserved(this._rooms, diskById), null, 4)], { type: 'application/json' })
       FsHandle.downloadFallback('rooms.json', blob)
       this._toast('FS API unavailable — rooms.json downloaded instead.', true)
       return
@@ -2349,6 +2386,9 @@ export class RoomTileEditor extends Phaser.Scene {
       // Strip empty tileLayouts and decorations arrays to keep JSON clean.
       const out = this._rooms.map(r => {
         const cleaned = { ...r }
+        // Restore preserved-from-disk fields (see comment at top of _save).
+        const disk = diskById?.get?.(r.id)
+        if (disk && 'unlockLevel' in disk) cleaned.unlockLevel = disk.unlockLevel
         if (!_hasAnyOverride(r)) cleaned.tileLayout = []
         if (!Array.isArray(r.decorations) || r.decorations.length === 0) delete cleaned.decorations
         if (!_hasColorAdjust(r)) {
