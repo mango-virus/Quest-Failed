@@ -575,7 +575,7 @@ export class RoomTileEditor extends Phaser.Scene {
       const dataUrl = await _blobToDataUrl(file)
       ThemeManager.addRoomSkin(id, roomSkinPath(id))
       this._pendingSkinBytes().set(id, bytes)
-      try { await this._addTextureFromDataUrl(roomSkinTextureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      try { await this._addTextureFromDataUrl(roomSkinTextureKey(id), dataUrl, true) } catch (_) { /* ignore */ }
       if (this._thumbCache) delete this._thumbCache[roomSkinTextureKey(id)]
       ids.push(id)
     }
@@ -848,7 +848,7 @@ export class RoomTileEditor extends Phaser.Scene {
       const dataUrl = await _blobToDataUrl(file)
       ThemeManager.addDoorSkin(id, doorSkinPath(id))
       this._pendingDoorSkinBytes().set(id, bytes)
-      try { await this._addTextureFromDataUrl(doorSkinTextureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      try { await this._addTextureFromDataUrl(doorSkinTextureKey(id), dataUrl, true) } catch (_) { /* ignore */ }
       if (this._thumbCache) delete this._thumbCache[doorSkinTextureKey(id)]
       ids.push(id)
     }
@@ -1138,7 +1138,7 @@ export class RoomTileEditor extends Phaser.Scene {
       if (ThemeManager.hasSprite(id)) ThemeManager.updateSprite(id, { srcSize, theme: themeName })
       else ThemeManager.addSprite(id, { srcSize, mode, theme: themeName, file: spritePath(id) })
       this._pendingThemeBytes().set(id, bytes)
-      try { await this._addTextureFromDataUrl(_textureKey(id), dataUrl) } catch (_) { /* ignore */ }
+      try { await this._addTextureFromDataUrl(_textureKey(id), dataUrl, true) } catch (_) { /* ignore */ }
       if (this._thumbCache) delete this._thumbCache[_textureKey(id)]
       const slot = autoSlotForId(id)
       if (slot) { ThemeManager.addSlotVariant(themeName, slot, id); assigned++ }
@@ -1368,20 +1368,48 @@ export class RoomTileEditor extends Phaser.Scene {
     } catch (_) { /* ignore */ }
   }
 
-  _addTextureFromDataUrl(key, dataUrl) {
+  _addTextureFromDataUrl(key, dataUrl, replace = false) {
     return new Promise((resolve) => {
-      // Same race-prevention reason as above — never replace an existing
-      // texture; just resolve. Callers that want to UPDATE a sprite's bytes
-      // (e.g. user re-drops a PNG with the same id) should remove the
-      // texture only when they're sure no Image references it.
-      if (this.textures.exists(key)) { resolve(); return }
-      const onAdd = (addedKey) => {
-        if (addedKey !== key) return
-        this.textures.off('addtexture', onAdd)
+      // First-time add — async addBase64 (waits for the PNG to decode).
+      if (!this.textures.exists(key)) {
+        const onAdd = (addedKey) => {
+          if (addedKey !== key) return
+          this.textures.off('addtexture', onAdd)
+          resolve()
+        }
+        this.textures.on('addtexture', onAdd)
+        this.textures.addBase64(key, dataUrl)
+        return
+      }
+      // Already loaded. Default (no replace): leave it — never clobber a texture
+      // a live Image might be drawing.
+      if (!replace) { resolve(); return }
+      // Re-UPLOAD: the user edited the PNG and re-dropped it under the SAME id
+      // (makeSpriteId is deterministic, no dedup suffix), so we must swap the
+      // bytes or the stale texture sticks ("keeps using my old one"). We swap
+      // source[0].image IN PLACE rather than remove()+addBase64(): removing the
+      // texture destroys its WebGLTexture while live Images still reference it →
+      // "Cannot read properties of null (reading 'isGLTexture')" on the next
+      // draw. Updating the existing TextureSource keeps the same Texture/Frame/
+      // source objects, so every Image bound to the key stays valid and just
+      // shows the new art next frame. Verified live (in-place swap + dim change,
+      // bound Image keeps a valid glTexture).
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const tex = this.textures.get(key)
+          const src = tex.source[0]
+          src.image  = img
+          src.width  = img.width
+          src.height = img.height
+          src.update()
+          const base = tex.frames && tex.frames['__BASE']
+          if (base) { base.setSize(img.width, img.height); base.updateUVs && base.updateUVs() }
+        } catch (_) { /* keep the old texture if the in-place swap fails */ }
         resolve()
       }
-      this.textures.on('addtexture', onAdd)
-      this.textures.addBase64(key, dataUrl)
+      img.onerror = () => resolve()
+      img.src = dataUrl
     })
   }
 
