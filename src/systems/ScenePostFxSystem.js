@@ -36,9 +36,9 @@ function _postFxEnabled() { return _setting('qf.gameplay.postfx', 'true') !== 'f
 // deltas (0 = identity); hue in degrees; bloom strength/blur; bloomColor tints
 // the glow; vig strength + radius (smaller radius = tighter dark frame).
 const MOODS = {
-  day:     { sat: -0.10, bright: 0.02,  contrast: 0.08, hue: 0,  bloom: 0.55, bloomBlur: 0.9, bloomColor: 0xfff0d8, vig: 0.26, vigR: 0.92 },
-  night:   { sat: -0.18, bright: -0.02, contrast: 0.10, hue: -6, bloom: 0.50, bloomBlur: 1.0, bloomColor: 0xbcd0ff, vig: 0.38, vigR: 0.82 },
-  boss:    { sat: -0.06, bright: -0.03, contrast: 0.20, hue: 1,  bloom: 0.70, bloomBlur: 1.05, bloomColor: 0xfff0e2, vig: 0.50, vigR: 0.74 },
+  day:     { sat: -0.10, bright: 0.05,  contrast: 0.07, hue: 0,  bloom: 0.55, bloomBlur: 0.9, bloomColor: 0xfff0d8, vig: 0.20, vigR: 0.94 },
+  night:   { sat: -0.18, bright: 0.02,  contrast: 0.09, hue: -6, bloom: 0.50, bloomBlur: 1.0, bloomColor: 0xbcd0ff, vig: 0.31, vigR: 0.86 },
+  boss:    { sat: -0.06, bright: 0.00,  contrast: 0.19, hue: 1,  bloom: 0.70, bloomBlur: 1.05, bloomColor: 0xfff0e2, vig: 0.45, vigR: 0.77 },
   death:   { sat: -0.80, bright: -0.08, contrast: 0.05, hue: 0,  bloom: 0.30, bloomBlur: 0.8, bloomColor: 0x99a0b0, vig: 0.60, vigR: 0.70 },
   victory: { sat:  0.16, bright: 0.07,  contrast: 0.12, hue: 0,  bloom: 1.05, bloomBlur: 1.2, bloomColor: 0xffe9a8, vig: 0.20, vigR: 0.98 },
 }
