@@ -1666,6 +1666,11 @@ export class NightPhase extends Phaser.Scene {
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
       } else if (this._selectedKind === 'trap' && this._selected?.rotatable) {
         this._trapFacing = this._nextTrapFacing(this._selected, this._trapFacing)
+        // MOVE TOOL: the actual placed trap is following the cursor — push the
+        // new facing onto the entity so TrapRenderer._syncSprite rebuilds the
+        // sprite this frame (you see the trap rotate in your hand, no ghost).
+        // _heldMoveTrapOrigin.facing already holds the rollback value for cancel.
+        if (this._heldMoveTrap) this._heldMoveTrap.facing = this._trapFacing
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
       }
     })
@@ -1813,22 +1818,29 @@ export class NightPhase extends Phaser.Scene {
       // current R-key facing. Built via TrapRenderer.buildPreviewSprite() so
       // the orientation logic stays in ONE place (renderer = source of truth).
       // Tinted to validity colour + alpha-faded so it reads as a preview.
+      //
+      // MOVE TOOL: skip the ghost — the actual placed trap is already
+      // following the cursor (and rotating live when R is pressed, via the
+      // R-handler pushing facing onto _heldMoveTrap). A ghost would just
+      // duplicate the held trap on top of itself.
       this._previewTrapGhost?.destroy()
       this._previewTrapGhost = null
-      const ghostFacing = def.placement === 'wall'
-        ? this._wallTrapFacing(tx, ty)
-        : this._trapFacing
-      const tr = this.scene.get('Game')?.trapRenderer
-      if (tr && ghostFacing) {
-        const ghostTrap = { definitionId: def.id, facing: ghostFacing, tileX: tx, tileY: ty, footprint: fp }
-        const ghost = tr.buildPreviewSprite(this.scene.get('Game'), ghostTrap)
-        if (ghost) {
-          ghost.setAlpha(0.55)
-          ghost.setTint(color)
-          // Keep ghost behind the colored validity rect's outline but above
-          // floor decor (placed traps live at DEPTH_TRAP ~6–7; the rect is at 20).
-          ghost.setDepth(19.5)
-          this._previewTrapGhost = ghost
+      if (!this._heldMoveTrap) {
+        const ghostFacing = def.placement === 'wall'
+          ? this._wallTrapFacing(tx, ty)
+          : this._trapFacing
+        const tr = this.scene.get('Game')?.trapRenderer
+        if (tr && ghostFacing) {
+          const ghostTrap = { definitionId: def.id, facing: ghostFacing, tileX: tx, tileY: ty, footprint: fp }
+          const ghost = tr.buildPreviewSprite(this.scene.get('Game'), ghostTrap)
+          if (ghost) {
+            ghost.setAlpha(0.55)
+            ghost.setTint(color)
+            // Keep ghost behind the colored validity rect's outline but above
+            // floor decor (placed traps live at DEPTH_TRAP ~6–7; the rect is at 20).
+            ghost.setDepth(19.5)
+            this._previewTrapGhost = ghost
+          }
         }
       }
       if (this._rotLabel && def.rotatable) {
