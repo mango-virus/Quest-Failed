@@ -24,6 +24,7 @@ export class SocialVfx {
     EventBus.on('ADV_REACT_ROOM',   this._onReact,     this)
     EventBus.on('HERO_LAST_STAND',  this._onLastStand, this)
     EventBus.on('ADV_AVENGE',       this._onAvenge,    this)
+    EventBus.on('ADV_RALLY',        this._onRally,     this)
     EventBus.on('COLLECTIVE_MORALE', this._onCollective, this)
   }
 
@@ -33,6 +34,7 @@ export class SocialVfx {
     EventBus.off('ADV_REACT_ROOM',   this._onReact,     this)
     EventBus.off('HERO_LAST_STAND',  this._onLastStand, this)
     EventBus.off('ADV_AVENGE',       this._onAvenge,    this)
+    EventBus.off('ADV_RALLY',        this._onRally,     this)
     EventBus.off('COLLECTIVE_MORALE', this._onCollective, this)
   }
 
@@ -86,6 +88,15 @@ export class SocialVfx {
     if (!a || !Number.isFinite(a.worldX)) return
     AbilityVfx.glowPulseFx(this._scene, a.worldX, a.worldY, { color: 0xcc2222, r: 22, durationMs: 700, motes: 12 })
     AbilityVfx.floatingText(this._scene, a.worldX, a.worldY - 22, 'AVENGE!', { color: '#ff5566' })
+  }
+
+  // Raid leader rallies the party after a loss — a steadying golden ring + glow.
+  _onRally({ adventurer } = {}) {
+    const a = adventurer
+    if (!a || !Number.isFinite(a.worldX)) return
+    AbilityVfx.pulseRing(this._scene, a.worldX, a.worldY, { color: 0xffe066, fromR: 10, toR: 50, durationMs: 680, alpha: 0.9 })
+    AbilityVfx.glowPulseFx(this._scene, a.worldX, a.worldY, { color: 0xffe066, r: 18, durationMs: 640, motes: 8 })
+    AbilityVfx.floatingText(this._scene, a.worldX, a.worldY - 22, 'RALLY!', { color: '#ffe066' })
   }
 
   // A near-wiped band's collective call (Enhancement D) — a rallying ring on each

@@ -38,6 +38,9 @@ const FLEE_REASON_FLAVOR = {
     ? `${n} spots the ${c.minionName} as the whispers overwhelm them — they flee in terror!`
     : `${n} hears the whispers and flees in terror!`,
   traumatized_panic:   n => `${n} is the last one standing and breaks — they flee in horror!`,
+  morale_break:        n => `${n}'s nerve finally cracks — they break and bolt for the exit!`,
+  last_survivor_break: n => `${n} is the last one left and their nerve gives out — they run!`,
+  collective_break:    n => `${n} breaks with what's left of the party — they scatter for the exit!`,
   raid_leader_dead:    (n, c) => c?.leaderName
     ? `${n} sees ${c.leaderName} fall — morale shatters and they run!`
     : `${n}'s raid leader fell — they scatter!`,
