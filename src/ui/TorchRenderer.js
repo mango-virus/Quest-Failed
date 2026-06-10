@@ -92,8 +92,16 @@ export class TorchRenderer {
   constructor(scene, gameState) {
     this._scene     = scene
     this._gameState = gameState
-    this._sprites   = {}    // torch.instanceId → { sprite, glow, glowBase, flickerSeed }
+    this._sprites   = {}    // `${room.instanceId}:${torch.instanceId}` → { sprite, lightId, ... }
     this._listeners = []
+
+    // `_nextId` is a module global that RESETS to 1 on every page reload, but a
+    // loaded save already carries torches with ids 1..N. Without re-seeding,
+    // newly-placed rooms would mint ids 1,2,3… that collide with the loaded
+    // ones — and (before the composite sprite key below) collided sprites
+    // stomped each other, scrambling torch/brazier orientation. Seed past the
+    // existing max so fresh ids stay unique.
+    this._seedNextId()
 
     this._registerAnims()
     this._wire()
@@ -149,6 +157,27 @@ export class TorchRenderer {
   }
 
   // ── Assignment ────────────────────────────────────────────────────────
+
+  // Bump the module-global id counter past every torch id already present in
+  // the loaded dungeon, so post-load room placements never re-mint a colliding
+  // id (see the constructor note).
+  _seedNextId() {
+    let max = 0
+    for (const room of (this._gameState.dungeon?.rooms ?? [])) {
+      for (const t of (room.torches ?? [])) {
+        if (typeof t.instanceId === 'number' && t.instanceId > max) max = t.instanceId
+      }
+    }
+    if (_nextId <= max) _nextId = max + 1
+  }
+
+  // Sprite-map key — scoped to the ROOM so two rooms whose torches happen to
+  // share an instanceId (e.g. a save minted before _seedNextId, or legacy data)
+  // never collide into one another's sprite. Falls back to a positional key if
+  // a room somehow lacks an instanceId.
+  _spriteKey(room, t) {
+    return `${room.instanceId ?? `${room.gridX},${room.gridY}`}:${t.instanceId}`
+  }
 
   _ensureAllRoomsAssigned() {
     for (const room of (this._gameState.dungeon?.rooms ?? [])) {
@@ -370,35 +399,67 @@ export class TorchRenderer {
     room._torchH = h
   }
 
-  // World anchor (sprite bottom-center) for a torch/brazier on the given
-  // room. Torches get an inward offset so they sit ~TORCH_INSET px in
-  // from the room edge instead of clinging to the rim of the cell.
-  // Brazier returns the south edge of its corner tile (no inward shift —
-  // they're free-standing on the floor, not mounted on a wall).
+  // Placement anchor + orientation for a torch/brazier on the given room.
+  // Returns { x, y, ox, oy, angle, flipY }.
+  //
+  // TORCHES are rotated per-wall to MATCH the DecorRenderer wall-mount
+  // convention so the sconce sits on the wall and the flame extends INTO
+  // the room. The torch art (src/assets/sprites/torch.png) has its attach
+  // point — the sconce — at source-BOTTOM with the flame at source-TOP,
+  // i.e. the VERTICAL MIRROR of the decor convention (attach at source-top).
+  // So the per-side angles are offset 180° from DecorRenderer._wallMountAnchor
+  // (which uses N=0/S=180/W=-90/E=90): here N=180, S=0, W=90, E=-90, with
+  // origin (0.5, 1) [the sconce] pinned at the wall's interior face.
+  //
+  //   N wall  angle=180  flame extends DOWN  (south, into room)
+  //   S wall  angle=  0  flame extends UP    (north, into room)
+  //   W wall  angle= 90  flame extends RIGHT (east,  into room)
+  //   E wall  angle=-90  flame extends LEFT  (west,  into room)
+  //
+  // BRAZIERS are free-standing floor objects centred on their corner tile
+  // (bottom-anchored so the base rests on the tile, flame rising upward).
+  // They render the same at every corner — the art is fire-on-top, so a
+  // vertical flip would point the flame DOWNWARD (upside-down), which reads
+  // as broken; brazier orientation is therefore left upright everywhere.
   _anchorFor(room, t) {
-    const baseX = (room.gridX + t.localX) * TS + TS / 2
-    const baseY = (room.gridY + t.localY) * TS + TS
-    if (t.kind === 'brazier') return { x: baseX, y: baseY }
-
-    // Determine which wall this torch is on (post-rotation) from its
-    // local coords, and shift the anchor toward the room interior.
     const w = room.width, h = room.height
-    let dx = 0, dy = 0
-    if (t.localY === 0) {
-      // North wall — push south (down into the room).
-      dy = TS / 2 + TORCH_INSET
-    } else if (t.localY === h - 1) {
-      // South wall — push north (up into the room). Sprite anchor is
-      // bottom edge, so a negative dy lifts it up.
-      dy = -TS / 2 - TORCH_INSET
-    } else if (t.localX === 0) {
-      // West wall — push east into room.
-      dx =  TS / 2 + TORCH_INSET
-    } else if (t.localX === w - 1) {
-      // East wall — push west into room.
-      dx = -TS / 2 - TORCH_INSET
+    const cellCx = (room.gridX + t.localX) * TS + TS / 2
+    const cellCy = (room.gridY + t.localY) * TS + TS / 2
+
+    if (t.kind === 'brazier') {
+      const bottomY = (room.gridY + t.localY + 1) * TS - 4
+      return { x: cellCx, y: bottomY, ox: 0.5, oy: 1, angle: 0, flipY: false }
     }
-    return { x: baseX + dx, y: baseY + dy }
+
+    // Wall torch — pin the sconce (origin 0.5,1) at the wall's interior face,
+    // rotate so the flame juts into the room. BIAS nudges it a touch inward.
+    const BIAS = TORCH_INSET
+    if (t.localY === 0) {                       // North wall
+      return { x: cellCx, y: (room.gridY + t.localY + 1) * TS - BIAS, ox: 0.5, oy: 1, angle: 180, flipY: false }
+    } else if (t.localY === h - 1) {            // South wall
+      return { x: cellCx, y: (room.gridY + t.localY) * TS + BIAS, ox: 0.5, oy: 1, angle: 0, flipY: false }
+    } else if (t.localX === 0) {                // West wall
+      return { x: (room.gridX + t.localX + 1) * TS - BIAS, y: cellCy, ox: 0.5, oy: 1, angle: 90, flipY: false }
+    } else if (t.localX === w - 1) {            // East wall
+      return { x: (room.gridX + t.localX) * TS + BIAS, y: cellCy, ox: 0.5, oy: 1, angle: -90, flipY: false }
+    }
+    // Interior fallback (shouldn't happen) — upright, no rotation.
+    return { x: cellCx, y: (room.gridY + t.localY + 1) * TS, ox: 0.5, oy: 1, angle: 0, flipY: false }
+  }
+
+  // Where the FLAME sits relative to the anchor (for centring the light pool).
+  // The anchor is the sconce/base; the flame is ~0.8 tile toward the room
+  // along the sprite's "into-room" normal (or straight up for a brazier).
+  _flamePos(t, a) {
+    const FWD = TS * 0.8
+    if (t.kind === 'brazier') return { x: a.x, y: a.y - TS * 0.55 }   // flame above the bowl
+    switch (a.angle) {
+      case 180: return { x: a.x,       y: a.y + FWD }   // N wall, flame south
+      case 0:   return { x: a.x,       y: a.y - FWD }   // S wall, flame north
+      case 90:  return { x: a.x + FWD, y: a.y }         // W wall, flame east
+      case -90: return { x: a.x - FWD, y: a.y }         // E wall, flame west
+      default:  return { x: a.x,       y: a.y - TS / 2 }
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -420,35 +481,41 @@ export class TorchRenderer {
       const torches = room.torches
       if (!Array.isArray(torches)) continue
       for (const t of torches) {
-        seen.add(t.instanceId)
-        const { x: wx, y: wy } = this._anchorFor(room, t)
-        let rec = this._sprites[t.instanceId]
+        const key = this._spriteKey(room, t)
+        seen.add(key)
+        const a = this._anchorFor(room, t)
+        let rec = this._sprites[key]
         if (!rec) {
-          rec = this._createSprite(t, wx, wy)
+          rec = this._createSprite(t, a, key)
           if (!rec) continue
-          this._sprites[t.instanceId] = rec
+          this._sprites[key] = rec
         } else {
-          rec.sprite?.setPosition(wx, wy)
-          // Sprite depth is fixed (set in _createSprite) and intentionally
-          // below the entity layer so creatures pass IN FRONT of the
-          // light source instead of looking like they're walking under it.
+          // Re-snap position + orientation each frame so a mid-move room
+          // rotation (which rewrites localX/localY → a different wall/corner)
+          // keeps the sprite correctly oriented. Depth is fixed in
+          // _createSprite (below the entity layer) so creatures pass in front.
+          rec.sprite?.setPosition(a.x, a.y)
+          rec.sprite?.setOrigin(a.ox, a.oy)
+          rec.sprite?.setAngle(a.angle ?? 0)
+          rec.sprite?.setFlipY(!!a.flipY)
         }
-        // Drive the light pool — reposition it a half-tile above the sprite
-        // anchor (≈ the flame / top of the brazier so the halo centres on the
-        // actual light source) and flicker its alpha with a per-torch sine so
-        // "the flame breathes". Delegated to the shared LightingSystem.
+        // Drive the light pool — centre it on the FLAME (which, after rotation,
+        // is offset from the sconce/base anchor) and flicker its alpha with a
+        // per-torch sine so "the flame breathes". Via the shared LightingSystem.
+        const fp = this._flamePos(t, a)
         const phase = (now / FLICKER_FREQ_MS) + rec.flickerSeed
         const flicker = 1 + FLICKER_AMPL * Math.sin(phase)
-        this._scene.lightingSystem?.moveLight(rec.lightId, wx, wy - TS / 2, (rec.lightAlpha ?? 0.4) * flicker)
+        this._scene.lightingSystem?.moveLight(rec.lightId, fp.x, fp.y, (rec.lightAlpha ?? 0.4) * flicker)
       }
     }
     // Drop sprites whose torches are gone (room removed / sold / pruned).
-    for (const id of Object.keys(this._sprites)) {
-      if (!seen.has(Number(id))) this._destroySprite(id)
+    // Keys are composite strings (`${roomId}:${torchId}`); compare as-is.
+    for (const key of Object.keys(this._sprites)) {
+      if (!seen.has(key)) this._destroySprite(key)
     }
   }
 
-  _createSprite(t, wx, wy) {
+  _createSprite(t, a, key) {
     const s = this._scene
     const isBrazier = t.kind === 'brazier'
     const texKey  = isBrazier ? 'brazier'      : 'torch'
@@ -462,16 +529,22 @@ export class TorchRenderer {
     const color     = isBrazier ? BRAZIER_GLOW_COLOR  : TORCH_GLOW_COLOR
     const lightR    = isBrazier ? BRAZIER_LIGHT_R     : TORCH_LIGHT_R
     const lightA    = isBrazier ? BRAZIER_LIGHT_ALPHA : TORCH_LIGHT_ALPHA
-    const lightId   = `torch_${t.instanceId}`
+    // Light id must be room-scoped too (same collision story as the sprite key).
+    const lightId   = `torch_${key ?? t.instanceId}`
     // setLight no-ops if lighting is disabled — the flame sprite still renders.
     // Both torches and braziers use the soft (wider/gentler) texture so the glow
-    // fills the room instead of reading as a tight bright disc.
-    s.lightingSystem?.setLight(lightId, { x: wx, y: wy - TS / 2, radius: lightR, color, intensity: lightA, pulse: 0, soft: true })
+    // fills the room instead of reading as a tight bright disc. moveLight()
+    // re-centres it on the flame next frame, so the init point is approximate.
+    const fp = this._flamePos(t, a)
+    s.lightingSystem?.setLight(lightId, { x: fp.x, y: fp.y, radius: lightR, color, intensity: lightA, pulse: 0, soft: true })
 
-    // Sprite — bottom-center origin so positioning at the south edge of
-    // the tile lands the mount on the wall / floor and the flame above.
-    const sprite = s.add.sprite(wx, wy, texKey)
-      .setOrigin(0.5, 1)
+    // Sprite — origin/angle/flip come from the anchor so the sconce pins to
+    // the wall and the flame rotates into the room (braziers: bottom-corner
+    // vertical flip).
+    const sprite = s.add.sprite(a.x, a.y, texKey)
+      .setOrigin(a.ox, a.oy)
+      .setAngle(a.angle ?? 0)
+      .setFlipY(!!a.flipY)
       .setDepth(DEPTH_SPRITE)
     // Start at a random frame so the dungeon doesn't flicker in lockstep.
     sprite.play({ key: animKey, startFrame: t.frameOffset ?? 0 })
