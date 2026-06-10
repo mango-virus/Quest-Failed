@@ -657,13 +657,29 @@ export const MinionAbilities = {
     if (beholder._teleAccum < BEHOLDER_TELEPORT_MS) return
     beholder._teleAccum = 0
 
-    const rooms = (gameState?.dungeon?.rooms ?? []).filter(r =>
-      r.definitionId !== 'boss_chamber' && r.instanceId !== beholder.assignedRoomId
-    )
-    if (!rooms.length) return
-    const dest = rooms[Math.floor(Math.random() * rooms.length)]
-    const tx = dest.gridX + Math.floor(Math.random() * dest.width)
-    const ty = dest.gridY + Math.floor(Math.random() * dest.height)
+    // Throne Room mini-bosses (garrison) are bound to their throne room — the
+    // teleport must NOT carry them out of it. They still blink, but only to a
+    // spot WITHIN their own room (and assignedRoomId is left untouched below).
+    const confined = beholder.isThroneMiniBoss || beholder.class === 'garrison'
+    let dest
+    if (confined) {
+      dest = (gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === beholder.assignedRoomId)
+      if (!dest) return
+    } else {
+      const rooms = (gameState?.dungeon?.rooms ?? []).filter(r =>
+        r.definitionId !== 'boss_chamber' && r.instanceId !== beholder.assignedRoomId
+      )
+      if (!rooms.length) return
+      dest = rooms[Math.floor(Math.random() * rooms.length)]
+    }
+    // Confined blink insets 2 tiles off the wall ring so the big mini-boss
+    // sprite lands on interior floor, not embedded in the room wall.
+    const tx = confined
+      ? dest.gridX + 2 + Math.floor(Math.random() * Math.max(1, dest.width  - 4))
+      : dest.gridX + Math.floor(Math.random() * dest.width)
+    const ty = confined
+      ? dest.gridY + 2 + Math.floor(Math.random() * Math.max(1, dest.height - 4))
+      : dest.gridY + Math.floor(Math.random() * dest.height)
 
     if (scene) {
       AbilityVfx.particleBurst(scene, beholder.worldX ?? 0, beholder.worldY ?? 0, {

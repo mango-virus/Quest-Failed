@@ -1066,7 +1066,10 @@ export class MinionAISystem {
       const LEASH_TILES = 4
       const _lx = Math.max(homeRoom.gridX - adv.tileX, 0, adv.tileX - (homeRoom.gridX + homeRoom.width - 1))
       const _ly = Math.max(homeRoom.gridY - adv.tileY, 0, adv.tileY - (homeRoom.gridY + homeRoom.height - 1))
-      const isLeashedTarget = wasMyTarget && !isFleeingAdv && Math.hypot(_lx, _ly) <= LEASH_TILES
+      // Garrison minions (Crypt, Throne Room mini-bosses, …) are strictly
+      // home-bound and NEVER leash-chase out of their room — matches
+      // canChaseFleeing = !isGarrison above; keeps a throne mini-boss on its throne.
+      const isLeashedTarget = !isGarrison && wasMyTarget && !isFleeingAdv && Math.hypot(_lx, _ly) <= LEASH_TILES
 
       // Is this adv inside the minion's home room, or the room the
       // minion is currently standing in? A minion that drifted out of

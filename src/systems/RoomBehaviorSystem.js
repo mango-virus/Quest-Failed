@@ -851,9 +851,9 @@ export class RoomBehaviorSystem {
           isMiniBoss:        true,
           bossLevel:         dungeonLv,
           // Sprite-scale flag read by MinionRenderer to draw the mini-
-          // boss noticeably larger than a normal minion (closer to the
-          // dungeon boss's footprint).
-          _mbDisplayScale:   2.0,
+          // boss larger than a normal minion (but not as huge as the boss —
+          // dialed 2.0 → 1.6 per user, 2026-06-09).
+          _mbDisplayScale:   1.6,
         },
         statsOverride: {
           hp:      Math.floor((baseStats.hp      ?? 60) * MINIBOSS_DOUBLER * hpMult * tinkeredThrone),
