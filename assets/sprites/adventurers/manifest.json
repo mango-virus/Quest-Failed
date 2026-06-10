@@ -15266,6 +15266,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15286,7 +15292,7 @@
         "clothColor": "brown",
         "metalColor": "iron",
         "head": "Human Male",
-        "hair": "Unkempt",
+        "hair": "Side Swoop",
         "beard": "Handlebar Mustache",
         "torso": "Leather",
         "torsoOverlay": "Leather Belt",
@@ -15295,6 +15301,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15324,6 +15336,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15353,6 +15371,12 @@
         "feet": "Revised Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15373,7 +15397,7 @@
         "clothColor": "leather",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "High and tight",
+        "hair": "Relm Short",
         "beard": "Trimmed Beard",
         "torso": "Leather",
         "torsoOverlay": null,
@@ -15382,6 +15406,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15390,7 +15420,7 @@
             "color": null
           }
         ],
-        "weapon": "Recurve",
+        "weapon": "Great",
         "crystal": null,
         "shield": null
       },
@@ -15411,6 +15441,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15440,6 +15476,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15469,6 +15511,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15489,7 +15537,7 @@
         "clothColor": "gray",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Lob",
+        "hair": "Bob side part",
         "beard": "Horseshoe Mustache",
         "torso": "Leather",
         "torsoOverlay": "Leather Belt Alt",
@@ -15498,6 +15546,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15527,6 +15581,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15556,6 +15616,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15576,7 +15642,7 @@
         "clothColor": "brown",
         "metalColor": "bronze",
         "head": "Human Male Plump",
-        "hair": "Half up",
+        "hair": "Braid2",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Leather Belt",
@@ -15585,6 +15651,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15614,6 +15686,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15643,6 +15721,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15672,6 +15756,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15701,6 +15791,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "pink"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15730,6 +15826,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15750,7 +15852,7 @@
         "clothColor": "forest",
         "metalColor": "steel",
         "head": "Human Male",
-        "hair": "Pigtails bangs",
+        "hair": "Bangs",
         "beard": null,
         "torso": "Tunic",
         "torsoOverlay": "Loose Belt",
@@ -15759,6 +15861,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15779,7 +15887,7 @@
         "clothColor": "tan",
         "metalColor": "steel",
         "head": "Human Male Small",
-        "hair": "Bunches",
+        "hair": "Wavy",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Loose Belt",
@@ -15788,6 +15896,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15817,6 +15931,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15837,7 +15957,7 @@
         "clothColor": "charcoal",
         "metalColor": "steel",
         "head": "Human Male Plump",
-        "hair": "Long center part",
+        "hair": "Long",
         "beard": "5 O'clock Shadow",
         "torso": "Shortsleeve",
         "torsoOverlay": null,
@@ -15846,6 +15966,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "pink"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15866,7 +15992,7 @@
         "clothColor": "charcoal",
         "metalColor": "bronze",
         "head": "Human Male Elderly",
-        "hair": "Mop",
+        "hair": "Messy3",
         "beard": null,
         "torso": "Longsleeve 2",
         "torsoOverlay": "Double Belt",
@@ -15875,6 +16001,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15895,7 +16027,7 @@
         "clothColor": "tan",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Buzzcut",
+        "hair": "Balding",
         "beard": "Horseshoe Mustache",
         "torso": "Leather",
         "torsoOverlay": "Leather Belt Alt",
@@ -15904,6 +16036,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15933,6 +16071,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "pink"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15962,6 +16106,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -15982,7 +16132,7 @@
         "clothColor": "green",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Bunches",
+        "hair": "Wavy",
         "beard": null,
         "torso": "Tunic",
         "torsoOverlay": null,
@@ -15991,6 +16141,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16011,7 +16167,7 @@
         "clothColor": "green",
         "metalColor": "bronze",
         "head": "Human Male Plump",
-        "hair": "Long band",
+        "hair": "Loose",
         "beard": null,
         "torso": "Tunic",
         "torsoOverlay": "Leather Belt",
@@ -16020,6 +16176,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16028,7 +16190,7 @@
             "color": null
           }
         ],
-        "weapon": "Great",
+        "weapon": "Recurve",
         "crystal": null,
         "shield": null
       },
@@ -16040,7 +16202,7 @@
         "clothColor": "walnut",
         "metalColor": "bronze",
         "head": "Human Male Elderly",
-        "hair": "Pigtails",
+        "hair": "Bunches",
         "beard": "Mustache",
         "torso": "Leather",
         "torsoOverlay": "Leather Belt Alt",
@@ -16049,6 +16211,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16078,6 +16246,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16107,6 +16281,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16136,6 +16316,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16165,6 +16351,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "blue"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16194,6 +16386,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16214,7 +16412,7 @@
         "clothColor": "charcoal",
         "metalColor": "bronze",
         "head": "Human Male",
-        "hair": "Side Parted w/Bangs",
+        "hair": "Parted 3",
         "beard": "Trimmed Beard",
         "torso": "Longsleeve 2",
         "torsoOverlay": "Loose Belt",
@@ -16223,6 +16421,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16243,7 +16447,7 @@
         "clothColor": "brown",
         "metalColor": "iron",
         "head": "Human Male Plump",
-        "hair": "Long",
+        "hair": "Curtains long",
         "beard": "Winter Beard",
         "torso": "Longsleeve 2",
         "torsoOverlay": "Loose Belt",
@@ -16252,6 +16456,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16281,6 +16491,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16301,7 +16517,7 @@
         "clothColor": "gray",
         "metalColor": "iron",
         "head": "Human Male Plump",
-        "hair": "Single",
+        "hair": "Plain",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Loose Belt",
@@ -16310,6 +16526,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16339,6 +16561,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16368,6 +16596,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16397,6 +16631,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16417,7 +16657,7 @@
         "clothColor": "charcoal",
         "metalColor": "iron",
         "head": "Human Male Elderly",
-        "hair": "Pigtails",
+        "hair": "Bunches",
         "beard": null,
         "torso": "Longsleeve 2",
         "torsoOverlay": "Double Belt",
@@ -16426,6 +16666,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16455,6 +16701,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16484,6 +16736,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16513,6 +16771,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "leather"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16542,6 +16806,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "orange"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16571,6 +16841,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "blue"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16600,6 +16876,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16620,7 +16902,7 @@
         "clothColor": "charcoal",
         "metalColor": "steel",
         "head": "Human Male",
-        "hair": "Unkempt",
+        "hair": "Side Swoop",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Double Belt",
@@ -16629,6 +16911,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16658,6 +16946,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16687,6 +16981,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16716,6 +17016,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16745,6 +17051,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16774,6 +17086,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16803,6 +17121,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16832,6 +17156,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16861,6 +17191,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16890,6 +17226,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16910,7 +17252,7 @@
         "clothColor": "charcoal",
         "metalColor": "iron",
         "head": "Human Male Small",
-        "hair": "Relm Short",
+        "hair": "Lob",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": "Leather Belt Alt",
@@ -16919,6 +17261,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16948,6 +17296,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -16968,7 +17322,7 @@
         "clothColor": "forest",
         "metalColor": "bronze",
         "head": "Human Male Plump",
-        "hair": "Long band",
+        "hair": "Bangs",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Leather Belt",
@@ -16977,6 +17331,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17006,6 +17366,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17035,6 +17401,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17064,6 +17436,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17093,6 +17471,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17122,6 +17506,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "blue"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17151,6 +17541,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17180,6 +17576,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17209,6 +17611,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17238,6 +17646,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17267,6 +17681,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17296,6 +17716,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17325,6 +17751,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17345,7 +17777,7 @@
         "clothColor": "forest",
         "metalColor": "bronze",
         "head": "Human Female",
-        "hair": "Curly short",
+        "hair": "Curly long",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": "Double Belt",
@@ -17354,6 +17786,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17383,6 +17821,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17412,6 +17856,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17441,6 +17891,12 @@
         "feet": "Basic Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17470,6 +17926,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "walnut"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17499,6 +17961,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17528,6 +17996,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17548,7 +18022,7 @@
         "clothColor": "forest",
         "metalColor": "steel",
         "head": "Human Male",
-        "hair": "Shoulderl",
+        "hair": "Shoulderr",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": null,
@@ -17557,6 +18031,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17586,6 +18066,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17606,7 +18092,7 @@
         "clothColor": "brown",
         "metalColor": "steel",
         "head": "Human Female",
-        "hair": "Parted 3",
+        "hair": "Parted 2",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Double Belt",
@@ -17615,6 +18101,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17644,6 +18136,12 @@
         "feet": "Revised Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17673,6 +18171,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17702,6 +18206,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17731,6 +18241,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17760,6 +18276,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17789,6 +18311,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17818,6 +18346,12 @@
         "feet": "Ghillies",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17838,7 +18372,7 @@
         "clothColor": "green",
         "metalColor": "bronze",
         "head": "Human Male Elderly",
-        "hair": "Swoop",
+        "hair": "Single",
         "beard": "Horseshoe Mustache",
         "torso": "Longsleeve 2",
         "torsoOverlay": "Leather Belt Alt",
@@ -17847,6 +18381,12 @@
         "feet": "Ghillies",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17876,6 +18416,12 @@
         "feet": "Basic Boots",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17905,6 +18451,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17934,6 +18486,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17954,7 +18512,7 @@
         "clothColor": "leather",
         "metalColor": "iron",
         "head": "Human Female Elderly",
-        "hair": "Long straight",
+        "hair": "Long messy2",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Leather Belt",
@@ -17963,6 +18521,12 @@
         "feet": "Ghillies",
         "arms": "Gloves",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -17983,7 +18547,7 @@
         "clothColor": "tan",
         "metalColor": "steel",
         "head": "Human Male Elderly",
-        "hair": "Bob side part",
+        "hair": "Bob",
         "beard": null,
         "torso": "Leather",
         "torsoOverlay": "Leather Belt",
@@ -17992,6 +18556,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -18021,6 +18591,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -18050,6 +18626,12 @@
         "feet": "Ghillies",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -18070,7 +18652,7 @@
         "clothColor": "green",
         "metalColor": "iron",
         "head": "Human Female",
-        "hair": "Page",
+        "hair": "Mop",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": "Leather Belt",
@@ -18079,6 +18661,12 @@
         "feet": "Revised Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -18099,7 +18687,7 @@
         "clothColor": "forest",
         "metalColor": "iron",
         "head": "Human Male",
-        "hair": "Relm XLong",
+        "hair": "Shoulderl",
         "beard": null,
         "torso": "Shortsleeve",
         "torsoOverlay": null,
@@ -18108,6 +18696,12 @@
         "feet": "Revised Boots",
         "arms": "Bracers",
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -18137,6 +18731,12 @@
         "feet": "Basic Boots",
         "arms": null,
         "headwear": "Leather Cap",
+        "headOverlays": [
+          {
+            "name": "Leather Cap Feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27105,7 +27705,7 @@
         "clothColor": "white",
         "metalColor": "gold",
         "head": "Human Female",
-        "hair": "Side Parted w/Bangs 2",
+        "hair": "Side Parted w/Bangs",
         "beard": null,
         "torso": "Cardigan",
         "torsoOverlay": null,
@@ -27114,6 +27714,16 @@
         "feet": "Folded Rim Boots",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "maroon"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -27138,6 +27748,16 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "bluegray"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27167,6 +27787,16 @@
         "feet": "Folded Rim Boots",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "red"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27225,6 +27855,16 @@
         "feet": "Revised Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "maroon"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27254,6 +27894,16 @@
         "feet": "Sara Shoes",
         "arms": "Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "sky"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -27269,7 +27919,7 @@
         "clothColor": "forest",
         "metalColor": "gold",
         "head": "Human Female",
-        "hair": "Curly long",
+        "hair": "Large Curls XLong",
         "beard": null,
         "torso": "Longsleeve Polo",
         "torsoOverlay": null,
@@ -27298,7 +27948,7 @@
         "clothColor": "purple",
         "metalColor": "brass",
         "head": "Human Female Small",
-        "hair": "Bangslong",
+        "hair": "Jewfro",
         "beard": null,
         "torso": "Longsleeve 2 Buttoned",
         "torsoOverlay": null,
@@ -27331,6 +27981,16 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "brown"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27351,7 +28011,7 @@
         "clothColor": "rose",
         "metalColor": "brass",
         "head": "Human Male Elderly",
-        "hair": "Long straight",
+        "hair": "Long messy2",
         "beard": "Medium Beard",
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -27360,6 +28020,12 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27389,6 +28055,12 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27467,7 +28139,7 @@
         "clothColor": "orange",
         "metalColor": "silver",
         "head": "Human Male Plump",
-        "hair": "Bangslong",
+        "hair": "Jewfro",
         "beard": "Horseshoe Mustache",
         "torso": "Collared coat",
         "torsoOverlay": null,
@@ -27476,6 +28148,16 @@
         "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "slate"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -27491,7 +28173,7 @@
         "clothColor": "purple",
         "metalColor": "brass",
         "head": "Human Male Plump",
-        "hair": "Pigtails bangs",
+        "hair": "Bangs",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -27553,6 +28235,16 @@
         "feet": "Basic Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "blue"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27611,6 +28303,16 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "red"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27631,7 +28333,7 @@
         "clothColor": "yellow",
         "metalColor": "gold",
         "head": "Human Female Small",
-        "hair": "Twists straight",
+        "hair": "Twists fade",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": null,
@@ -27655,7 +28357,7 @@
         "clothColor": "white",
         "metalColor": "gold",
         "head": "Human Female Elderly",
-        "hair": "Bangslong2",
+        "hair": "Bangslong",
         "beard": null,
         "torso": "Longsleeve Polo",
         "torsoOverlay": null,
@@ -27664,6 +28366,16 @@
         "feet": "Revised Shoes",
         "arms": "Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "white"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "blue"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -27766,7 +28478,7 @@
         "clothColor": "purple",
         "metalColor": "brass",
         "head": "Human Female Small",
-        "hair": "Bangslong2",
+        "hair": "Bangslong",
         "beard": null,
         "torso": "Longsleeve 2 Buttoned",
         "torsoOverlay": null,
@@ -27799,6 +28511,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "leather"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27819,7 +28537,7 @@
         "clothColor": "white",
         "metalColor": "gold",
         "head": "Human Male Elderly",
-        "hair": "Bangsshort",
+        "hair": "Bedhead",
         "beard": "Winter Beard",
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -27828,6 +28546,16 @@
         "feet": "Basic Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "tan"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27848,7 +28576,7 @@
         "clothColor": "rose",
         "metalColor": "brass",
         "head": "Human Female",
-        "hair": "Jewfro",
+        "hair": "Curly short 2",
         "beard": null,
         "torso": "Cardigan",
         "torsoOverlay": null,
@@ -27877,7 +28605,7 @@
         "clothColor": "maroon",
         "metalColor": "gold",
         "head": "Human Female Small",
-        "hair": "Flat top straight",
+        "hair": "Flat top fade",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": null,
@@ -27886,6 +28614,16 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "pink"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -27925,7 +28663,7 @@
         "clothColor": "white",
         "metalColor": "brass",
         "head": "Human Female Small",
-        "hair": "Relm XLong",
+        "hair": "Shoulderl",
         "beard": null,
         "torso": "Cardigan",
         "torsoOverlay": null,
@@ -27934,6 +28672,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -27987,6 +28731,16 @@
         "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "gray"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28016,6 +28770,16 @@
         "feet": "Basic Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "bluegray"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28069,6 +28833,16 @@
         "feet": "Revised Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "purple"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28093,6 +28867,16 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "purple"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28122,6 +28906,16 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "blue"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28151,6 +28945,12 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28180,6 +28980,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28233,6 +29039,12 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28253,7 +29065,7 @@
         "clothColor": "pink",
         "metalColor": "brass",
         "head": "Human Female",
-        "hair": "Spiked2",
+        "hair": "Spiked",
         "beard": null,
         "torso": "Longsleeve 2 Buttoned",
         "torsoOverlay": null,
@@ -28306,7 +29118,7 @@
         "clothColor": "rose",
         "metalColor": "gold",
         "head": "Human Male Gaunt",
-        "hair": "Long messy",
+        "hair": "Long center part",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -28315,6 +29127,16 @@
         "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "teal"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28344,6 +29166,16 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "green"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28373,6 +29205,16 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "forest"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "maroon"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28402,6 +29244,12 @@
         "feet": "Basic Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "slate"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28422,7 +29270,7 @@
         "clothColor": "pink",
         "metalColor": "silver",
         "head": "Human Male Small",
-        "hair": "Halfmessy",
+        "hair": "Unkempt",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -28494,7 +29342,7 @@
         "clothColor": "green",
         "metalColor": "gold",
         "head": "Human Male Small",
-        "hair": "Half up",
+        "hair": "Braid2",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -28503,6 +29351,12 @@
         "feet": "Folded Rim Boots",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28523,7 +29377,7 @@
         "clothColor": "sky",
         "metalColor": "silver",
         "head": "Human Male Plump",
-        "hair": "Messy3",
+        "hair": "Messy2",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -28556,6 +29410,16 @@
         "feet": "Basic Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "blue"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28571,7 +29435,7 @@
         "clothColor": "blue",
         "metalColor": "silver",
         "head": "Human Female Small",
-        "hair": "Side Parted w/Bangs 2",
+        "hair": "Side Parted w/Bangs",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": null,
@@ -28580,6 +29444,16 @@
         "feet": "Revised Shoes",
         "arms": "Cuffs",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "yellow"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28638,6 +29512,16 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "pink"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "green"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28691,6 +29575,16 @@
         "feet": "Basic Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "walnut"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28720,6 +29614,12 @@
         "feet": "Sara Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28740,7 +29640,7 @@
         "clothColor": "maroon",
         "metalColor": "silver",
         "head": "Human Female Elderly",
-        "hair": "Plain",
+        "hair": "Pixie",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": null,
@@ -28749,6 +29649,16 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "sky"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28826,6 +29736,16 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "orange"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -28894,7 +29814,7 @@
         "clothColor": "sky",
         "metalColor": "brass",
         "head": "Human Female",
-        "hair": "Twists straight",
+        "hair": "Twists fade",
         "beard": null,
         "torso": "Longsleeve Polo",
         "torsoOverlay": null,
@@ -28951,6 +29871,12 @@
         "feet": "Revised Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "red"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28966,7 +29892,7 @@
         "clothColor": "red",
         "metalColor": "silver",
         "head": "Human Male Small",
-        "hair": "Balding",
+        "hair": "Twists straight",
         "beard": null,
         "torso": "Collared coat",
         "torsoOverlay": null,
@@ -28975,6 +29901,12 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -28999,6 +29931,12 @@
         "feet": "Revised Shoes",
         "arms": "Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "forest"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29023,6 +29961,12 @@
         "feet": "Sara Shoes",
         "arms": "Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29047,6 +29991,12 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "tan"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29105,6 +30055,16 @@
         "feet": "Basic Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "yellow"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "walnut"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29129,6 +30089,16 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "white"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "blue"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29158,6 +30128,16 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "gray"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "sky"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29187,6 +30167,12 @@
         "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29216,6 +30202,16 @@
         "feet": "Basic Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "walnut"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "purple"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29240,6 +30236,16 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "charcoal"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "walnut"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29269,6 +30275,12 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29293,6 +30305,16 @@
         "feet": "Sara Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "green"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "lavender"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29313,7 +30335,7 @@
         "clothColor": "purple",
         "metalColor": "silver",
         "head": "Human Female",
-        "hair": "Bedhead",
+        "hair": "Cowlick",
         "beard": null,
         "torso": "Longsleeve",
         "torsoOverlay": null,
@@ -29322,6 +30344,16 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "orange"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "black"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29351,6 +30383,16 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "orange"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29380,6 +30422,12 @@
         "feet": "Folded Rim Boots",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "brown"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29433,6 +30481,16 @@
         "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "leather"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "walnut"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29462,6 +30520,16 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "pink"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29482,7 +30550,7 @@
         "clothColor": "maroon",
         "metalColor": "brass",
         "head": "Human Male Plump",
-        "hair": "Unkempt",
+        "hair": "Side Swoop",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -29491,6 +30559,16 @@
         "feet": "Basic Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "teal"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29520,6 +30598,16 @@
         "feet": "Basic Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "black"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "charcoal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29549,6 +30637,16 @@
         "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "tan"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "navy"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29593,7 +30691,7 @@
         "clothColor": "lavender",
         "metalColor": "brass",
         "head": "Human Male Elderly",
-        "hair": "Curly short",
+        "hair": "Curly long",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -29602,6 +30700,12 @@
         "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "yellow"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29617,7 +30721,7 @@
         "clothColor": "rose",
         "metalColor": "brass",
         "head": "Human Male Plump",
-        "hair": "Bob side part",
+        "hair": "Bob",
         "beard": null,
         "torso": "Collared coat",
         "torsoOverlay": null,
@@ -29626,6 +30730,12 @@
         "feet": "Sara Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "white"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29641,7 +30751,7 @@
         "clothColor": "white",
         "metalColor": "gold",
         "head": "Human Female Elderly",
-        "hair": "Pigtails",
+        "hair": "Pigtails bangs",
         "beard": null,
         "torso": "Cardigan",
         "torsoOverlay": null,
@@ -29650,6 +30760,16 @@
         "feet": "Basic Shoes",
         "arms": "Lace Cuffs",
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "forest"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29679,6 +30799,16 @@
         "feet": "Sara Shoes",
         "arms": null,
         "headwear": "Bonnie",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "tan"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "gray"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [],
@@ -29703,6 +30833,12 @@
         "feet": "Sara Shoes",
         "arms": "Cuffs",
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "teal"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
@@ -29723,7 +30859,7 @@
         "clothColor": "maroon",
         "metalColor": "gold",
         "head": "Human Male Small",
-        "hair": "Braid",
+        "hair": "Page",
         "beard": null,
         "torso": "Frock coat",
         "torsoOverlay": null,
@@ -29732,10 +30868,21 @@
         "feet": "Revised Shoes",
         "arms": null,
         "headwear": "Cavalier",
+        "headOverlays": [
+          {
+            "name": "Cavalier feather",
+            "color": "bluegray"
+          }
+        ],
         "beast": null,
         "visor": null,
-        "accessories": [],
-        "weapon": "Recurve",
+        "accessories": [
+          {
+            "name": "Bowtie 2",
+            "color": "orange"
+          }
+        ],
+        "weapon": "Great",
         "crystal": null,
         "shield": null
       },
@@ -29785,6 +30932,16 @@
         "feet": "Sara Shoes",
         "arms": "Gloves",
         "headwear": "Bonnie Alt Tilt",
+        "headOverlays": [
+          {
+            "name": "Bonnie Center Trim",
+            "color": "tan"
+          },
+          {
+            "name": "Bonnie feather",
+            "color": "rose"
+          }
+        ],
         "beast": null,
         "visor": null,
         "accessories": [
