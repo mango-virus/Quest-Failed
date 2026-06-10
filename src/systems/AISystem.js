@@ -1603,6 +1603,19 @@ export class AISystem {
               }
               adv._oscRing = []
               adv._tileStuckMs = 0
+            } else if (adv.goal?.type === 'EXPLORE_ROOM') {
+              // Stuck pacing toward a hard-to-reach scout tile — most often a
+              // per-adv explore scatter tile that's boxed in by decor. GIVE UP
+              // THAT room (mark it explored) and pick another, instead of
+              // fleeing the whole dungeon. Reuses the same give-up-the-room path
+              // the stagnation watchdog uses, and respects the streak cap so an
+              // adv can't room-bounce forever. This is the fix for the frequent
+              // "can't see a way forward and bolts for the exit!" flee — an
+              // explorer should try the next room, not abandon the raid.
+              this._escalateStuckExplore(adv)
+              adv.path = null
+              adv._oscRing = []
+              adv._tileStuckMs = 0
             } else {
               adv.goal    = { type: 'FLEE', reason: 'oscillation' }
               adv.path    = null
