@@ -41,7 +41,10 @@ export const ABILITY_DEFS = {
   monk_inner_peace:  { id: 'inner_peace',  cooldownMs: 40000, durationMs: 8000, label: 'Inner Peace', regenPerSec: 1 },
   // Cleric
   cleric_heal:           { id: 'cleric_heal',     cooldownMs: 10000,                   label: 'Heal' },
-  cleric_resurrection:   { id: 'resurrection',   usesPerDay: 1,                        label: 'Resurrection' }, // 1 per day per cleric
+  // Channeled like the Valkyrie's Rally (2026-06-09): the cleric walks to a
+  // tile ADJACENT to a fallen ally, then runs a 3s interruptible cast bar that
+  // raises them at 30% HP. Once per cleric. (Shares the channel machinery.)
+  cleric_resurrection:   { id: 'resurrection',   usesPerDay: 1, castMs: 3000, reviveFrac: 0.30, rangeTiles: 6, label: 'Resurrection' }, // 1 per day per cleric
   // Mage
   mage_arcane_burst:     { id: 'arcane_burst',   cooldownMs: 20000,                    label: 'Arcane Burst', aoeRangeTiles: 1 },
   // Mage Elemental Affinity is a passive (rolled at spawn; CombatSystem reads adv._element).
@@ -120,6 +123,18 @@ export const ABILITY_DEFS = {
   // in the boss room starts the boss fight the instant anyone climbs out of it
   // — the miner included. A 5s startup gate stops an instant dig on spawn.
   miner_tunnel: { id: 'tunnel', usesPerDay: 1, label: 'Tunnel' },
+}
+
+// Per-ability cosmetics for the shared channeled-revive machinery (Valkyrie
+// Rally + Cleric Resurrection). Keyed by the ability's `id`. Keeps colour/text
+// flavour out of the gameplay defs above.
+const REVIVE_COSMETIC = {
+  rally_the_fallen: { color: 0xffe9a8, hex: '#ffe9a8', done: 'RALLIED', verb: 'rallied',
+    move: 'moves to rally a fallen ally', kneel: 'kneels beside the fallen and channels Rally',
+    interrupt: 'Rally was interrupted' },
+  resurrection:     { color: 0xfff4a8, hex: '#fff4a8', done: 'RESURRECTED', verb: 'revived',
+    move: 'moves to reach a fallen ally', kneel: 'kneels and channels a Resurrection',
+    interrupt: 'Resurrection was interrupted' },
 }
 
 // Tunnel sequence timing (the "few seconds" from the spec).
@@ -451,7 +466,9 @@ export class ClassAbilitySystem {
         adv._tunnelPhase = null; adv._tunnelDig = null
         adv._underground = false; adv._castingUntil = 0
       }
-      if (adv.classId === 'valkyrie' && (adv._rallyChannelUntil || adv._rallyApproachId != null)) {
+      // Any channeled-revive caster (Valkyrie Rally OR Cleric Resurrection)
+      // caught mid-approach/channel at the phase flip — tear it down.
+      if (adv._rallyChannelUntil || adv._rallyApproachId != null) {
         this._cancelRallyCast(adv, true)
       }
     }
@@ -733,16 +750,34 @@ export class ClassAbilitySystem {
   // combat mid-cast, or the target is otherwise revived/culled.
 
   _considerValkyrie(adv, now) {
+    this._considerChanneledRevive(adv, ABILITY_DEFS.valkyrie_rally, now)
+  }
+
+  // Which channeled-revive ability (if any) this adv channels — drives the
+  // shared begin/tick/cancel/cast-bar so they don't need the def threaded in.
+  _reviveDefFor(adv) {
+    const cls = adv?.classId
+    if (cls === 'valkyrie') return ABILITY_DEFS.valkyrie_rally
+    if (cls === 'cleric')   return ABILITY_DEFS.cleric_resurrection
+    return null
+  }
+
+  // SHARED channeled-revive state machine (Valkyrie Rally + Cleric Resurrection):
+  // walk to a tile ADJACENT to the most-recently-fallen ally (never onto the
+  // corpse), then run a `def.castMs` INTERRUPTIBLE channel (cast bar) that raises
+  // them at def.reviveFrac HP, once per caster. Interrupt = caster dies/flees/
+  // enters combat mid-cast, or the target is otherwise revived/culled.
+  _considerChanneledRevive(adv, def, now) {
     // Channeling? progress the cast bar / complete / cancel.
     if (adv._rallyChannelUntil) { this._tickRallyCast(adv, now); return }
-    // Walking to a fallen ally? keep steering her there until she's adjacent.
+    // Walking to a fallen ally? keep steering them there until adjacent.
     if (adv._rallyApproachId != null) { this._tickRallyApproach(adv, now); return }
-    // Idle wrt Rally — only consider it while travelling (not mid-combat/flee).
+    // Idle wrt revive — only consider it while travelling (not mid-combat/flee).
     if (adv.aiState !== 'walking') return
-    const def = ABILITY_DEFS.valkyrie_rally
     if (!AbilitySystem.canUse(adv, def, now).ready) return
     const target = this._findFallenToRevive(adv, def.rangeTiles)
     if (!target) return
+    const cos = REVIVE_COSMETIC[def.id] ?? REVIVE_COSMETIC.rally_the_fallen
     if (this._adjacentToTile(adv, target.tileX, target.tileY)) {
       this._beginRallyCast(adv, target, now)   // already beside the body
       return
@@ -753,7 +788,7 @@ export class ClassAbilitySystem {
     adv._rallyApproachTile = slot
     adv.goal = { type: 'RALLY_APPROACH', tileX: slot.x, tileY: slot.y }
     adv.path = null; adv.pathIndex = 0; adv.pathTarget = null   // force a repath to the body
-    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} moves to rally a fallen ally.` })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: def.id, message: `${adv.name} ${cos.move}.` })
   }
 
   // Walk-to-corpse phase: steer her to the adjacent tile, start the cast on arrival.
@@ -784,14 +819,15 @@ export class ClassAbilitySystem {
   }
 
   _beginRallyCast(adv, target, now) {
-    const def = ABILITY_DEFS.valkyrie_rally
+    const def = this._reviveDefFor(adv) ?? ABILITY_DEFS.valkyrie_rally
+    const cos = REVIVE_COSMETIC[def.id] ?? REVIVE_COSMETIC.rally_the_fallen
     AbilitySystem.markUsed(adv, def, now)            // spend the once/day use only when the cast starts
     adv._rallyChannelUntil = now + def.castMs
     adv._rallyTargetId     = target.instanceId
-    adv._castingUntil      = adv._rallyChannelUntil   // AISystem holds her still while this is set
+    adv._castingUntil      = adv._rallyChannelUntil   // AISystem holds them still while this is set
     this._startRallyCastBar(adv, def.castMs)
-    AbilityVfx.pulseRing?.(this._scene, adv.worldX, adv.worldY, { color: 0xffe9a8, fromR: 6, toR: 30, durationMs: 400, alpha: 0.7 })
-    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} kneels beside the fallen and channels Rally.` })
+    AbilityVfx.pulseRing?.(this._scene, adv.worldX, adv.worldY, { color: cos.color, fromR: 6, toR: 30, durationMs: 400, alpha: 0.7 })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: def.id, message: `${adv.name} ${cos.kneel}.` })
   }
 
   // Adjacent (incl. diagonal) to a tile, but NOT standing on it.
@@ -832,11 +868,13 @@ export class ClassAbilitySystem {
     adv._castingUntil = adv._rallyChannelUntil
     this._updateRallyCastBar(adv, now)
     if (now < adv._rallyChannelUntil) return
-    // ── Channel complete — raise the fallen ally at HALF HP ──
-    const def = ABILITY_DEFS.valkyrie_rally
+    // ── Channel complete — raise the fallen ally at def.reviveFrac HP ──
+    const def = this._reviveDefFor(adv) ?? ABILITY_DEFS.valkyrie_rally
+    const cos = REVIVE_COSMETIC[def.id] ?? REVIVE_COSMETIC.rally_the_fallen
+    const frac = def.reviveFrac ?? 0.5
     const dead = grave.splice(tIdx, 1)[0]
     const TS = Balance.TILE_SIZE
-    dead.resources.hp    = Math.max(1, Math.floor((dead.resources.maxHp ?? 0) * (def.reviveFrac ?? 0.5)))
+    dead.resources.hp    = Math.max(1, Math.floor((dead.resources.maxHp ?? 0) * frac))
     dead.aiState         = 'walking'
     dead.path = null; dead.pathIndex = 0; dead.pathTarget = null
     dead.currentTargetId = null; dead.lastAttackAt = 0
@@ -847,32 +885,34 @@ export class ClassAbilitySystem {
     this._scene.bossSystem?._fightStates?.delete(dead.instanceId)
     this._gameState.adventurers.active.push(dead)
     this._scene.aiSystem?.pickInitialGoal?.(dead)
-    AbilityVfx.resurrectBeam?.(this._scene, dead.worldX, dead.worldY, { color: 0xffe9a8, durationMs: 750 })
-    AbilityVfx.floatingText(this._scene, dead.worldX, (dead.worldY ?? 0) - 30, 'RALLIED', { color: '#ffe9a8', fontSize: '14px' })
+    AbilityVfx.resurrectBeam?.(this._scene, dead.worldX, dead.worldY, { color: cos.color, durationMs: 750 })
+    AbilityVfx.floatingText(this._scene, dead.worldX, (dead.worldY ?? 0) - 30, cos.done, { color: cos.hex, fontSize: '14px' })
     this._endRallyCastBar(adv)
     adv._rallyChannelUntil = null; adv._rallyTargetId = null; adv._castingUntil = null
     EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: dead })
     EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: dead })   // re-init abilities + renderer sprite
-    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name} rallied ${this._shortName(dead)} back to their feet at half HP.` })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: def.id, message: `${adv.name} ${cos.verb} ${this._shortName(dead)} back to their feet at ${Math.round(frac * 100)}% HP.` })
   }
 
   _cancelRallyCast(adv, silentTarget = false) {
     this._endRallyCastBar(adv)
     if (adv._rallyChannelUntil && !silentTarget) {
+      const cos = REVIVE_COSMETIC[this._reviveDefFor(adv)?.id] ?? REVIVE_COSMETIC.rally_the_fallen
       AbilityVfx.floatingText?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 30, 'INTERRUPTED', { color: '#cc8a8a', fontSize: '12px' })
-      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'rally_the_fallen', message: `${adv.name}'s Rally was interrupted.` })
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: this._reviveDefFor(adv)?.id, message: `${adv.name}'s ${cos.interrupt}.` })
     }
     adv._rallyChannelUntil = null; adv._rallyTargetId = null; adv._castingUntil = null
     adv._rallyApproachId = null; adv._rallyApproachTile = null
   }
 
-  // A small fill-bar above the valkyrie's head while she channels.
+  // A small fill-bar above the caster's head while they channel a revive.
   _startRallyCastBar(adv, durationMs) {
     this._castBars ??= new Map()
     this._endRallyCastBar(adv)
+    const cos = REVIVE_COSMETIC[this._reviveDefFor(adv)?.id] ?? REVIVE_COSMETIC.rally_the_fallen
     const w = 30, h = 4, y = (adv.worldY ?? 0) - 34
     const bg   = this._scene.add.rectangle(adv.worldX, y, w, h, 0x1a140c, 0.7).setDepth(20)
-    const fill = this._scene.add.rectangle(adv.worldX - w / 2, y, 1, h, 0xffe9a8, 0.95).setOrigin(0, 0.5).setDepth(21)
+    const fill = this._scene.add.rectangle(adv.worldX - w / 2, y, 1, h, cos.color, 0.95).setOrigin(0, 0.5).setDepth(21)
     this._castBars.set(adv.instanceId, { bg, fill, w, start: this._scene.time.now, durationMs })
   }
 
@@ -1341,6 +1381,16 @@ export class ClassAbilitySystem {
   _considerCleric(adv, now) {
     // Phase 9 — Crusader's Curse: clerics cannot heal in this dungeon.
     if ((this._gameState._mechanicFlags ?? {}).crusadersCurse) return
+    // Channeled Resurrection (2026-06-09) — LIVE cleric adventurers walk to a
+    // fallen ally + run the 3s cast bar, same machinery as the Valkyrie's Rally
+    // (raise at 30% HP). A revived cleric MINION (Undying Court) is excluded —
+    // it keeps its instant in-place save of dungeon minions. While she's
+    // approaching/channelling a revive, that owns her turn — skip the heal so
+    // she doesn't multitask out of the cast.
+    if (!adv._revivedAdv) {
+      this._considerChanneledRevive(adv, ABILITY_DEFS.cleric_resurrection, now)
+      if (adv._rallyChannelUntil || adv._rallyApproachId != null) return
+    }
     // Heal — find lowest-HP same-party ally below 70% HP within range.
     const healDef = ABILITY_DEFS.cleric_heal
     const target = this._findHealTarget(adv)
@@ -1393,56 +1443,10 @@ export class ClassAbilitySystem {
     return best
   }
 
-  // Cleric Resurrection — invoked from AISystem._kill BEFORE death processing.
-  // Returns true if a same-party Cleric (with Resurrection still available)
-  // revives the falling adventurer at 30% HP.
-  attemptClericResurrect(falling) {
-    if (!falling || falling.classId === undefined) return false
-    if (falling.aiState === 'dead') return false
-    const advs = this._gameState.adventurers?.active ?? []
-    for (const cleric of advs) {
-      if (cleric.classId !== 'cleric') continue
-      if (cleric === falling) continue
-      if (cleric.aiState === 'dead' || cleric.resources?.hp <= 0) continue
-      // Party gating REMOVED 2026-05-27 — see _findHealTarget for the
-      // same rationale. Clerics now resurrect any falling adv they can
-      // reach, regardless of party. Ability still gated by per-day
-      // use count (1) so each cleric brings exactly one revive.
-      const ready = AbilitySystem.canUse(cleric, ABILITY_DEFS.cleric_resurrection, this._scene.time.now)
-      if (!ready.ready) continue
-      // Spend the use.
-      AbilitySystem.markUsed(cleric, ABILITY_DEFS.cleric_resurrection, this._scene.time.now)
-      // Revive at 30% HP and FULLY reset transient AI state so the adv
-      // doesn't freeze on stale path/goal/target left over from the moment
-      // they died. Without this, the resurrected adv often stood still.
-      falling.resources.hp   = Math.max(1, Math.floor(falling.resources.maxHp * 0.30))
-      falling.aiState        = 'walking'
-      falling.path           = null
-      falling.pathIndex      = 0
-      falling.pathTarget     = null
-      falling.currentTargetId = null
-      falling.lastAttackAt   = 0
-      falling._lastHitBy     = null
-      falling._lastHitType   = null
-      // Clear damage-window flags that might still gate behavior.
-      falling._stuckInEntryMs = 0
-      // Drop any BossSystem fight state — if they died in the boss room,
-      // BossSystem flagged fs.action='dying' before this revive ran.
-      // Without clearing it, the next BossSystem tick keeps them frozen
-      // in the dying pose (no motion + _killAdv re-fire after actionDur).
-      // Deleting the entry lets _syncFightParty re-conscript them with a
-      // fresh `approach` action when they next land on an interior tile.
-      this._scene.bossSystem?._fightStates?.delete(falling.instanceId)
-      // Pick a fresh goal so they walk again instead of sitting on the old
-      // (probably-dead-target) goal.
-      this._scene.aiSystem?.pickInitialGoal?.(falling)
-      AbilityVfx.pulseRing(this._scene, falling.worldX, falling.worldY, { color: 0xffffaa, fromR: 4, toR: 22, durationMs: 400, alpha: 0.7 })
-      AbilityVfx.floatingText(this._scene, falling.worldX, falling.worldY - 30, 'REVIVED', { color: '#ffffaa', fontSize: '14px' })
-      EventBus.emit('ABILITY_TRIGGERED', { adventurer: cleric, abilityId: 'resurrection', message: `${cleric.name} revived ${this._shortName(falling)}.` })
-      return true
-    }
-    return false
-  }
+  // (Cleric Resurrection's old instant death-save was removed 2026-06-09 — the
+  // cleric now revives proactively via a 3s channel in _considerCleric, exactly
+  // like the Valkyrie's Rally. The revived-cleric-MINION instant minion save
+  // still lives in the saver path above.)
 
   // ── Mage ──────────────────────────────────────────────────────────────────
 

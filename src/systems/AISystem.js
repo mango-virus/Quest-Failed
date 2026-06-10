@@ -4383,12 +4383,10 @@ export class AISystem {
       adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
       return
     }
-    // Phase 5c — Cleric Resurrection: if a same-party Cleric still has the
-    // ability today, revive the falling adv at 30% HP and skip death.
-    if (this._scene.classAbilitySystem?.attemptClericResurrect?.(adv)) {
-      EventBus.emit('ADVENTURER_RESURRECTED', { adventurer: adv })
-      return
-    }
+    // Cleric Resurrection is no longer an instant death-save — it's a proactive
+    // 3s channel (the cleric walks to the body in the graveyard and raises it,
+    // like the Valkyrie's Rally). See ClassAbilitySystem._considerCleric. So the
+    // dying adv now actually dies (→ graveyard) and a nearby cleric raises it later.
     // Phase 6 — Gambler Double or Nothing: on his OWN death, a 50/50 — WIN revives
     // him (skip death); LOSE pays the player out and lets death proceed (returns
     // false, so this won't short-circuit on a loss).
