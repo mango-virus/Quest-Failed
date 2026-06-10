@@ -166,6 +166,11 @@ export class AdventurerRenderer {
     // stolen treasure. Created on TREASURE_STOLEN, destroyed on death,
     // escape, or recover. Position updates each tick.
     this._carrierLabels = {}
+    // A floating key icon that follows any adventurer holding a door key
+    // (adv.keys, an array of lock ids) until they spend it on a lock. Driven by
+    // polling adv.keys in update() — created on pickup, removed the instant the
+    // key is consumed, the adv dies/flees, or night resets. id → Phaser.Image.
+    this._keyIcons = {}
     EventBus.on('TREASURE_STOLEN',     this._onTreasureStolen,     this)
     EventBus.on('TREASURE_RECOVERED',  this._onTreasureCleared,    this)
     EventBus.on('TREASURE_ESCAPED',    this._onTreasureCleared,    this)
@@ -196,6 +201,8 @@ export class AdventurerRenderer {
   _clearAllCarrierLabels() {
     for (const t of Object.values(this._carrierLabels ?? {})) t?.destroy?.()
     this._carrierLabels = {}
+    for (const k of Object.values(this._keyIcons ?? {})) k?.destroy?.()
+    this._keyIcons = {}
   }
 
   // Floating "+ATK" / "+5 HP" text that drifts upward and fades. Keeps
@@ -561,6 +568,26 @@ export class AdventurerRenderer {
       // bubbles anchor higher (y - 30 extending up) so they don't clash.
       const tag = this._carrierLabels?.[adv.instanceId]
       if (tag) { tag.setPosition(adv.worldX, adv.worldY - 42); if (!tag.visible) tag.setVisible(true) }
+      // Floating key over a key-holder's head until they spend it. Sits above
+      // the gold-coins carrier (y-52 vs y-42) so an adv carrying both shows both,
+      // with a gentle bob so it reads as a held, floating key. Polls adv.keys so
+      // it vanishes the same frame the key is consumed in _tryUnlockTile.
+      const hasKey = (adv.keys?.length ?? 0) > 0
+      let kic = this._keyIcons[adv.instanceId]
+      if (hasKey && !kic && this._scene.textures.exists('item-key')) {
+        kic = this._scene.add.image(adv.worldX, adv.worldY - 52, 'item-key')
+          .setOrigin(0.5, 1).setDepth(41).setScale(1.4)
+        this._keyIcons[adv.instanceId] = kic
+      }
+      if (kic) {
+        if (hasKey) {
+          const bob = Math.sin(this._scene.time.now / 240) * 3
+          kic.setPosition(adv.worldX, adv.worldY - 52 + bob)
+          if (!kic.visible) kic.setVisible(true)
+        } else {
+          kic.destroy(); delete this._keyIcons[adv.instanceId]
+        }
+      }
       // Track movement direction for the LPC sprite — derived from the
       // last frame's worldX/Y delta. Stored on adv (transient, save-safe).
       const prevX = adv._lastWorldX ?? adv.worldX
@@ -1524,6 +1551,8 @@ export class AdventurerRenderer {
     s.cheaterHalo = null
     s.container.destroy()
     delete this._sprites[id]
+    this._keyIcons?.[id]?.destroy?.()
+    if (this._keyIcons) delete this._keyIcons[id]
   }
 
   _onRemove({ adventurer }) {
@@ -1566,6 +1595,11 @@ export class AdventurerRenderer {
     s.veteranBadge?.setVisible(false)
     s.markedBadge?.setVisible(false)
     s.body?.disableInteractive()
+    // A key-holder who dies before spending it drops the key — clear the
+    // floating icon so it doesn't hover over the corpse (the parked body stays
+    // until night, but the loop won't visit a dead adv to poll it away).
+    this._keyIcons?.[adventurer.instanceId]?.destroy?.()
+    if (this._keyIcons) delete this._keyIcons[adventurer.instanceId]
     if (s.lpc) {
       // Snap back to the body texture/origin in case we died mid-attack on
       // the atk sheet, then play the hurt strip. Minion-sheet and boss-
