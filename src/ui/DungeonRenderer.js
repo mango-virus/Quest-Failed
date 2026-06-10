@@ -541,22 +541,23 @@ export class DungeonRenderer {
     // those cells (doors still render so they overlay the skin).
     this._drawRoomSkins()
 
-    // Skinned doors: the skin is drawn on BOTH the owning room's door block AND
-    // the paired room's (by _drawDoorSkins, one 4×3 image per side), so the
-    // per-cell / procedural door art is skipped on both — the connected room
-    // sees the door too, not a red procedural rectangle.
-    this._skinnedDoorCells = new Set()
-    const addBlock = (b) => {
-      if (!b) return
-      for (let dx = 0; dx < b.w; dx++) for (let dy = 0; dy < b.h; dy++) this._skinnedDoorCells.add(`${b.x0 + dx},${b.y0 + dy}`)
-    }
+    // Skinned doors: a single standalone image (_drawDoorSkins) covers the
+    // door's WHOLE footprint (the 4×3 region the image is stretched over) on its
+    // own wall. Suppress ALL procedural art under that footprint — not just the
+    // DOOR cells — so the surrounding WALL (incl. its capstone band, drawn on
+    // _gTiles at depth 1, BELOW the skin at 1.6) can't bleed through the skin's
+    // transparent margins. That bleed was the "black line above the door": the
+    // lintel wall cell's capstone showing through the skin's transparent top.
+    // FLOOR cells in the footprint still draw (so the room floor shows under the
+    // skin's transparent base — the apron row).
+    this._doorSkinFootprint = new Set()
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
       if (!room.doorSkin && !room.doorSkinByBoss) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
         // Per-room doors: a room's skin only covers ITS OWN wall. The paired
         // room renders its own door on its side.
-        addBlock(this._doorBlockCells(room, cp))
+        for (const k of this._doorSkinFootprintCells(room, cp)) this._doorSkinFootprint.add(k)
       }
     }
 
@@ -570,9 +571,13 @@ export class DungeonRenderer {
         if (this._spanCoveredSet.has(`${x},${y}`)) continue
 
         const t = row[x]
-        // A single-image door skin covers this door cell — skip the per-cell
-        // door art entirely (the skin image, drawn separately, stands alone).
-        if (t === TILE.DOOR && this._skinnedDoorCells.has(`${x},${y}`)) continue
+        // A single-image door skin covers this cell's whole footprint — skip the
+        // per-cell DOOR and WALL art (incl. the wall capstone band, which is
+        // drawn on _gTiles below the skin and otherwise bleeds through the skin's
+        // transparent margins). FLOOR cells still draw so the room floor shows
+        // under the skin's transparent base.
+        if (this._doorSkinFootprint.has(`${x},${y}`) &&
+            (t === TILE.DOOR || t === TILE.WALL || t === TILE.BOSS_WALL)) continue
         // Skinned-room surface: a full-room image already covers this cell's
         // floor/wall. Skip the per-cell draw — but let DOOR cells through so
         // doors render (overlaid) as normal.
@@ -644,6 +649,29 @@ export class DungeonRenderer {
       cy: (minY + maxY + 1) / 2 * TS,
       rot,
     }
+  }
+  // Every dungeon cell the door-skin IMAGE is stretched over — the filled
+  // bounding rectangle of the canonical 4×3 region (jambs + door cols × outer/
+  // inner/apron rows), i.e. exactly the cells the image in _drawDoorSkins paints
+  // across. Used to suppress procedural wall/door art under the standalone skin
+  // (see _doorSkinFootprint in redraw). Mirrors the bbox math in _doorSkinRect.
+  _doorSkinFootprintCells(room, cp) {
+    const block = this._doorBlockCells(room, cp)
+    if (!block) return []
+    const dir = cp.direction
+    const norm = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }[dir]
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    const add = (c) => { if (!c) return; minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y) }
+    for (let col = 0; col < 4; col++) {
+      add(this._doorPaintedToDungeon(block, dir, col, 0))   // outer
+      const inner = this._doorPaintedToDungeon(block, dir, col, 1)
+      add(inner)                                            // inner
+      if (inner && norm) add({ x: inner.x + norm.dx, y: inner.y + norm.dy })   // apron
+    }
+    if (!isFinite(minX)) return []
+    const cells = []
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) cells.push(`${x},${y}`)
+    return cells
   }
   _drawDoorSkins() {
     const rooms = this._gameState?.dungeon?.rooms || []

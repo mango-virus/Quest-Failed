@@ -117,20 +117,37 @@ export class ActSystem {
       return
     }
 
+    // Act IV gate (resolves on Aldric, not the day timer) — checked BEFORE the
+    // generic "cleared" bookkeeping, because losing the duel with lives left
+    // means the act is NOT cleared yet and overtime must accumulate (resetting
+    // overtimeDays to 0 here would let the rematch escalation never grow past
+    // ×1). NEMESIS_SLAIN already fired victory mid-day if the boss won the
+    // duel; if Aldric is still standing, enter rematch overtime — Aldric
+    // returns the next day, escalated, until one side falls for good
+    // (2026-06-09 spec).
+    if (act >= ACT_COUNT) {
+      const aldricSlain = !!this._gs.meta?.nemesis?.slainByBoss
+      if (aldricSlain) {
+        // Cleared the final act. Drop overtime + log clear + fire victory.
+        meta.act.overtime     = false
+        meta.act.overtimeDays = 0
+        if (!meta.act.cleared.includes(act)) meta.act.cleared.push(act)
+        EventBus.emit('ACT_CLEARED', { act, def })
+        this._fireVictory({ act, def, cause: 'nemesis_slain' })
+      } else {
+        // Aldric still stands — into rematch overtime.
+        meta.act.overtime     = true
+        meta.act.overtimeDays = (meta.act.overtimeDays ?? 0) + 1
+        EventBus.emit('ACT_OVERTIME', { act, def, days: meta.act.overtimeDays })
+      }
+      return
+    }
+
     // Cleared (Champion down, or a fixed act survived). Drop overtime + advance.
     meta.act.overtime     = false
     meta.act.overtimeDays = 0
     if (!meta.act.cleared.includes(act)) meta.act.cleared.push(act)
     EventBus.emit('ACT_CLEARED', { act, def })
-
-    if (act >= ACT_COUNT) {
-      // Cleared the final act. Normally the duel's NEMESIS_SLAIN has already
-      // fired victory mid-day; this is the fallback for the rare case Aldric
-      // wasn't put down yet survived the day (e.g. couldn't reach the throne) —
-      // you held the realm off, you still win. _fireVictory is idempotent.
-      this._fireVictory({ act, def, cause: 'survived' })
-      return
-    }
 
     // Advance to the next act and announce it.
     meta.act.current = act + 1

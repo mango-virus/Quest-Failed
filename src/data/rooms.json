@@ -574,6 +574,22 @@
                 "closed": "basic_door_closed_skin",
                 "open": "basic_open",
                 "locked": "basic_locked"
+            },
+            "orc": {
+                "open": "basic_open",
+                "locked": "basic_locked"
+            },
+            "succubus": {
+                "open": "basic_open"
+            },
+            "lich": {
+                "open": "basic_open"
+            },
+            "golem": {
+                "open": "basic_open"
+            },
+            "demon": {
+                "open": "basic_open"
             }
         },
         "backgroundImage": "basic_boss_room",

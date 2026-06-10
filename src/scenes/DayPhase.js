@@ -674,8 +674,16 @@ export class DayPhase extends Phaser.Scene {
       const _act  = currentAct(this._gameState)               // pinned in overtime
       const _def  = actDef(_act)
       const _over = isActOvertime(this._gameState)             // KR P3 — Champion survived
+      // Act IV duel-loss overtime (2026-06-09): if Aldric won the prior duel
+      // and the boss has lives left, ActSystem flips the act into overtime —
+      // each overtime day spawns Aldric again (solo, escalated) until one side
+      // falls. Bypasses `_lastAppearedAct` (we WANT a re-spawn) and treats
+      // overtime as a valid spawn day even though it's past day 40.
+      const _act4Overtime  = _act === 4 && _over
+      const _aldricDayOk   = isActFinalDay(_day) || _act4Overtime
+      const _aldricReentry = _n && _n._lastAppearedAct === _act
       if (_n && _n.alive && !_n.slainByBoss && _act >= 1 && _act <= 4 &&
-          isActFinalDay(_day) && _n._lastAppearedAct !== _act) {
+          _aldricDayOk && (!_aldricReentry || _act4Overtime)) {
         _n._lastAppearedAct = _act
         if (_act === 4) return this._spawnNemesis(true)   // solo duel — no normal wave
         this._spawnNemesis(false)   // acts I–III: additive, pushes into active
@@ -1660,6 +1668,23 @@ export class DayPhase extends Phaser.Scene {
     } else if (duel && cfg.form === 'radiant') {
       const h = Math.round(adv.resources.maxHp * 1.15)
       adv.resources.maxHp = h; adv.resources.hp = h
+    }
+
+    // Act IV duel-loss overtime escalation (2026-06-09). When Aldric wins the
+    // duel but the boss has lives left, ActSystem flips Act IV into overtime;
+    // each rematch day Aldric returns stronger. Mirrors the Champion-overtime
+    // curve (1 + min(0.4, ot * 0.1)) so the pressure is mounting but capped at
+    // +40% (the boss's remaining lives are the real fail-safe).
+    if (duel) {
+      const _ot = this._gameState.meta?.act?.overtimeDays ?? 0
+      if (_ot > 0) {
+        const _otMul = 1 + Math.min(0.4, _ot * 0.1)
+        const _hp = Math.round(adv.resources.maxHp * _otMul)
+        adv.resources.maxHp = _hp
+        adv.resources.hp    = _hp
+        adv.stats.attack    = Math.round(adv.stats.attack * _otMul)
+        adv._aldricOvertime = _ot
+      }
     }
 
     this._gameState.adventurers.active.push(adv)

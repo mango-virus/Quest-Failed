@@ -1569,7 +1569,27 @@ Reads the existing `gameState.run.totals` + knowledge/exposure data.
 
 The realm's last stand: a cinematic **1v1 duel** against the Nemesis, now ascended into the **Hero King**. Reuses the Solo Leveling / Light Party duel tech (letterbox, dual HP bars, scripted beats, slow-mo finish). **Defeating the Hero King = VICTORY** — the kingdom breaks and the dungeon stands triumphant.
 
-**As built (v1, 2026-06-01) — the functional duel, cinematic deferred:** On Act IV's final day (day 40) the crowned Hero King arrives for a **solo throne duel that replaces the normal wave** (no normal adventurers that day — same set-piece pattern as Solo Leveling / Light Party, so no stray raider can game-over you the instant you've won). He is the **killable** form (`_nemesisDuel`, *not* the Acts I–III plot-armored `_nemesis`), never flees, ignores loot, and beelines the throne. **Putting him down → `RUN_VICTORY` → the Victory screen** (fires the moment he falls, via `NEMESIS_SLAIN`; an idempotent guard means simply surviving the day is an equivalent fallback win — you repelled the realm). What's *not* built yet (deferred): the duel **cinematic** (reuse of the SL/LP letterbox / dual-HP-header / scripted-beats / slow-mo tech), live **balance tuning** of his HP/atk vs the boss, and his signature **abilities as behaviours**.
+**As built (v1, 2026-06-01) — the functional duel, cinematic deferred:** On Act IV's final day (day 40) the crowned Hero King arrives for a **solo throne duel that replaces the normal wave** (no normal adventurers that day — same set-piece pattern as Solo Leveling / Light Party, so no stray raider can game-over you the instant you've won). He is the **killable** form (`_nemesisDuel`, *not* the Acts I–III plot-armored `_nemesis`), never flees, ignores loot, and beelines the throne. **Putting him down → `RUN_VICTORY` → the Victory screen** (fires the moment he falls, via `NEMESIS_SLAIN`).
+
+**Duel-loss → rematch overtime (locked 2026-06-09, verbatim user spec):**
+> *Option 2 — Overtime / rematch. Mirror the drafted-act Champion overtime: Aldric retreats to recover, comes back the next day stronger, until either side falls for good.*
+
+If Aldric **wins** the Act IV duel and the boss still has lives remaining, the run does NOT end and the Victory screen does NOT fire. Instead the boss loses one life (current behaviour) and the act enters **overtime**: Aldric retreats, returns the next day for a rematch, escalating per overtime day, until either the boss puts him down (→ victory) or the boss runs out of lives (→ Game Over). Mirrors the existing KR P3 Champion-overtime mechanic for the drafted middle acts.
+
+User-locked details (2026-06-09):
+- **Escalation:** Aldric escalates per rematch — `+HP / +ATK` per overtime day, capped (mirrors the Champion overtime curve `1 + min(0.4, ot × 0.1)`).
+- **Overtime wave:** Aldric **solo** on overtime days. No royal wave, no honour guard — just the rematch.
+- **Life cost:** Each duel loss costs the boss **one life** (current behaviour). 3 losses = run over. The 3-lives ceiling caps the rematch loop naturally.
+
+Acceptance checklist (all ✅ 2026-06-09):
+- ☑ Victory screen no longer fires from the "survived Act IV final day" fallback — gated on `meta.nemesis.slainByBoss` in `ActSystem._onDayEnded`. Verified via 4-scenario eval harness (lost-duel → ACT_OVERTIME only; won-duel → RUN_VICTORY only).
+- ☑ Losing the duel with lives left → enter overtime (`meta.act.overtime = true`, `overtimeDays++`). Verified: scenarios A (overtimeDays 0→1) + C (overtimeDays 1→2) — counter accumulates per rematch loss (the early bug where it reset to 0 was caught + fixed by hoisting the Act IV branch above the cleared-bookkeeping).
+- ☑ Each Act IV overtime day spawns Aldric **solo** (no normal wave) at full HP, escalated by the overtime multiplier. `DayPhase._spawnNemesis` applies `1 + min(0.4, ot × 0.1)` to HP + ATK when `overtimeDays > 0`. Solo spawn handled by the existing `_act === 4 && return _spawnNemesis(true)` path; the gate now accepts overtime days + bypasses `_lastAppearedAct` on Act IV overtime so the re-spawn fires.
+- ☑ Boss out of lives during a rematch → `BOSS_DEFEATED_FINAL` → Game Over (existing flow, unchanged in `BossSystem._finishNemesisDuel`).
+- ☑ `ACT_OVERTIME` banner reads as a **rematch** on Act IV (`ActIntro._onOvertime` branches on `act === 4`): "REMATCH ×N / THE HERO KING RETURNS / Aldric rises again — break him, or the crown breaks you."
+- ☑ Dungeon log line distinguishes Act IV rematch (`RightPanels` `ACT_OVERTIME` handler branches on `act === 4`).
+
+What's *not* built yet (deferred): the duel **cinematic** (reuse of the SL/LP letterbox / dual-HP-header / scripted-beats / slow-mo tech), live **balance tuning** of his HP/atk vs the boss, and his signature **abilities as behaviours**.
 
 ### Boss evolution (per act)
 

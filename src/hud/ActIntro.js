@@ -86,15 +86,25 @@ export class ActIntro {
 
   // KR P3 — the act's Champion survived its climax day. A brief urgent flash
   // (auto-fades; pointer-events none so it never blocks the end-of-day flow).
-  _onOvertime({ days } = {}) {
+  // Act IV variant (2026-06-09): if Aldric wins the duel but the boss has lives
+  // left, the same overtime fires for the Hero-King rematch — re-themed copy.
+  _onOvertime({ act, days } = {}) {
     const stage = document.getElementById('hud-stage')
     if (!stage) return
     this._otRoot?.remove()
+    const isAct4 = act === 4
+    const kicker = isAct4
+      ? (days > 1 ? `REMATCH ×${days}` : 'REMATCH')
+      : (days > 1 ? `OVERTIME ×${days}` : 'OVERTIME')
+    const title = isAct4 ? 'THE HERO KING RETURNS' : 'THE CHAMPION STILL STANDS'
+    const sub = isAct4
+      ? 'Aldric rises again — break him, or the crown breaks you.'
+      : 'The act is not won. Break them, or the realm breaks you.'
     const root = h('div', { className: 'qf-act-overtime' }, [
       h('div', { className: 'qf-act-overtime-card' }, [
-        h('div', { className: 'qf-act-overtime-kicker' }, days > 1 ? `OVERTIME ×${days}` : 'OVERTIME'),
-        h('div', { className: 'qf-act-overtime-title' }, 'THE CHAMPION STILL STANDS'),
-        h('div', { className: 'qf-act-overtime-sub' }, 'The act is not won. Break them, or the realm breaks you.'),
+        h('div', { className: 'qf-act-overtime-kicker' }, kicker),
+        h('div', { className: 'qf-act-overtime-title' }, title),
+        h('div', { className: 'qf-act-overtime-sub' }, sub),
       ]),
     ])
     this._otRoot = root

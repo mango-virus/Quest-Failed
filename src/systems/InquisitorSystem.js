@@ -1,11 +1,15 @@
 // InquisitorSystem — the kingdom's answer to your dark pacts (KR).
 //
-// While an inquisitor-tagged adventurer is loose in the dungeon, the boss's
+// While a Kingdom-Response Inquisition raid is loose in the dungeon, the boss's
 // DARK-PACT BENEFITS are PURGED — every upside a pact grants the dungeon (kill-
 // gold multipliers, minion/boss combat buffs, the boss's pact attacks, extra
 // minion/trap slots, bonus spawns) goes dark. The CURSES stay: you still pay the
-// pact's downside, you just lose its gift while the inquisitor lives. A true
-// hard-counter to pact-stacking — kill the inquisitor fast to get your gifts back.
+// pact's downside, you just lose its gift while the inquisitors live. A true
+// hard-counter to pact-stacking — kill the inquisitors fast to get your gifts back.
+//
+// Scope (2026-06-09): suppression is gated SOLELY on the Inquisition Kingdom-
+// Response raid (Acts II/III when drafted). The legacy "Inquisitor personality"
+// was removed — a single zealot from a normal wave no longer purges your pacts.
 //
 // Mechanism: a single transient flag, `gameState._mechanicFlags._inqSuppress`,
 // recomputed from "is any inquisitor currently in the dungeon". Every pact-
@@ -60,12 +64,9 @@ export class InquisitorSystem {
   _isInquisitor(adv) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 1) <= 0) return false
     // `flags.inquisitor` is stamped on the Inquisition Kingdom-Response raid units
-    // (champion + retinue + vanguard) so the response's marquee "nullify your dark
-    // pacts" gimmick actually fires during its own raid — those spawns carry no
-    // personality, so the tag check alone would miss them.
-    if (adv.flags?.inquisitor) return true
-    const tags = this._personality?.getTags?.(adv) ?? null
-    return !!(tags && (tags.has('inquisitor') || tags.has('anti_mechanic')))
+    // (champion + retinue + vanguard). The personality-tag fallback was dropped
+    // when the Inquisitor personality was removed (2026-06-09).
+    return !!adv.flags?.inquisitor
   }
 
   // Set `_inqSuppress` to whether any inquisitor is currently in the dungeon, and

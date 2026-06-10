@@ -349,37 +349,6 @@
     "description": "Starts weak but earns double XP per kill. Snowballs hard if they survive long enough."
   },
   {
-    "id": "inquisitor",
-    "name": "Inquisitor",
-    "tags": [
-      "inquisitor",
-      "anti_mechanic",
-      "tactical"
-    ],
-    "behaviorWeights": {
-      "fleeThreshold": 0.4,
-      "trapCaution": 0.7,
-      "partyCooperation": 0.6,
-      "explorationDrive": 0.7,
-      "aggressionLevel": 0.55,
-      "riskTolerance": 0.5,
-      "healPriority": 0.5
-    },
-    "decisionOverrides": [
-      {
-        "trigger": "dungeon_mechanic_active",
-        "action": "investigate_to_disable",
-        "priority": 95
-      }
-    ],
-    "reactions": [],
-    "unlockLevel": 1,
-    "rarity": "rare",
-    "icon": "I",
-    "iconColor": "0xaa44ee",
-    "description": "Dispels one active dungeon mechanic if they reach a focal point. Rare but devastating to your build."
-  },
-  {
     "id": "vulture",
     "name": "Vulture",
     "tags": [

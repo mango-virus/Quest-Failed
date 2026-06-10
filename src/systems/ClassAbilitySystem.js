@@ -882,6 +882,13 @@ export class ClassAbilitySystem {
     dead.cooldowns = {}; dead.usesLeftToday = {}
     dead.worldX = (dead.tileX ?? 0) * TS + TS / 2
     dead.worldY = (dead.tileY ?? 0) * TS + TS / 2
+    // A revived adv rises from where they fell, NOT the entry hall — the
+    // ADVENTURER_ENTERED_DUNGEON re-init emit below would otherwise trip
+    // AdventurerRenderer._onAdvEntered's door snap (mirrors the Loot Goblin
+    // Heist's in-place spawn). `_spawnFadeStart/End` still get set, so the
+    // renderer fades the revived sprite in at the corpse tile and AISystem
+    // holds them still for that beat — they LOOK like they get up.
+    dead._spawnedInPlace = true
     this._scene.bossSystem?._fightStates?.delete(dead.instanceId)
     this._gameState.adventurers.active.push(dead)
     this._scene.aiSystem?.pickInitialGoal?.(dead)

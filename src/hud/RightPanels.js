@@ -1225,9 +1225,14 @@ export class RightPanels {
       this._addLog(`${name || 'A thief'} absconds with ${taken} gold!`, 'plunder')
     })
     // KR P3 — the act's Champion survived the climax: the act is NOT won, and
-    // the raid will return (stronger) until it falls.
-    sub('ACT_OVERTIME', ({ days } = {}) => {
-      this._addLog(`The Champion still stands — the act is NOT won!${days > 1 ? ` (overtime ×${days})` : ''} Break them, or the realm breaks you.`, 'champion')
+    // the raid will return (stronger) until it falls. Act IV reuses the same
+    // event for the Aldric duel-loss rematch (2026-06-09) — distinct copy.
+    sub('ACT_OVERTIME', ({ act, days } = {}) => {
+      if (act === 4) {
+        this._addLog(`Aldric rises again — break him, or the crown breaks you!${days > 1 ? ` (rematch ×${days})` : ''}`, 'champion')
+      } else {
+        this._addLog(`The Champion still stands — the act is NOT won!${days > 1 ? ` (overtime ×${days})` : ''} Break them, or the realm breaks you.`, 'champion')
+      }
     })
     // Per-day rolling counter — surfaced as a single end-of-day summary
     // row instead of N individual "Minion X fell." entries. At day-22+
