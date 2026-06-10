@@ -16,7 +16,7 @@
 //     cell occupied by a connection-point doorway). Multiple torches on
 //     the same wall must respect MIN_TORCH_SPACING so they don't cluster
 //     on adjacent cells. _anchorFor handles the inward offset per side
-//     so the mount sits TORCH_INSET px in from the room edge.
+//     so the flame sits TORCH_WALL_RISE px up the wall from the room edge.
 //
 // Door-conflict pruning: if a tile that holds a torch later becomes a
 // doorway (auto-connect carves through a wall when an adjacent room is
@@ -69,10 +69,11 @@ const DEPTH_SPRITE = 6.5
 const FLICKER_AMPL    = 0.10
 const FLICKER_FREQ_MS = 220   // ~4.5 Hz per torch (phase-offset per sprite)
 
-// How far (in px) the torch sprite is anchored INSIDE the room from the
-// wall tile's interior edge. Pulls the torch off the room's outer edge so
-// it reads as mounted on the wall facing the room, not stuck on the rim.
-const TORCH_INSET = 8
+// How far (in px) the torch's flame anchor sits UP the wall from the wall
+// tile's interior (room-facing) edge — toward the wall's outer edge. Larger =
+// higher up the wall / further from the floor. Tuned so the torch reads as
+// mounted partway up the wall, not slumped down by the floor.
+const TORCH_WALL_RISE = 22
 
 // Room light count: a regular room rolls 2–4 light sources, at most ONE torch
 // per wall. With some chance, 1–2 of those slots become free-standing floor
@@ -429,7 +430,7 @@ export class TorchRenderer {
 
     // Wall torch — match the decor wall-mount transform (origin 0.5,0 at the
     // wall's interior face). BIAS nudges it a touch inward.
-    const BIAS = TORCH_INSET
+    const BIAS = TORCH_WALL_RISE   // raises the flame up the wall, off the floor
     if (t.localY === 0) {                       // North wall
       return { x: cellCx, y: (room.gridY + t.localY + 1) * TS - BIAS, ox: 0.5, oy: 0, angle: 0, flipY: false }
     } else if (t.localY === h - 1) {            // South wall
