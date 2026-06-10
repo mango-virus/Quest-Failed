@@ -6,11 +6,16 @@
 //   const chips = mountDebugChips(this)   // in scene.create()
 //   chips.destroy()                        // in scene.shutdown()
 
-import { PALETTE }      from './UIKit.js'
-import { DebugOverlay } from '../systems/DebugOverlay.js'
-import { EventBus }     from '../systems/EventBus.js'
+import { PALETTE }       from './UIKit.js'
+import { DebugOverlay }  from '../systems/DebugOverlay.js'
+import { EventBus }      from '../systems/EventBus.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
 
 export function mountDebugChips(scene, opts = {}) {
+  // Debug chips + F2/F3/F4 keys are mango-only (debug tooling — not for real players).
+  if (!PlayerProfile.isCheatName?.()) {
+    return { destroy() {} }
+  }
   const W = scene.uiW ?? scene.scale.width
   const H = scene.uiH ?? scene.scale.height
   const x = opts.x ?? 12

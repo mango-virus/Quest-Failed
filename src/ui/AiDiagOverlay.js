@@ -23,8 +23,9 @@
 //
 // All gameplay is untouched — purely a developer overlay.
 
-import { EventBus }    from '../systems/EventBus.js'
-import { DebugOverlay } from '../systems/DebugOverlay.js'
+import { EventBus }      from '../systems/EventBus.js'
+import { DebugOverlay }  from '../systems/DebugOverlay.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
 
 const TICK_MS = 150
 const LABEL_Y_OFFSET = 38   // px above the adv's worldY
@@ -47,8 +48,10 @@ export class AiDiagOverlay {
     // listener; cleaned up on destroy. Toggles aiDiagnostics on/off; the
     // _tick callback above reads that flag every frame and shows/hides
     // labels accordingly. NO console logs — purely visual on-screen.
+    // Gated to the mango cheat account (debug tooling — not for real players).
     this._onKey = (e) => {
       if (e.key === 'F4' || e.key === 'f4') {
+        if (!PlayerProfile.isCheatName?.()) return
         DebugOverlay.toggle('aiDiagnostics')
         e.preventDefault?.()
       }

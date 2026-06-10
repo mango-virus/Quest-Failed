@@ -16,6 +16,8 @@
 // regardless of whether anyone's reading. Cost when visible: one DOM
 // rebuild per second.
 
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+
 const SAMPLE_INTERVAL_MS = 1000
 const TOP_N = 12
 
@@ -110,10 +112,12 @@ export class PerfHud {
 
 // Global key binding — Ctrl+Shift+P toggles. Installed once on import;
 // idempotent (window flag check) so re-imports don't double-bind.
+// Gated to the mango cheat account (debug tooling — not for real players).
 if (typeof window !== 'undefined' && !window.__perfHudKeyBound) {
   window.__perfHudKeyBound = true
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      if (!PlayerProfile.isCheatName?.()) return
       e.preventDefault()
       if (!window.__perfHud) window.__perfHud = new PerfHud()
       window.__perfHud.toggle()
