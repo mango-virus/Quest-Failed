@@ -403,18 +403,14 @@ export class TorchRenderer {
   // Returns { x, y, ox, oy, angle, flipY }.
   //
   // TORCHES are rotated per-wall to MATCH the DecorRenderer wall-mount
-  // convention so the sconce sits on the wall and the flame extends INTO
-  // the room. The torch art (src/assets/sprites/torch.png) has its attach
-  // point — the sconce — at source-BOTTOM with the flame at source-TOP,
-  // i.e. the VERTICAL MIRROR of the decor convention (attach at source-top).
-  // So the per-side angles are offset 180° from DecorRenderer._wallMountAnchor
-  // (which uses N=0/S=180/W=-90/E=90): here N=180, S=0, W=90, E=-90, with
-  // origin (0.5, 1) [the sconce] pinned at the wall's interior face.
+  // convention so they orient the same way as the wall decor on every wall.
+  // It matches DecorRenderer._wallMountAnchor EXACTLY: origin (0.5, 0) pinned
+  // at the wall's interior face, with per-side angles N=0 / S=180 / W=-90 / E=90.
   //
-  //   N wall  angle=180  flame extends DOWN  (south, into room)
-  //   S wall  angle=  0  flame extends UP    (north, into room)
-  //   W wall  angle= 90  flame extends RIGHT (east,  into room)
-  //   E wall  angle=-90  flame extends LEFT  (west,  into room)
+  //   N wall  angle=  0  extends DOWN  (south, into room)
+  //   S wall  angle=180  extends UP    (north, into room)
+  //   W wall  angle=-90  extends RIGHT (east,  into room)
+  //   E wall  angle= 90  extends LEFT  (west,  into room)
   //
   // BRAZIERS are free-standing floor objects centred on their corner tile
   // (bottom-anchored so the base rests on the tile, flame rising upward).
@@ -431,33 +427,34 @@ export class TorchRenderer {
       return { x: cellCx, y: bottomY, ox: 0.5, oy: 1, angle: 0, flipY: false }
     }
 
-    // Wall torch — pin the sconce (origin 0.5,1) at the wall's interior face,
-    // rotate so the flame juts into the room. BIAS nudges it a touch inward.
+    // Wall torch — match the decor wall-mount transform (origin 0.5,0 at the
+    // wall's interior face). BIAS nudges it a touch inward.
     const BIAS = TORCH_INSET
     if (t.localY === 0) {                       // North wall
-      return { x: cellCx, y: (room.gridY + t.localY + 1) * TS - BIAS, ox: 0.5, oy: 1, angle: 180, flipY: false }
+      return { x: cellCx, y: (room.gridY + t.localY + 1) * TS - BIAS, ox: 0.5, oy: 0, angle: 0, flipY: false }
     } else if (t.localY === h - 1) {            // South wall
-      return { x: cellCx, y: (room.gridY + t.localY) * TS + BIAS, ox: 0.5, oy: 1, angle: 0, flipY: false }
+      return { x: cellCx, y: (room.gridY + t.localY) * TS + BIAS, ox: 0.5, oy: 0, angle: 180, flipY: false }
     } else if (t.localX === 0) {                // West wall
-      return { x: (room.gridX + t.localX + 1) * TS - BIAS, y: cellCy, ox: 0.5, oy: 1, angle: 90, flipY: false }
+      return { x: (room.gridX + t.localX + 1) * TS - BIAS, y: cellCy, ox: 0.5, oy: 0, angle: -90, flipY: false }
     } else if (t.localX === w - 1) {            // East wall
-      return { x: (room.gridX + t.localX) * TS + BIAS, y: cellCy, ox: 0.5, oy: 1, angle: -90, flipY: false }
+      return { x: (room.gridX + t.localX) * TS + BIAS, y: cellCy, ox: 0.5, oy: 0, angle: 90, flipY: false }
     }
     // Interior fallback (shouldn't happen) — upright, no rotation.
-    return { x: cellCx, y: (room.gridY + t.localY + 1) * TS, ox: 0.5, oy: 1, angle: 0, flipY: false }
+    return { x: cellCx, y: (room.gridY + t.localY + 1) * TS, ox: 0.5, oy: 0, angle: 0, flipY: false }
   }
 
   // Where the FLAME sits relative to the anchor (for centring the light pool).
-  // The anchor is the sconce/base; the flame is ~0.8 tile toward the room
-  // along the sprite's "into-room" normal (or straight up for a brazier).
+  // With origin (0.5,0) the flame end is AT the anchor; nudge the glow a little
+  // way INTO the room (along the sprite's into-room normal) so it lights the
+  // floor rather than the wall. Brazier flame is just above the bowl.
   _flamePos(t, a) {
-    const FWD = TS * 0.8
+    const FWD = TS * 0.45
     if (t.kind === 'brazier') return { x: a.x, y: a.y - TS * 0.55 }   // flame above the bowl
     switch (a.angle) {
-      case 180: return { x: a.x,       y: a.y + FWD }   // N wall, flame south
-      case 0:   return { x: a.x,       y: a.y - FWD }   // S wall, flame north
-      case 90:  return { x: a.x + FWD, y: a.y }         // W wall, flame east
-      case -90: return { x: a.x - FWD, y: a.y }         // E wall, flame west
+      case 0:   return { x: a.x,       y: a.y + FWD }   // N wall, into room = south
+      case 180: return { x: a.x,       y: a.y - FWD }   // S wall, into room = north
+      case -90: return { x: a.x + FWD, y: a.y }         // W wall, into room = east
+      case 90:  return { x: a.x - FWD, y: a.y }         // E wall, into room = west
       default:  return { x: a.x,       y: a.y - TS / 2 }
     }
   }
