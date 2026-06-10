@@ -27,6 +27,18 @@ function _lerpHex(a, b, k) {
   const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
   return (r << 16) | (g << 8) | bl
 }
+
+// Nerve mood-pip colour by band (AI overhaul). Confident green → dread red.
+function _moodPipColor(mood) {
+  switch (mood) {
+    case 'bold':     return 0x6fe09a
+    case 'steady':   return 0xbfe06f
+    case 'wary':     return 0xf0d24a
+    case 'spooked':  return 0xf09a3a
+    case 'breaking': return 0xe2483a
+    default:         return 0xbfe06f
+  }
+}
 // LPC sheets ship at 64×64 per frame; render at 0.75 so adventurers come in
 // at ~48px tall — about 1.5 dungeon tiles, a readable size for top-down view.
 const LPC_SCALE = 0.75
@@ -171,6 +183,12 @@ export class AdventurerRenderer {
     // polling adv.keys in update() — created on pickup, removed the instant the
     // key is consumed, the adv dies/flees, or night resets. id → Phaser.Image.
     this._keyIcons = {}
+    // Nerve mood pip (AI overhaul) — a small colour-coded morale dot above each
+    // adventurer's head, band-coloured (bold→breaking). id → Phaser.Arc. Visibility
+    // is gated by window.__qfMoodPips ('always'|'off'|'hover'); default 'always' so
+    // the spine is visible in preview. Body-language PACE tells live in AISystem and
+    // are always on — turning pips 'off' is the "body-language-only" prototype.
+    this._moodPips = {}
     EventBus.on('TREASURE_STOLEN',     this._onTreasureStolen,     this)
     EventBus.on('TREASURE_RECOVERED',  this._onTreasureCleared,    this)
     EventBus.on('TREASURE_ESCAPED',    this._onTreasureCleared,    this)
@@ -203,6 +221,8 @@ export class AdventurerRenderer {
     this._carrierLabels = {}
     for (const k of Object.values(this._keyIcons ?? {})) k?.destroy?.()
     this._keyIcons = {}
+    for (const p of Object.values(this._moodPips ?? {})) p?.destroy?.()
+    this._moodPips = {}
   }
 
   // Floating "+ATK" / "+5 HP" text that drifts upward and fades. Keeps
@@ -528,6 +548,8 @@ export class AdventurerRenderer {
         if (s.container && s.container.visible) s.container.setVisible(false)
         const cullTag = this._carrierLabels?.[adv.instanceId]
         if (cullTag && cullTag.visible) cullTag.setVisible(false)
+        const cullPip = this._moodPips?.[adv.instanceId]
+        if (cullPip && cullPip.visible) cullPip.setVisible(false)
         continue
       }
       // Miner Tunnel — while burrowed underground (between digging hole A and
@@ -537,6 +559,8 @@ export class AdventurerRenderer {
         if (s.container?.visible) s.container.setVisible(false)
         const ugTag = this._carrierLabels?.[adv.instanceId]
         if (ugTag?.visible) ugTag.setVisible(false)
+        const ugPip = this._moodPips?.[adv.instanceId]
+        if (ugPip?.visible) ugPip.setVisible(false)
         continue
       }
       if (s.container && !s.container.visible) s.container.setVisible(true)
@@ -588,6 +612,8 @@ export class AdventurerRenderer {
           kic.destroy(); delete this._keyIcons[adv.instanceId]
         }
       }
+      // Nerve mood pip — band-coloured dot at the upper-left of the head.
+      this._updateMoodPip(adv)
       // Track movement direction for the LPC sprite — derived from the
       // last frame's worldX/Y delta. Stored on adv (transient, save-safe).
       const prevX = adv._lastWorldX ?? adv.worldX
@@ -1553,6 +1579,43 @@ export class AdventurerRenderer {
     delete this._sprites[id]
     this._keyIcons?.[id]?.destroy?.()
     if (this._keyIcons) delete this._keyIcons[id]
+    this._moodPips?.[id]?.destroy?.()
+    if (this._moodPips) delete this._moodPips[id]
+  }
+
+  // ── Nerve mood pip ──────────────────────────────────────────────────────────
+  // A small band-coloured dot above the head reflecting adv.mood (set by
+  // NerveSystem). Lazily created, repositioned each frame, pulses when the
+  // adventurer is rattled (spooked/breaking). Honours window.__qfMoodPips:
+  // 'always' (default) shows it on everyone; 'off' hides it (body-language-only
+  // prototype — the pace tells in AISystem stay on); 'hover' reserved for the
+  // inspect-on-hover variant.
+  _updateMoodPip(adv) {
+    // Decided in preview (2026-06-10): HOVER-ONLY. No persistent pips — mood reads
+    // in the InspectPopup on hover (the MOOD line). The body-language PACE tells in
+    // AISystem stay always-on. Override with window.__qfMoodPips='always' to debug.
+    const mode = (typeof window !== 'undefined' && window.__qfMoodPips) || 'hover'
+    let pip = this._moodPips[adv.instanceId]
+    if (mode === 'off' || mode === 'hover') {
+      if (pip) pip.setVisible(false)
+      return
+    }
+    const mood = adv.mood || 'steady'
+    if (!pip) {
+      pip = this._scene.add.circle(adv.worldX - 13, adv.worldY - 30, 4, _moodPipColor(mood))
+        .setDepth(41)
+      pip.setStrokeStyle(1.25, 0x12131a, 0.85)
+      this._moodPips[adv.instanceId] = pip
+    }
+    // Colour + a gentle pulse that intensifies as morale falls.
+    pip.setFillStyle(_moodPipColor(mood), 1)
+    let scale = 1, alpha = 1
+    if (mood === 'breaking')      { const p = (Math.sin(this._scene.time.now / 150) + 1) / 2; scale = 1 + 0.5 * p; alpha = 0.7 + 0.3 * p }
+    else if (mood === 'spooked')  { const p = (Math.sin(this._scene.time.now / 260) + 1) / 2; scale = 1 + 0.28 * p; alpha = 0.85 + 0.15 * p }
+    pip.setScale(scale)
+    pip.setPosition(adv.worldX - 13, adv.worldY - 30)
+    pip.setAlpha(alpha)
+    if (!pip.visible) pip.setVisible(true)
   }
 
   _onRemove({ adventurer }) {

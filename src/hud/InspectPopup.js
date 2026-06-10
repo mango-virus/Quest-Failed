@@ -64,6 +64,16 @@ function advGoalLabel(adv) {
   return GOAL_LABELS[type] ?? String(type).toLowerCase().replace(/_/g, ' ')
 }
 
+// Nerve mood (AI overhaul) — band name + the 0–100 nerve value. NerveSystem
+// seeds nerve on its first tick, so an adv inspected pre-seed reads "—".
+const MOOD_LABELS = { bold: 'Bold', steady: 'Steady', wary: 'Wary', spooked: 'Spooked', breaking: 'Breaking' }
+function advMoodLabel(adv) {
+  if (adv?.aiState === 'dead') return '—'
+  if (!adv?._nerveSeeded || adv?.nerve == null) return '—'
+  const band = MOOD_LABELS[adv.mood] ?? 'Steady'
+  return `${band} (${Math.round(adv.nerve)})`
+}
+
 // ABILITY_DEFS keys are prefixed by a short class tag, not the full
 // classId — map classId → prefix so the hover panel can list a class's
 // abilities. Classes absent here have no active class abilities.
@@ -353,6 +363,7 @@ export class InspectPopup {
       line('CLASS',       cls),
       line('ABILITIES',   advAbilityLabels(a.classId) || '—'),
       line('PERSONALITY', this._personalityNames(a)   || '—'),
+      line('MOOD',        advMoodLabel(a)),
       line('GOAL',        advGoalLabel(a)),
     ])
   }

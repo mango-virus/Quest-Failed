@@ -562,6 +562,65 @@ export class KnowledgeSystem {
     this._gs.knowledge.sharedPool = pool
   }
 
+  // ── Live party knowledge sharing (Thread 3) ─────────────────────────────────
+  // Copy what `from` knows into `to` (a LIVING party-mate) so a warning / huddle
+  // actually changes where they go — the pathfinder reads adv.knowledge, so a
+  // freshly-shared trap or minion makes the recipient reroute. Unlike the
+  // survivor pool (death/escape only), this happens in real time among the
+  // living. Non-stale entries win; nothing is downgraded. `roomId` limits the
+  // share to one room's threats (a "trap in here!" shout); omit it for a full
+  // briefing (the confer huddle). Returns how many entries were newly learned.
+  shareKnowledge(from, to, { roomId = null } = {}) {
+    if (!from?.knowledge || !to || from === to) return 0
+    _ensureAdvKnowledge(to)
+    const src = from.knowledge, dst = to.knowledge
+    let learned = 0
+    const better = (e, ex) => !ex || (!e.stale && ex.stale)
+    const room = roomId ? (this._gs.dungeon?.rooms ?? []).find(r => r.instanceId === roomId) : null
+    const inRoom = (e) => !room || (Number.isFinite(e.tileX) &&
+      e.tileX >= room.gridX && e.tileX < room.gridX + room.width &&
+      e.tileY >= room.gridY && e.tileY < room.gridY + room.height)
+
+    for (const [id, e] of Object.entries(src.rooms ?? {})) {
+      if (roomId && id !== roomId) continue
+      if (better(e, dst.rooms[id])) { dst.rooms[id] = { ...e }; learned++ }
+    }
+    dst.traps ??= {}
+    for (const [id, e] of Object.entries(src.traps ?? {})) {
+      if (roomId && !inRoom(e)) continue
+      if (better(e, dst.traps[id])) { dst.traps[id] = { ...e }; learned++ }
+    }
+    dst.enemiesPerRoom ??= {}
+    for (const [rid, list] of Object.entries(src.enemiesPerRoom ?? {})) {
+      if (roomId && rid !== roomId) continue
+      dst.enemiesPerRoom[rid] ??= []
+      for (const e of (list ?? [])) {
+        const ex = dst.enemiesPerRoom[rid].find(x => x.minionType === e.minionType)
+        if (!ex) { dst.enemiesPerRoom[rid].push({ ...e }); learned++ }
+        else if (!e.stale && ex.stale) { ex.stale = false; ex.confirmed = true; learned++ }
+      }
+    }
+    // Full briefing only (a confer shares the whole map, a shout shares one room).
+    if (!roomId) {
+      for (const bucket of ['treasureChests', 'fountains', 'keyChests', 'items', 'mimics']) {
+        dst[bucket] ??= {}
+        for (const [id, e] of Object.entries(src[bucket] ?? {})) {
+          if (better(e, dst[bucket][id])) { dst[bucket][id] = { ...e }; learned++ }
+        }
+      }
+    }
+    return learned
+  }
+
+  // Full union across a cluster of living party-mates (the confer huddle): every
+  // member walks away knowing everything any of them knew. Returns total entries
+  // propagated. O(n²) but clusters are tiny (≤~6).
+  mergePartyKnowledge(advs) {
+    let total = 0
+    for (const a of advs) for (const b of advs) if (a !== b) total += this.shareKnowledge(a, b)
+    return total
+  }
+
   // Triggered traps are durably known — re-seed them into any (re)built
   // shared pool so a sprung trap's location survives the discoverer's
   // death and is inherited by future waves.

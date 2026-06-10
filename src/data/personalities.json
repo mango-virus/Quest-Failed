@@ -2,11 +2,7 @@
   {
     "id": "greedy",
     "name": "Greedy",
-    "tags": [
-      "greedy",
-      "loot_seeker",
-      "impulsive"
-    ],
+    "tags": ["greedy", "loot_seeker", "impulsive"],
     "behaviorWeights": {
       "fleeThreshold": 0.35,
       "trapCaution": 0.15,
@@ -17,11 +13,7 @@
       "healPriority": 0.25
     },
     "decisionOverrides": [
-      {
-        "trigger": "chest_in_room",
-        "action": "open_chest",
-        "priority": 100
-      }
+      { "trigger": "chest_in_room", "action": "open_chest", "priority": 100 }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -33,11 +25,7 @@
   {
     "id": "paranoid",
     "name": "Paranoid",
-    "tags": [
-      "paranoid",
-      "cautious",
-      "slow"
-    ],
+    "tags": ["paranoid", "cautious", "slow"],
     "behaviorWeights": {
       "fleeThreshold": 0.6,
       "trapCaution": 0.99,
@@ -48,63 +36,20 @@
       "healPriority": 0.8
     },
     "decisionOverrides": [
-      {
-        "trigger": "any_door",
-        "action": "check_for_trap_first",
-        "priority": 90
-      },
-      {
-        "trigger": "chest_in_room",
-        "action": "avoid_unless_forced",
-        "priority": 90
-      }
+      { "trigger": "any_door", "action": "check_for_trap_first", "priority": 90 },
+      { "trigger": "chest_in_room", "action": "avoid_unless_forced", "priority": 90 }
     ],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "common",
     "icon": "?",
     "iconColor": "0x88aacc",
-    "description": "Assumes every door is trapped and every chest is a mimic. Near-immune to traps. Moves extremely slowly."
-  },
-  {
-    "id": "speed_runner",
-    "name": "Speed Runner",
-    "tags": [
-      "speed_runner",
-      "reckless",
-      "solo_tendency"
-    ],
-    "behaviorWeights": {
-      "fleeThreshold": 0.12,
-      "trapCaution": 0.08,
-      "partyCooperation": 0.15,
-      "explorationDrive": 0.05,
-      "aggressionLevel": 0.45,
-      "riskTolerance": 0.95,
-      "healPriority": 0.1
-    },
-    "decisionOverrides": [
-      {
-        "trigger": "weak_enemy_blocking_path",
-        "action": "run_past",
-        "priority": 80
-      }
-    ],
-    "reactions": [],
-    "unlockLevel": 1,
-    "rarity": "common",
-    "icon": ">",
-    "iconColor": "0xff6644",
-    "description": "Runs past weaker enemies. Ignores loot. Charges toward the boss room at all costs."
+    "description": "Assumes every door is trapped and every chest is a mimic. Near-immune to traps. Moves extremely slowly — and reads every room at the threshold before stepping in."
   },
   {
     "id": "completionist",
     "name": "Completionist",
-    "tags": [
-      "completionist",
-      "thorough",
-      "explorer"
-    ],
+    "tags": ["completionist", "thorough", "explorer"],
     "behaviorWeights": {
       "fleeThreshold": 0.3,
       "trapCaution": 0.5,
@@ -115,27 +60,19 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      {
-        "trigger": "unexplored_room_adjacent",
-        "action": "explore_it",
-        "priority": 85
-      }
+      { "trigger": "unexplored_room_adjacent", "action": "explore_it", "priority": 85 }
     ],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "common",
     "icon": "#",
     "iconColor": "0x44ccaa",
-    "description": "Must find every secret room. Will not leave until every corner is explored."
+    "description": "Must find every secret room. Will not back off a room and will not leave until every corner is explored."
   },
   {
     "id": "martyr",
     "name": "Martyr",
-    "tags": [
-      "martyr",
-      "selfless",
-      "tank"
-    ],
+    "tags": ["martyr", "selfless", "tank"],
     "behaviorWeights": {
       "fleeThreshold": 0.05,
       "trapCaution": 0.3,
@@ -146,58 +83,45 @@
       "healPriority": 0.2
     },
     "decisionOverrides": [
-      {
-        "trigger": "low_hp_and_party_in_danger",
-        "action": "taunt_all_enemies",
-        "priority": 95
-      }
+      { "trigger": "low_hp_and_party_in_danger", "action": "taunt_all_enemies", "priority": 95 }
     ],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "uncommon",
     "icon": "M",
     "iconColor": "0xffcc44",
-    "description": "At low health, taunts all enemies to focus on them so the party can escape."
+    "nerve": { "baseline": 80, "floor": 35, "drainMul": 0.7 },
+    "description": "At low health, roars a taunt that pulls every nearby minion onto them so the rest of the party can escape. Hard to rattle."
   },
   {
     "id": "coward",
     "name": "Coward",
-    "tags": [
-      "coward",
-      "scout",
-      "fast_knowledge"
-    ],
+    "tags": ["coward", "trailer", "combat_avoidant", "scout"],
     "behaviorWeights": {
-      "fleeThreshold": 0.99,
+      "fleeThreshold": 0.55,
       "trapCaution": 0.6,
-      "partyCooperation": 0.3,
-      "explorationDrive": 0.7,
-      "aggressionLevel": 0,
-      "riskTolerance": 0.05,
+      "partyCooperation": 0.85,
+      "explorationDrive": 0.4,
+      "aggressionLevel": 0.05,
+      "riskTolerance": 0.15,
       "healPriority": 0.6
     },
     "decisionOverrides": [
-      {
-        "trigger": "any_enemy_nearby",
-        "action": "flee_room",
-        "priority": 99
-      }
+      { "trigger": "any_enemy_nearby", "action": "avoid_combat", "priority": 95 },
+      { "trigger": "party_present", "action": "trail_behind", "priority": 80 }
     ],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "uncommon",
     "icon": "<",
     "iconColor": "0xaaaaaa",
-    "description": "Runs from every fight. If they escape, they carry knowledge of every room they passed through. Maddeningly effective scout who never threatens you."
+    "nerve": { "baseline": 40 },
+    "description": "Never leads. Shadows braver party-mates from a few tiles back and slips around fights rather than joining them — letting others spring the traps and take the hits. Only if left alone or last alive do they finally bolt for the exit."
   },
   {
     "id": "overconfident",
     "name": "Overconfident",
-    "tags": [
-      "overconfident",
-      "reckless",
-      "solo_tendency"
-    ],
+    "tags": ["overconfident", "reckless", "solo_tendency"],
     "behaviorWeights": {
       "fleeThreshold": 0.05,
       "trapCaution": 0.05,
@@ -208,27 +132,20 @@
       "healPriority": 0.05
     },
     "decisionOverrides": [
-      {
-        "trigger": "party_warns_danger",
-        "action": "ignore_warning_and_charge",
-        "priority": 99
-      }
+      { "trigger": "party_warns_danger", "action": "ignore_warning_and_charge", "priority": 99 }
     ],
     "reactions": [],
     "unlockLevel": 1,
     "rarity": "common",
     "icon": "!",
     "iconColor": "0xff3366",
-    "description": "Ignores all party warnings. Usually dies first. Occasionally stumbles into a useful path by accident."
+    "nerve": { "baseline": 92 },
+    "description": "Ignores all party warnings and charges into rooms others would creep through. Usually dies first. Occasionally stumbles into a useful path by accident."
   },
   {
     "id": "cartographer",
     "name": "Cartographer",
-    "tags": [
-      "mapper",
-      "thorough",
-      "knowledge_spreader"
-    ],
+    "tags": ["mapper", "thorough", "knowledge_spreader"],
     "behaviorWeights": {
       "fleeThreshold": 0.4,
       "trapCaution": 0.6,
@@ -240,10 +157,7 @@
     },
     "decisionOverrides": [],
     "reactions": [
-      {
-        "event": "ADVENTURER_FLED",
-        "handler": "cartographer_shareFullMap"
-      }
+      { "event": "ADVENTURER_FLED", "handler": "cartographer_shareFullMap" }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
@@ -254,11 +168,7 @@
   {
     "id": "solo",
     "name": "Solo",
-    "tags": [
-      "solo_tendency",
-      "independent",
-      "scout"
-    ],
+    "tags": ["solo_tendency", "independent", "scout"],
     "behaviorWeights": {
       "fleeThreshold": 0.4,
       "trapCaution": 0.45,
@@ -269,11 +179,7 @@
       "healPriority": 0.4
     },
     "decisionOverrides": [
-      {
-        "trigger": "party_present",
-        "action": "split_off_alone",
-        "priority": 80
-      }
+      { "trigger": "party_present", "action": "split_off_alone", "priority": 80 }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -285,11 +191,7 @@
   {
     "id": "raid_leader",
     "name": "Raid Leader",
-    "tags": [
-      "leader",
-      "tactical",
-      "rallying"
-    ],
+    "tags": ["leader", "tactical", "rallying"],
     "behaviorWeights": {
       "fleeThreshold": 0.35,
       "trapCaution": 0.55,
@@ -300,62 +202,46 @@
       "healPriority": 0.55
     },
     "decisionOverrides": [
-      {
-        "trigger": "ally_in_combat",
-        "action": "rally_to_help",
-        "priority": 85
-      }
+      { "trigger": "ally_in_combat", "action": "rally_to_help", "priority": 85 }
     ],
     "reactions": [
-      {
-        "event": "ADVENTURER_DIED",
-        "handler": "leader_rallies_or_party_scatters"
-      }
+      { "event": "ADVENTURER_DIED", "handler": "leader_rallies_or_party_scatters" }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
     "icon": "*",
     "iconColor": "0xddaa22",
-    "description": "Coordinates the party. If they die, the rest of the party scatters or loses cohesion."
+    "nerve": { "baseline": 78, "floor": 30, "steadyAllies": 2 },
+    "description": "Coordinates the party — keeps them loosely grouped and steadies their nerve. If they die, the party's cohesion and courage collapse."
   },
   {
     "id": "underdog",
     "name": "Underdog",
-    "tags": [
-      "underdog",
-      "scaling",
-      "persistent"
-    ],
+    "tags": ["underdog", "scaling", "timid_start", "persistent"],
     "behaviorWeights": {
       "fleeThreshold": 0.5,
       "trapCaution": 0.5,
       "partyCooperation": 0.55,
       "explorationDrive": 0.5,
-      "aggressionLevel": 0.6,
-      "riskTolerance": 0.6,
+      "aggressionLevel": 0.4,
+      "riskTolerance": 0.45,
       "healPriority": 0.5
     },
     "decisionOverrides": [],
     "reactions": [
-      {
-        "event": "COMBAT_KILL",
-        "handler": "underdog_doubleXP"
-      }
+      { "event": "COMBAT_KILL", "handler": "underdog_doubleXP" }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
     "icon": "^",
     "iconColor": "0x66cc99",
-    "description": "Starts weak but earns double XP per kill. Snowballs hard if they survive long enough."
+    "nerve": { "baseline": 42, "emboldenPerKill": 9 },
+    "description": "Starts timid and weak but earns double XP per kill — and every kill emboldens them, raising their nerve and aggression. Snowballs hard if they survive long enough."
   },
   {
     "id": "vulture",
     "name": "Vulture",
-    "tags": [
-      "vulture",
-      "opportunist",
-      "loner"
-    ],
+    "tags": ["vulture", "opportunist", "loner"],
     "behaviorWeights": {
       "fleeThreshold": 0.6,
       "trapCaution": 0.7,
@@ -366,16 +252,8 @@
       "healPriority": 0.5
     },
     "decisionOverrides": [
-      {
-        "trigger": "fight_in_progress_nearby",
-        "action": "wait_for_resolution",
-        "priority": 90
-      },
-      {
-        "trigger": "corpse_in_room",
-        "action": "loot_corpse",
-        "priority": 95
-      }
+      { "trigger": "fight_in_progress_nearby", "action": "wait_for_resolution", "priority": 90 },
+      { "trigger": "corpse_in_room", "action": "loot_corpse", "priority": 95 }
     ],
     "reactions": [],
     "unlockLevel": 1,
@@ -387,11 +265,7 @@
   {
     "id": "traumatized",
     "name": "Traumatized",
-    "tags": [
-      "traumatized",
-      "survivor",
-      "knowledge_carrier"
-    ],
+    "tags": ["traumatized", "survivor", "knowledge_carrier"],
     "behaviorWeights": {
       "fleeThreshold": 0.95,
       "trapCaution": 0.6,
@@ -403,56 +277,19 @@
     },
     "decisionOverrides": [],
     "reactions": [
-      {
-        "event": "PARTY_WIPED",
-        "handler": "traumatized_fleeWithFullKnowledge"
-      }
+      { "event": "PARTY_WIPED", "handler": "traumatized_fleeWithFullKnowledge" }
     ],
     "unlockLevel": 1,
     "rarity": "uncommon",
     "icon": "~",
     "iconColor": "0xaa9988",
-    "description": "If their party wipes and they survive, they flee — and share full knowledge of the dungeon with everyone outside."
-  },
-  {
-    "id": "the_fan",
-    "name": "The Fan",
-    "tags": [
-      "fan",
-      "pacifist_partial",
-      "quirky"
-    ],
-    "behaviorWeights": {
-      "fleeThreshold": 0.4,
-      "trapCaution": 0.5,
-      "partyCooperation": 0.4,
-      "explorationDrive": 0.5,
-      "aggressionLevel": 0.4,
-      "riskTolerance": 0.6,
-      "healPriority": 0.5
-    },
-    "decisionOverrides": [
-      {
-        "trigger": "encountered_idol_minion_type",
-        "action": "spare_or_befriend",
-        "priority": 100
-      }
-    ],
-    "reactions": [],
-    "unlockLevel": 2,
-    "rarity": "rare",
-    "icon": "@",
-    "iconColor": "0xff66bb",
-    "description": "Idolizes a specific minion class. Won't attack them, may even try to befriend them. The minion's class is rolled at spawn."
+    "nerve": { "baseline": 30, "drainMul": 1.4 },
+    "description": "Jumpy and brittle. If their party wipes and they survive, they flee — and share full knowledge of the dungeon with everyone outside."
   },
   {
     "id": "echo",
     "name": "Echo",
-    "tags": [
-      "echo",
-      "mimic_path",
-      "cautious"
-    ],
+    "tags": ["echo", "mimic_path", "cautious"],
     "behaviorWeights": {
       "fleeThreshold": 0.5,
       "trapCaution": 0.9,
@@ -463,48 +300,124 @@
       "healPriority": 0.6
     },
     "decisionOverrides": [
-      {
-        "trigger": "leader_path_known",
-        "action": "mimic_leader_path",
-        "priority": 88
-      }
+      { "trigger": "leader_path_known", "action": "mimic_leader_path", "priority": 88 }
     ],
     "reactions": [],
-    "unlockLevel": 4,
+    "unlockLevel": 1,
     "rarity": "rare",
     "icon": "E",
     "iconColor": "0x66ddcc",
     "description": "Refuses to forge their own path — instead, copies the steps of the last-seen adventurer. If the leader survives, they survive. If the leader dies, they walk into the same trap moments later."
   },
   {
-    "id": "mimic_handler",
-    "name": "Mimic Handler",
-    "tags": [
-      "mimic_handler",
-      "anti_loot",
-      "tactical"
-    ],
+    "id": "veteran",
+    "name": "Veteran",
+    "tags": ["veteran", "steadfast", "anchor"],
     "behaviorWeights": {
-      "fleeThreshold": 0.45,
-      "trapCaution": 0.85,
-      "partyCooperation": 0.55,
+      "fleeThreshold": 0.15,
+      "trapCaution": 0.45,
+      "partyCooperation": 0.8,
       "explorationDrive": 0.5,
-      "aggressionLevel": 0.55,
+      "aggressionLevel": 0.7,
+      "riskTolerance": 0.7,
+      "healPriority": 0.5
+    },
+    "decisionOverrides": [],
+    "reactions": [],
+    "unlockLevel": 1,
+    "rarity": "uncommon",
+    "icon": "V",
+    "iconColor": "0xc9b37a",
+    "nerve": { "baseline": 92, "floor": 60, "drainMul": 0.45, "recoverMul": 1.3, "steadyAllies": 3 },
+    "description": "Grizzled and unshakeable. Barely rattles no matter what the dungeon throws at them — and their calm steadies every party-mate nearby. The anti-coward: a morale anchor."
+  },
+  {
+    "id": "berserker",
+    "name": "Berserker",
+    "tags": ["berserker", "bloodthirsty", "reckless"],
+    "behaviorWeights": {
+      "fleeThreshold": 0.05,
+      "trapCaution": 0.1,
+      "partyCooperation": 0.3,
+      "explorationDrive": 0.4,
+      "aggressionLevel": 0.99,
+      "riskTolerance": 0.95,
+      "healPriority": 0.1
+    },
+    "decisionOverrides": [],
+    "reactions": [],
+    "unlockLevel": 1,
+    "rarity": "uncommon",
+    "icon": "B",
+    "iconColor": "0xcc3322",
+    "nerve": { "baseline": 60, "invert": true },
+    "description": "Their nerve runs backwards — the more they bleed and the more they kill, the BOLDER and faster they get. The lower they go, the scarier they get; near death they will not break."
+  },
+  {
+    "id": "scholar",
+    "name": "Scholar",
+    "tags": ["scholar", "lorekeeper", "knowledge_spreader"],
+    "behaviorWeights": {
+      "fleeThreshold": 0.4,
+      "trapCaution": 0.7,
+      "partyCooperation": 0.6,
+      "explorationDrive": 0.85,
+      "aggressionLevel": 0.35,
       "riskTolerance": 0.4,
-      "healPriority": 0.55
+      "healPriority": 0.5
     },
     "decisionOverrides": [
-      {
-        "trigger": "loot_visible",
-        "action": "skip_suspected_mimic",
-        "priority": 80
-      }
+      { "trigger": "any_door", "action": "study_room", "priority": 70 }
     ],
     "reactions": [],
-    "unlockLevel": 3,
+    "unlockLevel": 1,
     "rarity": "rare",
-    "icon": "M",
-    "iconColor": "0xff7777",
-    "description": "Trained to spot mimics. Refuses to pick up loot they suspect is a trap — and 'suspect' here means 'any chest in a known dangerous room'."
+    "icon": "S",
+    "iconColor": "0x6fa8dc",
+    "description": "Dwells to study each room — quickly learns its full layout and threats, sees through mimics, and calls out what they find to the whole party. Knowledge is their weapon."
+  },
+  {
+    "id": "zealot",
+    "name": "Zealot",
+    "tags": ["zealot", "devout", "rallying"],
+    "behaviorWeights": {
+      "fleeThreshold": 0.3,
+      "trapCaution": 0.45,
+      "partyCooperation": 0.85,
+      "explorationDrive": 0.5,
+      "aggressionLevel": 0.6,
+      "riskTolerance": 0.55,
+      "healPriority": 0.6
+    },
+    "decisionOverrides": [],
+    "reactions": [],
+    "unlockLevel": 1,
+    "rarity": "uncommon",
+    "icon": "Z",
+    "iconColor": "0xe6c34d",
+    "nerve": { "baseline": 65, "boldInTags": ["buff", "rng", "minion_support", "regen_aura"] },
+    "description": "Draws courage from sacred and wondrous places — emboldened in shrine, fountain and blessing rooms — and prays to rally the whole party's morale."
+  },
+  {
+    "id": "claustrophobe",
+    "name": "Claustrophobe",
+    "tags": ["claustrophobe", "nervous", "geometry"],
+    "behaviorWeights": {
+      "fleeThreshold": 0.6,
+      "trapCaution": 0.8,
+      "partyCooperation": 0.5,
+      "explorationDrive": 0.35,
+      "aggressionLevel": 0.3,
+      "riskTolerance": 0.25,
+      "healPriority": 0.6
+    },
+    "decisionOverrides": [],
+    "reactions": [],
+    "unlockLevel": 1,
+    "rarity": "uncommon",
+    "icon": "][",
+    "iconColor": "0x9a77cc",
+    "nerve": { "baseline": 55, "geometry": "tight" },
+    "description": "Your architecture is the weapon: their nerve drains fast in tight corridors and cramped rooms and steadies in open halls. Build narrow and you break them; nothing else fears your layout."
   }
 ]

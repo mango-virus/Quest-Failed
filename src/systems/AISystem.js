@@ -25,6 +25,17 @@ const GLOAT_DURATION_MS            = 1500   // freeze in place this long
 // the FLEE atExitEdge handler, the conga line at the doorway resolves
 // in a fraction of the time it used to.
 const FLEE_SPEED_MULT              = 1.6
+const MORALE_BREAK_MS              = 1300   // game-time in the Breaking band before a normal adv cracks and bolts
+// Room appraisal (Thread 2) — the "read the room" threshold beat.
+const APPRAISE_PAUSE_MIN_MS        = 220    // a quick glance (confident entry)
+const APPRAISE_PAUSE_MAX_MS        = 620    // a long, wary read (well under the 1.5s soft / 10s hard stuck timers)
+const APPRAISE_CREEP_MS            = 2600   // how long a cautious entry stays slowed after the beat
+const APPRAISE_MAX_PEEKBACKS       = 2      // cap per adventurer so caution can't starve them into a cull
+// Confer beat (Thread 3 / Enhancement A) — the party huddle where living-party
+// knowledge actually merges.
+const CONFER_RADIUS_TILES          = 5      // party-mates within this huddle up
+const CONFER_PAUSE_MS              = 680    // brief, watchdog-exempt synchronized pause
+const CONFER_COOLDOWN_MS           = 9000   // per adventurer, so they don't huddle constantly
 const WARN_RADIUS                  = 5      // tiles around the threat
 const WARN_CHANCE                  = 0.5    // roll per nearby ally on threat detect
 const WARN_COOLDOWN_MS             = 8000   // per-warner cooldown
@@ -135,6 +146,8 @@ export class AISystem {
     if (this._gameState.dungeon?.lootPiles?.length) {
       this._gameState.dungeon.lootPiles = []
     }
+    // Reset the per-party collective-morale latch each night (partyIds are per-wave).
+    this._gameState._collectiveCalled = {}
     // Mimic — every spent ('sprung') mimic re-disguises overnight. The
     // chest visibly closes again, ready to trap tomorrow's wave. Mimics
     // killed via combat (aiState='dead') stay dead until respawnAll
@@ -928,17 +941,28 @@ export class AISystem {
 
     adv._lastWarnAt = now
     EventBus.emit('SAY_warnParty', { adventurer: adv })
-    // Brief party caution flag — picked up by AVOID_TRAP pathfinder hook
-    // in Phase 3. Set on every party-mate within WARN_RADIUS tiles.
+    // Thread 3 — the warning now actually DOES something: every nearby party-mate
+    // LEARNS this room's threats (so the pathfinder reroutes them around it),
+    // gets a small nerve dip (a shouted "trap!" is unsettling), and re-appraises
+    // the room with the new intel (so they creep/peek instead of strolling in).
     const advs = this._gameState.adventurers?.active ?? []
+    let shared = 0
     for (const mate of advs) {
       if (mate.instanceId === adv.instanceId) continue
       if (mate.aiState === 'dead') continue
+      if (adv.partyId && mate.partyId !== adv.partyId) continue   // shout reaches your own party
       const d = Math.hypot(mate.tileX - adv.tileX, mate.tileY - adv.tileY)
       if (d > WARN_RADIUS) continue
       if (Math.random() >= WARN_CHANCE) continue
       mate._warnedUntil = now + WARN_COOLDOWN_MS
+      const got = this._knowledgeSystem?.shareKnowledge?.(adv, mate, { roomId }) ?? 0
+      if (got > 0) {
+        shared += got
+        if (mate._appraised) delete mate._appraised[roomId]   // re-read the room with the warning in mind
+        if (mate.nerve != null) mate.nerve = Math.max(0, mate.nerve - 4)
+      }
     }
+    if (shared > 0) EventBus.emit('PARTY_WARNED', { adventurer: adv, roomId, learned: shared })
   }
 
   // Push every nearby walking adventurer toward the noise tile, with a
@@ -956,17 +980,90 @@ export class AISystem {
       EventBus.emit('PARTY_WIPED', { partyId: adventurer.partyId, lastDead: adventurer })
       return
     }
-    if (survivors.length === 1) {
-      const survivor = survivors[0]
-      const isTraumatized = survivor.personalityIds?.includes('traumatized')
-      if (isTraumatized) {
-        EventBus.emit('PARTY_WIPED', { partyId: adventurer.partyId, lastSurvivor: survivor })
-        survivor.flags = survivor.flags ?? {}
-        survivor.flags.fullKnowledgeOnFlee = true   // Phase 8 will read this
-        this._setFleeGoal(survivor, 'traumatized_panic')
+
+    // ── Avenge / rally forks (build on the NerveSystem death-ripple) ───────────
+    const has = (a, id) => a.personalityIds?.includes(id)
+    for (const s of survivors) {
+      if (this._isScriptedRole(s)) continue
+      const near = Math.hypot((s.tileX ?? 0) - (adventurer.tileX ?? 0),
+                              (s.tileY ?? 0) - (adventurer.tileY ?? 0)) <= 7
+      if (!near) continue
+      if (has(s, 'berserker')) {
+        // The fallen feed the frenzy — a nerve spike + a vengeance cue.
+        if (s.nerve != null) s.nerve = Math.min(100, s.nerve + 20)
+        EventBus.emit('ADV_AVENGE', { adventurer: s, fallen: adventurer })
+      } else if (has(s, 'raid_leader')) {
+        // Hold the line — steady every remaining member.
+        for (const m of survivors) if (m !== s && m.nerve != null) m.nerve = Math.min(100, m.nerve + 6)
+        EventBus.emit('ADV_RALLY', { adventurer: s })
       }
     }
 
+    // ── Sole survivor — the last-stand beat (Enhancement E) ───────────────────
+    if (survivors.length === 1) {
+      const s = survivors[0]
+      if (has(s, 'traumatized')) {
+        EventBus.emit('PARTY_WIPED', { partyId: adventurer.partyId, lastSurvivor: s })
+        s.flags = s.flags ?? {}; s.flags.fullKnowledgeOnFlee = true   // Phase 8 reads this
+        this._setFleeGoal(s, 'traumatized_panic')
+      } else if (!this._isScriptedRole(s) && (has(s, 'coward') || (s.nerve ?? 50) < 25)) {
+        // Break — alone and afraid, they bolt for the exit.
+        EventBus.emit('PARTY_WIPED', { partyId: adventurer.partyId, lastSurvivor: s })
+        this._setFleeGoal(s, 'last_survivor_break')
+      } else if (!this._isScriptedRole(s)) {
+        // DEFIANT LAST STAND — they steel themselves and fight on to the end.
+        s.nerve = 100; s.mood = 'bold'
+        s.flags = s.flags ?? {}; s.flags.noFlee = true
+        s._lastStand = true
+        EventBus.emit('HERO_LAST_STAND', { adventurer: s })
+      }
+      return
+    }
+
+    // ── Small remnant (2–3) — the collective morale call (Enhancement D) ──────
+    // Once per party: a near-wiped band either breaks together or makes a
+    // desperate "we've come too far" charge. Fires once, then falls through to a
+    // regroup confer on later deaths.
+    this._gameState._collectiveCalled ??= {}
+    if (survivors.length <= 3 && !this._gameState._collectiveCalled[adventurer.partyId]) {
+      this._gameState._collectiveCalled[adventurer.partyId] = true
+      const avg = survivors.reduce((x, a) => x + (a.nerve ?? 50), 0) / survivors.length
+      const nearBoss = this._partyNearBoss(survivors)
+      if (avg < 25 && !nearBoss) {
+        for (const s of survivors) if (!this._isScriptedRole(s)) this._setFleeGoal(s, 'collective_break')
+        EventBus.emit('COLLECTIVE_MORALE', { partyId: adventurer.partyId, decision: 'break', survivors })
+      } else {
+        for (const s of survivors) {
+          if (this._isScriptedRole(s)) continue
+          if (s.nerve != null) s.nerve = Math.max(s.nerve, 50)
+          s.flags = s.flags ?? {}; s.flags.noFlee = true
+          s._lastStand = true
+          s.goal = { type: 'SEEK_BOSS' }; s.path = null
+        }
+        EventBus.emit('COLLECTIVE_MORALE', { partyId: adventurer.partyId, decision: 'push', survivors })
+      }
+      return
+    }
+
+    // ── Thread 3 — regroup confer (the nearest survivor calls a huddle) ───────
+    if (survivors.length >= 2) {
+      let near = null, best = Infinity
+      for (const s of survivors) {
+        if (s.aiState === 'fleeing' || this._isScriptedRole(s)) continue
+        const d = Math.hypot((s.tileX ?? 0) - (adventurer.tileX ?? 0), (s.tileY ?? 0) - (adventurer.tileY ?? 0))
+        if (d < best) { best = d; near = s }
+      }
+      if (near) this._maybeConferParty(near, 'loss')
+    }
+  }
+
+  // Any survivor within ~6 tiles of the boss chamber? (the "we're almost there"
+  // signal that tips a near-wiped party toward a desperate push, not a break.)
+  _partyNearBoss(survivors) {
+    const boss = (this._gameState.dungeon?.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
+    if (!boss) return false
+    const bx = boss.gridX + boss.width / 2, by = boss.gridY + boss.height / 2
+    return survivors.some(s => Math.hypot((s.tileX ?? 0) - bx, (s.tileY ?? 0) - by) <= 6)
   }
 
   // When the party wins a boss fight, force every adventurer still in the dungeon
@@ -1452,7 +1549,10 @@ export class AISystem {
     const stuckExempt = adv.aiState === 'dead' ||
                         adv.goal?.type === 'AT_BOSS' ||
                         adv._leaveFadeEnd != null ||
-                        adv._spawnFadeEnd != null
+                        adv._spawnFadeEnd != null ||
+                        // Thread 2/3 — an intentional appraisal/confer pause is not "stuck".
+                        (adv._appraisingUntil != null && (this._scene?.time?.now ?? 0) < adv._appraisingUntil) ||
+                        (adv._conferUntil != null && (this._scene?.time?.now ?? 0) < adv._conferUntil)
     if (!stuckExempt) {
       const STUCK_MS = 1500
       const PROGRESS_PX = TS / 2     // ~half-tile counts as moved
@@ -1885,6 +1985,13 @@ export class AISystem {
           adventurer: adv, fromRoomId: prev, toRoomId: curRoomId,
         })
         this._maybeWarnParty(adv, curRoomId)
+        // Thread 2 — appraise the room at the threshold (pause / creep / back off).
+        this._maybeAppraiseRoom(adv, curRoomId)
+        // Enhancements B/C — react to what the player built + chase-a-ghost on stale loot intel.
+        this._maybeReactToRoom(adv, curRoomId)
+        // Roster (2026-06-10) — Scholar studies the room; Zealot rallies in sacred rooms.
+        this._maybeScholarStudy(adv, curRoomId)
+        this._maybeZealotRally(adv, curRoomId)
         // Starvation failsafe (2026-05-27). Only count REVISITS — entries
         // to rooms the adv has been in before. A legit linear sweep of a
         // giant dungeon (every room once, then exit) tallies zero revisits;
@@ -1982,6 +2089,15 @@ export class AISystem {
     // Standard flee check (HP threshold)
     this._checkFleeTrigger(adv)
 
+    // Martyr — fire the low-HP taunt beat (aggro pull is passive in MinionAISystem).
+    this._maybeMartyrTaunt(adv)
+
+    // Morale-break flee (AI overhaul): a sustained Breaking nerve band makes a
+    // normal adventurer crack and bolt even before their HP is low — the arc
+    // payoff. Gated to real dungeon pressure + non-scripted roles so it can't
+    // fire at spawn or on event roles.
+    this._checkMoraleBreak(adv, delta)
+
     // Phase: items — Healing Fountain heal-seeking. If the adv knows a
     // fountain, hasn't healed today, and is below the low-HP threshold,
     // detour to the closest known fountain. Skips when already on a
@@ -2001,6 +2117,13 @@ export class AISystem {
         adv.partyId = null
         EventBus.emit('SOLO_SPLIT', { adventurer: adv })
       }
+    }
+
+    // Enhancement F — returning-veteran briefing: a veteran who's run this dungeon
+    // before huddles the party at the entrance and shares their accumulated map
+    // (the confer's knowledge-merge propagates it). Retries until mates are near.
+    if (adv.flags?.returningVeteran && !adv._briefed && adv.partyId && !this._isScriptedRole(adv)) {
+      if (this._maybeConferParty(adv, 'briefing')) adv._briefed = true
     }
 
     // Phase 5c — Cleric heal moved to ClassAbilitySystem._considerCleric
@@ -2553,6 +2676,13 @@ export class AISystem {
     if ((adv._castingUntil ?? 0) > this._scene.time.now) {
       return
     }
+    // Thread 2/3 — room-appraisal threshold beat + the party confer huddle: a
+    // brief hesitation while they "read" the room / talk it over before moving.
+    // Short + watchdog-exempt (see stuckExempt) so it never reads as a stall.
+    if ((adv._appraisingUntil ?? 0) > this._scene.time.now ||
+        (adv._conferUntil ?? 0) > this._scene.time.now) {
+      return
+    }
 
     const speedMul = this._paranoidSpeedMultiplier(adv)
     // Fleeing adventurers sprint — FLEE_SPEED_MULT × their normal pace.
@@ -2575,7 +2705,12 @@ export class AISystem {
     // stack, cap 6 → +30% (matches CROWD_ROAR_MAX_STACKS in CombatSystem).
     const roarSpdMul = (adv.classId === 'gladiator' && adv._crowdRoarStacks > 0)
       ? 1 + Math.min(adv._crowdRoarStacks, 6) * 0.05 : 1
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * TS * delta) / 1000
+    // Nerve body language — confident stride / cautious creep. Bypassed while
+    // fleeing (the flee sprint owns the pace then). A wary appraisal layers an
+    // extra creep on top.
+    const nerveMul = adv.aiState === 'fleeing' ? 1 : this._nerveSpeedMultiplier(adv)
+    const creepMul = adv.aiState === 'fleeing' ? 1 : this._appraiseCreepMul(adv)
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * nerveMul * creepMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -2897,7 +3032,6 @@ export class AISystem {
       // adv enters room, golems: adv steps adjacent). MinionRenderer drops
       // alpha to 0; this skip makes the hide mechanically real.
       if (m._hidden) continue
-      if (adv.flags?.idolizedMinionClass === m.definitionId) continue
       // Skip minions standing in a doorway — they're mid-passage and
       // untouchable; the adventurer walks through rather than stopping to fight.
       // (A doorway minion that's actively hitting us — the retaliator — is fair game.)
@@ -2968,12 +3102,16 @@ export class AISystem {
         ? (this._personalitySystem.getWeights(adv).fleeThreshold ?? 0.5)
         : 0.3
     if (hpFrac <= threshold + Balance.FLEE_BUFFER) {
-      // 50% chance to ignore the trigger — roll once per threshold crossing,
-      // not every tick (otherwise repeated rolls converge to ~100% flee).
-      // Flag clears when HP recovers above threshold so a future drop re-rolls.
+      // Roll once per threshold crossing, not every tick (otherwise repeated
+      // rolls converge to ~100% flee). Flag clears when HP recovers above
+      // threshold so a future drop re-rolls. The ignore probability is driven by
+      // NERVE (AI overhaul): a Bold adventurer holds (~0.9 ignore → rarely
+      // flees), a Breaking one bolts (~0.27 ignore). Was a flat 0.8.
       if (adv._fleeRolled) return
       adv._fleeRolled = true
-      if (Math.random() < 0.8) return
+      const nerve = adv.nerve ?? 100
+      const ignoreProb = Math.max(0.1, Math.min(0.92, 0.2 + (nerve / 100) * 0.7))
+      if (Math.random() < ignoreProb) return
       this._setFleeGoal(adv, 'low_hp_retreat', {
         hpPct: Math.max(1, Math.round(hpFrac * 100)),
       })
@@ -3009,6 +3147,11 @@ export class AISystem {
   _setFleeGoal(adv, reason = 'low_hp_retreat', context = null) {
     // Phase 5c — Barbarian Unstoppable: immune to ALL flee triggers.
     if (adv.classId === 'barbarian') return
+    // Berserker personality (2026-06-10) — the more they bleed the bolder they get;
+    // once they're wounded (<50% HP) they're in the frenzy and will not break.
+    if (adv.resources && adv.resources.maxHp > 0 &&
+        adv.resources.hp / adv.resources.maxHp < 0.5 &&
+        this._personalitySystem?.getTags?.(adv)?.has?.('berserker')) return
     // Phase 9 — Schism / Glory Hounds: solo / glory adventurers fight to the death.
     if (adv.flags?.noFlee) return
     // Vampire charm: charmed adventurers are walking to the boss to be turned
@@ -3206,12 +3349,11 @@ export class AISystem {
     if (adv.aiState === 'fleeing') return null
     const tags = this._personalitySystem?.getTags(adv) ?? new Set()
     if (!tags.has('coward')) return null
-    // Phase 5c — proximity-based instead of "any minion in this room."
-    // Previously cowards bolted the moment they spawned into a room that
-    // happened to contain a placed minion (even one tile away in a 14×14
-    // chamber). Now they only flee when a hostile minion is genuinely
-    // within sight (≤ 4 tiles), so they at least walk a few tiles before
-    // panicking.
+    // Reworked (2026-06-10): cowards no longer bolt the dungeon at the sight of a
+    // minion. They AVOID fights (never attack — set in pickInitialGoal) and shadow
+    // braver party-mates, slipping around combat. They only break and flee when
+    // ISOLATED — a threat near AND no living party-mate close enough to hide behind
+    // (covers "left alone or last alive").
     const SIGHT = 4
     let closest = null
     let closestD = Infinity
@@ -3221,7 +3363,11 @@ export class AISystem {
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d <= SIGHT && d < closestD) { closest = m; closestD = d }
     }
-    return closest
+    if (!closest) return null
+    const hasMateNear = (this._gameState.adventurers?.active ?? []).some(o =>
+      o !== adv && o.aiState !== 'dead' && o.partyId && o.partyId === adv.partyId &&
+      Math.hypot(o.tileX - adv.tileX, o.tileY - adv.tileY) <= 8)
+    return hasMateNear ? null : closest   // party nearby → stay & avoid; alone → bolt
   }
 
   // Cleric heal target: same-party ally below HP threshold, in heal range, alive.
@@ -3279,6 +3425,370 @@ export class AISystem {
     // "Familiar" rooms = the starter set
     const isFamiliar = (room.definitionId ?? '').startsWith('starter_')
     return isFamiliar ? 1 : Balance.PARANOID_SPEED_MULTIPLIER
+  }
+
+  // Nerve-driven body language (AI overhaul). Reads adv.mood (set by NerveSystem):
+  // a confident STRIDE through cleared/known ground when morale is high, a cautious
+  // CREEP when rattled in unfamiliar/threatening ground. Subtle on purpose (0.8–1.06)
+  // and never near zero, so it reads as pace — not as a stall that trips the
+  // position-stagnation / hard-stuck watchdogs. Fleeing advs bypass this (they sprint).
+  _nerveSpeedMultiplier(adv) {
+    const mood = adv.mood
+    if (!mood) return 1
+    const room   = this._dungeonGrid.getRoomAtTile(adv.tileX, adv.tileY)
+    const roomId = room?.instanceId ?? null
+    const known  = !!(roomId && (adv._roomsEntered?.[roomId] || adv.visitedRooms?.includes(roomId)))
+    if (known && (mood === 'bold' || mood === 'steady')) return 1.06   // confident stride
+    if (mood === 'breaking') return 0.82                               // frozen-footed dread
+    if (mood === 'spooked')  return known ? 0.9  : 0.8                 // cautious creep
+    if (mood === 'wary')     return known ? 0.96 : 0.9
+    return 1
+  }
+
+  // Morale-break flee (AI overhaul). A normal adventurer whose nerve has sat in the
+  // Breaking band under real pressure for MORALE_BREAK_MS of game-time cracks and bolts.
+  // `_breakingMs` accumulates SCALED delta (game-time), so it behaves identically at any
+  // day speed. Heavily guarded: skips scripted/no-flee roles (they have their own logic)
+  // and requires actual jeopardy (damaged / threat near / deep) so a timid personality
+  // can't break at the entry hall.
+  _checkMoraleBreak(adv, delta) {
+    if (!adv || adv.aiState === 'dead') return
+    const g = adv.goal?.type
+    if (g === 'FLEE' || g === 'AT_BOSS' || adv.aiState === 'fleeing') { adv._breakingMs = 0; return }
+    if (adv.mood !== 'breaking') { adv._breakingMs = 0; return }
+    // Scripted / no-flee roles never morale-break (they own their flee behaviour).
+    if (adv.classId === 'barbarian' || adv.flags?.noFlee || adv._charmed ||
+        adv._shadowMonarch || adv._lightParty || adv._nemesis || adv._nemesisDuel ||
+        adv._speedrunner || adv._saboteur || this._beelinesBoss(adv) ||
+        adv.flags?.zombieShambler) {
+      adv._breakingMs = 0
+      return
+    }
+    // Require genuine dungeon pressure, not just a low resting baseline.
+    const hpFrac = adv.resources?.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+    const damaged = hpFrac < 1
+    const deep = Math.max(Math.abs(adv.tileX - (adv.spawnTileX ?? adv.tileX)),
+                          Math.abs(adv.tileY - (adv.spawnTileY ?? adv.tileY))) > 8
+    let threatNear = false
+    for (const m of this._gameState.minions ?? []) {
+      if (m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY) <= 5) { threatNear = true; break }
+    }
+    if (!damaged && !threatNear && !deep) { adv._breakingMs = 0; return }
+    adv._breakingMs = (adv._breakingMs ?? 0) + (delta ?? 16)
+    if (adv._breakingMs >= MORALE_BREAK_MS) {
+      adv._breakingMs = 0
+      EventBus.emit('SAY_warnParty', { adventurer: adv })   // a cracked cry as they break
+      this._setFleeGoal(adv, 'morale_break')
+    }
+  }
+
+  // ── Room appraisal (Thread 2) ────────────────────────────────────────────────
+  // True for the hard-coded event/scripted roles that own their own movement
+  // logic — they don't pause to "read" a room or back off.
+  _isScriptedRole(adv) {
+    return !!(adv._shadowMonarch || adv._lightParty || adv._nemesis || adv._nemesisDuel ||
+              adv._speedrunner || adv._saboteur || adv._cartographer || adv._treasureHunter ||
+              adv._monsterInvader || adv._rivalBoss || adv._bossRoyaleInvader ||
+              adv.flags?.zombieShambler || adv.flags?.plundererThief || this._beelinesBoss(adv))
+  }
+
+  // Collect the personality `decisionOverrides` for an adventurer (the schema that
+  // used to be dead JSON — this is what makes it real). Returns the raw entries;
+  // callers match on { trigger, action }.
+  _decisionOverrides(adv) {
+    const ps = this._personalitySystem
+    if (!ps) return []
+    const out = []
+    for (const pid of (adv.personalityIds ?? [])) {
+      const def = ps.getDefinition?.(pid)
+      if (def?.decisionOverrides?.length) out.push(...def.decisionOverrides)
+    }
+    return out
+  }
+
+  _hasOverride(adv, trigger, action) {
+    return this._decisionOverrides(adv).some(o => o.trigger === trigger && o.action === action)
+  }
+
+  // Score a room from what THIS adventurer knows (knowledge-gated — you can't fear
+  // what you haven't seen/heard). Returns { risk, reward } in 0..1. Threats come
+  // from prior sightings/rumours/inheritance (entering only auto-reveals room TYPE
+  // + loot, not enemies), so this reads as "what they knew walking up to the door."
+  _appraiseRoom(adv, room) {
+    const k = adv.knowledge ?? {}
+    const ks = this._knowledgeSystem
+    const tierW = (e) => { const t = ks?.tierForEntry?.(e); return t === 'FULL' ? 1 : t === 'PARTIAL' ? 0.6 : t === 'RUMOR' ? 0.3 : 0 }
+    const inRoom = (tx, ty) => Number.isFinite(tx) && tx >= room.gridX && tx < room.gridX + room.width &&
+                               ty >= room.gridY && ty < room.gridY + room.height
+    let risk = 0
+    const enemies = k.enemiesPerRoom?.[room.instanceId] ?? []
+    for (const e of enemies) risk += 0.32 * (tierW(e) || 0.3)
+    for (const id in (k.traps ?? {})) {
+      const t = k.traps[id]
+      if (t && inRoom(t.tileX, t.tileY)) risk += 0.42 * (tierW(t) || 0.3)
+    }
+    let reward = 0
+    for (const id in (k.treasureChests ?? {})) {
+      const c = k.treasureChests[id]
+      if (c && inRoom(c.tileX, c.tileY)) reward += c._isMimic ? 0.5 : 0.4 + 0.08 * (c.tier ?? 1)
+    }
+    for (const id in (k.loot ?? {})) {
+      const l = k.loot[id]
+      if (l && inRoom(l.tileX ?? l.x, l.tileY ?? l.y)) reward += 0.3
+    }
+    if (room.definitionId === 'treasury') reward += 0.4
+    return { risk: Math.min(1, risk), reward: Math.min(1, reward), knownThreatCount: enemies.length }
+  }
+
+  // The threshold beat: when an adventurer first enters a non-trivial room, they
+  // pause to "read" it, then commit / creep / peek-and-back-off, driven by nerve +
+  // risk/reward + their personality decisionOverrides. The pause is short and
+  // watchdog-exempt so it never reads as "stuck". Once per room per adventurer.
+  _maybeAppraiseRoom(adv, roomId) {
+    if (!roomId) return
+    if (adv.aiState === 'fleeing' || adv.aiState === 'fighting') return
+    const gt = adv.goal?.type
+    if (gt === 'FLEE' || gt === 'AT_BOSS') return
+    if (adv._charmed || adv.classId === 'barbarian' || this._isScriptedRole(adv)) return
+    adv._appraised ??= {}
+    if (adv._appraised[roomId]) return
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    if (!room) return
+    const def = room.definitionId
+    if (def === 'boss_chamber' || def === 'entry_hall' || def === 'corridor') { adv._appraised[roomId] = true; return }
+
+    const { risk, reward } = this._appraiseRoom(adv, room)
+    const paranoidCheck = this._hasOverride(adv, 'any_door', 'check_for_trap_first')
+    const charge        = this._hasOverride(adv, 'party_warns_danger', 'ignore_warning_and_charge')
+    const completer     = this._hasOverride(adv, 'unexplored_room_adjacent', 'explore_it')
+    const avoidChest    = this._hasOverride(adv, 'chest_in_room', 'avoid_unless_forced')
+
+    // Nothing worth reading + not a compulsive checker → walk straight through.
+    if (risk < 0.12 && reward < 0.25 && !paranoidCheck) { adv._appraised[roomId] = true; return }
+    adv._appraised[roomId] = true
+
+    const now   = this._scene.time.now
+    const nerve = Math.max(0, Math.min(100, adv.nerve ?? 70))
+    // Low nerve amplifies perceived danger; bold dampens it.
+    let perceived = risk * (1 + (55 - nerve) / 90)
+    if (paranoidCheck) perceived += 0.25
+    if (avoidChest && reward > 0.3) perceived += 0.2   // paranoid distrusts shiny loot (mimic!)
+    if (charge) perceived = 0                           // overconfident waves off the danger
+
+    let outcome
+    if (charge) outcome = 'enter'
+    else if (perceived >= 0.7 && reward < 0.5 && nerve <= 45 &&
+             (adv._peekBacks ?? 0) < APPRAISE_MAX_PEEKBACKS && !completer) outcome = 'peek_back'
+    else if (perceived >= 0.4 || paranoidCheck) outcome = 'creep'
+    else outcome = 'enter'
+
+    const pauseMs = outcome === 'enter'
+      ? APPRAISE_PAUSE_MIN_MS
+      : Math.min(APPRAISE_PAUSE_MAX_MS, APPRAISE_PAUSE_MIN_MS + perceived * 420)
+    adv._appraisingUntil = now + pauseMs
+    EventBus.emit('ADV_APPRAISING', { adventurer: adv, roomId, outcome, risk, reward })
+
+    if (outcome === 'creep') {
+      adv._creepUntil = now + APPRAISE_CREEP_MS
+      if (perceived >= 0.5 && adv.partyId) this._maybeWarnParty(adv, roomId)
+    } else if (outcome === 'peek_back') {
+      adv._peekBacks = (adv._peekBacks ?? 0) + 1
+      // Treat the room as "seen, not worth it" so the re-pick won't immediately
+      // re-target it, then fall back to a known-safer room (or a fresh goal).
+      if (!(adv.visitedRooms ?? []).includes(roomId)) (adv.visitedRooms ??= []).push(roomId)
+      const safe = this._findSafeRetreatRoom(adv)
+      if (safe) { adv.goal = { type: 'TACTICAL_RETREAT', roomId: safe.instanceId, fromReason: 'appraise_peek' } }
+      else { adv.goal = this._pickNextGoal(adv) }
+      adv.path = null
+      EventBus.emit('SAY_avoidTrap', { adventurer: adv })
+    }
+
+    // A dicey threshold with the party nearby → huddle up (the confer beat).
+    if ((outcome === 'creep' || outcome === 'peek_back') && adv.partyId) {
+      this._maybeConferParty(adv, outcome === 'peek_back' ? 'danger' : 'caution')
+    }
+  }
+
+  // Cautious-creep speed factor set by a wary appraisal (decays at _creepUntil).
+  _appraiseCreepMul(adv) {
+    return ((adv._creepUntil ?? 0) > this._scene.time.now) ? 0.72 : 1
+  }
+
+  // Room-definition lookup (memoised) for reactions/appraisal.
+  _roomDef(defId) {
+    if (!this._roomDefCache) {
+      const list = this._scene?.cache?.json?.get?.('rooms') ?? []
+      this._roomDefCache = Object.fromEntries(list.map(d => [d.id, d]))
+    }
+    return this._roomDefCache[defId] ?? null
+  }
+
+  // ── Enhancement C (react to what you built) + B (unreliable rumours) ─────────
+  // On first entry, an adventurer ACKNOWLEDGES the room the player built — greed at
+  // a vault, dread in a charnel pit, awe at an imposing chamber, "this corridor's a
+  // death-trap" — as a personality-flavoured nerve nudge (instantly legible on the
+  // mood pip) + an ADV_REACT_ROOM event for VFX/emotes. AND (Enh B) if their intel
+  // promised loot/a fountain that the player has since sold or moved, they react to
+  // the WASTED TRIP and self-correct the stale entry — so stale rumours genuinely
+  // mislead and the player can bait by relocating valuables.
+  _maybeReactToRoom(adv, roomId) {
+    if (!roomId || adv._charmed || this._isScriptedRole(adv)) return
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    if (!room) return
+    const def = room.definitionId
+    if (def === 'boss_chamber' || def === 'entry_hall') return
+    adv._reacted ??= {}
+    if (adv._reacted[roomId]) return
+    adv._reacted[roomId] = true
+
+    const tags = this._personalitySystem?.getTags?.(adv) ?? new Set()
+    const has = (t) => tags.has(t)
+    const nudge = (n) => { if (adv.nerve != null) adv.nerve = Math.max(0, Math.min(100, adv.nerve + n)) }
+    const inRoom = (e) => Number.isFinite(e?.tileX) &&
+      e.tileX >= room.gridX && e.tileX < room.gridX + room.width &&
+      e.tileY >= room.gridY && e.tileY < room.gridY + room.height
+    const k = adv.knowledge ?? {}
+
+    // Enhancement B — "chasing a ghost": intel promised loot/a fountain here that
+    // is no longer there. Self-correct the stale entry so they don't keep chasing.
+    let ghost = false
+    for (const id in (k.treasureChests ?? {})) {
+      if (!inRoom(k.treasureChests[id])) continue
+      const liveChest = (this._gameState.dungeon?.treasureChests ?? []).some(x => x.instanceId === id && x.opened !== true)
+      const liveMimic = (this._gameState.minions ?? []).some(m => m.instanceId === id && m.aiState !== 'dead')
+      if (!liveChest && !liveMimic) { delete k.treasureChests[id]; ghost = true }
+    }
+    for (const id in (k.fountains ?? {})) {
+      if (!inRoom(k.fountains[id])) continue
+      if (!(this._gameState.dungeon?.fountains ?? []).some(x => x.instanceId === id)) { delete k.fountains[id]; ghost = true }
+    }
+
+    let reaction = null
+    if (ghost) {
+      reaction = 'ghost'
+      nudge(has('greedy') ? -8 : -4)   // a greedy adv hates a wasted trip most
+      EventBus.emit('SAY_avoidTrap', { adventurer: adv })   // placeholder frustrated bubble
+    } else {
+      const rdef  = this._roomDef(def)
+      const rtags = new Set(rdef?.tags ?? [])
+      const gold  = rdef?.goldCost ?? 0
+      if (rtags.has('loot_source') || rtags.has('economy')) {
+        reaction = 'greed'; nudge((has('greedy') || has('vulture')) ? 7 : 3)
+        EventBus.emit('SAY_seekTreasure', { adventurer: adv })
+      } else if (rtags.has('psychological') || rtags.has('undead')) {
+        reaction = 'dread'; nudge((has('paranoid') || has('coward')) ? -7 : -3)
+      } else if (gold >= 60) {
+        reaction = 'awe'; nudge(-2)                          // an imposing, costly chamber gives pause
+      } else if (def === 'starter_corridor' && Math.max(room.width, room.height) >= 6) {
+        reaction = 'dread'; nudge(-2)                         // "this corridor's a death-trap"
+      }
+    }
+    if (reaction) EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction })
+  }
+
+  // Scholar — dwells to STUDY a room: instantly learns its live threats (minions +
+  // traps), sees through mimics, briefly pauses, and broadcasts the intel to the
+  // nearby party. Knowledge is their weapon. Once per room.
+  _maybeScholarStudy(adv, roomId) {
+    if (!(this._personalitySystem?.getTags?.(adv)?.has?.('scholar'))) return
+    adv._studied ??= {}
+    if (adv._studied[roomId]) return
+    adv._studied[roomId] = true
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    if (!room || room.definitionId === 'boss_chamber') return
+    const today = this._gameState.meta?.dayNumber ?? 0
+    const k = adv.knowledge ??= {}
+    k.enemiesPerRoom ??= {}; k.traps ??= {}; k.mimics ??= {}
+    const inRoom = (e) => Number.isFinite(e?.tileX) && e.tileX >= room.gridX && e.tileX < room.gridX + room.width &&
+                          e.tileY >= room.gridY && e.tileY < room.gridY + room.height
+    const list = k.enemiesPerRoom[roomId] ??= []
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || m.faction === 'adventurer' || !inRoom(m)) continue
+      if (m.isMimic) k.mimics[m.instanceId] = { confirmed: true, stale: false, dayLearned: today }
+      if (!list.find(e => e.minionType === m.definitionId)) {
+        list.push({ minionType: m.definitionId, confirmed: true, stale: false, dayLearned: today })
+      }
+    }
+    for (const t of this._gameState.dungeon?.traps ?? []) {
+      if (!inRoom(t)) continue
+      k.traps[t.instanceId] = { type: t.definitionId, tileX: t.tileX, tileY: t.tileY,
+        footprint: t.footprint ?? { w: 1, h: 1 }, confirmed: true, stale: false, dayLearned: today }
+    }
+    // brief dwell (reuses the watchdog-exempt appraisal freeze gate) + broadcast.
+    adv._appraisingUntil = Math.max(adv._appraisingUntil ?? 0, this._scene.time.now + 500)
+    if (adv.partyId) {
+      for (const mate of this._gameState.adventurers?.active ?? []) {
+        if (mate === adv || mate.aiState === 'dead' || mate.partyId !== adv.partyId) continue
+        if (Math.hypot(mate.tileX - adv.tileX, mate.tileY - adv.tileY) > 6) continue
+        this._knowledgeSystem?.shareKnowledge?.(adv, mate, { roomId })
+      }
+    }
+    EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction: 'study' })
+  }
+
+  // Zealot — sacred/wondrous rooms embolden them (NerveSystem handles their own
+  // nerve) and they pray to RALLY the party: nearby mates get a courage bump. Once.
+  _maybeZealotRally(adv, roomId) {
+    if (!adv.partyId || !(this._personalitySystem?.getTags?.(adv)?.has?.('zealot'))) return
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    if (!room) return
+    const holyTags = ['buff', 'rng', 'minion_support', 'regen_aura']
+    if (!(this._roomDef(room.definitionId)?.tags ?? []).some(t => holyTags.includes(t))) return
+    adv._rallied ??= {}
+    if (adv._rallied[roomId]) return
+    adv._rallied[roomId] = true
+    for (const mate of this._gameState.adventurers?.active ?? []) {
+      if (mate === adv || mate.aiState === 'dead' || mate.partyId !== adv.partyId) continue
+      if (Math.hypot(mate.tileX - adv.tileX, mate.tileY - adv.tileY) > 6) continue
+      if (mate.nerve != null) mate.nerve = Math.min(100, mate.nerve + 8)
+    }
+    EventBus.emit('SAY_warnParty', { adventurer: adv })   // a rallying cry (placeholder bubble)
+    EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction: 'rally' })
+  }
+
+  // Martyr — at low HP, the visible taunt beat. The aggro PULL itself is passive
+  // (MinionAISystem._adventurerPriority prioritises a low-HP martyr); this fires the
+  // one-time cue + event so the moment reads on screen. Resets when they heal up.
+  _maybeMartyrTaunt(adv) {
+    if (!adv.personalityIds?.includes('martyr')) return
+    const frac = adv.resources?.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+    if (frac > Balance.MARTYR_TAUNT_HP_FRACTION) { adv._martyrTaunted = false; return }
+    if (adv._martyrTaunted) return
+    adv._martyrTaunted = true
+    EventBus.emit('SAY_warnParty', { adventurer: adv })
+    EventBus.emit('MARTYR_TAUNT', { adventurer: adv })
+  }
+
+  // ── The Confer beat (Thread 3 / Enhancement A) ───────────────────────────────
+  // A party reaching a dicey threshold stops, clusters, and confers — and THAT
+  // huddle is the visible tick where living-party knowledge MERGES (the union is
+  // shared across the cluster, so everyone walks away knowing what any one of them
+  // knew). A brief synchronized, watchdog-exempt pause sells the moment; a per-adv
+  // cooldown keeps it from spamming. Returns true if a huddle happened.
+  _maybeConferParty(adv, reason) {
+    if (!adv.partyId || adv._charmed || this._isScriptedRole(adv)) return false
+    const now = this._scene.time.now
+    if ((adv._lastConferAt ?? -1e9) + CONFER_COOLDOWN_MS > now) return false
+    const advs = this._gameState.adventurers?.active ?? []
+    const cluster = [adv]
+    for (const m of advs) {
+      if (m === adv || m.aiState === 'dead' || m.aiState === 'fleeing') continue
+      if (m.partyId !== adv.partyId || this._isScriptedRole(m) || m._charmed) continue
+      if (Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY) > CONFER_RADIUS_TILES) continue
+      cluster.push(m)
+    }
+    if (cluster.length < 2) return false   // need someone to confer WITH
+    const learned = this._knowledgeSystem?.mergePartyKnowledge?.(cluster) ?? 0
+    for (const m of cluster) {
+      m._conferUntil  = now + CONFER_PAUSE_MS
+      m._lastConferAt = now
+      // A huddle steadies frayed nerves a touch — "we'll do this together".
+      if (m.nerve != null && m.nerve < 55) m.nerve = Math.min(60, m.nerve + 4)
+    }
+    EventBus.emit('PARTY_CONFER', { adventurers: cluster, reason, learned, x: adv.worldX, y: adv.worldY })
+    EventBus.emit('SAY_warnParty', { adventurer: adv })   // a quick "hold up —" cue (reuses the bubble)
+    return true
   }
 
   // Phase 5c — Bard Song of Speed: returns 1.20 if a same-party Bard within
@@ -4405,15 +4915,11 @@ export class AISystem {
         adv.visitedRooms.push(spawnRoom.instanceId)
       }
     }
-    // Phase 6d: the_fan picks a random minion class to idolize (refuses to attack it).
-    if (adv.personalityIds?.includes('the_fan') && !adv.flags?.idolizedMinionClass) {
-      const types = this._scene.cache.json.get('minionTypes') ?? []
-      const choice = types[Math.floor(Math.random() * types.length)]
-      if (choice) {
-        adv.flags = adv.flags ?? {}
-        adv.flags.idolizedMinionClass = choice.id
-      }
-    }
+    // (the_fan personality removed in the 2026-06-10 roster pass — idol-pick logic deleted.)
+    // Coward rework (2026-06-10): they AVOID fights — never auto-attack a minion
+    // (same hook the Light Party healer uses). They slip around combat and shadow
+    // the party instead; they only break and bolt when isolated (see _cowardShouldFlee).
+    if (adv.personalityIds?.includes('coward')) adv._neverAttacks = true
     adv.goal = this._pickNextGoal(adv)
     return adv.goal
   }

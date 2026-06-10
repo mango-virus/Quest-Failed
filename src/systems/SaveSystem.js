@@ -491,6 +491,12 @@ function _rehydrateRunHistory(state) {
     //   Miner — Tunnel startup gate + the multi-phase dig/underground sequence
     '_tunnelGateUntil', '_tunnelPhase', '_tunnelDig', '_underground',
     '_tunnelDigUntil', '_tunnelEmergeAt', '_tunnelDeadline', '_tunnelNextFx',
+    //   AI overhaul — nerve morale-break accumulator + room-appraisal threshold
+    //   beat + party confer huddle (scene.time-stamped freeze/creep/cooldown gates;
+    //   a saved future value would freeze/slow the adv until the new clock catches
+    //   up). NOTE: nerve/mood/_nerveSeeded are intentionally NOT stripped — morale
+    //   persists across Continue.
+    '_breakingMs', '_appraisingUntil', '_creepUntil', '_conferUntil', '_lastConferAt',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]

@@ -55,18 +55,18 @@ export class PersonalitySystem {
 
   // ── Personality assignment ────────────────────────────────────────────────
 
-  // Roll N distinct personalities for a new adventurer, weighted by rarity.
-  rollPersonalities(count = 1, dungeonLevel = 1) {
-    const pool = this.allDefinitions().filter(p => (p.unlockLevel ?? 1) <= dungeonLevel)
+  // Roll N distinct personalities for a new adventurer.
+  // Flat roll (AI & Personality Overhaul, 2026-06-10): every personality is
+  // EQUALLY likely and UNGATED — the old rarity weighting (common×4/uncommon×2/
+  // rare×1) and the `unlockLevel` day-gate were both removed at user request.
+  // `rarity`/`unlockLevel` are kept in the data for display only. The dungeonLevel
+  // arg is retained for call-site compatibility but no longer filters.
+  rollPersonalities(count = 1, _dungeonLevel = 1) {
+    const pool = this.allDefinitions()
     if (pool.length === 0) return []
-    const weighted = []
-    for (const p of pool) {
-      const w = p.rarity === 'common' ? 4 : p.rarity === 'uncommon' ? 2 : 1
-      for (let i = 0; i < w; i++) weighted.push(p)
-    }
     const out = []
     while (out.length < count && out.length < pool.length) {
-      const pick = weighted[Math.floor(Math.random() * weighted.length)]
+      const pick = pool[Math.floor(Math.random() * pool.length)]
       if (!out.includes(pick.id)) out.push(pick.id)
     }
     return out

@@ -49,30 +49,17 @@ export class EvolutionSystem {
   _onCombatKill({ sourceId, targetId, damageType, method }) {
     if (!this._loaded) this.loadDefinitions()
 
-    // Phase 7b: adventurer kills minion → adventurer XP (underdog 2×)
+    // Phase 7b: adventurer kills minion → adventurer XP (underdog 2×).
+    // (The underdog_cleric_fan "Believer's Boost" combo was removed with the_fan
+    // personality in the 2026-06-10 roster pass — underdog now also gains nerve +
+    // boldness per kill via NerveSystem's emboldenPerKill.)
     const advSrc = this._gameState.adventurers.active.find(a => a.instanceId === sourceId)
     if (advSrc) {
       const ps = this._scene.personalitySystem
       const tags = ps?.getTags?.(advSrc) ?? new Set()
       const isUnderdog = tags.has('underdog')
       const baseXp = 8
-      let xpMul = isUnderdog ? Balance.UNDERDOG_XP_MULT : 1
-
-      // Phase QW — underdog_cleric_fan combo ("Believer's Boost"): if any
-      // alive party-mate has the `fan` tag, the underdog's XP multiplier
-      // gains an extra 50% on top of UNDERDOG_XP_MULT (2× → 3×).
-      if (isUnderdog && advSrc.partyId && ps) {
-        const hasFanInParty = this._gameState.adventurers.active.some(a =>
-          a.partyId === advSrc.partyId &&
-          a.instanceId !== advSrc.instanceId &&
-          a.aiState !== 'dead' &&
-          ps.getTags(a).has('fan')
-        )
-        if (hasFanInParty) {
-          xpMul *= 1.5
-          EventBus.emit('BELIEVERS_BOOST', { underdog: advSrc, finalXpMul: xpMul })
-        }
-      }
+      const xpMul = isUnderdog ? Balance.UNDERDOG_XP_MULT : 1
       this._awardAdventurerXp(advSrc, Math.round(baseXp * xpMul))
       return
     }

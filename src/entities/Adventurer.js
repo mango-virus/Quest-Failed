@@ -97,6 +97,16 @@ export function createAdventurer(classDef, spawnTile, dungeonLevel = 1) {
     visitedRooms: [],
     activeCombos: [],      // combo IDs currently affecting this adventurer
 
+    // Nerve / morale (AI overhaul 2026-06-10). `nerve` (0–100) is the inner
+    // morale value NerveSystem drives from dungeon events; `mood` is the derived
+    // band ('bold'|'steady'|'wary'|'spooked'|'breaking'). Both SERIALIZE (a
+    // spooked adventurer stays spooked on Continue — do NOT add to the SaveSystem
+    // transient strip). Seeded to the personality baseline on the first NerveSystem
+    // tick (personalityIds aren't known here at creation), so 100/steady are just
+    // placeholders until then; `_nerveSeeded` guards the one-time seed.
+    nerve:        100,
+    mood:         'steady',
+
     flags:      {},
 
     // Lifetime escape count for this *named identity* (Phase 31I — UI overhaul).

@@ -25,6 +25,8 @@ import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 import { createTrap }          from '../entities/Trap.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
 import { AdventurerRenderer } from '../ui/AdventurerRenderer.js'
+import { NerveSystem } from '../systems/NerveSystem.js'
+import { SocialVfx } from '../ui/SocialVfx.js'
 import { AiDiagOverlay }      from '../ui/AiDiagOverlay.js'
 import { MinionRenderer }     from '../ui/MinionRenderer.js'
 import { TrapRenderer }       from '../ui/TrapRenderer.js'
@@ -263,6 +265,7 @@ export class Game extends Phaser.Scene {
     this.combatSystem        = track(new CombatSystem(this, this.gameState))
     this.knowledgeSystem     = track(new KnowledgeSystem(this, this.gameState, this.dungeonGrid))
     this.aiSystem            = track(new AISystem(this, this.gameState, this.dungeonGrid, this.personalitySystem, this.combatSystem, this.knowledgeSystem))
+    this.nerveSystem         = track(new NerveSystem(this, this.gameState, this.dungeonGrid, this.personalitySystem))
     this.minionAiSystem      = track(new MinionAISystem(this, this.gameState, this.dungeonGrid, this.combatSystem))
     this.trapSystem          = track(new TrapSystem(this, this.gameState, this.dungeonGrid))
     this.trapSystem.loadDefinitions()
@@ -350,6 +353,8 @@ export class Game extends Phaser.Scene {
     this.bossArchetypeSystem = track(new BossArchetypeSystem(this, this.gameState))
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup
     this.adventurerRenderer  = track(new AdventurerRenderer(this, this.gameState))
+    // Social/reaction VFX (AI overhaul) — event-driven, no per-frame update.
+    this.socialVfx           = track(new SocialVfx(this, this.gameState))
     // F4-toggled on-screen AI diagnostics: per-adv floating labels showing
     // goal, distance-to-target, time-since-progress, and panic-walk state.
     // Color-coded for stuck-detection. No-op when DebugOverlay.aiDiagnostics
@@ -2031,6 +2036,7 @@ export class Game extends Phaser.Scene {
             // dominant at 359ms/s post-half-rate. 3× delta keeps total
             // game-time per real second identical.
             tick('aiSystem',            () => this.aiSystem?.update(stepDt * 3))
+            tick('nerveSystem',         () => this.nerveSystem?.update(stepDt * 3))
             tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 3))
             tick('lightPartyAi',        () => this.lightPartyAi?.update(stepDt * 3))
             window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1

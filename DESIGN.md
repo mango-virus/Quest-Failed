@@ -1887,3 +1887,193 @@ want to completely remove the twitch streamer class and twitch con event from th
 - ☑ `twitch_streamer` class + `twitch_con` event fully removed (2026-06-05 — code, data, AI, HUD, sprites,
   chat lines, balance, docs; 14MB sprite folder deleted; STATUS.md counts synced: events 35, classes 29;
   lint-content + verify-docs green; headless sim/soak clean).
+
+---
+
+## Adventurer AI & Personality Overhaul (2026-06-10) — VERBATIM SPEC (locked with user)
+
+> This is the **canonical spec** for the AI/personality rework. Build from THIS, not from
+> memory or chat. Acceptance checklist lives in `DESIGN_COVERAGE.md §"AI & Personality
+> Overhaul"` — tick each box against the actual code before claiming any part "done."
+> This is the long-deferred "full personality revamp" STATUS.md flagged; it supersedes the
+> dead-field state of the current personality data.
+
+### Why (the framing that drives every decision)
+
+The **Day phase is spectator-only** — the player builds the dungeon, then *watches*. So the
+adventurer AI is not plumbing; **it is the show.** The adventurers' reactions are the feedback
+that tells the player whether their dungeon is scary / clever / deadly. Today the AI reads as
+"units executing a path to the boss" (most of `AISystem.js` is anti-thrash machinery), and
+**personalities are weak because there is nothing for them to drive** — a personality is 7
+weight scalars plus two arrays (`decisionOverrides`, `reactions`) that are **almost entirely
+dead code**. The fix is to build the *verbs* (the three threads below) and make personalities
+the dial-settings on them.
+
+**Guiding principle:** every behavior should produce a **legible, on-screen consequence the
+player built.** Scary dungeon → you watch nerve crater and parties break. Clever trap maze →
+the Scholar/paranoid expose your layout. A loot room → greed exposes itself.
+
+### Build order (locked)
+
+1. **Nerve/Morale spine first** (Thread 1) — appraisal + social plug into it.
+2. **Room Appraisal + revive `decisionOverrides`** (Thread 2).
+3. **Party Social layer incl. the Confer beat** (Thread 3 + Enhancement A).
+4. **Enhancements B (unreliable rumors/bait) + C (react to what you built)** — core, fold in.
+5. **Personality roster + data schema** rewrites land alongside the systems they need.
+6. **Enhancements D/E/F** — phase-2 polish pass.
+
+**Mood-tell visibility (locked decision):** build the on-screen tells **both ways**
+(always-on mood pip + body language VS body-language-only with pip on hover) as a toggle and
+**decide in the preview** against the visual bar. Do not hard-commit the HUD treatment up front.
+
+---
+
+### Thread 1 — Nerve / Morale (the spine)
+
+Every adventurer carries an **inner-state block** of plain fields on the adventurer object
+(stays JSON-serializable for saves; add to SaveSystem transient-strip review). Core field:
+`nerve` (0–100).
+
+- **Mood bands:** Bold → Steady → Wary → Spooked → Breaking (thresholds TBD, tune in sim/preview).
+- **Drains** (nerve down): stepping into an unknown/unobserved room; sighting a strong or
+  known-dangerous minion; springing a trap; an ally dying nearby; low HP; "in too deep"
+  (distance/time from the nearest exit).
+- **Recovers** (nerve up): clearing a room of threats; landing a kill; grabbing loot; healing at
+  a fountain; returning to already-cleared/known ground; a steadying ally nearby (Veteran/Zealot).
+- **Drives behavior dynamically** — nerve, not a static `fleeThreshold` coin-flip, governs
+  flee/push decisions, movement pace, and appraisal boldness. The point is an **arc**: an
+  adventurer who enters Bold, is ground down to Breaking, and either shatters (flees) or pushes
+  through (hero beat) is a *story*.
+- **Body-language tells** keyed to band, via the existing `worldX/worldY` + speed-multiplier
+  seams (pattern already proven by `_paranoidSpeedMultiplier`): confident **stride** (cleared
+  room) / cautious **creep** (unknown room) / panicked **sprint** (Breaking) / frozen
+  **hesitation** (threshold). Plus an optional mood pip/aura (see visibility decision above).
+- **Personalities tune:** nerve baseline/floor/ceiling, drain & recovery rates, and *what*
+  rattles them (e.g. Claustrophobe ← geometry, Berserker ← inverted).
+
+### Thread 2 — Room Appraisal (the decision the dungeon earns)
+
+At a **doorway**, before committing to a room, the adventurer runs an **appraisal** from what it
+*knows* (`KnowledgeSystem.getIntelReport()` — never re-derive tiers from sharedPool):
+
+- Compute a **risk score** (known traps, minions, room danger, tier-weighted) and a **reward
+  score** (known loot/chests, room type, objective progress).
+- **Threshold beat:** pause, "read" the room (a visible hesitation), then pick an action:
+  **enter boldly / creep in (slow, trap-careful) / peek-and-back-off / call the party (confer) /
+  detour.** Choice is driven by nerve + personality + risk/reward.
+- **Revive `decisionOverrides`:** implement a real **trigger → action dispatch table** that reads
+  the `decisionOverrides` already authored in `personalities.json`. Triggers fire at the
+  appraisal/threshold (`any_door → check_for_trap_first`, `party_warns_danger →
+  ignore_warning_and_charge`, `chest_in_room → open_chest` / `avoid_unless_forced`,
+  `corpse_in_room → loot_corpse`, etc.), resolved by `priority`. This is the mechanism that makes
+  personalities *act*, not just weight a roll.
+- **Dwelling:** let adventurers **stop and do something** in a room (inspect a chest, warm at a
+  fountain, study/loot with a beat of weight) instead of flowing straight through. Explorers linger.
+
+### Thread 3 — Party Social (make them characters) + Enhancement A (the Confer beat)
+
+**Gap being fixed:** living party members currently do **not** share knowledge — only survivors
+update the shared pool on death/escape. So a party walking together never actually communicates.
+
+- **The Confer beat (Enhancement A — CORE):** when a party reaches a junction, a scary
+  threshold, a sprung trap, an ally death, or the boss door, they **stop, cluster, and confer** —
+  visible speech bubbles, a point at the dangerous door, a head-shake. **That huddle is the literal
+  tick where living-party knowledge merges** (so the social knowledge-share is a watchable event,
+  not a silent data op). Then they act on the consensus: push / split / retreat. Personalities
+  flavor it (leader directs, paranoid warns, overconfident waves it off and walks in). Trigger
+  points: dungeon entry (plan), multi-door junctions, post-trap, post-ally-death, pre-boss.
+- **Real-time warnings that reroute:** one adventurer springs/spots a trap → nearby allies learn
+  it *now* (knowledge merge) and visibly path around it. (`_maybeWarnParty` exists but only puffs
+  a bubble — wire it to knowledge + nerve.)
+- **Banter call-and-response with consequence:** scout warns → overconfident scoffs, charges, and
+  eats it on screen. The player sees the dynamic and its cost.
+- **Felt roles:** scout edges ahead, leader holds, healer trails, anchor (Veteran/Zealot)
+  steadies nerve. Generalize a lightweight version of the existing Light Party leash.
+- **Ally-death ripple:** a nearby death is a nerve event + a personality fork (avenge / break /
+  rally / scatter).
+
+### Enhancement B — Unreliable rumors + baiting (CORE)
+
+Lean into the existing **RUMOR** knowledge tier being *wrong*. Stale intel ("treasure in the east
+room") the player has since sold or moved sends adventurers chasing nothing — visible
+frustration/comedy — and creates a real **strategic layer:** the player can deliberately **bait**
+with rumors. Knowledge stops being pure truth and becomes something you can poison. (Cheap — the
+tier already exists; make RUMOR-acted-on outcomes resolve against *current* reality and react.)
+
+### Enhancement C — Adventurers react to what you built (CORE)
+
+Make the player's **architecture visible to the AI.** Adventurers acknowledge what you made: gawk
+at an ornate/expensive room, recoil at a gruesome theme, mutter "this corridor is a death trap" at
+a long approach, whistle at a treasure vault. Directly **rewards the player's design choices** with
+reactions; pure visual-bar legibility win. Hooks off room cost/theme/decor + geometry.
+
+### Enhancements D / E / F — Phase-2 polish (after the spine is in)
+
+- **D. Party-level collective morale:** nerve is also a *group* quantity. A party ground to its
+  last two makes a collective call — defiant "we've come too far" boss-rush vs. total break-and-flee.
+- **E. Hero / last-stand moments:** the sole survivor of a wipe gets a beat — break and flee
+  (traumatized) or a defiant final push with a buff + cinematic flourish (visual-bar candidate).
+- **F. Returning-veteran briefing:** veterans already inherit full knowledge — make it
+  *expressive*. A returner recognizes rooms ("not this corridor again"), strides through cleared
+  ground, and **briefs the rookies at the entrance** (a Confer beat at spawn).
+
+---
+
+### Personality roster — FINAL (18 total; all equal-chance, ungated)
+
+**Flat roll (locked):** ALL personalities have **equal probability** and are **not gated** by
+`unlockLevel` or rarity. Strip the rarity weighting (`common×4/uncommon×2/rare×1`) and the
+`unlockLevel` filter from `PersonalitySystem.rollPersonalities`. (Keep `rarity`/`icon` fields for
+display only; they no longer affect the roll.)
+
+**CUT (3):** `speed_runner` (one-note; also collides with the `_speedrunner` event-role flag —
+verify nothing references the *personality* id before deleting), `the_fan` (too narrow),
+`mimic_handler` (narrow, unimplemented, overlaps paranoid — its "spot the trap-chest" flavor moves
+to Scholar/paranoid).
+
+**KEEP + deepen (9)** — the substrate makes these sing; their `decisionOverrides` finally run:
+- **greedy** — reward-biased appraisal (loot inflates a room's worth); nerve recovers hard from loot.
+- **paranoid** — `check_for_trap_first` becomes real at the doorway; high nerve-caution, creeps, peeks.
+- **completionist** — won't leave a room unappraised; mild nerve penalty for *un*explored rooms.
+- **cartographer** — methodical layout-mapper; shares full map on escape. (Maps **layout**; Scholar
+  reads **contents/threats** — keep them distinct.)
+- **overconfident** — `ignore_warning_and_charge` becomes real in the social layer; scoffs, charges, eats it.
+- **vulture** — keeps distance (parasite role); nerve calm while others bleed; loots aftermath/corpses.
+- **traumatized** — fragile nerve, the survivor; shares full knowledge on party-wipe; pairs with the arc.
+- **solo** — ignores party social entirely; self-appraises everything; high-variance.
+- **echo** — copies last adventurer's path; dies in the leader's trap. Social layer cleans up the
+  fragility; the fragility is *intended drama*.
+
+**REWORK (2):**
+- **coward** — *(was: flee every fight, escape as a scout carrying intel)* → **now trails behind
+  other adventurers at a distance and avoids fighting minions where possible.** A clingy,
+  combat-dodging follower, not a flee-the-dungeon scout. **Edge case:** if isolated or last alive
+  with no one to trail, *then* they break and run for the exit (don't let them freeze).
+- **underdog** — *(was: invisible 2× XP buff)* → **nerve-arc:** low nerve baseline, timid early;
+  **every kill raises nerve + aggression** (a snowball you can *watch*). Keep the 2× XP as the payoff.
+
+**BUILD FOR REAL (2)** — currently stubs/weights, treat as new builds on the checklist:
+- **martyr** — build the headline **taunt**: at low HP, pull all enemy aggro onto themselves so the
+  party can escape (a real social act + nerve-anchor for the retreat). *(User confirmed: build it.)*
+- **raid_leader** — build the **social-anchor role**: leader holds, party leashes loosely to them,
+  their death = nerve crash / cohesion loss across the party.
+
+**ADD (5)** — each hooks a *different* game system:
+- **Veteran / Grizzled** — high nerve floor, slow drain; **steadies nearby allies' nerve.** The
+  anti-coward party morale anchor. *(Morale + social.)*
+- **Berserker / Bloodthirsty** — **inverse morale:** *gains* nerve + speed as HP drops and as it
+  kills. The lower it goes, the scarier it gets. *(Combat + morale arc.)*
+- **Scholar / Lorekeeper** — **dwells to study** rooms; gains FULL knowledge fast, IDs mimics & the
+  boss archetype, calls threats out to the party. Absorbs mimic_handler's niche. *(Knowledge.)*
+- **Zealot / Devout** — emboldened in shrine/fountain/themed rooms; prays for nerve; **rallies party
+  morale.** Reacts to room *themes*. *(Room themes + social.)*
+- **Claustrophobe** — **nerve driven by your geometry:** panics in tight corridors (or, inverse
+  variant, in big open rooms — pick one at build). Your *architecture* becomes a weapon. Novel —
+  nothing else reacts to layout. *(Dungeon layout.)*
+
+### Open tunables (decide in sim/preview, not up front)
+- Nerve band thresholds + drain/recovery rates per source and per personality.
+- Confer-beat trigger set + duration + how often (avoid over-stopping / pacing drag — mind the
+  existing anti-thrash watchdogs; the Confer pause must not trip the hard-stuck/oscillation kills).
+- Whether Claustrophobe fears tight corridors or open rooms (or both as two variants).
+- Mood-pip HUD treatment (the prototype-both decision).
