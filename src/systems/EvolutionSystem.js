@@ -60,6 +60,9 @@ export class EvolutionSystem {
       const isUnderdog = tags.has('underdog')
       const baseXp = 8
       const xpMul = isUnderdog ? Balance.UNDERDOG_XP_MULT : 1
+      // Underdog aggression snowball — each kill also stacks a small ATK buff
+      // (read in CombatSystem), so the underdog visibly gets stronger as it goes.
+      if (isUnderdog) advSrc._underdogStacks = (advSrc._underdogStacks ?? 0) + 1
       this._awardAdventurerXp(advSrc, Math.round(baseXp * xpMul))
       return
     }

@@ -42,6 +42,7 @@ const IMP_KILL          =  12   // landed a kill — emboldened
 const IMP_ALLY_DEATH_PT = -26   // a party-mate died
 const IMP_ALLY_DEATH_NR = -15   // a non-party adventurer died within sight
 const IMP_TRAP          = -16   // a trap went off on them
+const IMP_AMBUSH        = -9    // a threat in a room they thought was clear (stale intel)
 const IMP_LOOT          =  10   // grabbed loot / opened a chest
 const IMP_HEAL          =  12   // healed at a fountain
 const IMP_HIT_PER_PCT   = -0.28 // per 1% maxHP of a single incoming hit
@@ -67,6 +68,7 @@ export class NerveSystem {
     EventBus.on('TREASURE_CHEST_OPENED', this._onLoot,    this)
     EventBus.on('BUFF_GAINED',        this._onLoot,       this)
     EventBus.on('FOUNTAIN_HEAL_USED', this._onHeal,       this)
+    EventBus.on('MINION_OBSERVED',    this._onMinionSeen, this)
   }
 
   destroy() {
@@ -77,6 +79,7 @@ export class NerveSystem {
     EventBus.off('TREASURE_CHEST_OPENED', this._onLoot,    this)
     EventBus.off('BUFF_GAINED',        this._onLoot,       this)
     EventBus.off('FOUNTAIN_HEAL_USED', this._onHeal,       this)
+    EventBus.off('MINION_OBSERVED',    this._onMinionSeen, this)
     this._profiles.clear()
   }
 
@@ -327,6 +330,19 @@ export class NerveSystem {
     if (!adventurer || adventurer.aiState === 'dead') return
     this._seed(adventurer)
     this._apply(adventurer, IMP_HEAL)
+  }
+
+  // Ambush (unreliable rumours, Enh B) — sighting a threat in a room they'd already
+  // visited (thought clear) is a nasty surprise: an extra nerve bite. Gated on a
+  // genuine REVISIT (visitCount > 1) so a first-entry sighting isn't a false ambush.
+  _onMinionSeen({ advId, roomId } = {}) {
+    if (!advId || !roomId) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === advId)
+    if (!adv || adv.aiState === 'dead') return
+    if ((adv.knowledge?.rooms?.[roomId]?.visitCount ?? 0) <= 1) return
+    this._seed(adv)
+    this._apply(adv, IMP_AMBUSH)
+    EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction: 'dread' })
   }
 }
 

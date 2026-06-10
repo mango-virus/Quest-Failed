@@ -23,6 +23,8 @@ const TS = Balance.TILE_SIZE
 // entry is just a registry label, like ranger_volley).
 const CROWD_ROAR_PER_STACK  = 0.12   // +12% ATK per stack
 const CROWD_ROAR_MAX_STACKS = 6      // → +72% ATK at full crowd
+const UNDERDOG_PER_STACK    = 0.05   // +5% ATK per kill (the underdog aggression snowball)
+const UNDERDOG_MAX_STACKS   = 10     // → +50% ATK cap
 
 // Phase 6 — Peasant "Strength in Numbers": each OTHER living peasant within
 // PEASANT_MOB_RADIUS tiles grants +PEASANT_MOB_PER_ALLY to BOTH the peasant's
@@ -716,6 +718,14 @@ export class CombatSystem {
     if (cls === 'gladiator' && attacker._crowdRoarStacks > 0) {
       const stacks = Math.min(attacker._crowdRoarStacks, CROWD_ROAR_MAX_STACKS)
       raw = Math.floor(raw * (1 + stacks * CROWD_ROAR_PER_STACK))
+    }
+
+    // Underdog (AI overhaul) — aggression snowball: a small stacking ATK buff per
+    // kill (only underdogs carry _underdogStacks, set in EvolutionSystem), pairing
+    // the personality's nerve-emboldenment + 2× XP with a tangible damage climb.
+    if (attacker._underdogStacks > 0) {
+      const stacks = Math.min(attacker._underdogStacks, UNDERDOG_MAX_STACKS)
+      raw = Math.floor(raw * (1 + stacks * UNDERDOG_PER_STACK))
     }
 
     // Phase 6 — Peasant Strength in Numbers (offensive half): a mobbed peasant

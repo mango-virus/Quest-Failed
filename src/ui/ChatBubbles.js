@@ -116,6 +116,8 @@ export class ChatBubbles {
       'seekHeal', 'healed',
       'seekTreasure', 'stoleTreasure', 'escapingWithLoot',
       'starvation',
+      // AI overhaul beats
+      'confer', 'taunt', 'lastStand', 'rally',
     ]) {
       const handler = ({ adventurer }) => {
         if (adventurer) this._showContextualBubble(adventurer, this._pickEventLine(key))

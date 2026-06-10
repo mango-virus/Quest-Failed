@@ -301,7 +301,6 @@
       "Blizzard procced."
     ]
   },
-
   "byPersonality": {
     "greedy": [
       "Anything shiny?",
@@ -330,20 +329,6 @@
       "That torch is angled strangely.",
       "We're being watched. I know it.",
       "Trust no door that opens too easily."
-    ],
-    "speed_runner": [
-      "Faster.",
-      "Don't stop.",
-      "Skip the chest!",
-      "PB attempt.",
-      "Loot later. Move now.",
-      "Wrong room! Back back back!",
-      "Taking the optimal path.",
-      "Timer's running.",
-      "Strat: sprint. Tactic: also sprint.",
-      "We can heal at the boss. Save time.",
-      "I'll explain the route at the end. Keep up.",
-      "Cut left. No, MY left."
     ],
     "completionist": [
       "I think there's another room.",
@@ -374,18 +359,18 @@
       "Don't let my sacrifice be for nothing."
     ],
     "coward": [
-      "Maybe we should leave.",
-      "I don't like this.",
+      "You first. I insist.",
+      "I'll cover the rear. Way back here.",
+      "Let the brave ones lead.",
+      "I don't like this. I'll be... back here.",
+      "Right behind you. Several tiles behind you.",
       "Was that a sound?",
-      "Going home...",
-      "I vote we go back.",
-      "That was definitely a threat.",
-      "No one will know if we turn around.",
-      "My palms are sweating. Bad sign.",
       "I have a very bad feeling about this.",
-      "You know what would be great? Surviving.",
-      "My survival instinct is giving very clear instructions.",
-      "What if the boss isn't even home? Check from outside?"
+      "No fighting if we can help it, yeah?",
+      "I'm more of a 'watch from a distance' adventurer.",
+      "My survival instinct says hang back.",
+      "If they trigger it, I'll know not to.",
+      "Keep going. I'll catch up. Eventually."
     ],
     "overconfident": [
       "Easy.",
@@ -485,20 +470,6 @@
       "The sounds are the same. ALWAYS the same.",
       "I'm fine. I'm completely fine."
     ],
-    "the_fan": [
-      "Wait — is that a... oh wow.",
-      "Don't hurt them!",
-      "I LOVE this minion.",
-      "That one's my favorite. Can't touch them.",
-      "I've read about this species in journals.",
-      "If we befriend it, maybe it'll join us.",
-      "Look at it. Just LOOK at it.",
-      "I'm not fighting that. I'm ADMIRING that.",
-      "Please don't kill it. It has a family. Probably.",
-      "Technically I'm here for the experience. And the minion.",
-      "I would die for that creature. Gladly.",
-      "Nobody touch my favorite. I mean it."
-    ],
     "echo": [
       "Where did the others go?",
       "I'll follow the safe path.",
@@ -513,22 +484,77 @@
       "What happened to the last person here? Doesn't matter.",
       "Following the proven trail."
     ],
-    "mimic_handler": [
-      "That chest is suspicious.",
-      "I'm not touching anything that breathes.",
-      "Seen three mimics this week. Not again.",
-      "Step around the loot. All of it.",
-      "If it's too convenient, it's too dangerous.",
-      "I've been bitten by chests before. Twice.",
-      "The glitter of gold is also the glitter of teeth.",
-      "Pass the loot. I'll assess from distance.",
-      "Everything sparkly wants to eat me.",
-      "Any chest left alone in a room earns my suspicion.",
-      "The treasure is never free. Factor in the mimic tax.",
-      "I trust no container I didn't place here myself."
+    "veteran": [
+      "Seen worse. Kept walking.",
+      "Stay together. Stay calm.",
+      "I've buried better dungeons than this.",
+      "Breathe. We do this by the numbers.",
+      "Nothing in here I haven't survived twice.",
+      "Eyes forward. Follow my lead.",
+      "Panic gets people killed. Don't.",
+      "This? This is a Tuesday.",
+      "Hold the line. It always holds.",
+      "I'll go first. I always go first.",
+      "Steady now. Steady wins.",
+      "Fear's just a checklist. Work it."
+    ],
+    "berserker": [
+      "MORE.",
+      "Bleed me. I dare you.",
+      "The pain is just fuel.",
+      "I don't slow down. I speed UP.",
+      "Hurt me and watch what happens.",
+      "Wounds? I collect them.",
+      "Closer to death, closer to glory.",
+      "Stop running, dungeon. Fight me.",
+      "Every cut makes me faster.",
+      "I'm at my best when I'm at my worst.",
+      "Send the big one. SEND IT.",
+      "Death first. Retreat never."
+    ],
+    "scholar": [
+      "Noted. Filed. Remembered.",
+      "Knowledge is the only real weapon.",
+      "A still mind sees all exits.",
+      "Let me read the room. Literally.",
+      "That's a mimic. I can tell.",
+      "Patterns. It's all patterns.",
+      "I've studied dungeons like this.",
+      "Give me a moment to understand it.",
+      "Information first, heroics never.",
+      "The footprints tell a story.",
+      "I know what this room WANTS.",
+      "Cross-referencing... ah. Trap."
+    ],
+    "zealot": [
+      "The light guides us.",
+      "Faith over fear.",
+      "We are not alone in here.",
+      "Pray with me. Then we move.",
+      "Sacred ground. I can feel it.",
+      "Courage is a gift. Accept it.",
+      "For the cause. For the light.",
+      "Doubt is the only true enemy.",
+      "Bless this blade. Bless this party.",
+      "The dark cannot hold the faithful.",
+      "Stand tall. The light is watching.",
+      "I do not fear what I am sent to face."
+    ],
+    "claustrophobe": [
+      "These walls are too close.",
+      "I need air. I need space.",
+      "Is it just me or is it shrinking?",
+      "Open room. Please be an open room.",
+      "I don't do corridors. I REALLY don't.",
+      "The ceiling's lower here, right?",
+      "Tight space. Bad. Very bad.",
+      "Keep moving, keep moving, keep MOVING.",
+      "I can't breathe in these halls.",
+      "Give me a big room and I'm fine. Promise.",
+      "Why is everything so... narrow.",
+      "One more corridor and I'm done."
     ]
   },
-
   "byEvent": {
     "trapTriggered": [
       "OW!",
@@ -929,7 +955,6 @@
       "I'm scared. Doing it anyway.",
       "We didn't come this far to stop here."
     ],
-
     "bossAbilityFelt": [
       "What WAS that?!",
       "The boss did SOMETHING.",
@@ -940,7 +965,6 @@
       "The walls just SHOOK.",
       "Cover! COVER!"
     ],
-
     "bossLeveled": [
       "It got STRONGER. How?",
       "Did the boss level up?",
@@ -951,7 +975,6 @@
       "The boss is evolving. Bad news.",
       "Tougher than before. Notable."
     ],
-
     "phylacteryShattered": [
       "The HEART! It broke!",
       "Phylactery's gone! GO GO GO!",
@@ -963,7 +986,6 @@
       "Mission complete. Out NOW.",
       "Last life on the boss. We won."
     ],
-
     "loneSurvivor": [
       "I'm... the only one left.",
       "Just me now. Just me.",
@@ -975,7 +997,6 @@
       "Party's dead. I'm out.",
       "Alone now. Nope nope nope."
     ],
-
     "minionSighted": [
       "Hostile! Eyes on it!",
       "Tagged a minion!",
@@ -984,7 +1005,6 @@
       "Got eyes on one!",
       "Hostile incoming!"
     ],
-
     "charmedByVampire": [
       "...yes. Yes my liege.",
       "I serve. I obey.",
@@ -993,7 +1013,6 @@
       "I... see things differently now.",
       "I'm one of them now."
     ],
-
     "raisedAsUndead": [
       "Cassie?! She's UP?",
       "They raised our dead.",
@@ -1003,7 +1022,6 @@
       "Yesterday's dead, today's enemies.",
       "Oh that's awful. Awful."
     ],
-
     "mimicSprung": [
       "IT'S A MIMIC!",
       "The chest has TEETH!",
@@ -1011,7 +1029,6 @@
       "Treasure bit me!",
       "I HATE this dungeon!"
     ],
-
     "trapSpotted": [
       "I see the trap. Around.",
       "Trap there. Going wide.",
@@ -1019,7 +1036,6 @@
       "Trap noted. Detour.",
       "I'll go around. Thanks."
     ],
-
     "critLanded": [
       "CRIT! Take that!",
       "Right in the weak spot!",
@@ -1027,7 +1043,6 @@
       "Perfect hit!",
       "BOOM. Critical!"
     ],
-
     "critTaken": [
       "GHK! That hurt!",
       "Right through my guard!",
@@ -1035,7 +1050,6 @@
       "OW. OW OW OW.",
       "That was a big one."
     ],
-
     "lockedDoorBlocked": [
       "Locked. Need a key.",
       "Door's sealed. Find a key.",
@@ -1043,9 +1057,7 @@
       "Where's the key for this?",
       "Locked tight. Detour."
     ],
-
     "roomTypeFirstSeen": [],
-
     "veteranReturn": [
       "Back for round two.",
       "Miss me, dungeon?",
@@ -1055,7 +1067,6 @@
       "Returning champion, baby.",
       "I died here last time. Not today."
     ],
-
     "echoFollowLeader": [
       "Wherever you go, leader.",
       "Right behind you.",
@@ -1063,7 +1074,6 @@
       "I'm with you.",
       "Steps where you step."
     ],
-
     "dungeonEventAnnounced": [
       "Something's coming. Feel it.",
       "Big event. Brace up.",
@@ -1071,7 +1081,6 @@
       "Tension just spiked.",
       "Bad timing. Always."
     ],
-
     "dayGettingLate": [
       "Sun's going. We should too.",
       "Late. Heading back soon.",
@@ -1079,7 +1088,6 @@
       "Don't want to be here at dusk.",
       "Last push. Then home."
     ],
-
     "starvation": [
       "I... can't find the way...",
       "How long have I been walking?",
@@ -1095,9 +1103,50 @@
       "I came in here yesterday, right? Right?",
       "The torch is dimming. So am I.",
       "Maybe if I close my eyes for a bit..."
+    ],
+    "confer": [
+      "Hold up. Plan.",
+      "Everyone, circle up.",
+      "What do we know?",
+      "Share what you've seen.",
+      "Quick word before we push.",
+      "Let's not split up here.",
+      "Map check. Now.",
+      "Heads together, people.",
+      "Talk to me. What's ahead?",
+      "Regroup. Then go."
+    ],
+    "taunt": [
+      "EYES ON ME!",
+      "Hit ME, not them!",
+      "Come on then! All of you!",
+      "I've got their attention — GO!",
+      "Over here, ugly!",
+      "Buy them time. That's the job.",
+      "I'm the target now. RUN!",
+      "Focus me. Let them through."
+    ],
+    "lastStand": [
+      "If I fall, I fall fighting.",
+      "Just me? Then just me.",
+      "Come and get it.",
+      "No one left to save. Only to avenge.",
+      "I'm not done yet.",
+      "One more. Always one more.",
+      "You'll remember this.",
+      "To the end, then."
+    ],
+    "rally": [
+      "On me! We hold!",
+      "Courage! With me!",
+      "We do NOT break!",
+      "Stand together!",
+      "Eyes up — we've got this!",
+      "Hold fast!",
+      "For each other!",
+      "Don't you dare fall back!"
     ]
   },
-
   "byMinionType": {
     "skeleton": [
       "SKELETON. Cleaning duty.",
@@ -1285,7 +1334,6 @@
       "We are very dead."
     ]
   },
-
   "byRoomType": {
     "catacombs": [
       "Catacombs. The dead don't rest.",
@@ -1369,7 +1417,6 @@
       "Cruel. Very cruel."
     ]
   },
-
   "fourthWall": [
     "I keep dying here. Learning something?",
     "The dungeon boss knows exactly where we are. Suspicious.",

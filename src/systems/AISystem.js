@@ -996,6 +996,7 @@ export class AISystem {
         // Hold the line — steady every remaining member.
         for (const m of survivors) if (m !== s && m.nerve != null) m.nerve = Math.min(100, m.nerve + 6)
         EventBus.emit('ADV_RALLY', { adventurer: s })
+        EventBus.emit('SAY_rally', { adventurer: s })
       }
     }
 
@@ -1016,6 +1017,7 @@ export class AISystem {
         s.flags = s.flags ?? {}; s.flags.noFlee = true
         s._lastStand = true
         EventBus.emit('HERO_LAST_STAND', { adventurer: s })
+        EventBus.emit('SAY_lastStand', { adventurer: s })
       }
       return
     }
@@ -1992,6 +1994,8 @@ export class AISystem {
         // Roster (2026-06-10) — Scholar studies the room; Zealot rallies in sacred rooms.
         this._maybeScholarStudy(adv, curRoomId)
         this._maybeZealotRally(adv, curRoomId)
+        // Junction huddle — a "which way?" confer when entering a hub/fork room.
+        this._maybeJunctionConfer(adv, curRoomId)
         // Starvation failsafe (2026-05-27). Only count REVISITS — entries
         // to rooms the adv has been in before. A legit linear sweep of a
         // giant dungeon (every room once, then exit) tallies zero revisits;
@@ -2091,6 +2095,9 @@ export class AISystem {
 
     // Martyr — fire the low-HP taunt beat (aggro pull is passive in MinionAISystem).
     this._maybeMartyrTaunt(adv)
+
+    // Pre-boss huddle — a final confer as a party closes on the throne.
+    this._maybePreBossConfer(adv)
 
     // Morale-break flee (AI overhaul): a sustained Breaking nerve band makes a
     // normal adventurer crack and bolt even before their HP is low — the arc
@@ -2710,7 +2717,14 @@ export class AISystem {
     // extra creep on top.
     const nerveMul = adv.aiState === 'fleeing' ? 1 : this._nerveSpeedMultiplier(adv)
     const creepMul = adv.aiState === 'fleeing' ? 1 : this._appraiseCreepMul(adv)
-    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * nerveMul * creepMul * TS * delta) / 1000
+    // Berserker — gains SPEED as HP drops (paired with the inverted nerve). The
+    // lower they go, the faster they come for you.
+    const berserkMul = this._berserkerSpeedMultiplier(adv)
+    // Loose party cohesion (pure pace nudge, NO goal changes — safe): clingy types
+    // hustle to rejoin a straggling group; a coward only catches up if about to be
+    // isolated (it otherwise trails behind by design).
+    const cohesionMul = adv.aiState === 'fleeing' ? 1 : this._cohesionSpeedMultiplier(adv)
+    const stepPx   = (adv.stats.speed * speedMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * nerveMul * creepMul * berserkMul * cohesionMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
       // Commit to the new tile — update occupancy so subsequent
@@ -3583,9 +3597,14 @@ export class AISystem {
     else if (perceived >= 0.4 || paranoidCheck) outcome = 'creep'
     else outcome = 'enter'
 
-    const pauseMs = outcome === 'enter'
+    let pauseMs = outcome === 'enter'
       ? APPRAISE_PAUSE_MIN_MS
       : Math.min(APPRAISE_PAUSE_MAX_MS, APPRAISE_PAUSE_MIN_MS + perceived * 420)
+    // Dwell (ai-appraise-dwell) — thorough personalities LINGER to take a room in
+    // (a deliberate study beat on top of the threshold read).
+    const thorough = paranoidCheck || completer ||
+      this._personalitySystem?.getTags?.(adv)?.has?.('thorough')
+    if (thorough) pauseMs = Math.min(APPRAISE_PAUSE_MAX_MS + 250, pauseMs + 280)
     adv._appraisingUntil = now + pauseMs
     EventBus.emit('ADV_APPRAISING', { adventurer: adv, roomId, outcome, risk, reward })
 
@@ -3613,6 +3632,35 @@ export class AISystem {
   // Cautious-creep speed factor set by a wary appraisal (decays at _creepUntil).
   _appraiseCreepMul(adv) {
     return ((adv._creepUntil ?? 0) > this._scene.time.now) ? 0.72 : 1
+  }
+
+  // Berserker — speed climbs as HP falls (up to +40% near death); the explicit
+  // pace half of the inverted-nerve frenzy.
+  _berserkerSpeedMultiplier(adv) {
+    if (!(this._personalitySystem?.getTags?.(adv)?.has?.('berserker'))) return 1
+    const frac = adv.resources?.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+    return 1 + (1 - frac) * 0.4
+  }
+
+  // Loose movement cohesion — a SPEED-ONLY nudge (never a goal change, so it can't
+  // reintroduce the erratic goal-flips the old party-coordination goals caused).
+  // Clingy personalities hustle to rejoin a group that's drifted >6 tiles ahead; a
+  // coward (which trails by design) only hustles if it's >9 tiles out and about to
+  // be isolated. Returns 1 for everyone else.
+  _cohesionSpeedMultiplier(adv) {
+    if (!adv.partyId) return 1
+    const tags = this._personalitySystem?.getTags?.(adv) ?? new Set()
+    const w = this._personalitySystem?.getWeights?.(adv) ?? {}
+    const isCoward = tags.has('coward')
+    if (!isCoward && (w.partyCooperation ?? 0) < 0.78) return 1
+    let near = Infinity
+    for (const m of this._gameState.adventurers?.active ?? []) {
+      if (m === adv || m.aiState === 'dead' || m.partyId !== adv.partyId) continue
+      const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
+      if (d < near) near = d
+    }
+    if (near === Infinity) return 1
+    return near > (isCoward ? 9 : 6) ? 1.15 : 1
   }
 
   // Room-definition lookup (memoised) for reactions/appraisal.
@@ -3725,6 +3773,15 @@ export class AISystem {
       }
     }
     EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction: 'study' })
+
+    // Scholar IDs the boss archetype — from the dungeon's signs they deduce what
+    // runs the place (once per delve; a flavour intel beat).
+    if (!adv._bossIded) {
+      adv._bossIded = true
+      const archId = this._gameState.player?.bossArchetypeId
+      const def = (this._scene.cache.json.get('bossArchetypes') ?? []).find(d => d.id === archId)
+      if (def?.name) EventBus.emit('ADVENTURER_SAY', { adventurer: adv, text: `A ${def.name}. I've read about these.` })
+    }
   }
 
   // Zealot — sacred/wondrous rooms embolden them (NerveSystem handles their own
@@ -3743,7 +3800,7 @@ export class AISystem {
       if (Math.hypot(mate.tileX - adv.tileX, mate.tileY - adv.tileY) > 6) continue
       if (mate.nerve != null) mate.nerve = Math.min(100, mate.nerve + 8)
     }
-    EventBus.emit('SAY_warnParty', { adventurer: adv })   // a rallying cry (placeholder bubble)
+    EventBus.emit('SAY_rally', { adventurer: adv })
     EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction: 'rally' })
   }
 
@@ -3756,7 +3813,7 @@ export class AISystem {
     if (frac > Balance.MARTYR_TAUNT_HP_FRACTION) { adv._martyrTaunted = false; return }
     if (adv._martyrTaunted) return
     adv._martyrTaunted = true
-    EventBus.emit('SAY_warnParty', { adventurer: adv })
+    EventBus.emit('SAY_taunt', { adventurer: adv })
     EventBus.emit('MARTYR_TAUNT', { adventurer: adv })
   }
 
@@ -3787,8 +3844,37 @@ export class AISystem {
       if (m.nerve != null && m.nerve < 55) m.nerve = Math.min(60, m.nerve + 4)
     }
     EventBus.emit('PARTY_CONFER', { adventurers: cluster, reason, learned, x: adv.worldX, y: adv.worldY })
-    EventBus.emit('SAY_warnParty', { adventurer: adv })   // a quick "hold up —" cue (reuses the bubble)
+    EventBus.emit('SAY_confer', { adventurer: adv })
     return true
+  }
+
+  // Junction huddle — entering a genuine hub/fork (a room with 3+ doorways) with
+  // the party near prompts a "which way?" confer. Once per room; cooldown-gated.
+  _maybeJunctionConfer(adv, roomId) {
+    if (!adv.partyId || this._isScriptedRole(adv)) return
+    const room = this._gameState.dungeon?.rooms?.find(r => r.instanceId === roomId)
+    if (!room) return
+    if (((this._roomDef(room.definitionId)?.connectionPoints?.length) ?? 0) < 3) return
+    adv._junctionConferred ??= {}
+    if (adv._junctionConferred[roomId]) return
+    adv._junctionConferred[roomId] = true
+    this._maybeConferParty(adv, 'junction')
+  }
+
+  // Pre-boss huddle — a final confer as the party closes on the throne. Fires just
+  // OUTSIDE the boss chamber (never inside it) so it can't disturb the fight handoff.
+  _maybePreBossConfer(adv) {
+    if (!adv.partyId || adv._prebossConferred || this._isScriptedRole(adv)) return
+    if (adv.goal?.type !== 'SEEK_BOSS') return
+    const boss = (this._gameState.dungeon?.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
+    if (!boss) return
+    const inBoss = adv.tileX >= boss.gridX && adv.tileX < boss.gridX + boss.width &&
+                   adv.tileY >= boss.gridY && adv.tileY < boss.gridY + boss.height
+    if (inBoss) return
+    const bx = boss.gridX + boss.width / 2, by = boss.gridY + boss.height / 2
+    if (Math.hypot(adv.tileX - bx, adv.tileY - by) > 7) return
+    adv._prebossConferred = true
+    this._maybeConferParty(adv, 'preboss')
   }
 
   // Phase 5c — Bard Song of Speed: returns 1.20 if a same-party Bard within
