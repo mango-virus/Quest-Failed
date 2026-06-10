@@ -217,6 +217,35 @@ export class TrapRenderer {
     body.setPosition(x, y)
   }
 
+  // ── Placement preview ───────────────────────────────────────────────────────
+  // Build a one-off "ghost" sprite configured with the same _visualFor()
+  // pipeline as a real placed trap (same texture-per-facing, scale, angle,
+  // flip, position offsets, saw-blade layout). NightPhase calls this on each
+  // cursor move / R-rotate so the player sees the trap orient correctly under
+  // the cursor before clicking, matching what'll actually land on placement.
+  //
+  // The caller owns the returned sprite — destroy it on cursor move / clear /
+  // cancel. NightPhase also tints + alpha-fades it for the ghost look.
+  buildPreviewSprite(scene, trap) {
+    const vis = this._visualFor(trap)
+    if (!vis || !scene.textures.exists(vis.tex)) return null
+    const body = scene.add.sprite(0, 0, vis.tex, 0)
+      .setDepth(vis.depth)
+      .setOrigin(vis.originX, vis.originY)
+    if (trap.definitionId === 'saw_blade') {
+      this._layoutSaw(trap, body)
+    } else {
+      if (vis.scaleX != null) body.setScale(vis.scaleX, vis.scaleY)
+      else                    body.setScale(vis.scale)
+      body.setFlip(!!vis.flipX, !!vis.flipY)
+      if (vis.angle) body.setAngle(vis.angle)
+      const p = this._bodyWorld(trap, vis)
+      body.setPosition(p.x, p.y)
+    }
+    if (vis.loopAnim && scene.anims.exists(vis.loopAnim)) body.play(vis.loopAnim)
+    return body
+  }
+
   _destroySprite(id) {
     const s = this._sprites[id]
     if (!s) return

@@ -142,7 +142,7 @@
     "footprint": { "w": 1, "h": 1 },
     "solid": false,
     "consumable": false,
-    "rotatable": false,
+    "rotatable": true,
     "triggerCondition": "saw_overlap",
     "baseDamage": 30,
     "damageType": "physical",

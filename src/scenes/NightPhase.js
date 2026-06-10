@@ -1377,6 +1377,12 @@ export class NightPhase extends Phaser.Scene {
       fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
       backgroundColor: '#00000099', padding: { x: 4, y: 2 },
     }).setDepth(21).setVisible(false)
+    // Trap placement GHOST sprite — rebuilt on every cursor-move / R-rotate
+    // via TrapRenderer.buildPreviewSprite() so the player sees the trap's
+    // actual texture/orientation under the cursor (instead of a colored rect)
+    // and the preview matches what'll land on click. Owned here; torn down
+    // in _clearPreview / shutdown.
+    this._previewTrapGhost = null
     // Disconnected-room highlight lives in world space too. Depth 19 sits
     // just under the placement preview so the preview never gets hidden
     // by the pulse outline when the player is mid-placement.
@@ -1416,6 +1422,8 @@ export class NightPhase extends Phaser.Scene {
   _clearPreview() {
     this._preview?.clear()
     this._rotLabel?.setVisible(false)
+    this._previewTrapGhost?.destroy()
+    this._previewTrapGhost = null
     this._previewTileX = -1
     this._previewTileY = -1
   }
@@ -1799,6 +1807,30 @@ export class NightPhase extends Phaser.Scene {
       this._preview.fillRect(wx, wy, ww, wh)
       this._preview.lineStyle(2, color, 0.75)
       this._preview.strokeRect(wx, wy, ww, wh)
+      // ── Trap GHOST sprite — show the actual trap art at the right facing.
+      // For wall traps facing is determined by the target wall (so the ghost
+      // hugs/aims at the wall under the cursor); for floor traps it's the
+      // current R-key facing. Built via TrapRenderer.buildPreviewSprite() so
+      // the orientation logic stays in ONE place (renderer = source of truth).
+      // Tinted to validity colour + alpha-faded so it reads as a preview.
+      this._previewTrapGhost?.destroy()
+      this._previewTrapGhost = null
+      const ghostFacing = def.placement === 'wall'
+        ? this._wallTrapFacing(tx, ty)
+        : this._trapFacing
+      const tr = this.scene.get('Game')?.trapRenderer
+      if (tr && ghostFacing) {
+        const ghostTrap = { definitionId: def.id, facing: ghostFacing, tileX: tx, tileY: ty, footprint: fp }
+        const ghost = tr.buildPreviewSprite(this.scene.get('Game'), ghostTrap)
+        if (ghost) {
+          ghost.setAlpha(0.55)
+          ghost.setTint(color)
+          // Keep ghost behind the colored validity rect's outline but above
+          // floor decor (placed traps live at DEPTH_TRAP ~6–7; the rect is at 20).
+          ghost.setDepth(19.5)
+          this._previewTrapGhost = ghost
+        }
+      }
       if (this._rotLabel && def.rotatable) {
         const horiz = this._trapFacing === 'E' || this._trapFacing === 'W'
         this._rotLabel.setText(def.id === 'saw_blade'
