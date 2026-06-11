@@ -785,6 +785,19 @@ export class CombatSystem {
       }
     }
 
+    // Widen — Commander Rally Aura: a dungeon minion standing in its
+    // commander's aura (flag stamped by MinionAbilities._buffAura) hits
+    // harder. The buff lapses shortly after the commander dies/leaves.
+    if (attacker._rallyUntil && (this._scene?.time?.now ?? 0) < attacker._rallyUntil && attacker._rallyAtkMul > 1) {
+      raw = Math.floor(raw * attacker._rallyAtkMul)
+    }
+
+    // Thread C — wounded bruiser ENRAGE: a cornered melee minion fights harder
+    // (+30% damage) once below the enrage threshold (flag set by MinionAISystem).
+    if (attacker._enraged) {
+      raw = Math.floor(raw * 1.3)
+    }
+
     // Tinkerer's Workshop "Eagle Eye" — guard-post-assigned minions
     // deal +25% damage when ambushing into a connected room (their
     // assignedRoomId is the guard post, and they're hitting an adv in
@@ -836,7 +849,11 @@ export class CombatSystem {
     // Pass-1: Orc Berserker Rage — already-applied via reduced cooldown
     // (see _cooldownFor); no damage multiplier needed here.
 
-    const def = target.stats?.defense ?? 0
+    // Widen — armor-shred debuff (Rust Gremlin): a shredded target's effective
+    // defense is reduced for the debuff's duration so every hit lands harder.
+    const _nowDmg = this._scene?.time?.now ?? 0
+    const _shred  = MinionAbilities.armorShredOf(target, _nowDmg)
+    const def = Math.max(0, (target.stats?.defense ?? 0) - _shred)
     let mit = Math.max(1, raw - def)
 
     // Pass-1: Ent Gnarled Hide — Sapling Sentinels and treants take half
@@ -846,6 +863,11 @@ export class CombatSystem {
         (target.definitionId === 'ent1' || target.definitionId === 'ent2' || target.definitionId === 'ent3')) {
       mit = Math.max(1, Math.floor(mit * 0.5))
     }
+
+    // Data-driven damage reduction (Thread D Skeleton Shieldwall, future
+    // passives). Sums `damageReduction` abilities on the TARGET minion.
+    const _drMul = MinionAbilities.damageTakenMul(target, attacker, this._gameState, this._scene)
+    if (_drMul !== 1) mit = Math.max(1, Math.floor(mit * _drMul))
 
     // Phase 9 mechanic damage modifiers.
     // `sup` = Inquisition pact-BENEFIT suppression (KR): while an inquisitor is in

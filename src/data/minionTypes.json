@@ -1,6 +1,9 @@
 [
   {
     "id": "beholder1",
+    "abilities": [
+      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 2000, "label": "PETRIFIED" }
+    ],
     "name": "Watcher Eye",
     "spriteKey": "beholder1",
     "frameSize": 64,
@@ -31,6 +34,9 @@
   },
   {
     "id": "beholder2",
+    "abilities": [
+      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 2000, "label": "PETRIFIED" }
+    ],
     "name": "Tendril Seer",
     "spriteKey": "beholder2",
     "frameSize": 64,
@@ -62,6 +68,9 @@
   },
   {
     "id": "demon1",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "burn", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "popup": false }
+    ],
     "name": "Brimstone Fiend",
     "spriteKey": "demon1",
     "frameSize": 128,
@@ -92,6 +101,9 @@
   },
   {
     "id": "demon2",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "burn", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "popup": false }
+    ],
     "name": "Hellforged Reaper",
     "spriteKey": "demon2",
     "frameSize": 128,
@@ -123,6 +135,9 @@
   },
   {
     "id": "elder_slime1",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.45 }
+    ],
     "name": "Glutinous Elder",
     "spriteKey": "elder_slime1",
     "frameSize": 128,
@@ -153,6 +168,9 @@
   },
   {
     "id": "elder_slime2",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.45 }
+    ],
     "name": "Acid Patriarch",
     "spriteKey": "elder_slime2",
     "frameSize": 128,
@@ -183,6 +201,9 @@
   },
   {
     "id": "elder_slime3",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.45 }
+    ],
     "name": "Primordial Ooze",
     "spriteKey": "elder_slime3",
     "frameSize": 128,
@@ -243,6 +264,9 @@
   },
   {
     "id": "ent2",
+    "abilities": [
+      { "type": "root", "trigger": "onHit", "chance": 0.2, "durationMs": 1500, "label": "ENTANGLED" }
+    ],
     "name": "Mossback Treant",
     "spriteKey": "ent2",
     "frameSize": 128,
@@ -274,6 +298,9 @@
   },
   {
     "id": "ent3",
+    "abilities": [
+      { "type": "root", "trigger": "onHit", "chance": 0.25, "durationMs": 2000, "label": "ENTANGLED" }
+    ],
     "name": "Ancient Oakwarden",
     "spriteKey": "ent3",
     "frameSize": 128,
@@ -336,6 +363,9 @@
   },
   {
     "id": "ghost2",
+    "abilities": [
+      { "type": "nerveDrain", "trigger": "onHit", "amount": 16, "label": "DESPAIR" }
+    ],
     "name": "Sorrow Wisp",
     "spriteKey": "ghost2",
     "frameSize": 64,
@@ -522,6 +552,9 @@
   },
   {
     "id": "golem1",
+    "abilities": [
+      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000, "label": "STAGGERED" }
+    ],
     "name": "Stone Sentinel",
     "spriteKey": "golem1",
     "frameSize": 128,
@@ -553,6 +586,9 @@
   },
   {
     "id": "golem2",
+    "abilities": [
+      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000, "label": "STAGGERED" }
+    ],
     "name": "Iron Behemoth",
     "spriteKey": "golem2",
     "frameSize": 128,
@@ -584,6 +620,9 @@
   },
   {
     "id": "imp1",
+    "abilities": [
+      { "type": "aoeOnDeath", "trigger": "onDeath", "dmg": 8, "radiusTiles": 1.5, "color": 16737843, "label": "BOOM" }
+    ],
     "name": "Ember Imp",
     "spriteKey": "imp1",
     "frameSize": 64,
@@ -646,6 +685,9 @@
   },
   {
     "id": "imp3",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 4, "label": "PLAGUE" }
+    ],
     "name": "Plague Imp",
     "spriteKey": "imp3",
     "frameSize": 64,
@@ -676,6 +718,9 @@
   },
   {
     "id": "lich1",
+    "abilities": [
+      { "type": "healAura", "trigger": "onTick", "amount": 6, "intervalMs": 3000, "tag": "undead" }
+    ],
     "name": "Bone Cleric",
     "spriteKey": "lich1",
     "frameSize": 64,
@@ -708,6 +753,9 @@
   },
   {
     "id": "lich2",
+    "abilities": [
+      { "type": "healAura", "trigger": "onTick", "amount": 8, "intervalMs": 3000, "tag": "undead" }
+    ],
     "name": "Death Acolyte",
     "spriteKey": "lich2",
     "frameSize": 64,
@@ -800,6 +848,9 @@
   },
   {
     "id": "mushroom1",
+    "abilities": [
+      { "type": "staggerCloud", "trigger": "onDeath", "radiusTiles": 2.0, "durationMs": 3000, "label": "CONFUSED" }
+    ],
     "name": "Spore Sprite",
     "spriteKey": "mushroom1",
     "frameSize": 64,
@@ -831,6 +882,10 @@
   },
   {
     "id": "mushroom2",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 1, "intervalMs": 1000, "ticks": 4, "label": "TOXIN" },
+      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000 }
+    ],
     "name": "Toxic Cap",
     "spriteKey": "mushroom2",
     "frameSize": 64,
@@ -922,6 +977,10 @@
   },
   {
     "id": "plant1",
+    "abilities": [
+      { "type": "slow", "trigger": "onHit", "mult": 0.6, "durationMs": 1500, "label": "SLOWED" },
+      { "type": "root", "trigger": "onHit", "oncePerFight": true, "durationMs": 2500, "label": "SNARED" }
+    ],
     "name": "Vinekin",
     "spriteKey": "plant1",
     "frameSize": 64,
@@ -1012,6 +1071,9 @@
   },
   {
     "id": "rat1",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 1, "intervalMs": 1000, "ticks": 5, "popup": false }
+    ],
     "name": "Plague Rat",
     "spriteKey": "rat1",
     "frameSize": 128,
@@ -1043,6 +1105,9 @@
   },
   {
     "id": "rat2",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 1, "intervalMs": 1000, "ticks": 5, "popup": false }
+    ],
     "name": "Sewer Skitterer",
     "spriteKey": "rat2",
     "frameSize": 128,
@@ -1073,6 +1138,9 @@
   },
   {
     "id": "rat3",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 1, "intervalMs": 1000, "ticks": 5, "popup": false }
+    ],
     "name": "Dire Vermin",
     "spriteKey": "rat3",
     "frameSize": 128,
@@ -1132,6 +1200,9 @@
   },
   {
     "id": "skeleton2",
+    "abilities": [
+      { "type": "damageReduction", "trigger": "passive", "mult": 0.75, "requireFamilyAllyTag": "undead" }
+    ],
     "name": "Boneguard",
     "spriteKey": "skeleton2",
     "frameSize": 64,
@@ -1163,6 +1234,9 @@
   },
   {
     "id": "skeleton3",
+    "abilities": [
+      { "type": "damageReduction", "trigger": "passive", "damageType": "physical", "mult": 0.7, "requireFamilyAllyTag": "undead" }
+    ],
     "name": "Grave Knight",
     "spriteKey": "skeleton3",
     "frameSize": 64,
@@ -1193,6 +1267,9 @@
   },
   {
     "id": "slime1",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Bomb Slime",
     "spriteKey": "slime1",
     "frameSize": 64,
@@ -1222,6 +1299,9 @@
   },
   {
     "id": "slime2",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Acid Slime",
     "spriteKey": "slime2",
     "frameSize": 64,
@@ -1252,6 +1332,9 @@
   },
   {
     "id": "slime3",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Toxic Slime",
     "spriteKey": "slime3",
     "frameSize": 64,
@@ -1282,6 +1365,10 @@
   },
   {
     "id": "slime4",
+    "abilities": [
+      { "type": "slow", "trigger": "onHit", "mult": 0.65, "durationMs": 1500, "label": "CHILLED" },
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Frost Slime",
     "spriteKey": "slime4",
     "frameSize": 64,
@@ -1312,6 +1399,9 @@
   },
   {
     "id": "slime5",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Electric Slime",
     "spriteKey": "slime5",
     "frameSize": 64,
@@ -1342,6 +1432,9 @@
   },
   {
     "id": "slime6",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Demon Slime",
     "spriteKey": "slime6",
     "frameSize": 64,
@@ -1372,6 +1465,9 @@
   },
   {
     "id": "slime7",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Crystal Slime",
     "spriteKey": "slime7",
     "frameSize": 64,
@@ -1402,6 +1498,9 @@
   },
   {
     "id": "slime8",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Death Slime",
     "spriteKey": "slime8",
     "frameSize": 64,
@@ -1432,6 +1531,9 @@
   },
   {
     "id": "slime9",
+    "abilities": [
+      { "type": "split", "trigger": "onDeath", "count": 2, "statMul": 0.5 }
+    ],
     "name": "Lava Slime",
     "spriteKey": "slime9",
     "frameSize": 64,
@@ -1553,6 +1655,9 @@
   },
   {
     "id": "zombie2",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "label": "ROT" }
+    ],
     "name": "Plague Walker",
     "spriteKey": "zombie2",
     "frameSize": 64,
@@ -1583,6 +1688,9 @@
   },
   {
     "id": "zombie3",
+    "abilities": [
+      { "type": "contagionAura", "trigger": "onTick", "element": "poison", "dmgPerTick": 2, "intervalMs": 1500 }
+    ],
     "name": "Crypt Lord",
     "spriteKey": "zombie3",
     "frameSize": 64,
@@ -1613,6 +1721,9 @@
   },
   {
     "id": "beholder_tyrant",
+    "abilities": [
+      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 2000, "label": "PETRIFIED" }
+    ],
     "name": "Beholder Tyrant",
     "spriteKey": "beholder_tyrant",
     "bossSkinId": "beholder",
@@ -1644,6 +1755,9 @@
   },
   {
     "id": "demon_lord",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "burn", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "popup": false }
+    ],
     "name": "Demon Lord",
     "spriteKey": "demon_lord",
     "bossSkinId": "demon",
@@ -1736,6 +1850,9 @@
   },
   {
     "id": "golem_warden",
+    "abilities": [
+      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000, "label": "STAGGERED" }
+    ],
     "name": "Golem Warden",
     "spriteKey": "golem_warden",
     "bossSkinId": "golem",
@@ -1768,6 +1885,10 @@
   },
   {
     "id": "elder_lich",
+    "abilities": [
+      { "type": "healAura", "trigger": "onTick", "amount": 10, "intervalMs": 3000, "tag": "undead" },
+      { "type": "reviveAlly", "trigger": "onTick", "intervalMs": 14000, "tag": "undead", "frac": 0.5, "label": "RISE" }
+    ],
     "name": "Elder Lich",
     "spriteKey": "elder_lich",
     "bossSkinId": "lich",
@@ -1830,6 +1951,10 @@
   },
   {
     "id": "myconid_stalker",
+    "abilities": [
+      { "type": "dot", "trigger": "onHit", "element": "poison", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 4, "label": "SPORE" },
+      { "type": "contagionAura", "trigger": "onTick", "element": "poison", "dmgPerTick": 1, "intervalMs": 2000 }
+    ],
     "name": "Myconid Stalker",
     "spriteKey": "myconid_stalker",
     "bossSkinId": "myconid",
@@ -1952,5 +2077,269 @@
     "vulnerableToElements": [
       "fire"
     ]
+  },
+  {
+    "id": "web1",
+    "spriteKey": "web1",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "ambush",
+    "color": "0x6a7b4a",
+    "sigil": "✷",
+    "description": "Cave Spinner. Strings the dark with web and snares whatever brushes it.",
+    "baseStats": { "hp": 30, "attack": 7, "defense": 2, "speed": 1.1, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "slow", "trigger": "onHit", "mult": 0.6, "durationMs": 1800, "label": "WEBBED" },
+      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 1500, "label": "SNARED" }
+    ],
+    "goldCost": 14,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 5,
+    "evolutionPaths": [],
+    "tags": ["beast", "control"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "web2",
+    "spriteKey": "web2",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "ambush",
+    "color": "0x4f5d38",
+    "sigil": "✷",
+    "description": "Web Lurker. Bigger, patient, faster to bind.",
+    "baseStats": { "hp": 50, "attack": 12, "defense": 4, "speed": 1.0, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "slow", "trigger": "onHit", "mult": 0.55, "durationMs": 2000, "label": "WEBBED" },
+      { "type": "root", "trigger": "onHit", "chance": 0.2, "durationMs": 1600, "label": "SNARED" }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["beast", "control"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "broodmother",
+    "spriteKey": "broodmother",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "guard",
+    "color": "0x3a4a2a",
+    "sigil": "✷",
+    "description": "Broodmother. Floods a room with webbing — nothing crosses at speed.",
+    "baseStats": { "hp": 86, "attack": 18, "defense": 7, "speed": 0.9, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "slow", "trigger": "onHit", "mult": 0.5, "durationMs": 2200, "label": "WEBBED" },
+      { "type": "root", "trigger": "onHit", "chance": 0.25, "durationMs": 2000, "label": "SNARED" },
+      { "type": "hazardTrail", "trigger": "onTick", "element": "web", "dmg": 1, "intervalMs": 1500, "zoneMs": 5000, "radiusTiles": 0.8, "color": 6979658 }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["beast", "control", "miniboss"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "cmd1",
+    "spriteKey": "cmd1",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0xd0a030",
+    "sigil": "⚑",
+    "description": "Goblin Drummer. Hangs back and beats the war-rhythm — nearby minions hit harder.",
+    "baseStats": { "hp": 34, "attack": 6, "defense": 3, "speed": 0.9, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "buffAura", "trigger": "onTick", "atkMul": 1.15, "defMul": 1.0, "intervalMs": 1000 }
+    ],
+    "goldCost": 20,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 8,
+    "evolutionPaths": [],
+    "tags": ["support", "commander"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "cmd2",
+    "spriteKey": "cmd2",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0xb88820",
+    "sigil": "⚑",
+    "description": "War Drummer. The cadence quickens; the warband answers.",
+    "baseStats": { "hp": 54, "attack": 9, "defense": 5, "speed": 0.9, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "buffAura", "trigger": "onTick", "atkMul": 1.2, "defMul": 1.05, "intervalMs": 1000 }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["support", "commander"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "warlord_herald",
+    "spriteKey": "warlord_herald",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0x9a6a10",
+    "sigil": "⚑",
+    "description": "Warlord Herald. Its banner turns a room of minions into an army.",
+    "baseStats": { "hp": 80, "attack": 14, "defense": 8, "speed": 0.9, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "buffAura", "trigger": "onTick", "atkMul": 1.28, "defMul": 1.1, "intervalMs": 1000 }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["support", "commander", "miniboss"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "bone_totem1",
+    "spriteKey": "bone_totem1",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0xc9bfa0",
+    "sigil": "♁",
+    "description": "Bone Totem. Rooted in place, it keeps belching up a trickle of swarmlings.",
+    "baseStats": { "hp": 40, "attack": 4, "defense": 4, "speed": 0.0, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "summon", "trigger": "onTick", "addId": "swarmling", "intervalMs": 6000, "cap": 3, "label": "SUMMON" }
+    ],
+    "goldCost": 24,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 10,
+    "evolutionPaths": [],
+    "tags": ["construct", "summoner"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "bone_totem2",
+    "spriteKey": "bone_totem2",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0xb0a070",
+    "sigil": "♁",
+    "description": "Hex Pylon. The trickle becomes a stream.",
+    "baseStats": { "hp": 64, "attack": 6, "defense": 6, "speed": 0.0, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "summon", "trigger": "onTick", "addId": "swarmling", "intervalMs": 5000, "cap": 3, "label": "SUMMON" }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["construct", "summoner"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "necro_obelisk",
+    "spriteKey": "necro_obelisk",
+    "frameSize": 64,
+    "category": "support",
+    "behaviorType": "guard",
+    "color": "0x8a7a55",
+    "sigil": "♁",
+    "description": "Necro Obelisk. An endless font of bodies — kill it or drown.",
+    "baseStats": { "hp": 95, "attack": 8, "defense": 8, "speed": 0.0, "damageType": "physical", "abilities": [] },
+    "abilities": [
+      { "type": "summon", "trigger": "onTick", "addId": "swarmling", "intervalMs": 4000, "cap": 4, "label": "SUMMON" }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["construct", "summoner", "miniboss"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "swarmling",
+    "spriteKey": "swarmling",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "guard",
+    "color": "0xd8cba2",
+    "sigil": "·",
+    "description": "A summoned husk. Weak alone, a problem in numbers.",
+    "baseStats": { "hp": 10, "attack": 3, "defense": 0, "speed": 1.2, "damageType": "physical", "abilities": [] },
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["construct", "swarm"],
+    "vulnerableToElements": ["fire"]
+  },
+  {
+    "id": "rust1",
+    "spriteKey": "rust1",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "roam",
+    "color": "0xb5651d",
+    "sigil": "⚙",
+    "description": "Rust Gremlin. Corrodes armor on contact and leaves a smear of acid in its wake.",
+    "baseStats": { "hp": 32, "attack": 8, "defense": 3, "speed": 1.2, "damageType": "acid", "abilities": [] },
+    "abilities": [
+      { "type": "armorShred", "trigger": "onHit", "amount": 2, "max": 8, "durationMs": 4000, "label": "CORRODED" },
+      { "type": "hazardTrail", "trigger": "onTick", "element": "acid", "dmg": 2, "intervalMs": 1500, "zoneMs": 4000, "radiusTiles": 0.7, "color": 11887901 }
+    ],
+    "goldCost": 16,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 6,
+    "evolutionPaths": [],
+    "tags": ["construct", "debuff"],
+    "vulnerableToElements": ["lightning"]
+  },
+  {
+    "id": "rust2",
+    "spriteKey": "rust2",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "roam",
+    "color": "0x9a5418",
+    "sigil": "⚙",
+    "description": "Corrosion Imp. The smear becomes a trail; the armor becomes scrap.",
+    "baseStats": { "hp": 50, "attack": 12, "defense": 4, "speed": 1.2, "damageType": "acid", "abilities": [] },
+    "abilities": [
+      { "type": "armorShred", "trigger": "onHit", "amount": 3, "max": 10, "durationMs": 4000, "label": "CORRODED" },
+      { "type": "hazardTrail", "trigger": "onTick", "element": "acid", "dmg": 3, "intervalMs": 1500, "zoneMs": 4000, "radiusTiles": 0.7, "color": 10113048 }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["construct", "debuff"],
+    "vulnerableToElements": ["lightning"]
+  },
+  {
+    "id": "rust_tyrant",
+    "spriteKey": "rust_tyrant",
+    "frameSize": 64,
+    "category": "combat",
+    "behaviorType": "roam",
+    "color": "0x7a3e10",
+    "sigil": "⚙",
+    "description": "Rust Tyrant. Walks a room into ruin — floors slick, armor gone.",
+    "baseStats": { "hp": 78, "attack": 17, "defense": 6, "speed": 1.1, "damageType": "acid", "abilities": [] },
+    "abilities": [
+      { "type": "armorShred", "trigger": "onHit", "amount": 4, "max": 12, "durationMs": 4500, "label": "CORRODED" },
+      { "type": "hazardTrail", "trigger": "onTick", "element": "acid", "dmg": 4, "intervalMs": 1400, "zoneMs": 4500, "radiusTiles": 0.8, "color": 8011280 }
+    ],
+    "goldCost": 0,
+    "powerCostToUnlock": 0,
+    "unlockLevel": 99,
+    "evolutionPaths": [],
+    "tags": ["construct", "debuff", "miniboss"],
+    "vulnerableToElements": ["lightning"]
   }
 ]

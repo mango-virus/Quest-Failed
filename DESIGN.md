@@ -2077,3 +2077,109 @@ to Scholar/paranoid).
   existing anti-thrash watchdogs; the Confer pause must not trip the hard-stuck/oscillation kills).
 - Whether Claustrophobe fears tight corridors or open rooms (or both as two variants).
 - Mood-pip HUD treatment (the prototype-both decision).
+
+---
+
+# Minion AI & Roster Overhaul (locked 2026-06-10) — "alive, not just stat-blocks"
+
+Parallel to the Adventurer AI & Personality Overhaul. Goal: make the dungeon's
+**defenders** feel characterful and legible without stealing the player's authorship
+(minions stay the *predictable engineered defense* the player builds — just more alive,
+reactive, and distinct). Grounded against the real code (MinionAISystem.js,
+MinionAbilities.js, minionTypes.json, minionEvolutions.json) — not the brainstorm.
+
+## User's locked decisions (verbatim from the selection)
+- **Pursue Threads B, C, D, E** (NOT A pack-morale, NOT F minion-side knowledge).
+- **"lets widen and deepen"** the roster.
+- **Widen — new roles (all 4 selected):** Crowd-controller, Commander/buffer, Summoner,
+  Terrain-shaper/debuffer.
+- **Widen — scope:** "Medium (3-4 new)" → **4 new placeable families**, one per role.
+- **Thread C — wounded behavior:** **"Mix per-archetype"** — bruisers ENRAGE (stand & hit
+  harder), ranged/casters KITE (keep range), fragile/support FALL BACK to a guarded room.
+- **Thread D — scope:** **"Finals + mid-forms"** — every tier-2 AND tier-3/miniboss form
+  that currently has NO ability gets a signature behavior.
+- **Same process:** verbatim spec + per-detail checklist + build + headless-verify + sim:soak.
+
+## Ground-truth that shapes the build (verified in code)
+- Minion combat abilities are **hard-coded by family-ID Sets** in MinionAbilities.js; the
+  `abilities:[]` field in minionTypes.json is always empty. (Thread E moves them to data.)
+- A JSON seam already exists: the `lifesteal` **tag** triggers Bloodthirst generically
+  (MinionAbilities.js:137). Thread E generalizes that pattern.
+- Abilities are **tier-1-only by design** (MinionAbilities.js:79) — so several evolved forms
+  are "ability deserts": `skeleton2/3`, `zombie2/3`, `lich2`, `elder_lich` (heal aura keys on
+  `lich1` only → the *upgraded* lich stops healing), `mushroom2`, `myconid_stalker`, `imp3`,
+  `ent2/3`, and the slime mid/finals (Split keys on `slime1-4` only → the "splits when struck"
+  elders **don't actually split**). These are the Thread D targets.
+- New minions need **no art** — MinionRenderer falls back to a placeholder rect + sigil
+  (MinionRenderer.js:14). Widen = JSON + color + sigil only.
+- Build-menu = `unlocks.minionTypes` ∩ chain[0] starters, sorted by `unlockLevel`
+  (BuildMenu.js:838; seed in GameState.js:195). New families append to all three.
+
+## Thread E — Data-drive minion abilities (FOUNDATION; build first)
+- Add an `abilities: [ {type, trigger, ...params} ]` schema to minionTypes.json, run by a
+  data-driven registry in MinionAbilities.js. Triggers: `onHit`, `onDeath`, `onTick`.
+- Migrate the **combat** abilities (DoT poison/burn, lifesteal, root, stagger, pickpocket,
+  split, aoeOnDeath, staggerCloud, revive, healAura) to JSON descriptors — **behavior-parity
+  verified via sim:soak** (no gameplay change from the migration itself).
+- Keep purely-spatial **movement behaviors** (hide/ceiling, teleport, scavenger, march,
+  demon-sense, camouflage) in code (`tickBehavior`) — that line is deliberate: *combat
+  abilities → data, movement AI → code.*
+- Keep MINION_ABILITY_INFO tooltip text in sync with the descriptors.
+
+## Thread D — Evolution signatures (finals + mid-forms; authored as E-abilities)
+Family-coherent signatures for every ability-less evolved form:
+- **Skeleton** (skeleton2 Boneguard, skeleton3 Grave Knight) — **Shieldwall:** reduces damage
+  taken by same-room skeletons (formation defense).
+- **Zombie** (zombie2 Plague Walker, zombie3 Crypt Lord) — zombie2 **Rotbite** (poison DoT on
+  hit, matches "bites carry rot"); zombie3 **Contagion Aura** (same-room advs take periodic poison).
+- **Lich** (lich2 Death Acolyte, elder_lich) — extend **Heal Undead** to all lich tiers;
+  elder_lich **Raise Dead** (periodically revives one fallen undead minion in-room).
+- **Mushroom** (mushroom2 Toxic Cap, myconid_stalker) — **Spore Cloud:** attacks leave a
+  lingering poison hazard zone; mushroom2 chance to stagger on hit.
+- **Imp** (imp3 Plague Imp) — **Plaguebrand:** poison DoT on hit ("carries every disease").
+- **Ent** (ent2, ent3) — extend **Gnarled Hide** (50% physical reduction) to all ent tiers
+  (verify ent1's even fires); **Entangle:** chance to root on hit.
+- **Slime mid/finals** (slime1,5,6,7,8,9, elder_slime1/2/3) — extend **Split on Death** to ALL
+  slime tiers so the elders' "splits when struck" is finally true.
+- Minibosses already carrying a family passive (demon_lord, gnoll_alpha, vampire_sovereign,
+  beholder_tyrant, golem_warden, serpent_captain, orc_veteran, dark_wraith) are covered by
+  their inherited ability; a bespoke signature **ult** for them is OPTIONAL/stretch.
+
+## Thread B — Flavor-vs-mechanic audit + wire dead flavor
+- **Sorrow Wisp (ghost2)** "drains hope before it drains blood" → **Nerve Drain** on hit
+  (reduces the target adventurer's nerve — ties into the new NerveSystem). Keeps possession.
+- **Vinekin (plant1)** "slows whatever brushes it" — code only *roots* once; add a genuine
+  brief **slow** on hit so the flavor is true (keep the tier-1 snare as its signature).
+- **Frost Slime (slime4)** "slows what it touches" → add **slow** on hit.
+- **Ent Gnarled Hide** — verify the 50% physical reduction actually fires; wire it if dead.
+- Sweep all 64 descriptions for other mismatches; log + fix.
+
+## Thread C — Reactive states (mix per-archetype; MinionAISystem state machine)
+- Wounded threshold (~HP < 0.35 maxHp):
+  - **Bruiser** (melee/tank, not ranged/caster/support) → **ENRAGE:** +damage (and/or +atk
+    speed) while wounded; never abandons post. (Don't double-stack orc Berserker Rage.)
+  - **Ranged/caster** (attackRange>1 or caster tag) → **KITE:** step away to keep range when
+    an adv closes inside ~2 tiles, still attacking.
+  - **Fragile/support** (support category or low-maxHp non-tank) → **FALL BACK:** path to the
+    nearest guarded/friendly room and regroup; resume when safe/healed.
+- Constraints: **watchdog-exempt** (no hard-stuck/oscillation kill), respects **leashing**
+  (garrison stays room-bound), **player-legible** (enrage red glow / kite backstep / fall-back
+  move + cue). Stationary minions (ghost/mushroom/lizardman/mimic/plant) exempt from kite/fall-back.
+
+## Widen — 4 new placeable families (3-tier chains; E-abilities; color+sigil render)
+1. **Crowd-controller — Webspinner line** (spider; beast/control). **Web:** slow + chance root
+   on hit; final tier lays a slowing web hazard zone (area denial).
+2. **Commander/buffer — Drillmaster line** (support/commander). **Rally Aura:** buffs nearby
+   dungeon minions' ATK/DEF; killing it removes the buff. Hangs back, frail, high-value target.
+3. **Summoner — Bone Totem line** (stationary summoner). **Summon:** periodically spawns a
+   weak, capped add ("swarmling"); frail, high-value. Needs a minimal non-placeable add type.
+4. **Terrain-shaper/debuffer — Rust Gremlin line** (debuffer). **Armor Shred** on hit (reduce
+   target defense) + a light **Hazard Trail** (lingering damage zone) as it roams.
+- Each: minionTypes (3 tiers) + minionEvolutions chain + unlocks seed + unlockLevel + goldCost
+  + tooltip + ability descriptors. New infra as needed: summon cap + lightweight hazard zone.
+
+## Open tunables (decide in sim/preview)
+- Wounded threshold + enrage magnitude + kite distance + fall-back trigger.
+- Ability magnitudes (slow %, web root chance, rally aura %, summon interval/cap, shred amount,
+  hazard DoT) — run sim:balance before claiming balanced.
+- Whether the terrain-shaper leans armor-shred vs hazard-trail (infra cost dependent).

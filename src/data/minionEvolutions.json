@@ -143,6 +143,34 @@
       "elder_slime3"
     ]
   },
+  "web1": {
+    "chain": [
+      "web1",
+      "web2",
+      "broodmother"
+    ]
+  },
+  "cmd1": {
+    "chain": [
+      "cmd1",
+      "cmd2",
+      "warlord_herald"
+    ]
+  },
+  "bone_totem1": {
+    "chain": [
+      "bone_totem1",
+      "bone_totem2",
+      "necro_obelisk"
+    ]
+  },
+  "rust1": {
+    "chain": [
+      "rust1",
+      "rust2",
+      "rust_tyrant"
+    ]
+  },
   "mimic": {
     "chain": [
       "mimic"

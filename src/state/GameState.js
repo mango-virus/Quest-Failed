@@ -213,6 +213,10 @@ export function createGameState(
         'vampire_minion1', 'vampire_minion2',
         'zombie1', 'zombie2', 'zombie3',
         'mimic',
+        'web1', 'web2', 'broodmother',
+        'cmd1', 'cmd2', 'warlord_herald',
+        'bone_totem1', 'bone_totem2', 'necro_obelisk',
+        'rust1', 'rust2', 'rust_tyrant',
       ],
       // All 8 traps available from level 1 — boss-level gating deferred
       // (will land alongside final gold costs once traps are tuned).

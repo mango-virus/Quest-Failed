@@ -1298,3 +1298,47 @@ A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light pa
 - **When the user adds new design items**: add them here with phase + status before implementing.
 - **Open-ended (💭) items**: track running counts in the relevant section (e.g. "12/30 mechanics shipped").
 - **When implementation differs from design**: don't silently rewrite this file — flag the divergence to the user and update DESIGN.md if they approve.
+
+---
+
+## Minion AI & Roster Overhaul (locked 2026-06-10) — per-detail checklist
+
+Phase: post-numbered (mature feature-add). Status legend: ⏳ PENDING · 🟡 PARTIAL · ✅ DONE.
+
+All ✅ DONE (2026-06-10). Verified: headless ability harness `tools/sim/minion-abilities-check.mjs`
+**39/39 pass**; `sim:soak` **120/120 clean**; `sim:balance` sane (building 15–18 days); `lint-content`
+green; `verify-docs:fix` synced (77 minions / 26 chains); live preview — clean boot, all 4 new
+families render + summon-caps / hazard-trails / rally-aura / enrage observed firing, full day ran
+0 console errors.
+
+| id | detail (spec clause) | status | evidence |
+|---|---|---|---|
+| min-E-runner | Thread E: data-driven `abilities:[]` runner + registry (onHit/onDeath/onTick + passive) | ✅ DONE | `_abilityMapFrom`/`runHitAbilities`/`runDeathAbilities`/`tickAbilities`/`damageTakenMul`; resolves by definitionId (auto-handles evolution). |
+| min-E-migrate | Thread E: migrate combat abilities to JSON; soak parity | ✅ DONE | rat/demon DoT, beholder root, golem stagger, plant snare, imp aoe, mushroom cloud, slime split, lich heal → JSON; hard-coded blocks deleted; parity checks pass. Bespoke (pickpocket/possession/howl/camo/revive/lifesteal-tag) stay in code (combat-data ÷ movement-code line). |
+| min-E-tooltip | Thread E: MINION_ABILITY_INFO sync | ✅ DONE | Tooltips added for the 4 new tier-1s. |
+| min-D-skeleton | skeleton2/3 **Shieldwall** | ✅ DONE | `damageReduction` passive, `requireFamilyAllyTag:'undead'` (formation). *Deviation: gated on undead-ally not skeleton-only — flagged.* |
+| min-D-zombie | zombie2 **Rotbite** + zombie3 **Contagion Aura** | ✅ DONE | dot onHit + contagionAura onTick. |
+| min-D-lich | Heal Undead all lich tiers + elder_lich **Raise Dead** | ✅ DONE | healAura lich1/2/elder + reviveAlly; lich1-only call removed. |
+| min-D-mushroom | mushroom2/myconid **Spore Cloud** + stagger | ✅ DONE | dot+stagger / dot+contagionAura. |
+| min-D-imp | imp3 **Plaguebrand** | ✅ DONE | dot poison onHit. |
+| min-D-ent | Gnarled Hide all ent tiers + **Entangle** | ✅ DONE | Hide already covers ent1/2/3 (verified); added Entangle root onHit ent2/3. |
+| min-D-slime | **Split** all slime mid/finals | ✅ DONE | split onDeath slime1–9 + elders; hard-coded SLIME_IDS split removed. |
+| min-B-sorrowwisp | Sorrow Wisp **Nerve Drain** | ✅ DONE | nerveDrain onHit −16. |
+| min-B-vinekin | Vinekin slow-on-hit | ✅ DONE | slow 0.6× (keeps snare). |
+| min-B-frostslime | Frost Slime slow-on-hit | ✅ DONE | slow 0.65×. |
+| min-B-enthide | verify Ent Gnarled Hide | ✅ DONE | Already implemented + firing (`CombatSystem.js:845`). |
+| min-B-audit | flavor-vs-mechanic sweep | ✅ DONE | Most hinted abilities already wired; dead = Sorrow Wisp + Vinekin/Frost slow (fixed). |
+| min-C-enrage | bruiser ENRAGE | ✅ DONE | `_reactiveCombat` flags `_enraged`; +30% in CombatSystem; orcs excluded; live-observed firing. |
+| min-C-kite | ranged/caster KITE | ✅ DONE | `_kiteStep` backsteps within home room when adv <2 tiles. |
+| min-C-fallback | fragile/support FALL BACK | ✅ DONE | wounded fragile retreats to home tile (not garrison/stationary). |
+| min-C-safe | watchdog/leash safe, tells, stationary exempt | ✅ DONE | constrained to home room (no door/leash break); enrage glow + FALL BACK tell; stationary exempt. |
+| min-W-crowdcontrol | Webspinner line | ✅ DONE | web1/web2/broodmother — slow+root, broodmother web hazardTrail. |
+| min-W-commander | Drillmaster line | ✅ DONE | cmd1/cmd2/warlord_herald — Rally buffAura; drops after death (live: 21 buffed). |
+| min-W-summoner | Bone Totem line + swarmling | ✅ DONE | capped summon (live 3+4=7, held); swarmling add; stationary; dawn-swept. |
+| min-W-debuffer | Rust Gremlin line | ✅ DONE | rust1/2/tyrant — armorShred + acid hazardTrail (live 3–4 zones). |
+| min-W-wiring | types + chains + unlocks + costs + tooltips | ✅ DONE | 13 entries, 4 chains, unlocks seed, unlockLevels, goldCosts, tooltips; color+sigil render. |
+| min-verify | soak + balance + lint + verify-docs + harness + preview | ✅ DONE | See header above. |
+
+**Known follow-ups (not blockers):** hazard zones read as a pulse-on-tick, not a persistent floor pool
+— a small renderer would raise the Steam visual bar. Shieldwall formation gated on undead-ally rather
+than skeleton-only (deliberate, no new tag).

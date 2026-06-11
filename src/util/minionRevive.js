@@ -41,6 +41,10 @@ export function isPermadeadAtDawn(m, flags = {}) {
   if (m._mercenary && dead) return true
   // Slime Split mini-slimes are temporary — wiped every dawn regardless.
   if (m._isMiniSlime) return true
+  // Summoner adds (Bone Totem) are net-new transient entities — wiped every
+  // dawn so a summoner can't grow a permanent army. (Elder Lich's Raise-Dead
+  // reanimates EXISTING minions, which just follow their normal revive rules.)
+  if (m._isSummonedAdd) return true
   // Slime King Absorb & Excrete gooplings are one-shot.
   if (m._isGoopling && dead) return true
   return false

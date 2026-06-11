@@ -24,6 +24,40 @@
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { EventBus }   from './EventBus.js'
 
+// ── Data-driven ability layer (Thread E) ────────────────────────────────────
+// Combat abilities now live in minionTypes.json under a top-level `abilities`
+// array on each type: [{ type, trigger, ...params }]. Triggers: 'onHit',
+// 'onDeath', 'onTick'. Resolved by definitionId so an evolved form (zombie2,
+// elder_lich, elder_slime1…) automatically runs ITS tier's abilities — which
+// is how Thread D gives mid/final forms signatures the old tier-1-only family
+// Sets couldn't. Movement behaviors (hide/teleport/scavenge/march) stay in
+// code (tickBehavior); only buff/debuff/heal/summon/DoT effects are data.
+//
+// Data comes from the Phaser/sim JSON cache (scene.cache.json.get) — the same
+// pattern every other system uses — lazily indexed into a definitionId→abilities
+// Map on first access so we don't rebuild it per hit.
+let _abilityMap = null
+function _abilityMapFrom(scene) {
+  if (_abilityMap) return _abilityMap
+  const defs = scene?.cache?.json?.get?.('minionTypes')
+  if (!Array.isArray(defs)) return null   // cache not ready yet — try again next call
+  _abilityMap = new Map()
+  for (const def of defs) {
+    if (def?.id && Array.isArray(def.abilities) && def.abilities.length) {
+      _abilityMap.set(def.id, def.abilities)
+    }
+  }
+  return _abilityMap
+}
+function _abilitiesFor(entity, scene, trigger) {
+  if (!entity?.definitionId) return null
+  const map = _abilityMapFrom(scene)
+  if (!map) return null
+  const all = map.get(entity.definitionId)
+  if (!all) return null
+  return trigger ? all.filter(a => a.trigger === trigger) : all
+}
+
 // Family helpers — keep ability application keyed off definitionId so we can
 // add new evolutions without rewiring this file. Boss-archetype mini-boss
 // final forms are included so they retain their family abilities when
@@ -70,6 +104,10 @@ export const MINION_ABILITY_INFO = {
   demon1:          { ability: 'Hellfire Brand — every hit applies a 3-tick burn DoT.',         behavior: 'Demon Sense — runs to adjacent rooms to attack intruders.' },
   golem1:          { ability: 'Earthshake — 20% per hit to stagger the target 1s.',            behavior: 'Camouflaged Pillar — invisible until an adv steps adjacent.' },
   mimic:           { ability: 'Devour — instantly kills any adventurer who tries to loot it.', behavior: 'Stationary Trap — disguised as a treasure chest; sits still until sprung.' },
+  web1:            { ability: 'Web — every hit slows the target; 15% chance to root it in place.',  behavior: 'Ambush — lurks hidden until an adventurer enters, then strikes.' },
+  cmd1:            { ability: 'Rally Aura — buffs the attack of every dungeon minion in the room; the buff drops if it dies.', behavior: 'Stays Back — a frail commander; hangs at the rear and conducts.' },
+  bone_totem1:     { ability: 'Summon — keeps spawning weak swarmlings (up to 3 alive at once).',   behavior: 'Rooted — never moves; a stationary, high-value spawner. Kill it fast.' },
+  rust1:           { ability: 'Corrode — shreds the target’s armor on hit and trails lingering acid.', behavior: 'Roams — wanders the dungeon leaving hazard pools behind it.' },
 }
 
 // Family-wide resolver — maps ANY minion definitionId (including evolved
@@ -119,16 +157,8 @@ export const MinionAbilities = {
     const id = attacker.definitionId
     if (!id) return   // adventurer attacker — nothing to do here
 
-    // Rat — Plague Bite: stack a poison DoT every hit. `source` records
-    // the minion so a poison-tick kill is credited to it (not "Unknown").
-    if (RAT_IDS.has(id)) {
-      this._applyDot(target, scene, { type: 'poison', dmgPerTick: 1, intervalMs: 1000, ticksLeft: 5, source: attacker.instanceId })
-    }
-
-    // Demon — Hellfire Brand: 3-tick burn DoT on every hit. `source` as above.
-    if (DEMON_IDS.has(id)) {
-      this._applyDot(target, scene, { type: 'burn', dmgPerTick: 2, intervalMs: 1000, ticksLeft: 3, source: attacker.instanceId })
-    }
+    // Rat Plague Bite + Demon Hellfire Brand are now data-driven (dot onHit in
+    // minionTypes.json on every rat/demon tier). See runHitAbilities below.
 
     // Vampire — Bloodthirst: heal attacker for 50% of damage dealt.
     // Generic `lifesteal` tag also triggers (used by Blood Briar) so any
@@ -145,17 +175,8 @@ export const MinionAbilities = {
       }
     }
 
-    // Beholder — Petrify Gaze: 15% chance to root for 2s.
-    if (BEHOLDER_IDS.has(id) && Math.random() < 0.15) {
-      this._applyRoot(target, scene, 2000)
-      AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'PETRIFIED', { color: '#cc88ff' })
-    }
-
-    // Golem — Earthshake: 20% chance to stagger for 1s.
-    if (GOLEM_IDS.has(id) && Math.random() < 0.20) {
-      this._applyStagger(target, scene, 1000)
-      AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'STAGGERED', { color: '#aa9988' })
-    }
+    // Beholder Petrify Gaze + Golem Earthshake are now data-driven (root /
+    // stagger onHit with chance in minionTypes.json). See runHitAbilities below.
 
     // Goblin — Pickpocket: bank 1g/hit on attacker; credited to dungeon
     // on minion death so killing the goblin first denies the loot.
@@ -170,19 +191,8 @@ export const MinionAbilities = {
       AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, '+5g', { color: '#ffdd44' })
     }
 
-    // Vinekin — Root Snare: roots the target on the first hit per fight.
-    // _snareUsed is reset when the minion respawns each night.
-    if (id === 'plant1' && !attacker._snareUsed) {
-      attacker._snareUsed = true
-      this._applyRoot(target, scene, 2500)
-      AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'SNARED', { color: '#559944' })
-      // Green vine ring around the rooted target — visible cue that
-      // they're locked in place for the snare duration.
-      if (Number.isFinite(target.worldX)) {
-        AbilityVfx.pulseRing(scene, target.worldX, target.worldY,
-          { color: 0x559944, fromR: 6, toR: 18, alpha: 0.8, durationMs: 500 })
-      }
-    }
+    // Vinekin Root Snare (first hit per fight) + its slow are now data-driven
+    // (root oncePerFight + slow onHit in minionTypes.json). See runHitAbilities.
 
     // Ghost — Possession: 25% per hit; possessed adv attacks a same-party
     // ally on their next swing (redirect handled by maybeRedirectPossessed
@@ -218,6 +228,12 @@ export const MinionAbilities = {
     // Lizardman — Camouflage reveal already handled in CombatSystem
     // (clears _camouflaged + emits LIZARDMAN_CAMO_REVEAL). Damage bonus is
     // applied in CombatSystem._computeDamage.
+
+    // Data-driven onHit abilities (Thread E) — runs the minion's JSON
+    // `abilities` (slow/root/dot/armorShred/nerveDrain/lifesteal/…). Legacy
+    // family-Set blocks above are migrated into data incrementally; until a
+    // given minion's effects are moved to JSON, only the block above fires.
+    this.runHitAbilities(scene, attacker, target, damageDealt, gameState)
   },
 
   // ── On minion dying (MinionAISystem._die pre-hook) ───────────────────────
@@ -276,24 +292,18 @@ export const MinionAbilities = {
     if (!minion) return
     const id = minion.definitionId
 
-    // Slime Split on Death — every slime tier spawns 2 mini-slimes nearby.
-    // Mini slimes don't split again (_isMiniSlime guard) and are wiped at
-    // dawn via the respawn filter so they can't accumulate forever.
-    if (SLIME_IDS.has(id) && !minion._isMiniSlime && gameState?.minions) {
-      this._spawnMiniSlimes(scene, minion, gameState)
-    }
+    // Slime Split on Death is now data-driven (split onDeath in minionTypes.json
+    // on every split-capable slime tier — including the elders, which the old
+    // tier-1-4-only SLIME_IDS set never covered). Handled by runDeathAbilities
+    // below; the hardcoded block lived here.
 
-    // Imp Self-Combust — Ember Imps explode on death dealing fire AoE damage
-    // to nearby adventurers.
-    if (id === 'imp1') {
-      this._impSelfCombust(scene, minion, gameState)
-    }
+    // Imp Self-Combust + Mushroom Confusion Spores are now data-driven
+    // (aoeOnDeath / staggerCloud onDeath in minionTypes.json) — handled by
+    // runDeathAbilities below alongside the slime/elder Split.
 
-    // Mushroom Confusion Spores — Spore Sprites release a confusion cloud
-    // that staggers nearby adventurers (skip movement + combat for 3s).
-    if (id === 'mushroom1') {
-      this._mushroomConfusion(scene, minion, gameState)
-    }
+    // Data-driven onDeath abilities (Thread E) — split / aoe / stagger-cloud
+    // authored in JSON.
+    this.runDeathAbilities(scene, minion, gameState)
   },
 
   // ── Per-tick (AISystem + MinionAISystem hooks) ───────────────────────────
@@ -332,6 +342,178 @@ export const MinionAbilities = {
     // isStaggered cleanup happens even if the entity isn't actively queried.
     if (entity._rootedUntil && now >= entity._rootedUntil) entity._rootedUntil = 0
     if (entity._staggeredUntil && now >= entity._staggeredUntil) entity._staggeredUntil = 0
+    if (entity._slowUntil && now >= entity._slowUntil) { entity._slowUntil = 0; entity._slowMult = 1 }
+    if (entity._armorShredUntil && now >= entity._armorShredUntil) { entity._armorShredUntil = 0; entity._armorShred = 0 }
+  },
+
+  // ── Data-driven ability runner (Thread E) ────────────────────────────────
+  // Public trigger entrypoints. Each iterates the minion's JSON `abilities`
+  // (filtered by trigger) and dispatches to a handler. Designed to run
+  // ALONGSIDE the legacy family-Set blocks while we migrate, then those
+  // blocks get deleted and only data remains.
+
+  // onHit data abilities — ctx carries the struck target + damage dealt.
+  runHitAbilities(scene, attacker, target, damageDealt, gameState) {
+    const abilities = _abilitiesFor(attacker, scene, 'onHit')
+    if (!abilities) return
+    for (const ab of abilities) {
+      if (ab.chance != null && Math.random() >= ab.chance) continue
+      if (ab.oncePerFight) {
+        const key = `_abOnce_${ab.type}`
+        if (attacker[key]) continue
+        attacker[key] = true
+      }
+      this._applyHitAbility(scene, attacker, target, damageDealt, gameState, ab)
+    }
+  },
+
+  // onDeath data abilities — split / aoe / stagger-cloud, etc.
+  runDeathAbilities(scene, minion, gameState) {
+    const abilities = _abilitiesFor(minion, scene, 'onDeath')
+    if (!abilities) return
+    for (const ab of abilities) {
+      if (ab.chance != null && Math.random() >= ab.chance) continue
+      this._applyDeathAbility(scene, minion, gameState, ab)
+    }
+  },
+
+  // onTick data abilities — heal/revive/buff/contagion/summon/hazard auras.
+  // Called from MinionAISystem._tickMinion (minions only). Per-ability accums
+  // live in minion._abAccum keyed by ability type so intervals are independent.
+  tickAbilities(minion, scene, gameState, dungeonGrid, delta) {
+    if (!minion || minion.aiState === 'dead' || (minion.resources?.hp ?? 0) <= 0) return
+    if (minion.faction !== 'dungeon') return
+    const abilities = _abilitiesFor(minion, scene, 'onTick')
+    if (!abilities) return
+    minion._abAccum = minion._abAccum ?? {}
+    for (const ab of abilities) {
+      const iv = ab.intervalMs ?? 1000
+      const k = ab.type
+      minion._abAccum[k] = (minion._abAccum[k] ?? 0) + delta
+      if (minion._abAccum[k] < iv) continue
+      minion._abAccum[k] = 0
+      this._applyTickAbility(minion, scene, gameState, dungeonGrid, ab)
+    }
+  },
+
+  // Passive damage-taken multiplier queried by CombatSystem._computeDamage.
+  // Sums 'damageReduction' abilities on the TARGET minion (Ent Gnarled Hide,
+  // Skeleton Shieldwall). damageType-gated; shieldwall can require a same-room
+  // family ally to be present.
+  damageTakenMul(target, attacker, gameState, scene) {
+    const abilities = _abilitiesFor(target, scene, 'passive')
+    if (!abilities) return 1
+    const dmgType = attacker?.damageType ?? attacker?.stats?.damageType ?? 'physical'
+    let mul = 1
+    for (const ab of abilities) {
+      if (ab.type !== 'damageReduction') continue
+      if (ab.damageType && ab.damageType !== dmgType) continue
+      if (ab.requireFamilyAllyTag && gameState) {
+        const has = (gameState.minions ?? []).some(m =>
+          m !== target && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 &&
+          m.assignedRoomId === target.assignedRoomId &&
+          Array.isArray(m.tags) && m.tags.includes(ab.requireFamilyAllyTag))
+        if (!has) continue
+      }
+      mul *= (ab.mult ?? 1)
+    }
+    return mul
+  },
+
+  // Effective bonus damage from buff auras the attacker is currently standing
+  // in (set as a flag by the aura's onTick). Read in CombatSystem.
+  // (Stored on the minion as _rallyAtkMul / _rallyDefMul.)
+
+  // Status predicates / queries.
+  isSlowed(entity, now)  { return !!(entity?._slowUntil && entity._slowUntil > (now ?? 0)) },
+  slowMult(entity, now)  { return (entity?._slowUntil && entity._slowUntil > (now ?? 0)) ? (entity._slowMult ?? 1) : 1 },
+  armorShredOf(entity, now) { return (entity?._armorShredUntil && entity._armorShredUntil > (now ?? 0)) ? (entity._armorShred ?? 0) : 0 },
+
+  // ── Ability handlers ──────────────────────────────────────────────────────
+
+  _applyHitAbility(scene, attacker, target, damageDealt, gameState, ab) {
+    const now = scene?.time?.now ?? 0
+    switch (ab.type) {
+      case 'dot':
+        this._applyDot(target, scene, {
+          type: ab.element ?? 'poison', dmgPerTick: ab.dmgPerTick ?? 1,
+          intervalMs: ab.intervalMs ?? 1000, ticksLeft: ab.ticks ?? 3,
+          source: attacker.instanceId,
+        })
+        if (ab.popup !== false) AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? (ab.element === 'burn' ? 'BURN' : 'POISON'), { color: ab.element === 'burn' ? '#ff7733' : '#88dd44' })
+        break
+      case 'slow': {
+        const next = now + (ab.durationMs ?? 1500)
+        // Keep the strongest (lowest) slow + the latest expiry.
+        if (!target._slowUntil || target._slowUntil < next) target._slowUntil = next
+        target._slowMult = Math.min(target._slowMult ?? 1, ab.mult ?? 0.6)
+        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'SLOWED', { color: '#66ccee' })
+        if (Number.isFinite(target.worldX)) AbilityVfx.pulseRing(scene, target.worldX, target.worldY, { color: 0x66ccee, fromR: 6, toR: 16, alpha: 0.7, durationMs: 400 })
+        break
+      }
+      case 'root':
+        this._applyRoot(target, scene, ab.durationMs ?? 2000)
+        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'ROOTED', { color: '#559944' })
+        if (Number.isFinite(target.worldX)) AbilityVfx.pulseRing(scene, target.worldX, target.worldY, { color: 0x559944, fromR: 6, toR: 18, alpha: 0.8, durationMs: 500 })
+        break
+      case 'stagger':
+        this._applyStagger(target, scene, ab.durationMs ?? 1000)
+        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'STAGGERED', { color: '#aa9988' })
+        break
+      case 'lifesteal': {
+        if (damageDealt <= 0) break
+        const heal = Math.max(1, Math.floor(damageDealt * (ab.frac ?? 0.5)))
+        const before = attacker.resources.hp
+        attacker.resources.hp = Math.min(attacker.resources.maxHp ?? 0, attacker.resources.hp + heal)
+        const restored = attacker.resources.hp - before
+        if (restored > 0) AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, `+${restored}`, { color: '#ff77aa' })
+        break
+      }
+      case 'armorShred': {
+        const next = now + (ab.durationMs ?? 4000)
+        target._armorShred = Math.min((target._armorShred ?? 0) + (ab.amount ?? 2), ab.max ?? 8)
+        target._armorShredUntil = Math.max(target._armorShredUntil ?? 0, next)
+        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'ARMOR SHRED', { color: '#cc8844' })
+        break
+      }
+      case 'nerveDrain': {
+        // Sorrow Wisp — "drains hope before it drains blood." Ties into the
+        // adventurer NerveSystem: knock the struck adv's nerve down a step.
+        if (typeof target.nerve === 'number') {
+          target.nerve = Math.max(0, target.nerve - (ab.amount ?? 14))
+          AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'DESPAIR', { color: '#6688cc' })
+        }
+        break
+      }
+      default: break
+    }
+  },
+
+  _applyDeathAbility(scene, minion, gameState, ab) {
+    switch (ab.type) {
+      case 'split':
+        if (!minion._isMiniSlime && gameState?.minions) this._spawnSplitChildren(scene, minion, gameState, ab)
+        break
+      case 'aoeOnDeath':
+        this._aoeOnDeath(scene, minion, gameState, ab)
+        break
+      case 'staggerCloud':
+        this._staggerCloud(scene, minion, gameState, ab)
+        break
+      default: break
+    }
+  },
+
+  _applyTickAbility(minion, scene, gameState, dungeonGrid, ab) {
+    switch (ab.type) {
+      case 'healAura':      this._healAura(minion, scene, gameState, ab); break
+      case 'reviveAlly':    this._reviveAlly(minion, scene, gameState, ab); break
+      case 'buffAura':      this._buffAura(minion, scene, gameState, ab); break
+      case 'contagionAura': this._contagionAura(minion, scene, gameState, ab); break
+      case 'summon':        this._summonAdd(minion, scene, gameState, ab); break
+      case 'hazardTrail':   this._hazardTrail(minion, scene, gameState, ab); break
+      default: break
+    }
   },
 
   isRooted(entity, now) {
@@ -377,6 +559,12 @@ export const MinionAbilities = {
     minion._dot = null
     minion._rootedUntil = 0
     minion._staggeredUntil = 0
+    minion._slowUntil = 0; minion._slowMult = 1
+    minion._armorShredUntil = 0; minion._armorShred = 0
+    minion._enraged = false              // Thread C: clear wounded-state flags
+    minion._fallingBack = false
+    minion._abAccum = {}                 // reset onTick ability accumulators
+    minion._abOnce_dot = false; minion._abOnce_root = false  // re-arm oncePerFight
     // Re-arm Lizardman camouflage each night (set by createMinion at first spawn).
     if (LIZARDMAN_IDS.has(minion.definitionId)) {
       minion._camouflaged = true
@@ -834,5 +1022,261 @@ export const MinionAbilities = {
         color: 0x9966cc, count: 12, durationMs: 800, speed: 50,
       })
     }
+  },
+
+  // ── Data-ability handler internals (Thread E/D/B/Widen) ──────────────────
+
+  _roomOf(gameState, id) {
+    return (gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === id) ?? null
+  },
+  _inRoom(x, y, room) {
+    return room && x >= room.gridX && x < room.gridX + room.width &&
+           y >= room.gridY && y < room.gridY + room.height
+  },
+  _liveAdvs(gameState) {
+    return (gameState?.adventurers?.active ?? []).filter(a =>
+      a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+  },
+
+  // Generalised Split on Death — spawns `count` half-stat children of the same
+  // type. Drives both legacy slimes and the elders' "splits when struck" (D).
+  _spawnSplitChildren(scene, parent, gameState, ab) {
+    const count = ab.count ?? 2
+    const offsets = [
+      { dx: -1, dy: 0 }, { dx: 1, dy: 0 }, { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+      { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
+    ]
+    let spawned = 0
+    for (const off of offsets) {
+      if (spawned >= count) break
+      gameState.minions.push(this._cloneAsMiniSlime(parent, parent.tileX + off.dx, parent.tileY + off.dy, ab.statMul ?? 0.5))
+      spawned += 1
+    }
+    if (scene && spawned > 0) {
+      AbilityVfx.particleBurst(scene, parent.worldX ?? 0, parent.worldY ?? 0, {
+        color: parent.color ?? 0x44aaff, count: 8, durationMs: 500, speed: 70,
+      })
+    }
+  },
+
+  // Generalised death AoE (imp Self-Combust + any future on-death blast).
+  _aoeOnDeath(scene, minion, gameState, ab) {
+    const radius = ab.radiusTiles ?? 1.5
+    const dmg    = ab.dmg ?? 8
+    const color  = ab.color ?? 0xff6633
+    let hits = 0
+    for (const adv of this._liveAdvs(gameState)) {
+      if (Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
+      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
+      hits += 1
+      if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${dmg}`, { color: '#ff6633' })
+    }
+    if (scene) {
+      AbilityVfx.pulseRing(scene, minion.worldX ?? 0, minion.worldY ?? 0, { color, fromR: 8, toR: radius * 32, durationMs: 350, alpha: 0.85 })
+      AbilityVfx.particleBurst(scene, minion.worldX ?? 0, minion.worldY ?? 0, { color, count: 14, durationMs: 600, speed: 110 })
+      if (hits > 0) AbilityVfx.floatingText(scene, minion.worldX ?? 0, (minion.worldY ?? 0) - 22, ab.label ?? 'BOOM', { color: '#ff8844' })
+    }
+  },
+
+  // Generalised death stagger cloud (mushroom Confusion Spores).
+  _staggerCloud(scene, minion, gameState, ab) {
+    const radius = ab.radiusTiles ?? SPORE_RADIUS_TILES
+    for (const adv of this._liveAdvs(gameState)) {
+      if (Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
+      this._applyStagger(adv, scene, ab.durationMs ?? SPORE_STAGGER_MS)
+      if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 22, ab.label ?? 'CONFUSED', { color: '#cc88ff' })
+    }
+    if (scene) {
+      AbilityVfx.pulseRing(scene, minion.worldX ?? 0, minion.worldY ?? 0, { color: 0x9966cc, fromR: 8, toR: radius * 32, durationMs: 600, alpha: 0.7 })
+      AbilityVfx.particleBurst(scene, minion.worldX ?? 0, minion.worldY ?? 0, { color: 0x9966cc, count: 12, durationMs: 800, speed: 50 })
+    }
+  },
+
+  // Heal Undead aura — generalised from the lich1-only version so ALL lich
+  // tiers (and any future support minion) heal the most-wounded same-room ally
+  // carrying `tag`. Interval gating is handled by tickAbilities.
+  _healAura(lich, scene, gameState, ab) {
+    const home = this._roomOf(gameState, lich.assignedRoomId)
+    if (!home) return
+    const tag = ab.tag ?? 'undead'
+    let best = null, bestMissing = 0
+    for (const m of (gameState.minions ?? [])) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      if (!Array.isArray(m.tags) || !m.tags.includes(tag)) continue
+      if (!this._inRoom(m.tileX, m.tileY, home)) continue
+      const missing = (m.resources?.maxHp ?? 0) - (m.resources?.hp ?? 0)
+      if (missing > bestMissing) { best = m; bestMissing = missing }
+    }
+    if (!best) return
+    const before = best.resources.hp
+    best.resources.hp = Math.min(best.resources.maxHp ?? 0, best.resources.hp + (ab.amount ?? 6))
+    const restored = best.resources.hp - before
+    if (restored > 0) {
+      EventBus.emit('ALLY_HEALED', { sourceId: lich.instanceId, targetId: best.instanceId, amount: restored, roomId: lich.assignedRoomId })
+      if (scene && Number.isFinite(best.worldX)) {
+        AbilityVfx.floatingText(scene, best.worldX, best.worldY - 22, `+${restored}`, { color: '#ffe27a' })
+        AbilityVfx.pulseRing(scene, best.worldX, best.worldY, { color: 0xffe27a, fromR: 6, toR: 16, alpha: 0.7, durationMs: 420 })
+      }
+    }
+  },
+
+  // Raise Dead — Elder Lich periodically reanimates ONE fallen same-room ally
+  // (tagged) back to a fraction of HP. Capped by interval; the revived minion
+  // is flagged _raisedAdd so it's swept at dawn (no permanent army growth).
+  _reviveAlly(lich, scene, gameState, ab) {
+    const home = this._roomOf(gameState, lich.assignedRoomId)
+    if (!home) return
+    const tag = ab.tag ?? 'undead'
+    const fallen = (gameState.minions ?? []).find(m =>
+      m !== lich && m.aiState === 'dead' &&
+      m.faction === 'dungeon' && m.assignedRoomId === lich.assignedRoomId &&
+      Array.isArray(m.tags) && m.tags.includes(tag) && !m._raisedAdd)
+    if (!fallen) return
+    const max = fallen.resources?.maxHp ?? 1
+    fallen.resources.hp = Math.max(1, Math.floor(max * (ab.frac ?? 0.5)))
+    fallen.aiState = 'idle'
+    fallen.deathDay = null
+    fallen._raisedAdd = true
+    fallen.tileX = lich.tileX; fallen.tileY = lich.tileY
+    fallen.worldX = lich.worldX; fallen.worldY = lich.worldY
+    EventBus.emit('MINION_RESPAWNED', { minionId: fallen.instanceId, sourceId: lich.instanceId })
+    if (scene && Number.isFinite(fallen.worldX)) {
+      AbilityVfx.floatingText(scene, fallen.worldX, fallen.worldY - 22, ab.label ?? 'RISE', { color: '#bb99ff' })
+      AbilityVfx.pulseRing(scene, fallen.worldX, fallen.worldY, { color: 0xbb99ff, fromR: 6, toR: 24, alpha: 0.8, durationMs: 600 })
+    }
+  },
+
+  // Rally Aura — Commander buffs nearby dungeon minions' ATK/DEF. Stamps a
+  // short-lived flag (expiry slightly past the interval) so the buff persists
+  // between ticks but DROPS shortly after the commander dies/leaves the room.
+  _buffAura(commander, scene, gameState, ab) {
+    const home = this._roomOf(gameState, commander.assignedRoomId)
+    if (!home) return
+    const now = scene?.time?.now ?? 0
+    const until = now + (ab.intervalMs ?? 1000) * 1.6
+    let buffed = 0
+    for (const m of (gameState.minions ?? [])) {
+      if (m === commander) continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      if (!this._inRoom(m.tileX, m.tileY, home)) continue
+      m._rallyUntil  = until
+      m._rallyAtkMul = ab.atkMul ?? 1.2
+      m._rallyDefMul = ab.defMul ?? 1.0
+      buffed += 1
+    }
+    if (scene && buffed > 0 && Number.isFinite(commander.worldX)) {
+      AbilityVfx.pulseRing(scene, commander.worldX, commander.worldY, { color: 0xffcc44, fromR: 8, toR: 40, alpha: 0.45, durationMs: 620 })
+    }
+  },
+
+  // Contagion Aura — Crypt Lord: same-room adventurers take periodic poison.
+  _contagionAura(minion, scene, gameState, ab) {
+    const home = this._roomOf(gameState, minion.assignedRoomId)
+    if (!home) return
+    const radius = ab.radiusTiles ?? 99   // default = whole room
+    let hit = false
+    for (const adv of this._liveAdvs(gameState)) {
+      if (!this._inRoom(adv.tileX, adv.tileY, home)) continue
+      if (radius < 99 && Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
+      const dmg = ab.dmgPerTick ?? 2
+      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
+      adv._lastHitBy = minion.instanceId
+      adv._lastHitType = ab.element ?? 'poison'
+      hit = true
+      if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${dmg}`, { color: '#88dd44' })
+    }
+    if (scene && hit && Number.isFinite(minion.worldX)) {
+      AbilityVfx.pulseRing(scene, minion.worldX, minion.worldY, { color: 0x77aa33, fromR: 8, toR: 30, alpha: 0.35, durationMs: 700 })
+    }
+  },
+
+  // Summon — Bone Totem / Hive Node spawns a weak, capped add. Adds carry
+  // `_summonedBy` + `_isSummonedAdd` so the cap can count them and the dawn
+  // respawn sweep can wipe them (no permanent growth).
+  _summonAdd(minion, scene, gameState, ab) {
+    const cap = ab.cap ?? 3
+    const alive = (gameState.minions ?? []).filter(m =>
+      m._summonedBy === minion.instanceId && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
+    if (alive >= cap) return
+    const defs = scene?.cache?.json?.get?.('minionTypes') ?? []
+    const addDef = defs.find(d => d.id === (ab.addId ?? 'swarmling'))
+    if (!addDef) return
+    const tile = { x: minion.tileX, y: minion.tileY }
+    const add = this._makeAdd(addDef, tile, minion.assignedRoomId, minion)
+    gameState.minions.push(add)
+    if (scene && Number.isFinite(minion.worldX)) {
+      AbilityVfx.particleBurst(scene, minion.worldX, minion.worldY, { color: add.color ?? 0xccccaa, count: 8, durationMs: 450, speed: 60 })
+      AbilityVfx.floatingText(scene, minion.worldX, minion.worldY - 22, ab.label ?? 'SUMMON', { color: '#ddccaa' })
+    }
+  },
+
+  _makeAdd(typeDef, tile, roomId, summoner) {
+    const TS = 32
+    const bs = typeDef.baseStats ?? {}
+    const hp = bs.hp ?? 10
+    let color = typeDef.color
+    if (typeof color === 'string') color = parseInt(color.replace(/^0x/i, ''), 16) || 0xccccaa
+    return {
+      instanceId: `min_add_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      definitionId: typeDef.id, name: null, color, sigil: (typeDef.id[0] ?? 'S').toUpperCase(),
+      tileX: tile.x, tileY: tile.y, worldX: tile.x * TS + TS / 2, worldY: tile.y * TS + TS / 2,
+      homeTileX: tile.x, homeTileY: tile.y, assignedRoomId: roomId,
+      class: 'garrison', behaviorType: typeDef.behaviorType ?? 'guard',
+      tags: [...(typeDef.tags ?? [])], damageType: bs.damageType ?? 'physical', attackRange: bs.attackRange ?? 1,
+      faction: 'dungeon', factionExpiresOn: null, raisedByAdvId: null, tamedByAdvId: null, isMiniBoss: false,
+      stats: { hp, attack: bs.attack ?? 3, defense: bs.defense ?? 0, speed: bs.speed ?? 1.0, abilities: [] },
+      resources: { hp, maxHp: hp }, level: 1, xp: 0, evolutionHistory: [], killHistory: [],
+      lifetime: { kills: 0, damageDealt: 0 }, equippedGear: [], hasBounty: false, bountyKillCount: 0,
+      aiState: 'idle', currentTargetId: null, lastAttackAt: 0, deathDay: null, path: null, pathIndex: 0,
+      bossLevel: summoner.bossLevel ?? 1, _baseMaxHp: hp, _baseAtk: bs.attack ?? 3,
+      _summonedBy: summoner.instanceId, _isSummonedAdd: true,
+    }
+  },
+
+  // Hazard Trail — Rust Gremlin drops a lingering damage zone behind it as it
+  // moves. Zones live on gameState.dungeon.hazards and are ticked/expired by
+  // tickHazards (called once per frame from MinionAISystem.update).
+  _hazardTrail(minion, scene, gameState, ab) {
+    if (!gameState.dungeon) return
+    // Only drop when the minion has actually moved to a new tile.
+    if (minion._lastHazardTile && minion._lastHazardTile.x === minion.tileX && minion._lastHazardTile.y === minion.tileY) return
+    minion._lastHazardTile = { x: minion.tileX, y: minion.tileY }
+    const now = scene?.time?.now ?? 0
+    gameState.dungeon.hazards = gameState.dungeon.hazards ?? []
+    gameState.dungeon.hazards.push({
+      tileX: minion.tileX, tileY: minion.tileY, element: ab.element ?? 'fire',
+      dmg: ab.dmg ?? 2, radius: ab.radiusTiles ?? 0.7, expiresAt: now + (ab.zoneMs ?? 4000),
+      color: ab.color ?? 0xff7733, sourceId: minion.instanceId,
+    })
+  },
+
+  // Per-frame hazard-zone processor (called once from MinionAISystem.update).
+  tickHazards(scene, gameState, delta) {
+    const hazards = gameState?.dungeon?.hazards
+    if (!Array.isArray(hazards) || !hazards.length) return
+    const now = scene?.time?.now ?? 0
+    const advs = this._liveAdvs(gameState)
+    const remaining = []
+    for (const h of hazards) {
+      if (now >= h.expiresAt) continue
+      // Tick damage ~1×/sec per standing adv.
+      h._lastTick = h._lastTick ?? 0
+      if (now - h._lastTick >= 1000) {
+        h._lastTick = now
+        for (const adv of advs) {
+          if (Math.hypot(adv.tileX - h.tileX, adv.tileY - h.tileY) > (h.radius ?? 0.7) + 0.01) continue
+          const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+          adv.resources.hp = Math.max(fl, adv.resources.hp - (h.dmg ?? 2))
+          adv._lastHitBy = h.sourceId; adv._lastHitType = h.element ?? 'fire'
+          if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${h.dmg ?? 2}`, { color: '#ff7733' })
+        }
+      }
+      remaining.push(h)
+    }
+    gameState.dungeon.hazards = remaining
   },
 }

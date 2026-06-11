@@ -2739,7 +2739,11 @@ export class AISystem {
     // FLOOR the compounding SLOW factors (paranoid × nerve-creep × appraise-creep
     // could reach ~0.29× and let a slow class graze the stagnation/oscillation
     // watchdogs). Speedups (flee/song/cheater/roar/berserk/cohesion) are not floored.
-    const slowMul  = Math.max(0.5, speedMul * nerveMul * creepMul)
+    // Minion-applied slow (Vinekin / Frost Slime / Webspinner) — folded into the
+    // floored slow group so a web/chill noticeably drags a confident mover but
+    // can't push the step low enough to trip the stagnation/oscillation watchdogs.
+    const minionSlowMul = MinionAbilities.slowMult(adv, this._scene?.time?.now ?? 0)
+    const slowMul  = Math.max(0.5, speedMul * nerveMul * creepMul * minionSlowMul)
     const stepPx   = (adv.stats.speed * slowMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * berserkMul * cohesionMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {

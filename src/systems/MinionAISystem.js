@@ -44,6 +44,10 @@ const STATIONARY_DEF_IDS = new Set([
   'mushroom2',
   'lizardman1',
   'ghost1',
+  // Summoner totems (Widen) — rooted founts of swarmlings; never patrol.
+  'bone_totem1',
+  'bone_totem2',
+  'necro_obelisk',
 ])
 
 export class MinionAISystem {
@@ -193,6 +197,10 @@ export class MinionAISystem {
       this._tickMinion(minions[i], delta, i)
     }
     this._tickAdvsByRoom = null
+
+    // Hazard zones (Thread E / Widen terrain-shaper) — lingering damage tiles
+    // dropped by hazard-trail minions; ticked + expired once per frame.
+    MinionAbilities.tickHazards(this._scene, this._gameState, delta)
 
     // De-clump STANDING minions — idle guards / settled packs that share a tile
     // fan out so they don't read as one blob. STATIONARY only (idle with no
@@ -406,16 +414,18 @@ export class MinionAISystem {
       return
     }
 
-    // Pass-1: Lich Heal Undead aura. Bone Cleric heals the most-wounded
-    // undead-tagged ally within its home room every 3s for 6 HP.
-    if (minion.definitionId === 'lich1') {
-      this._tickLichHealAura(minion, delta)
-    }
+    // Lich Heal Undead aura is now data-driven (healAura onTick in
+    // minionTypes.json) so ALL lich tiers heal — see MinionAbilities.tickAbilities
+    // below. (The old lich1-only _tickLichHealAura call lived here.)
 
     // Pass-3: per-minion behavior dispatcher. Sets _hidden, _patrolTarget,
     // teleports, etc. Runs before the wander block so its overrides are
     // visible to that block immediately.
     MinionAbilities.tickBehavior(minion, this._scene, this._gameState, this._dungeonGrid, delta)
+
+    // Data-driven onTick abilities (Thread E) — heal/revive/buff/contagion/
+    // summon/hazard auras authored in JSON. Interval-gated internally.
+    MinionAbilities.tickAbilities(minion, this._scene, this._gameState, this._dungeonGrid, delta)
 
     // Pass-1/3: stationary behavior gates. Vinekin/Mushrooms never patrol
     // — they hold their tile until aggro'd. Pass-3 adds Lizardman Lurk
@@ -1173,6 +1183,11 @@ export class MinionAISystem {
     const reach = minion.attackRange ?? Balance.MELEE_RANGE_TILES
     const d = Math.hypot(target.tileX - minion.tileX, target.tileY - minion.tileY)
 
+    // Thread C — reactive wounded states (mix per-archetype): bruisers ENRAGE,
+    // ranged/casters KITE, fragile/support FALL BACK. Returns true when it owns
+    // this tick's movement (kite/fall-back); enrage just flags + falls through.
+    if (this._reactiveCombat(minion, target, d, reach, delta)) return
+
     // Flee-chase speed match: a fleeing adv runs at adv.stats.speed *
     // 1.1 (the AISystem flee multiplier). Mirror that exact speed on
     // the chaser so the pursuit is purely positional — whoever was
@@ -1241,6 +1256,94 @@ export class MinionAISystem {
     } finally {
       if (fleeing && minion.stats) minion.stats.speed = savedSpeed
     }
+  }
+
+  // ── Thread C: reactive wounded states ─────────────────────────────────────
+
+  // Classify a minion's combat archetype from its tags / range so the wounded
+  // reaction matches its kit (a glass caster shouldn't stand and trade).
+  _archetypeOf(minion) {
+    const tags = minion.tags ?? []
+    const ranged  = (minion.attackRange ?? 1) > 1 || tags.includes('ranged') || tags.includes('caster')
+    const support = tags.includes('support') || tags.includes('commander') || tags.includes('summoner')
+    return { ranged, support, bruiser: !ranged && !support }
+  }
+
+  // Per-tick reactive behavior while engaged. ENRAGE flags the minion for the
+  // CombatSystem damage bonus (no movement change → falls through to normal
+  // engage). KITE / FALL BACK take over movement and return true.
+  _reactiveCombat(minion, target, d, reach, delta) {
+    const ENRAGE_FRAC = 0.35, FALLBACK_FRAC = 0.35, KITE_MIN = 2.0, FRAGILE_MAXHP = 55
+    const maxHp  = minion.resources?.maxHp ?? 1
+    const hpFrac = maxHp > 0 ? (minion.resources?.hp ?? 0) / maxHp : 1
+    const arch   = this._archetypeOf(minion)
+    const stationary = STATIONARY_DEF_IDS.has(minion.definitionId)
+    const garrison   = minion.class === 'garrison'
+
+    // ENRAGE — wounded bruisers hit harder (read in CombatSystem._computeDamage).
+    // Orcs are excluded: they already have Berserker Rage (attack-speed) as their
+    // family signature, so we don't double-dip the wounded escalation on them.
+    if (arch.bruiser && !stationary && !(minion.tags ?? []).includes('orc')) {
+      if (hpFrac < ENRAGE_FRAC && !minion._enraged) {
+        minion._enraged = true
+        if (Number.isFinite(minion.worldX)) {
+          AbilityVfx.pulseRing(this._scene, minion.worldX, minion.worldY, { color: 0xcc2222, fromR: 6, toR: 24, alpha: 0.7, durationMs: 500 })
+          AbilityVfx.floatingText(this._scene, minion.worldX, minion.worldY - 20, 'ENRAGED', { color: '#ff5544' })
+        }
+      } else if (hpFrac >= ENRAGE_FRAC && minion._enraged) {
+        minion._enraged = false
+      }
+      // No movement change — let normal engage continue.
+    }
+
+    // KITE — a ranged attacker that an adventurer has closed on backsteps to
+    // restore its range (still firing if it can), staying inside its home room
+    // so it never kites out of its leash or through a doorway.
+    if (arch.ranged && !stationary && d > 0 && d < KITE_MIN) {
+      const _rm = this._dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)
+      const _rt = this._dungeonGrid?.getRoomAtTile?.(target.tileX, target.tileY)
+      if (_rm && _rt && _rm.instanceId === _rt.instanceId && d <= reach + 0.01 && d >= 0.99) {
+        this._combatSystem.tryAttack(minion, target, { roomId: minion.assignedRoomId })
+      }
+      this._kiteStep(minion, target, delta)
+      return true
+    }
+
+    // FALL BACK — a wounded fragile/support minion retreats toward its home tile
+    // to regroup (next to its barracks/allies) instead of trading to the death.
+    // Garrison mini-bosses and stationary minions hold their post.
+    const fragile = arch.support || (!arch.bruiser && maxHp <= FRAGILE_MAXHP)
+    if (fragile && !garrison && !stationary && hpFrac < FALLBACK_FRAC && !this._atHome(minion)) {
+      if (!minion._fallingBack) {
+        minion._fallingBack = true
+        if (Number.isFinite(minion.worldX)) AbilityVfx.floatingText(this._scene, minion.worldX, minion.worldY - 20, 'FALL BACK', { color: '#ffcc44' })
+      }
+      minion.aiState = 'returning'
+      this._walkAlongPath(minion, { x: minion.homeTileX, y: minion.homeTileY }, delta)
+      return true
+    }
+    if (minion._fallingBack && (hpFrac >= FALLBACK_FRAC || this._atHome(minion))) minion._fallingBack = false
+
+    return false
+  }
+
+  // One backstep directly away from `target`, constrained to walkable, non-door
+  // tiles inside the minion's home room. Holds position if cornered.
+  _kiteStep(minion, target, delta) {
+    const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
+    const dx = Math.sign(minion.tileX - target.tileX)
+    const dy = Math.sign(minion.tileY - target.tileY)
+    if (dx === 0 && dy === 0) return
+    const tiles = this._dungeonGrid?.getTiles?.()
+    const inHome = (x, y) => !home || (x >= home.gridX && x < home.gridX + home.width && y >= home.gridY && y < home.gridY + home.height)
+    for (const c of [{ x: minion.tileX + dx, y: minion.tileY + dy }, { x: minion.tileX + dx, y: minion.tileY }, { x: minion.tileX, y: minion.tileY + dy }]) {
+      if (!inHome(c.x, c.y)) continue
+      if (!tiles?.[c.y] || !PathfinderSystem.isWalkable(tiles[c.y][c.x])) continue
+      if (this._dungeonGrid?.isDoorBlocked?.(c.x, c.y)) continue
+      this._moveToward(minion, c, delta)
+      return
+    }
+    // Cornered — nowhere safe to retreat; hold and keep firing.
   }
 
   // Generalised pathfinding walker. One step per call toward `targetTile`,

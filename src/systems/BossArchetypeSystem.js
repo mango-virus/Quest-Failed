@@ -622,6 +622,7 @@ export class BossArchetypeSystem {
     if (m.faction !== 'dungeon') return true              // only player minions
     if (m._isGoopling)    return true                     // anti-feedback-loop
     if (m._isMiniSlime)   return true                     // Slime Split babies
+    if (m._isSummonedAdd) return true                     // Bone Totem adds — anti-feedback
     if (m._isMitosisAdd)  return true                     // boss-spawned adds — would feed boss its own splits
     if (m.isBossAdd)      return true                     // generic boss-fight adds
     if (m._isDemonImp)    return true
