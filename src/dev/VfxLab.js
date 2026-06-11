@@ -130,6 +130,19 @@ export class VfxLab {
       this._entity = a
     }
     this._spawnDummy()
+    // Give both entities a shared ROOM context (the boss room) so room-scoped
+    // abilities (auras, mass-marks, summons, contagion) can find each other.
+    // Only their TILE coords sit inside the room; their WORLD coords stay
+    // off-grid so they still render on the clean isolated stage.
+    const room = (this._gs.dungeon?.rooms ?? []).find(r => r.instanceId === this._gs.boss?.assignedRoomId)
+      ?? (this._gs.dungeon?.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
+      ?? (this._gs.dungeon?.rooms ?? [])[0]
+    if (room) {
+      const cx = room.gridX + Math.floor(room.width / 2)
+      const cy = room.gridY + Math.floor(room.height / 2)
+      if (this._entity) { this._entity.assignedRoomId = room.instanceId; this._entity.tileX = cx; this._entity.tileY = cy }
+      if (this._dummy)  { this._dummy.assignedRoomId  = room.instanceId; this._dummy.tileX = cx + 1; this._dummy.tileY = cy }
+    }
     this._refreshButtons()
     this._loopFn = null; this._loopKind = null   // don't loop a stale action onto the new entity
     // Keep the camera locked on the (re)spawned entity so switching entities
@@ -198,6 +211,15 @@ export class VfxLab {
                                : this._scene.adventurerRenderer?._sprites?.[e.instanceId]
     const img = e.definitionId ? rec?.sprite : rec?.lpc?.image
     return !!img?.anims?.isPlaying
+  }
+
+  // Pin the facing direction — minions read `_vfxLabFacing` (renderer override),
+  // adventurers read `_lpcDir`. Replay so the new direction shows immediately.
+  _setFacing(dir) {
+    if (!this._entity) return
+    this._entity._vfxLabFacing = dir
+    this._entity._lpcDir = dir
+    this._forceReplay()
   }
 
   _fireRaw(name, colorKey) {
@@ -287,6 +309,14 @@ export class VfxLab {
     const zin = this._btn('+', () => rezoom(cam().zoom + 0.5)); zin.style.float = 'right'
     opts.appendChild(zin); opts.appendChild(zout)
     p.appendChild(opts)
+
+    // Facing direction
+    const faceRow = this._el('div', 'margin:4px 0;')
+    faceRow.appendChild(this._el('span', 'font:10px monospace;color:#9aa;margin-right:6px;', 'FACE'))
+    for (const [lbl, dir] of [['↑', 'up'], ['↓', 'down'], ['←', 'left'], ['→', 'right']]) {
+      faceRow.appendChild(this._btn(lbl, () => this._setFacing(dir)))
+    }
+    p.appendChild(faceRow)
 
     // Dynamic sections (rebuilt per entity)
     this._abilitySec = this._section('ABILITIES')

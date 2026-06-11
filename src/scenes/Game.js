@@ -2115,6 +2115,9 @@ export class Game extends Phaser.Scene {
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
       this.hazardRenderer?.update()
+      // Persistent ability VFX (plunder brand over marked heroes) so the VFX
+      // Lab can show them at night; inert otherwise (no marks exist at night).
+      if (this._vfxLabActive) this.plunderMarkRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists
