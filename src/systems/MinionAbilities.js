@@ -512,6 +512,7 @@ export const MinionAbilities = {
       case 'contagionAura': this._contagionAura(minion, scene, gameState, ab); break
       case 'summon':        this._summonAdd(minion, scene, gameState, ab); break
       case 'hazardTrail':   this._hazardTrail(minion, scene, gameState, ab); break
+      case 'novaBurst':     this._novaBurst(minion, scene, gameState, ab); break
       default: break
     }
   },
@@ -1191,6 +1192,63 @@ export const MinionAbilities = {
     }
     if (scene && hit && Number.isFinite(minion.worldX)) {
       AbilityVfx.pulseRing(scene, minion.worldX, minion.worldY, { color: 0x77aa33, fromR: 8, toR: 30, alpha: 0.35, durationMs: 700 })
+    }
+  },
+
+  // Nova Burst — the generic miniboss "ult": a periodic, telegraphed AoE that
+  // hits every adventurer in range (whole room by default) for `dmg`, applies an
+  // optional `status` (burn/poison/stagger/root/slow/nerve), and can drain a
+  // fraction of the total damage back to the caster (`lifestealFrac`). Used to
+  // give final/miniboss forms a dramatic signature beat on top of their
+  // inherited family passive. Fires nothing (no VFX) when no one's in range.
+  _novaBurst(minion, scene, gameState, ab) {
+    const home = this._roomOf(gameState, minion.assignedRoomId)
+    const radius = ab.radiusTiles   // undefined → whole room
+    const targets = []
+    for (const adv of this._liveAdvs(gameState)) {
+      const inRange = (radius != null)
+        ? Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) <= radius + 0.01
+        : (home && this._inRoom(adv.tileX, adv.tileY, home))
+      if (inRange) targets.push(adv)
+    }
+    if (!targets.length) return
+    const now = scene?.time?.now ?? 0
+    const dmg = ab.dmg ?? 8
+    let total = 0
+    for (const adv of targets) {
+      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      const before = adv.resources.hp
+      adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
+      total += before - adv.resources.hp
+      adv._lastHitBy = minion.instanceId
+      adv._lastHitType = ab.element ?? 'physical'
+      switch (ab.status) {
+        case 'burn':    this._applyDot(adv, scene, { type: 'burn',   dmgPerTick: 2, intervalMs: 1000, ticksLeft: 3, source: minion.instanceId }); break
+        case 'poison':  this._applyDot(adv, scene, { type: 'poison', dmgPerTick: 2, intervalMs: 1000, ticksLeft: 4, source: minion.instanceId }); break
+        case 'stagger': this._applyStagger(adv, scene, ab.statusMs ?? 1200); break
+        case 'root':    this._applyRoot(adv, scene, ab.statusMs ?? 1500); break
+        case 'slow': {
+          const next = now + (ab.statusMs ?? 1800)
+          if (!adv._slowUntil || adv._slowUntil < next) adv._slowUntil = next
+          adv._slowMult = Math.min(adv._slowMult ?? 1, ab.slowMult ?? 0.6)
+          break
+        }
+        case 'nerve':   if (typeof adv.nerve === 'number') adv.nerve = Math.max(0, adv.nerve - (ab.nerveAmt ?? 14)); break
+        default: break
+      }
+      if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${dmg}`, { color: '#ffffff' })
+    }
+    if (ab.lifestealFrac && total > 0) {
+      const heal = Math.max(1, Math.floor(total * ab.lifestealFrac))
+      const before = minion.resources.hp
+      minion.resources.hp = Math.min(minion.resources.maxHp ?? 0, minion.resources.hp + heal)
+      const restored = minion.resources.hp - before
+      if (restored > 0 && scene) AbilityVfx.floatingText(scene, minion.worldX ?? 0, (minion.worldY ?? 0) - 24, `+${restored}`, { color: '#ff77aa' })
+    }
+    if (scene && Number.isFinite(minion.worldX)) {
+      const col = (typeof ab.color === 'number') ? ab.color : 0xffffff
+      AbilityVfx.shockwaveFx(scene, minion.worldX, minion.worldY, { color: col, fromR: 10, toR: (radius ? radius * 32 : 130), durationMs: 620, rings: 2 })
+      if (ab.label) AbilityVfx.floatingText(scene, minion.worldX, minion.worldY - 28, ab.label, { color: '#' + col.toString(16).padStart(6, '0') })
     }
   },
 

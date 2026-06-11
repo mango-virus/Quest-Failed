@@ -1338,6 +1338,7 @@ families render + summon-caps / hazard-trails / rally-aura / enrage observed fir
 | min-W-debuffer | Rust Gremlin line | ✅ DONE | rust1/2/tyrant — armorShred + acid hazardTrail (live 3–4 zones). |
 | min-W-wiring | types + chains + unlocks + costs + tooltips | ✅ DONE | 13 entries, 4 chains, unlocks seed, unlockLevels, goldCosts, tooltips; color+sigil render. |
 | min-verify | soak + balance + lint + verify-docs + harness + preview | ✅ DONE | See header above. |
+| min-D-ults | Miniboss ULTs (was optional/stretch): `novaBurst` onTick handler + 8 signatures (Hellfire Nova / Sanguine Drain / Tyrant's Gaze / Seismic Slam / Venom Storm / Whirlwind / Wail of Sorrow + Gnoll Alpha Rally) | ✅ DONE (2026-06-10) | Harness 48/48 (9 ult checks incl. burn/heal/root/stagger-radius/nerve/rally); soak 120/120; lint green; live preview — demon_lord burn, wraith nerve-drain on 11 advs, sovereign self-heal to full, 0 errors. |
 
 **Known follow-ups (not blockers):** hazard zones read as a pulse-on-tick, not a persistent floor pool
 — a small renderer would raise the Steam visual bar. Shieldwall formation gated on undead-ally rather

@@ -1722,7 +1722,8 @@
   {
     "id": "beholder_tyrant",
     "abilities": [
-      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 2000, "label": "PETRIFIED" }
+      { "type": "root", "trigger": "onHit", "chance": 0.15, "durationMs": 2000, "label": "PETRIFIED" },
+      { "type": "novaBurst", "trigger": "onTick", "element": "psychic", "dmg": 4, "status": "root", "statusMs": 1500, "intervalMs": 8000, "color": 13387502, "label": "TYRANT'S GAZE" }
     ],
     "name": "Beholder Tyrant",
     "spriteKey": "beholder_tyrant",
@@ -1756,7 +1757,8 @@
   {
     "id": "demon_lord",
     "abilities": [
-      { "type": "dot", "trigger": "onHit", "element": "burn", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "popup": false }
+      { "type": "dot", "trigger": "onHit", "element": "burn", "dmgPerTick": 2, "intervalMs": 1000, "ticks": 3, "popup": false },
+      { "type": "novaBurst", "trigger": "onTick", "element": "fire", "dmg": 10, "status": "burn", "intervalMs": 6000, "color": 16725538, "label": "HELLFIRE NOVA" }
     ],
     "name": "Demon Lord",
     "spriteKey": "demon_lord",
@@ -1790,6 +1792,9 @@
   },
   {
     "id": "dark_wraith",
+    "abilities": [
+      { "type": "novaBurst", "trigger": "onTick", "element": "shadow", "dmg": 5, "status": "nerve", "nerveAmt": 16, "intervalMs": 5000, "color": 6702250, "label": "WAIL OF SORROW" }
+    ],
     "name": "Dark Wraith",
     "spriteKey": "dark_wraith",
     "bossSkinId": "wraith",
@@ -1820,6 +1825,9 @@
   },
   {
     "id": "gnoll_alpha",
+    "abilities": [
+      { "type": "buffAura", "trigger": "onTick", "atkMul": 1.25, "defMul": 1.05, "intervalMs": 1000 }
+    ],
     "name": "Gnoll Alpha",
     "spriteKey": "gnoll_alpha",
     "bossSkinId": "gnoll",
@@ -1851,7 +1859,8 @@
   {
     "id": "golem_warden",
     "abilities": [
-      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000, "label": "STAGGERED" }
+      { "type": "stagger", "trigger": "onHit", "chance": 0.2, "durationMs": 1000, "label": "STAGGERED" },
+      { "type": "novaBurst", "trigger": "onTick", "element": "physical", "dmg": 9, "status": "stagger", "statusMs": 1300, "radiusTiles": 3, "intervalMs": 6000, "color": 11181960, "label": "SEISMIC SLAM" }
     ],
     "name": "Golem Warden",
     "spriteKey": "golem_warden",
@@ -1919,6 +1928,9 @@
   },
   {
     "id": "serpent_captain",
+    "abilities": [
+      { "type": "novaBurst", "trigger": "onTick", "element": "poison", "dmg": 4, "status": "poison", "intervalMs": 5500, "color": 6736964, "label": "VENOM STORM" }
+    ],
     "name": "Serpent Captain",
     "spriteKey": "serpent_captain",
     "bossSkinId": "lizardman",
@@ -1988,6 +2000,9 @@
   },
   {
     "id": "orc_veteran",
+    "abilities": [
+      { "type": "novaBurst", "trigger": "onTick", "element": "physical", "dmg": 12, "radiusTiles": 1.9, "intervalMs": 5000, "color": 13386786, "label": "WHIRLWIND" }
+    ],
     "name": "Orc Veteran",
     "spriteKey": "orc_veteran",
     "bossSkinId": "orc",
@@ -2018,6 +2033,9 @@
   },
   {
     "id": "vampire_sovereign",
+    "abilities": [
+      { "type": "novaBurst", "trigger": "onTick", "element": "shadow", "dmg": 8, "lifestealFrac": 0.5, "intervalMs": 6000, "color": 13373764, "label": "SANGUINE DRAIN" }
+    ],
     "name": "Vampire Sovereign",
     "spriteKey": "vampire_sovereign",
     "bossSkinId": "vampire",

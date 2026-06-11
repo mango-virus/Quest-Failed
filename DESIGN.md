@@ -2142,8 +2142,11 @@ Family-coherent signatures for every ability-less evolved form:
 - **Slime mid/finals** (slime1,5,6,7,8,9, elder_slime1/2/3) — extend **Split on Death** to ALL
   slime tiers so the elders' "splits when struck" is finally true.
 - Minibosses already carrying a family passive (demon_lord, gnoll_alpha, vampire_sovereign,
-  beholder_tyrant, golem_warden, serpent_captain, orc_veteran, dark_wraith) are covered by
-  their inherited ability; a bespoke signature **ult** for them is OPTIONAL/stretch.
+  beholder_tyrant, golem_warden, serpent_captain, orc_veteran, dark_wraith) keep their inherited
+  ability AND now get a bespoke signature **ULT** (DONE 2026-06-10, was optional/stretch): a
+  generic `novaBurst` onTick (periodic room AoE + status + optional self-heal + shockwave) drives
+  Hellfire Nova / Sanguine Drain / Tyrant's Gaze / Seismic Slam / Venom Storm / Whirlwind / Wail of
+  Sorrow; Gnoll Alpha instead leads the pack with a Rally `buffAura`.
 
 ## Thread B — Flavor-vs-mechanic audit + wire dead flavor
 - **Sorrow Wisp (ghost2)** "drains hope before it drains blood" → **Nerve Drain** on hit

@@ -5,10 +5,11 @@
 //
 //   node tools/sim/minion-abilities-check.mjs
 //
-import { makeScene } from './headless.mjs'
+import { makeScene, installGlobals } from './headless.mjs'
 import { MinionAbilities } from '../../src/systems/MinionAbilities.js'
 import { MinionAISystem } from '../../src/systems/MinionAISystem.js'
 
+installGlobals()   // stub global Phaser (BlendModes) so AbilityVfx.shockwaveFx runs
 const scene = makeScene()
 const DEFS = scene.cache.json.get('minionTypes')
 const byId = Object.fromEntries(DEFS.map(d => [d.id, d]))
@@ -236,6 +237,46 @@ for (const lid of ['lich1', 'lich2', 'elder_lich']) {
   g.adventurers.active.push(a)
   MinionAbilities.runDeathAbilities(scene, mush, g)
   check('migrated: mushroom1 Confusion Spores stagger nearby adv', MinionAbilities.isStaggered(a, scene.time.now))
+}
+
+// ── Miniboss ults (novaBurst + gnoll buffAura) ────────────────────────────
+{
+  const g = gs(); const m = minion('demon_lord'); const a = adv({ tileX: 5, tileY: 5 })
+  g.minions.push(m); g.adventurers.active.push(a); const before = a.resources.hp
+  MinionAbilities.tickAbilities(m, scene, g, null, 6000)
+  check('demon_lord Hellfire Nova damages room', a.resources.hp < before)
+  check('demon_lord Nova applies burn', Array.isArray(a._dot) && a._dot.some(d => d.type === 'burn'))
+}
+{
+  const g = gs(); const m = minion('vampire_sovereign'); m.resources.hp = 50  // wounded so heal shows
+  const a = adv({ tileX: 5, tileY: 5 }); g.minions.push(m); g.adventurers.active.push(a)
+  MinionAbilities.tickAbilities(m, scene, g, null, 6000)
+  check('vampire_sovereign Sanguine Drain heals self', m.resources.hp > 50, `hp=${m.resources.hp}`)
+}
+{
+  const g = gs(); const m = minion('beholder_tyrant'); const a = adv({ tileX: 6, tileY: 5 })
+  g.minions.push(m); g.adventurers.active.push(a)
+  MinionAbilities.tickAbilities(m, scene, g, null, 8000)
+  check('beholder_tyrant Gaze roots the room', MinionAbilities.isRooted(a, scene.time.now))
+}
+{
+  const g = gs(); const m = minion('golem_warden'); const near = adv({ tileX: 6, tileY: 5 }); const far = adv({ tileX: 11, tileY: 11 })
+  g.minions.push(m); g.adventurers.active.push(near, far); const nb = near.resources.hp, fb = far.resources.hp
+  MinionAbilities.tickAbilities(m, scene, g, null, 6000)
+  check('golem_warden Seismic Slam hits within radius', near.resources.hp < nb)
+  check('golem_warden Slam spares out-of-radius adv', far.resources.hp === fb)
+  check('golem_warden Slam staggers', MinionAbilities.isStaggered(near, scene.time.now))
+}
+{
+  const g = gs(); const m = minion('dark_wraith'); const a = adv({ tileX: 5, tileY: 5, nerve: 90 })
+  g.minions.push(m); g.adventurers.active.push(a)
+  MinionAbilities.tickAbilities(m, scene, g, null, 5000)
+  check('dark_wraith Wail drains nerve', a.nerve < 90, `nerve=${a.nerve}`)
+}
+{
+  const g = gs(); const m = minion('gnoll_alpha'); const ally = minion('gnoll1'); g.minions.push(m, ally)
+  MinionAbilities.tickAbilities(m, scene, g, null, 1000)
+  check('gnoll_alpha rallies the pack (ATK buff)', (ally._rallyAtkMul ?? 1) > 1)
 }
 
 console.log('\nMinion ability runner — correctness checks\n')
