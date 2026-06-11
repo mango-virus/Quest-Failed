@@ -14,6 +14,7 @@
 import { createMinion, applyMinionScaling } from '../entities/Minion.js'
 import { createAdventurer } from '../entities/Adventurer.js'
 import { MinionAbilities } from '../systems/MinionAbilities.js'
+import { CLASS_ABILITIES, ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
 import { AbilityVfx, VfxPalette } from '../ui/AbilityVfx.js'
 
 const MINION_ANIMS = ['idle', 'walk', 'run', 'attack', 'hurt', 'death']
@@ -97,9 +98,17 @@ export class VfxLab {
   _removeFrom(arr, e) { if (!e || !arr) return; const i = arr.indexOf(e); if (i >= 0) arr.splice(i, 1) }
 
   _despawn() {
-    // Sweep EVERY lab-frozen entity in-place (robust against any accumulation,
-    // and guarantees close() leaves nothing behind to leak into a save).
-    const sweep = (arr) => { if (!arr) return; for (let i = arr.length - 1; i >= 0; i--) if (arr[i]?._vfxLabFrozen) arr.splice(i, 1) }
+    // Sweep every lab-frozen entity AND anything spawned in the off-grid lab
+    // zone (e.g. necromancer summons fired during a test) so nothing leaks into
+    // the save. The dungeon sits far above the zone, so live entities are safe.
+    const zone = (this._y ?? Infinity) - 1200
+    const sweep = (arr) => {
+      if (!arr) return
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const x = arr[i]
+        if (x?._vfxLabFrozen || (Number.isFinite(x?.worldY) && x.worldY > zone)) arr.splice(i, 1)
+      }
+    }
     sweep(this._gs.minions)
     sweep(this._gs.adventurers?.active)
     this._entity = null; this._dummy = null
@@ -143,6 +152,7 @@ export class VfxLab {
       if (this._entity) { this._entity.assignedRoomId = room.instanceId; this._entity.tileX = cx; this._entity.tileY = cy }
       if (this._dummy)  { this._dummy.assignedRoomId  = room.instanceId; this._dummy.tileX = cx + 1; this._dummy.tileY = cy }
     }
+    this._setupAdvArena()
     this._refreshButtons()
     this._loopFn = null; this._loopKind = null   // don't loop a stale action onto the new entity
     // Keep the camera locked on the (re)spawned entity so switching entities
@@ -165,15 +175,63 @@ export class VfxLab {
   }
 
   // ── actions ──────────────────────────────────────────────────────────────
-  _abilitiesOf(entity) {
-    if (!entity?.definitionId) return []
-    const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === entity.definitionId)
-    return Array.isArray(def?.abilities) ? def.abilities : []
+  // For an adventurer entity, stand up a tiny fake "arena" so its class
+  // abilities' combat conditions pass: a hostile minion + a wounded living ally
+  // (the dummy) + a fallen ally. TILE coords sit in the entity's room (for
+  // range/condition checks); WORLD coords are off-grid near the entity so the
+  // VFX render on the clean stage. All tagged _vfxLabFrozen → swept on despawn.
+  _setupAdvArena() {
+    const e = this._entity
+    if (!e || e.definitionId) return
+    const cache = this._scene.cache.json
+    const tx = e.tileX, ty = e.tileY
+    // Shared party so party-scoped abilities (knight aura, bard inspire, cleric
+    // heal, valkyrie/cleric revive…) can find allies.
+    e.partyId = '__vfxlab'
+    // Wounded living ally = the dummy: same party, fighting, ~40% HP.
+    if (this._dummy) {
+      this._dummy.partyId = '__vfxlab'; this._dummy.aiState = 'fighting'
+      this._dummy.resources.maxHp = 100; this._dummy.resources.hp = 40
+    }
+    const mdef = (cache.get('minionTypes') ?? []).find(d => d.id === 'goblin1')
+    if (mdef) {
+      const m = createMinion(mdef, { x: tx - 1, y: ty }, e.assignedRoomId, {})
+      m._vfxLabFrozen = true; m.aiState = 'idle'; m.faction = 'dungeon'
+      m.tileX = tx - 1; m.tileY = ty; m.worldX = e.worldX - 90; m.worldY = e.worldY
+      m.assignedRoomId = e.assignedRoomId
+      this._gs.minions.push(m)
+    }
+    const adefs = cache.get('adventurerClasses') ?? []
+    const adef = adefs.find(d => d.id === 'cleric') ?? adefs[0]
+    if (adef) {
+      const f = createAdventurer(adef, { x: tx + 2, y: ty }, 1)
+      f._vfxLabFrozen = true; f.assignedRoomId = e.assignedRoomId; f.partyId = '__vfxlab'
+      f.tileX = tx + 2; f.tileY = ty; f.worldX = e.worldX + 160; f.worldY = e.worldY
+      f.resources.hp = 0; f.aiState = 'dead'; f._lpcDir = 'down'
+      this._gs.adventurers.active.push(f)
+    }
   }
 
-  _fireAbility(ab) {
-    const fire = () => MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab)
-    fire(); this._setLoop('fire', fire)
+  // Uniform ability list — each item is { label, fire }. Minions use their JSON
+  // data abilities; adventurers use their class abilities (force-fired via
+  // ClassAbilitySystem.devFireAbility, with the fake arena set up in _spawn).
+  _abilitiesOf(entity) {
+    if (!entity) return []
+    if (entity.definitionId) {
+      const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === entity.definitionId)
+      return (def?.abilities ?? []).map(ab => ({
+        label: `${ab.label ?? ab.type} ·${ab.trigger}`,
+        fire: () => MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab),
+      }))
+    }
+    return (CLASS_ABILITIES[entity.classId] ?? []).map(key => ({
+      label: ABILITY_DEFS[key]?.label ?? key,
+      fire: () => this._scene.classAbilitySystem?.devFireAbility(this._entity, key),
+    }))
+  }
+
+  _fireAbility(item) {
+    item.fire(); this._setLoop('fire', item.fire)
   }
 
   _playAnim(state) {
@@ -347,8 +405,8 @@ export class VfxLab {
     // Abilities
     while (this._abilitySec.children.length > 1) this._abilitySec.lastChild.remove()
     const abs = this._abilitiesOf(this._entity)
-    if (!abs.length) this._abilitySec.appendChild(this._el('div', 'font:9px monospace;color:#777;', '(no data abilities — adventurer or stat-block)'))
-    for (const ab of abs) this._abilitySec.appendChild(this._btn(`${ab.label ?? ab.type} ·${ab.trigger}`, () => this._fireAbility(ab)))
+    if (!abs.length) this._abilitySec.appendChild(this._el('div', 'font:9px monospace;color:#777;', '(no abilities — stat-block / event class)'))
+    for (const item of abs) this._abilitySec.appendChild(this._btn(item.label, () => this._fireAbility(item)))
     // Animations
     while (this._animSec.children.length > 1) this._animSec.lastChild.remove()
     const isMinion = !!this._entity?.definitionId

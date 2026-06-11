@@ -125,6 +125,20 @@ export const ABILITY_DEFS = {
   miner_tunnel: { id: 'tunnel', usesPerDay: 1, label: 'Tunnel' },
 }
 
+// classId → its ABILITY_DEFS registry keys, derived from the key prefix. Used
+// by the VFX Lab to list + force-fire a class's abilities for review.
+const _ABILITY_PREFIX_CLASS = {
+  knight: 'knight', bard: 'bard', monk: 'monk', cleric: 'cleric', mage: 'mage',
+  necro: 'necromancer', ranger: 'ranger', bm: 'beast_master', barb: 'barbarian',
+  rogue: 'rogue', cheater: 'cheater', glad: 'gladiator', peasant: 'peasant',
+  valkyrie: 'valkyrie', gambler: 'gambler', miner: 'miner',
+}
+export const CLASS_ABILITIES = {}
+for (const key of Object.keys(ABILITY_DEFS)) {
+  const cls = _ABILITY_PREFIX_CLASS[key.split('_')[0]]
+  if (cls) (CLASS_ABILITIES[cls] ??= []).push(key)
+}
+
 // Per-ability cosmetics for the shared channeled-revive machinery (Valkyrie
 // Rally + Cleric Resurrection). Keyed by the ability's `id`. Keeps colour/text
 // flavour out of the gameplay defs above.
@@ -283,6 +297,39 @@ export class ClassAbilitySystem {
       abilityId: 'encore',
       message: `${bard.name}'s final note healed ${healedCount} ally${healedCount === 1 ? '' : 'ies'}.`,
     })
+  }
+
+  // ── Dev / VFX Lab ─────────────────────────────────────────────────────────
+  // Force-fire ONE class ability so its VFX can be reviewed in isolation. The
+  // caller (VfxLab) sets up a fake arena (a hostile minion + a wounded ally + a
+  // fallen ally) near `adv` so the ability's combat conditions pass. We ready
+  // ONLY the target ability (parking the class's others on cooldown) so the
+  // class's _consider tick fires just that one, with its real inline VFX.
+  devFireAbility(adv, key, now = this._scene.time.now) {
+    const def = ABILITY_DEFS[key]
+    if (!def || !adv) return false
+    const classId = adv.classId
+    adv.cooldowns ??= {}; adv.usesLeftToday ??= {}
+    for (const k of (CLASS_ABILITIES[classId] ?? [])) {
+      const d = ABILITY_DEFS[k]; if (!d?.id) continue
+      if (k === key) {
+        delete adv.cooldowns[d.id]
+        if (d.usesPerDay != null || d.usesPerDayPerLevel) adv.usesLeftToday[d.id] = 99
+      } else if (d.cooldownMs) {
+        adv.cooldowns[d.id] = now + 9_999_999   // park the others so only the target fires
+      }
+    }
+    // Clear common one-shot block flags so the target re-fires each press.
+    adv._arcaneBurstQueued = false
+    adv._summonGateUntil = 0
+    adv._invisibilityUntil = 0
+    adv._boneArmorUntil = 0
+    adv._focusActiveUntil = 0
+    adv.aiState = 'fighting'
+    const suffix = String(classId).split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')
+    const fn = this['_consider' + suffix]
+    if (typeof fn === 'function') { try { fn.call(this, adv, now) } catch (e) { /* dev-only */ } return true }
+    return false
   }
 
   update(_delta) {
