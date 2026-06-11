@@ -447,6 +447,10 @@ function _rehydrateRunHistory(state) {
     // after load (regen would phantom-heal until the clock catches up).
     // _fountainRegenAcc is just a sub-1 carry float — reset it too.
     '_fountainBlessUntil', '_fountainTouchAt', '_fountainRegenAcc',
+    // Goblin Mark for Plunder — scene.time-stamped brand window + its bleed
+    // accumulator; a saved future value would phantom-bleed gold on load.
+    '_plunderUntil', '_plunderBleedAccum', '_plunderMarkSteal',
+    '_plunderBleedGold', '_plunderBleedMs', '_plunderSrcRoom',
     // Anti-magic / silence
     '_provoked', '_invisible',
     // Tower Tax leak we already fixed via DAY_PHASE_STARTED reset, but

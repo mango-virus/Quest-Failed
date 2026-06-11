@@ -139,8 +139,12 @@ export class CoinBurstRenderer {
     const tx   = wx + Math.cos(ang) * dist
     const ty   = wy + Math.sin(ang) * dist + 8 // bias slightly downward — fake gravity
     let obj
-    if (this._scene.textures.exists('item-coin')) {
-      obj = this._scene.add.image(wx, wy, 'item-coin').setDepth(58)
+    // Reuse the loaded single-coin sprite (ui-coin); fall back to the legacy
+    // item-coin key, then a drawn disc if neither asset is present.
+    const coinKey = this._scene.textures.exists('ui-coin') ? 'ui-coin'
+      : (this._scene.textures.exists('item-coin') ? 'item-coin' : null)
+    if (coinKey) {
+      obj = this._scene.add.image(wx, wy, coinKey).setDepth(58)
       obj.setScale(0.5)
       obj.texture?.setFilter?.(Phaser.Textures.FilterMode.NEAREST)
     } else {

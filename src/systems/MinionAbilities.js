@@ -83,31 +83,17 @@ const MUSHROOM_IDS    = new Set(['mushroom1', 'mushroom2', 'myconid_stalker'])
 // buying without reading the source. Keep both lines short — they're side-
 // scrolling text in a 270px panel with 9px font.
 export const MINION_ABILITY_INFO = {
-  rat1:            { ability: 'Plague Bite — every hit stacks a 5-tick poison DoT.',           behavior: 'Wall Squeeze — straight-lines through walls when chasing.' },
-  zombie1:         { ability: 'One More Time — 50% chance to revive once per fight at 25% HP.', behavior: 'Roams — shuffles between rooms looking for prey; never returns home.' },
-  slime2:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
-  slime3:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
-  slime4:          { ability: 'Split on Death — spawns 2 mini-slimes (half stats).',           behavior: 'Roams — bounces between rooms with no rest period.' },
-  plant1:          { ability: 'Root Snare — first hit per fight roots the target 2.5s.',      behavior: 'Permanently Rooted — never moves once placed.' },
-  goblin1:         { ability: 'Pickpocket — banks +1g per hit; lost if killed mid-day.',       behavior: 'Loot Scavenger — paths to nearby loot piles, banks +5g on contact.' },
-  mushroom1:       { ability: 'Confusion Spores — death cloud staggers nearby advs 3s.',       behavior: 'Permanently Rooted — never moves once placed.' },
-  skeleton1:       { ability: 'Reassemble — 30% revive at 50% HP if a skel buddy is alive in-room.', behavior: 'March in Formation — same-room skeletons sync patrol targets.' },
-  lizardman1:      { ability: 'Camouflage — invisible until first attack (3× damage on reveal).', behavior: 'Lurk — anchors to a random corner each dawn; never patrols.' },
-  orc1:            { ability: 'Berserker Rage — +30% attack speed below 50% HP.',              behavior: 'Roams — wanders the whole dungeon room-to-room; picks fights wherever.' },
-  gnoll1:          { ability: 'Howl — first hit alerts every other gnoll to converge.',        behavior: 'Roams — hunts across the dungeon; never returns home between kills.' },
-  imp1:            { ability: 'Self-Combust — explodes on death for 8 fire AoE damage.',       behavior: 'Roams + Flying — wanders rooms; straight-lines through walls when chasing.' },
-  ghost1:          { ability: 'Possession — 25% per hit; possessed adv attacks an ally for 2s.', behavior: 'Haunts a Tile — never moves; reaches across the room (range 5).' },
-  vampire_minion1: { ability: 'Bloodthirst — heals for 50% of damage dealt.',                  behavior: 'Sleep on Ceiling — invisible until an adv enters the room.' },
-  beholder1:       { ability: 'Petrify Gaze — 15% per hit to root the target 2s.',             behavior: 'Teleport — relocates to a random non-boss room every 8s.' },
-  lich1:           { ability: 'Heal Undead — heals the most-wounded undead in-room every 3s.', behavior: 'Stays Back — ranged caster (range 3); never enters melee.' },
-  ent1:            { ability: 'Gnarled Hide — takes 50% less physical damage.',                behavior: 'Slow Guard — patrols home room at 0.4× speed.' },
-  demon1:          { ability: 'Hellfire Brand — every hit applies a 3-tick burn DoT.',         behavior: 'Demon Sense — runs to adjacent rooms to attack intruders.' },
-  golem1:          { ability: 'Earthshake — 20% per hit to stagger the target 1s.',            behavior: 'Camouflaged Pillar — invisible until an adv steps adjacent.' },
-  mimic:           { ability: 'Devour — instantly kills any adventurer who tries to loot it.', behavior: 'Stationary Trap — disguised as a treasure chest; sits still until sprung.' },
-  web1:            { ability: 'Web — every hit slows the target; 15% chance to root it in place.',  behavior: 'Ambush — lurks hidden until an adventurer enters, then strikes.' },
-  cmd1:            { ability: 'Rally Aura — buffs the attack of every dungeon minion in the room; the buff drops if it dies.', behavior: 'Stays Back — a frail commander; hangs at the rear and conducts.' },
-  bone_totem1:     { ability: 'Summon — keeps spawning weak swarmlings (up to 3 alive at once).',   behavior: 'Rooted — never moves; a stationary, high-value spawner. Kill it fast.' },
-  rust1:           { ability: 'Corrode — shreds the target’s armor on hit and trails lingering acid.', behavior: 'Roams — wanders the dungeon leaving hazard pools behind it.' },
+  // WIPED for the ground-up ability redesign. Repopulated per family as each
+  // family's kit is locked — one entry PER TIER (not just tier-1) so the
+  // BuildMenu / UPGRADE info / hover UI always show the correct current ability
+  // and the next tier's ability. Mimic keeps its identity (re-added with the
+  // first family pass).
+  mimic: { ability: 'Devour — instantly kills any adventurer who tries to loot it.', behavior: 'Stationary Trap — disguised as a treasure chest; sits still until sprung.' },
+
+  // ── GOBLIN — mechanic: PLUNDER (steal gold) ──────────────────────────────
+  goblin1: { ability: 'Pilfer — every hit instantly banks +2g to your treasury.', behavior: 'Greed: a cheap, fragile gold faucet during invasions.' },
+  goblin2: { ability: 'Pilfer (+2g/hit) + Mark for Plunder — brands a hero so EVERY minion that hits them also steals gold, plus a slow gold-bleed.', behavior: 'Greed: turns one hero into payday for the whole room.' },
+  goblin3: { ability: "Pilfer + Mark + Warband's Cut (DOUBLES goblin plunder in its room) + Grand Heist — periodically brands every hero in the room at once.", behavior: 'Greed: the capstone of a goblin gold-rush dungeon.' },
 }
 
 // Family-wide resolver — maps ANY minion definitionId (including evolved
@@ -157,123 +143,31 @@ export const MinionAbilities = {
     const id = attacker.definitionId
     if (!id) return   // adventurer attacker — nothing to do here
 
-    // Rat Plague Bite + Demon Hellfire Brand are now data-driven (dot onHit in
-    // minionTypes.json on every rat/demon tier). See runHitAbilities below.
-
-    // Vampire — Bloodthirst: heal attacker for 50% of damage dealt.
-    // Generic `lifesteal` tag also triggers (used by Blood Briar) so any
-    // future "drains blood" minion can opt in via JSON without changing
-    // this file.
-    const hasLifestealTag = Array.isArray(attacker.tags) && attacker.tags.includes('lifesteal')
-    if ((VAMPIRE_IDS.has(id) || hasLifestealTag) && damageDealt > 0) {
-      const heal = Math.max(1, Math.floor(damageDealt * 0.5))
-      const before = attacker.resources.hp
-      attacker.resources.hp = Math.min(attacker.resources.maxHp ?? 0, attacker.resources.hp + heal)
-      const restored = attacker.resources.hp - before
-      if (restored > 0) {
-        AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, `+${restored}`, { color: '#ff77aa' })
-      }
-    }
-
-    // Beholder Petrify Gaze + Golem Earthshake are now data-driven (root /
-    // stagger onHit with chance in minionTypes.json). See runHitAbilities below.
-
-    // Goblin — Pickpocket: bank 1g/hit on attacker; credited to dungeon
-    // on minion death so killing the goblin first denies the loot.
-    if (GOBLIN_IDS.has(id)) {
-      attacker._stolenGold = (attacker._stolenGold ?? 0) + 1
-      AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, '+1g', { color: '#ffdd44' })
-    }
-
-    // Mimic — Greedy Bite: 5g per hit (chunkier version of Pickpocket).
+    // Mimic — Greedy Bite: 5g per hit (the mimic is intentionally left as-is;
+    // its Devour instakill lives in AISystem). Credited on death below.
     if (id === 'mimic') {
       attacker._stolenGold = (attacker._stolenGold ?? 0) + 5
       AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, '+5g', { color: '#ffdd44' })
     }
 
-    // Vinekin Root Snare (first hit per fight) + its slow are now data-driven
-    // (root oncePerFight + slow onHit in minionTypes.json). See runHitAbilities.
-
-    // Ghost — Possession: 25% per hit; possessed adv attacks a same-party
-    // ally on their next swing (redirect handled by maybeRedirectPossessed
-    // hook in CombatSystem).
-    if (GHOST_IDS.has(id) && Math.random() < 0.25 && target.classId !== undefined) {
-      target._possessedUntil = (scene?.time?.now ?? 0) + 2000
-      AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, 'POSSESSED', { color: '#aaccee' })
-    }
-
-    // Gnoll — Howl: first hit per fight alerts every other gnoll to converge
-    // on the attacker's tile. Rate-limited via _howlBroadcast on the source
-    // (re-armed at dawn) so a long fight doesn't constantly re-target the pack.
-    if (GNOLL_IDS.has(id) && !attacker._howlBroadcast && gameState?.minions) {
-      attacker._howlBroadcast = true
-      const tx = attacker.tileX, ty = attacker.tileY
-      for (const m of gameState.minions) {
-        if (m === attacker) continue
-        if (!GNOLL_IDS.has(m.definitionId)) continue
-        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
-        m._patrolTarget = { x: tx, y: ty }
-        m._patrolAccum  = 0
-      }
-      AbilityVfx.floatingText(scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 22, 'HOWL!', { color: '#ddaa55' })
-      // Howl propagation ring — expanding tan ring radiating from the
-      // gnoll so the rally signal reads visually. Tuned wider than a
-      // standard hit ring since the howl is room-scope, not point-scope.
-      if (Number.isFinite(attacker.worldX)) {
-        AbilityVfx.pulseRing(scene, attacker.worldX, attacker.worldY,
-          { color: 0xddaa55, fromR: 6, toR: 64, alpha: 0.55, durationMs: 600 })
-      }
-    }
-
-    // Lizardman — Camouflage reveal already handled in CombatSystem
-    // (clears _camouflaged + emits LIZARDMAN_CAMO_REVEAL). Damage bonus is
-    // applied in CombatSystem._computeDamage.
-
-    // Data-driven onHit abilities (Thread E) — runs the minion's JSON
-    // `abilities` (slow/root/dot/armorShred/nerveDrain/lifesteal/…). Legacy
-    // family-Set blocks above are migrated into data incrementally; until a
-    // given minion's effects are moved to JSON, only the block above fires.
+    // Data-driven onHit abilities — runs the minion's JSON `abilities`. This is
+    // now the ONLY ability path (the old family-Set blocks were wiped for the
+    // ground-up redesign); each family's kit is authored per-tier in JSON.
     this.runHitAbilities(scene, attacker, target, damageDealt, gameState)
+
+    // Goblin Mark for Plunder — GLOBAL rule: any dungeon minion that hits a
+    // branded hero also steals gold for the dungeon (the whole room profits).
+    this._tryMarkedSteal(scene, attacker, target, gameState)
   },
 
   // ── On minion dying (MinionAISystem._die pre-hook) ───────────────────────
   // Returns true if the death should be aborted (minion was revived). The
   // caller must skip the rest of its death routine when true is returned.
 
-  onMinionDying(scene, minion, gameState) {
-    if (!minion) return false
-    const id = minion.definitionId
-
-    // Zombie One More Time — Shamblers get a single 50% revive at 25% HP.
-    if (id === 'zombie1' && !minion._oneMoreTimeUsed) {
-      minion._oneMoreTimeUsed = true
-      if (Math.random() < ZOMBIE_OMT_CHANCE) {
-        const max = minion.resources?.maxHp ?? 1
-        minion.resources.hp = Math.max(1, Math.floor(max * ZOMBIE_OMT_REVIVE_FRAC))
-        if (scene) AbilityVfx.floatingText(scene, minion.worldX ?? 0, (minion.worldY ?? 0) - 22, 'RISES AGAIN', { color: '#aadd99' })
-        return true
-      }
-    }
-
-    // Skeleton Reassemble — Risen Bones revive at 50% HP if another skeleton
-    // (any tier) is still standing in the same room. 30% per attempt.
-    if (id === 'skeleton1') {
-      const room = minion.assignedRoomId
-      const buddy = (gameState?.minions ?? []).some(m =>
-        m !== minion &&
-        m.aiState !== 'dead' &&
-        (m.resources?.hp ?? 0) > 0 &&
-        m.assignedRoomId === room &&
-        (m.definitionId === 'skeleton1' || m.definitionId === 'skeleton2' || m.definitionId === 'skeleton3')
-      )
-      if (buddy && Math.random() < SKELETON_REASSEMBLE_CHANCE) {
-        const max = minion.resources?.maxHp ?? 1
-        minion.resources.hp = Math.max(1, Math.floor(max * SKELETON_REVIVE_FRAC))
-        if (scene) AbilityVfx.floatingText(scene, minion.worldX ?? 0, (minion.worldY ?? 0) - 22, 'REASSEMBLED', { color: '#ddccaa' })
-        return true
-      }
-    }
-
+  onMinionDying(_scene, _minion, _gameState) {
+    // Death-abort revives (zombie/skeleton) were wiped for the redesign. A
+    // family that wants an on-death revive will re-introduce it as a data
+    // ability with an explicit handler. For now nothing aborts a death.
     return false
   },
 
@@ -485,6 +379,17 @@ export const MinionAbilities = {
         }
         break
       }
+      // Goblin PLUNDER — Pilfer: steal gold for the treasury on every hit.
+      // Doubled if a Plunder King (plunderAura) shares the attacker's room.
+      case 'stealGold':
+        this._grantPlunder(scene, attacker, target, gameState, ab.amount ?? 2, 'goblin_plunder')
+        break
+      // Goblin Mark for Plunder — brand the hero so EVERY dungeon minion that
+      // hits them also steals (handled in onHit via _tryMarkedSteal) plus a
+      // slow gold-bleed off the brand (ticked in tickPlunderMarks).
+      case 'markForPlunder':
+        this._applyPlunderMark(scene, attacker, target, ab)
+        break
       default: break
     }
   },
@@ -513,6 +418,7 @@ export const MinionAbilities = {
       case 'summon':        this._summonAdd(minion, scene, gameState, ab); break
       case 'hazardTrail':   this._hazardTrail(minion, scene, gameState, ab); break
       case 'novaBurst':     this._novaBurst(minion, scene, gameState, ab); break
+      case 'massMark':      this._massMark(minion, scene, gameState, ab); break
       default: break
     }
   },
@@ -554,9 +460,8 @@ export const MinionAbilities = {
   // Called by MinionAISystem.respawnAll to clear any per-fight one-shot flags.
   resetOneShotsForNight(minion) {
     if (!minion) return
-    minion._snareUsed = false
-    minion._oneMoreTimeUsed = false      // Pass-2: re-arm Zombie OMT
-    minion._howlBroadcast = false        // Pass-3: re-arm Gnoll Howl
+    // Engine-state resets only (DoTs, statuses, onTick accumulators, Thread-C
+    // flags, oncePerFight re-arm). Legacy per-family flags were wiped.
     minion._dot = null
     minion._rootedUntil = 0
     minion._staggeredUntil = 0
@@ -565,20 +470,13 @@ export const MinionAbilities = {
     minion._enraged = false              // Thread C: clear wounded-state flags
     minion._fallingBack = false
     minion._abAccum = {}                 // reset onTick ability accumulators
-    minion._abOnce_dot = false; minion._abOnce_root = false  // re-arm oncePerFight
-    // Re-arm Lizardman camouflage each night (set by createMinion at first spawn).
-    if (LIZARDMAN_IDS.has(minion.definitionId)) {
-      minion._camouflaged = true
-    }
+    // re-arm oncePerFight ability gates (keys are `_abOnce_<type>`)
+    for (const k of Object.keys(minion)) { if (k.startsWith('_abOnce_')) minion[k] = false }
   },
 
   // Initial flag setup at spawn time. Called from createMinion (entities/Minion.js).
-  initFlags(minion, typeDef) {
-    if (!minion || !typeDef) return
-    if (LIZARDMAN_IDS.has(typeDef.id)) {
-      minion._camouflaged = true
-    }
-  },
+  // (No per-family init flags after the wipe — kept as a hook for future kits.)
+  initFlags(_minion, _typeDef) {},
 
   // ── Internals ────────────────────────────────────────────────────────────
 
@@ -710,60 +608,15 @@ export const MinionAbilities = {
   // Called from MinionAISystem._tickMinion before the idle wander block so
   // we can override _patrolTarget, set visibility flags, fire teleports, etc.
 
-  tickBehavior(minion, scene, gameState, dungeonGrid, delta) {
-    if (!minion || minion.aiState === 'dead' || (minion.resources?.hp ?? 0) <= 0) return
-    if (minion.faction !== 'dungeon') return
-    const id = minion.definitionId
+  // Per-minion BASE-BEHAVIOR quirks (camouflage / ceiling-sleep / teleport /
+  // march / demon-sense / loot-scavenger) were WIPED for the redesign — they
+  // made minions "too complicated" (user). Minions now use only the engine's
+  // standard movement (behaviorType guard/patrol/roam/ambush) + their data
+  // abilities. Kept as a no-op hook so MinionAISystem's per-tick call is intact.
+  tickBehavior(_minion, _scene, _gameState, _dungeonGrid, _delta) {},
 
-    // Visibility-flip behaviors run regardless of aiState.
-    if (VAMPIRE_IDS.has(id))   this._tickVampireHidden(minion, gameState)
-    if (GOLEM_IDS.has(id))     this._tickGolemHidden(minion, gameState)
-    // Goblins are visible Loot Scavengers — despite their JSON
-    // behaviorType 'ambush' they must NEVER be ambush-hidden, or they
-    // vanish at dawn and only reappear when an adventurer engages them
-    // (the reported bug). Force-clear _hidden so a save made before
-    // this fix also recovers on the next tick.
-    if (GOBLIN_IDS.has(id)) {
-      minion._hidden = false
-    // Generic ambush — any other minion declaring behaviorType
-    // 'ambush' that isn't covered by a family-specific hidden handler.
-    } else if (minion.behaviorType === 'ambush' &&
-               !VAMPIRE_IDS.has(id) && !GOLEM_IDS.has(id)) {
-      this._tickAmbushHidden(minion, gameState)
-    }
-
-    // Beholder Teleport — periodic random non-boss-room teleport. Skips
-    // while engaged so we don't yank a fighting beholder off its target.
-    if (BEHOLDER_IDS.has(id) && minion.aiState !== 'engaging') {
-      this._tickBeholderTeleport(minion, scene, gameState, dungeonGrid, delta)
-    }
-
-    // Patrol-target overrides only matter when minion has nothing to fight.
-    if (minion.aiState !== 'idle' || minion.currentTargetId) return
-
-    // Skeleton March in Formation — sync patrol target with same-room peers.
-    if (id === 'skeleton1') this._tickSkeletonMarch(minion, gameState)
-
-    // Orcs now use the unified `behaviorType: 'roam'` dispatch in
-    // MinionAISystem (cross-room wander via A*). The bespoke
-    // _tickOrcPatrol was broken anyway — its neighbor-room target got
-    // overridden by the "not at home → return home" pathway, so orcs
-    // never actually reached the neighbor and the tooltip lied. Roam
-    // handles the whole patrol now and the tooltip matches reality.
-
-    // Demon Sense — react to advs in adjacent rooms by setting an override
-    // patrol target. Combat re-acquisition then engages naturally.
-    if (DEMON_IDS.has(id)) this._tickDemonSense(minion, gameState, dungeonGrid)
-
-    // Goblin Loot Scavenger — when nothing to fight, path to nearest loot
-    // pile in the same/adjacent room and bank the gold on contact.
-    if (GOBLIN_IDS.has(id)) this._tickGoblinScavenger(minion, scene, gameState, dungeonGrid)
-  },
-
-  // Adventurer-targeting visibility filter. Used by MinionAISystem._pickTarget
-  // so adventurers can't be "seen" by sleeping/camo'd minions, BUT visible
-  // minions still target advs normally. Returns true if `minion` should be
-  // ignored as a hostile by the AI logic.
+  // Visibility filter for _pickTarget. Nothing hides post-wipe, so always
+  // visible — kept so the MinionAISystem callsite needs no change.
   isMinionHidden(minion) {
     return !!minion?._hidden
   },
@@ -1336,5 +1189,93 @@ export const MinionAbilities = {
       remaining.push(h)
     }
     gameState.dungeon.hazards = remaining
+  },
+
+  // ── Goblin PLUNDER (gold-steal) helpers ───────────────────────────────────
+
+  // Warband's Cut — if a living Plunder King (a minion carrying a `plunderAura`
+  // ability) shares `roomId`, goblin plunder in that room is multiplied.
+  _plunderMult(scene, gameState, roomId) {
+    if (!roomId) return 1
+    for (const m of (gameState?.minions ?? [])) {
+      if (m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.assignedRoomId !== roomId) continue
+      const abs = _abilitiesFor(m, scene)
+      const aura = abs && abs.find(a => a.type === 'plunderAura')
+      if (aura) return aura.mult ?? 2
+    }
+    return 1
+  },
+
+  // Bank gold to the treasury + fire the coin-burst VFX at the hero (reuses
+  // CoinBurstRenderer via RESOURCES_AWARDED). Returns the gold granted.
+  _grantPlunder(scene, attacker, target, gameState, baseAmount, reason) {
+    if (!gameState?.player) return 0
+    const mult = this._plunderMult(scene, gameState, attacker?.assignedRoomId)
+    const g = Math.max(1, Math.round(baseAmount * mult))
+    gameState.player.gold = (gameState.player.gold ?? 0) + g
+    EventBus.emit('RESOURCES_AWARDED', { gold: g, reason, worldX: target?.worldX, worldY: target?.worldY })
+    return g
+  },
+
+  // Mark for Plunder — brand the hero so every dungeon hit on them steals, plus
+  // a slow gold-bleed. Stores the marking room so Warband's Cut can double it.
+  _applyPlunderMark(scene, attacker, target, ab) {
+    if (!target) return
+    const now = scene?.time?.now ?? 0
+    target._plunderUntil     = now + (ab.durationMs ?? 6000)
+    target._plunderMarkSteal = ab.markSteal ?? 1
+    target._plunderBleedGold = ab.bleedGold ?? 1
+    target._plunderBleedMs   = ab.bleedMs ?? 1500
+    target._plunderSrcRoom   = attacker?.assignedRoomId ?? null
+    if (scene && Number.isFinite(target.worldX)) {
+      AbilityVfx.pulseRing(scene, target.worldX, target.worldY, { color: 0xffd23f, fromR: 6, toR: 22, alpha: 0.85, durationMs: 420 })
+      AbilityVfx.floatingText(scene, target.worldX, target.worldY - 24, ab.label ?? 'MARKED', { color: '#ffd23f' })
+    }
+  },
+
+  // GLOBAL marked-steal — called from onHit for EVERY minion hit. If the struck
+  // hero is branded, the dungeon pockets a little gold (doubled by Warband's Cut
+  // when a Plunder King is in the attacker's room).
+  _tryMarkedSteal(scene, attacker, target, gameState) {
+    if (!attacker || attacker.faction !== 'dungeon') return
+    const now = scene?.time?.now ?? 0
+    if (!(target?._plunderUntil > now)) return
+    this._grantPlunder(scene, attacker, target, gameState, target._plunderMarkSteal ?? 1, 'plunder_mark')
+  },
+
+  // Grand Heist (Plunder King ult) — brand EVERY hero in the King's room at once
+  // with a warhorn shock-ring greed-cry.
+  _massMark(king, scene, gameState, ab) {
+    const home = this._roomOf(gameState, king.assignedRoomId)
+    if (!home) return
+    let branded = 0
+    for (const adv of this._liveAdvs(gameState)) {
+      if (!this._inRoom(adv.tileX, adv.tileY, home)) continue
+      this._applyPlunderMark(scene, king, adv, ab)
+      branded++
+    }
+    if (scene && Number.isFinite(king.worldX)) {
+      AbilityVfx.shockwaveFx(scene, king.worldX, king.worldY, { color: 0xffd23f, fromR: 10, toR: 130, durationMs: 640, rings: 2 })
+      if (branded > 0) AbilityVfx.floatingText(scene, king.worldX, king.worldY - 28, ab.label ?? 'GRAND HEIST', { color: '#ffd23f' })
+    }
+  },
+
+  // Per-frame plunder-mark processor (called once from MinionAISystem.update):
+  // bleeds gold off active brands and expires them.
+  tickPlunderMarks(scene, gameState, delta) {
+    const now = scene?.time?.now ?? 0
+    for (const adv of this._liveAdvs(gameState)) {
+      if (!(adv._plunderUntil > now)) { if (adv._plunderUntil) adv._plunderUntil = 0; continue }
+      adv._plunderBleedAccum = (adv._plunderBleedAccum ?? 0) + delta
+      if (adv._plunderBleedAccum < (adv._plunderBleedMs ?? 1500)) continue
+      adv._plunderBleedAccum = 0
+      const mult = this._plunderMult(scene, gameState, adv._plunderSrcRoom)
+      const g = Math.max(1, Math.round((adv._plunderBleedGold ?? 1) * mult))
+      if (gameState?.player) {
+        gameState.player.gold = (gameState.player.gold ?? 0) + g
+        EventBus.emit('RESOURCES_AWARDED', { gold: g, reason: 'plunder_bleed', worldX: adv.worldX, worldY: adv.worldY })
+      }
+    }
   },
 }

@@ -2186,3 +2186,40 @@ Family-coherent signatures for every ability-less evolved form:
 - Ability magnitudes (slow %, web root chance, rally aura %, summon interval/cap, shred amount,
   hazard DoT) — run sim:balance before claiming balanced.
 - Whether the terrain-shaper leans armor-shred vs hazard-trail (infra cost dependent).
+
+---
+
+# Minion Ability Ground-Up Redesign (in progress 2026-06-10)
+
+Supersedes the earlier (wiped) minion ability work. **All minion abilities + base-behavior
+quirks were removed to a clean slate** (engine kept: the data-driven ability runner + handler
+library + HazardRenderer + CoinBurstRenderer; mimic Devour left as-is). Rebuilding family by
+family, discussing each kit with the user before building.
+
+## Locked design principles
+- **One mechanic per family; each tier EXPANDS that same mechanic** (never a bolted-on second
+  ability). T1 = the mechanic; T2 = a deeper/wider expression of it; T3 (final, also stat-promoted
+  to mini-boss) = a climactic ULT of it. Slimes carry a 4th tier.
+- **Each ability must shape a distinct strategy / play style** — wide variety, not damage reskins.
+- **Every ability needs legible, detailed VFX/animation** so the player sees it fire (reuse
+  existing sprites — e.g. the `ui-coin` coin sprite — where they fit).
+- **Pricier minions/tiers ⇒ stronger abilities.**
+- **UI must always be correct:** construction menu shows the current tier's ability; the UPGRADE
+  preview / hover shows the NEXT tier's ability the player will get.
+- Minion **names may change** to fit their ability (ids stay fixed to preserve chains/saves).
+
+## Goblin — mechanic: PLUNDER (steal gold)  [LOCKED 2026-06-10]
+Identity: the dungeon's gold engine & petty thieves — they don't out-fight heroes, they rob them.
+Enables the "goblin gold-rush" build (pack cheap goblins to mint gold every invasion).
+- **T1 · Sneak Goblin** (`goblin1`, 8g) — **Pilfer:** every hit instantly banks **+2g** to the
+  treasury (no survival condition, no kill-to-deny). VFX: coin pops off the hero (ui-coin burst + "+2g").
+- **T2 · Cutpurse** (`goblin2`, rename from Goblin Scrapper) — keeps Pilfer **+ Mark for Plunder:**
+  hits **brand** the hero; while branded, **every dungeon minion that hits them also steals gold**
+  for you (**+1g/hit**) plus a slow **gold-bleed** off the brand (**+1g / 1.5s**). One goblin makes
+  a hero payday for the whole room. VFX: a coin-brand snaps onto the hero (bobbing ui-coin) + gold
+  flecks on each ally hit.
+- **T3 · Plunder King** (`goblin3`, rename from Warband Boss; final/mini-boss) — keeps Pilfer + Mark,
+  adds **Warband's Cut** (passive: **all goblin plunder in its room is DOUBLED**) + **Grand Heist**
+  (ult, ~every 8s: **brands every hero in its room** for 6s — mass Mark for Plunder). VFX: golden
+  warhorn shock-ring, a coin-brand snaps onto every hero, coin rain as minions swing.
+- Arc: steal from one hero → mark one hero for the team → mark the whole party + double the take.

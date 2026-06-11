@@ -202,6 +202,9 @@ export class MinionAISystem {
     // dropped by hazard-trail minions; ticked + expired once per frame.
     MinionAbilities.tickHazards(this._scene, this._gameState, delta)
 
+    // Goblin Plunder marks — bleed gold off branded heroes + expire marks.
+    MinionAbilities.tickPlunderMarks(this._scene, this._gameState, delta)
+
     // De-clump STANDING minions — idle guards / settled packs that share a tile
     // fan out so they don't read as one blob. STATIONARY only (idle with no
     // patrol target): walking minions are excluded (nudging them backfires) and
@@ -1662,14 +1665,8 @@ export class MinionAISystem {
       this._gameState.player.gold = (this._gameState.player.gold ?? 0) + m._stolenGold
       m._stolenGold = 0
     }
-    // Pass-3: Lizardman Lurk — re-anchor to a random corner of the home
-    // room each dawn so they don't telegraph by always sitting on the
-    // same tile.
-    if (m.definitionId === 'lizardman1' || m.definitionId === 'lizardman2') {
-      MinionAbilities._placeLizardmanInCorner(m, this._gameState)
-    }
-    // Pass-3: clear behavior-state accumulators (teleport timer, demon
-    // sense flag, scavenger target) so they restart each day.
+    // (Lizardman dawn-corner re-anchor was wiped with the behavior quirks.)
+    // Clear any residual per-tick accumulators so a loaded save recovers.
     m._teleAccum     = 0
     m._demonSensing  = false
     m._patrolTarget  = null

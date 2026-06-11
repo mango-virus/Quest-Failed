@@ -8,6 +8,7 @@ import { Balance }       from '../config/balance.js'
 import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera, showToast } from '../ui/UIKit.js'
 import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
 import { PauseManager }   from '../systems/PauseManager.js'
+import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
 import { getRotatedDef } from '../util/roomRotation.js'
@@ -3126,11 +3127,24 @@ export class NightPhase extends Phaser.Scene {
     // No explicit PAY row — the cost lives on the UPGRADE button itself
     // (`UPGRADE (${cost}g)` below) so showing it again here would be a
     // duplicate readout.
-    const messageNode = h('div', { className: 'qf-event-prompt' }, [
+    // What new ability the upgraded tier grants — so the player knows what
+    // they're buying before they commit the gold (per the redesign UI rule).
+    const nextAbility = minionAbilityInfo(info.nextId)?.ability
+    const rows = [
       _row('reward', 'UPGRADE', rewardValue),
       _row('win',    'HP',      `${curHp} → ${nHp}`),
       _row('win',    'ATK',     `${curAtk} → ${nAtk}`),
-    ])
+    ]
+    if (nextAbility) {
+      rows.push(h('div', {
+        className: 'qf-event-prompt-ability pix',
+        style: 'margin-top:8px;font-size:10px;line-height:1.35;color:#ffd23f;text-align:left;',
+      }, [
+        h('span', { style: 'color:#9aa;' }, 'NEW ABILITY  '),
+        nextAbility,
+      ]))
+    }
+    const messageNode = h('div', { className: 'qf-event-prompt' }, rows)
 
     EventBus.emit('SHOW_CONFIRM', {
       title:        `UPGRADE ${label.toUpperCase()}`,
