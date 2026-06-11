@@ -131,6 +131,7 @@ export class VfxLab {
     }
     this._spawnDummy()
     this._refreshButtons()
+    this._loopFn = null; this._loopKind = null   // don't loop a stale action onto the new entity
     // Keep the camera locked on the (re)spawned entity so switching entities
     // never leaves it off-screen (which would get it culled by the renderers).
     if (this._entity) this._scene.cameras.main.centerOn(this._entity.worldX, this._entity.worldY)
@@ -158,14 +159,45 @@ export class VfxLab {
   }
 
   _fireAbility(ab) {
-    this._lastAction = () => MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab)
-    this._lastAction()
+    const fire = () => MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab)
+    fire(); this._setLoop('fire', fire)
   }
 
   _playAnim(state) {
     if (!this._entity) return
     this._entity._vfxLabAnim = state || null
-    this._lastAction = () => { if (this._entity) this._entity._vfxLabAnim = state || null }
+    this._forceReplay()
+    // Loop: keep the state pinned and re-play one-shot anims (slash/thrust/cast…)
+    // the INSTANT they finish, so they loop continuously (idle/walk loop on
+    // their own). 'resume' (null) clears the override + the loop.
+    this._setLoop(state ? 'anim' : null, state ? () => {
+      if (!this._entity) return
+      this._entity._vfxLabAnim = state
+      if (!this._animPlaying()) this._forceReplay()
+    } : null)
+  }
+
+  // Clear the active renderer's "already playing this anim" guard so the next
+  // renderer tick re-plays the pinned _vfxLabAnim from frame 0.
+  _forceReplay() {
+    const e = this._entity; if (!e) return
+    if (e.definitionId) {
+      const rec = this._scene.minionRenderer?._sprites?.[e.instanceId]
+      if (rec) rec.currentAnim = null
+    } else {
+      const rec = this._scene.adventurerRenderer?._sprites?.[e.instanceId]
+      if (rec?.lpc) rec.lpc.lastAnim = null
+    }
+  }
+
+  // Is the entity's sprite mid-animation right now? (Used to detect when a
+  // one-shot anim has finished so the loop can replay it seamlessly.)
+  _animPlaying() {
+    const e = this._entity; if (!e) return false
+    const rec = e.definitionId ? this._scene.minionRenderer?._sprites?.[e.instanceId]
+                               : this._scene.adventurerRenderer?._sprites?.[e.instanceId]
+    const img = e.definitionId ? rec?.sprite : rec?.lpc?.image
+    return !!img?.anims?.isPlaying
   }
 
   _fireRaw(name, colorKey) {
@@ -182,12 +214,22 @@ export class VfxLab {
         default:             (AbilityVfx[name] ?? AbilityVfx.impactFx)(s, e.worldX, e.worldY, opts)
       }
     }
-    this._lastAction = fn; fn()
+    fn(); this._setLoop('fire', fn)
   }
 
+  // Loop plumbing — one fast tick (140ms). 'anim' loops re-pin + replay the
+  // instant the anim completes (seamless). 'fire' loops re-fire VFX/abilities
+  // on a slower ~1.1s cadence so they don't spam.
+  _setLoop(kind, fn) { this._loopKind = kind; this._loopFn = fn; this._loopLast = 0 }
   _toggleLoop(on) {
     this._stopLoop()
-    if (on) this._loopTimer = setInterval(() => { try { this._lastAction?.() } catch (e) {} }, 1100)
+    if (on) this._loopTimer = setInterval(() => {
+      try {
+        if (!this._loopFn) return
+        if (this._loopKind === 'anim') { this._loopFn() }
+        else { const now = Date.now(); if (now - this._loopLast >= 1100) { this._loopFn(); this._loopLast = now } }
+      } catch (e) {}
+    }, 140)
   }
   _stopLoop() { if (this._loopTimer) { clearInterval(this._loopTimer); this._loopTimer = null } }
 
