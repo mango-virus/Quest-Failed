@@ -343,6 +343,9 @@ export class MinionAISystem {
   _tickMinion(minion, delta, idx) {
     if (minion.aiState === 'dead') return
 
+    // VFX Lab — a frozen lab entity never runs AI (stays put for review).
+    if (minion._vfxLabFrozen) return
+
     // Player is dragging this minion to a new tile — suspend AI until drop.
     if (minion._heldByPlayer) return
 

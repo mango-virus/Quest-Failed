@@ -382,8 +382,10 @@ export class MinionRenderer {
       }
       const recentAttack = now < (s.attackUntil ?? 0)
 
-      // Pick state — same priority order as BossRenderer.
+      // Pick state — same priority order as BossRenderer. The VFX Lab can pin
+      // a specific state for animation review (m._vfxLabAnim) ahead of all else.
       const wantState =
+        m._vfxLabAnim      ? m._vfxLabAnim :
         isDead             ? 'death' :
         now < s.hurtUntil  ? 'hurt'  :
         recentAttack       ? 'attack':

@@ -325,6 +325,18 @@ export const MinionAbilities = {
 
   // ── Ability handlers ──────────────────────────────────────────────────────
 
+  // Dev VFX-Lab helper — fire ONE named ability (by its trigger) at a target so
+  // its effect/VFX can be reviewed in isolation. Not used in normal play.
+  fireAbility(scene, entity, target, gameState, ab) {
+    if (!ab) return
+    switch (ab.trigger) {
+      case 'onTick':  this._applyTickAbility(entity, scene, gameState, null, ab); break
+      case 'onDeath': this._applyDeathAbility(scene, entity, gameState, ab); break
+      case 'passive': /* passives are queried, not fired — no-op */ break
+      default:        this._applyHitAbility(scene, entity, target, 10, gameState, ab)
+    }
+  },
+
   _applyHitAbility(scene, attacker, target, damageDealt, gameState, ab) {
     const now = scene?.time?.now ?? 0
     switch (ab.type) {

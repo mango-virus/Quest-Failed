@@ -1919,7 +1919,7 @@ export class Game extends Phaser.Scene {
     // the boss-fight cinematic tween is running so it can place the
     // camera on the boss room without the clamp pulling it back to a
     // fitted-centre position each frame.
-    if (!this._fightCamActive && !this._duelCamLock) this._clampCameraToPlayArea()
+    if (!this._fightCamActive && !this._duelCamLock && !this._vfxLabActive) this._clampCameraToPlayArea()
 
     // Door open/close animations always tick at real time — the visual
     // shouldn't depend on time scale (and the entry-hall door auto-opens at

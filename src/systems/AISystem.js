@@ -1268,6 +1268,8 @@ export class AISystem {
 
   _tickAdventurer(adv, delta, idx) {
     if (adv.aiState === 'dead') return
+    // VFX Lab — a frozen lab entity never runs AI (stays put for review).
+    if (adv._vfxLabFrozen) return
     if (adv.resources.hp <= 0) {
       this._kill(adv, idx, adv._lastHitBy ?? 'unknown')
       return

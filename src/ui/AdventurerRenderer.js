@@ -955,7 +955,10 @@ export class AdventurerRenderer {
       }
       return
     }
-    if (adv.resources?.hp <= 0) {
+    if (adv._vfxLabAnim) {
+      // VFX Lab override — pin a specific LPC state for animation review.
+      anim = adv._vfxLabAnim
+    } else if (adv.resources?.hp <= 0) {
       // Minion + boss sheets have a real `death` animation; LPC adventurer
       // sheets fall back to the `hurt` strip as their corpse pose.
       anim = (s.lpc.isMinionSheet || s.lpc.bossSheet) ? 'death' : 'hurt'
