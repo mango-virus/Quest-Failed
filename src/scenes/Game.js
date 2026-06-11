@@ -62,6 +62,7 @@ import { TorchRenderer }      from '../ui/TorchRenderer.js'
 import { CobwebRenderer }     from '../ui/CobwebRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
+import { HazardRenderer }     from '../ui/HazardRenderer.js'
 import { TitleMusic }         from '../systems/TitleMusic.js'
 import { GameplayMusic }      from '../systems/GameplayMusic.js'
 import { kickOffDeferredAudioLoad } from './DeferredAudioLoader.js'
@@ -412,6 +413,7 @@ export class Game extends Phaser.Scene {
     this.cobwebRenderer      = track(new CobwebRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
     this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
+    this.hazardRenderer      = track(new HazardRenderer(this, this.gameState))
     // Companion NPC brain — constructed before TutorialSystem so its
     // INTRO_DISMISSED handler registers first and her welcome line is
     // queued ahead of the first tutorial.
@@ -2082,6 +2084,7 @@ export class Game extends Phaser.Scene {
       rtick('cobwebRenderer',      () => this.cobwebRenderer?.update())
       rtick('decorRenderer',       () => this.decorRenderer?.update())
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
+      rtick('hazardRenderer',      () => this.hazardRenderer?.update())
       rtick('chatBubbles',         () => this.chatBubbles?.update())
       rtick('replayGhostRenderer', () => this.replayGhostRenderer?.update())
       rtick('cartographerOverlay', () => this.cartographerOverlay?.tick())
@@ -2105,6 +2108,7 @@ export class Game extends Phaser.Scene {
       this.cobwebRenderer?.update()
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
+      this.hazardRenderer?.update()
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists
