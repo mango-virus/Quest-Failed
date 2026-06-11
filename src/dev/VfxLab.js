@@ -131,6 +131,9 @@ export class VfxLab {
     }
     this._spawnDummy()
     this._refreshButtons()
+    // Keep the camera locked on the (re)spawned entity so switching entities
+    // never leaves it off-screen (which would get it culled by the renderers).
+    if (this._entity) this._scene.cameras.main.centerOn(this._entity.worldX, this._entity.worldY)
   }
 
   _spawnDummy() {

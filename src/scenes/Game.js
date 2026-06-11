@@ -2095,6 +2095,9 @@ export class Game extends Phaser.Scene {
       // Boss wanders its room during night at real time (cosmetic only).
       this.bossSystem?.update(delta)
       this.minionRenderer?.update()
+      // Adventurers don't normally exist at night, so their renderer is skipped
+      // here — EXCEPT in the VFX Lab, which parks a frozen adventurer to review.
+      if (this._vfxLabActive) this.adventurerRenderer?.update()
       this.bossRenderer?.update()
       this.trapRenderer?.update()
       this.lootPileRenderer?.update()
