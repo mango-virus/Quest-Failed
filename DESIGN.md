@@ -422,10 +422,36 @@ live deterministic dash trace in-engine — placeholder VFX; the bespoke-VFX pas
 - ✅ Transient `_charge*` fields stripped on load; soak 120/120 no save/freeze regression
 - ✅ Verified live in-engine + `sim:soak` (balance unaffected — charge deals no extra damage)
 
+### 🎵 Bard — Crescendo (LOCKED 2026-06-14, built + verified)
+
+**Problem:** three flat percentage auras (+15% atk / +20% spd / death-heal) = a stat-buff reskin.
+**Replaced** Inspire + Song of Speed with ONE escalating anthem. **Kept** Encore (death-heal).
+
+- **Anthem:** while the Bard is alive and combat is near (a party ally engaged within ~4 tiles, or
+  the bard is fighting), he builds **+1 stack every ~3s**, cap **4**.
+- **Effect:** nearby party (within ~3 tiles) gets **+5% atk / +4% spd per stack** → +20% / +16% at
+  full. Read at the existing `_inspireActiveUntil` (CombatSystem) / `_songSpeedActiveUntil`
+  (AISystem) gates, but the MULTIPLIER now comes from the bard's live `_crescendoAtkMul` /
+  `_crescendoSpdMul` (stored on the entity).
+- **Shatter (counterplay, LOCKED: solid hit OR CC):** a single blow **≥10% of the bard's max HP**
+  (via a COMBAT_HIT listener) OR any stun/stagger/root/fear/petrify resets stacks to 0 + **2s
+  silence**. Chip damage does NOT break it — reward a committed burst on the bard.
+- **Decay:** out of combat, −1 stack every ~2s.
+- **VFX:** placeholder (note motes / discord shatter) — phase 2.
+
+#### Acceptance checklist (verified live 2026-06-14)
+_(Ability harness 25/25, soak 120/120, live in-engine trace.)_
+- ✅ One escalating anthem replaces the two flat auras; Encore kept
+- ✅ +1 stack / ~3s while in combat, cap 4 (live: 1→2→3→4)
+- ✅ +5% atk / +4% spd per stack → +20%/+16% at cap (live mults 1.05→1.20 / 1.04→1.16)
+- ✅ Buff reads through to nearby party (live: ally base-100 hit → 120 atk; speed mult 1.16)
+- ✅ Solid hit ≥10% max HP shatters → stacks 0 + 2s silence (live)
+- ✅ Chip hit does NOT shatter (live: 3 dmg < threshold, stayed at 2)
+- ✅ CC (stagger/root/panic/petrify) shatters the song
+- ✅ Out-of-combat decay −1/~2s (live: 2→1→0)
+- ✅ Transient `_crescendo*` fields stripped on load; intel description updated
+
 ### Proposed (pending sign-off — NOT locked, NOT built)
-- **🎵 Bard:** replace the 3 flat auras with **Crescendo** — a continuous anthem that escalates
-  party atk/spd in steps the longer it plays uninterrupted; taking a solid hit/stun resets it
-  (counterplay = pressure the bard). Keep **Encore** (death-crescendo party heal).
 - **🔮 Mage:** make the rolled element MEAN something (intrinsic, not vulnerability-based) —
   fire=burn DoT, ice=slow, lightning=chain, wind=knockback/scatter; Arcane Burst becomes
   element-flavored AoE. Keep Arcane Mastery (+30%).

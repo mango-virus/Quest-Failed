@@ -231,7 +231,7 @@
       "ranged_low"
     ],
     "unlockDay": 11,
-    "description": "Travelling performer. While alive, grants nearby party members +15% attack and +15% speed. Aura ends the moment they fall.",
+    "description": "Travelling performer. Plays a battle hymn that SWELLS the longer the fight rages — nearby allies gain escalating attack & speed (up to +20% / +16%). A solid hit or a stun shatters the song back to silence. On death, a final Encore heals the party.",
     "flavorText": "Every chord, a small kindness."
   },
   {

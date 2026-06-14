@@ -32,9 +32,10 @@ export const ABILITY_DEFS = {
   // Knight
   knight_aura:  { id: 'protective_aura', cooldownMs: 30000, durationMs: 6000, label: 'Protective Aura', auraRangeTiles: 1, dmgReduction: 0.25 },
   knight_taunt: { id: 'taunt',           cooldownMs: 12000, durationMs: 4000, label: 'Taunt' },
-  // Bard
-  bard_inspire: { id: 'inspire_party',   cooldownMs: 14000, durationMs: 6000, label: 'Inspire Party', auraRangeTiles: 2, atkMul: 1.15 },
-  bard_speed:   { id: 'song_of_speed',   cooldownMs: 16000, durationMs: 6000, label: 'Song of Speed', auraRangeTiles: 2, spdMul: 1.20 },
+  // Bard — Crescendo: ONE escalating battle hymn (replaces the old flat Inspire +
+  // Song of Speed auras). Builds a stack every few seconds while combat is near,
+  // buffing nearby party atk+spd per stack; a solid hit or CC shatters it to 0.
+  bard_crescendo: { id: 'crescendo', label: 'Crescendo', auraRangeTiles: 3 },
   // Bard's Encore is a passive — fires on death, no cooldown.
   // Monk
   monk_focus:        { id: 'focus',        cooldownMs: 14000, durationMs: 5000, label: 'Focus', dodgeChance: 0.3 },
@@ -155,6 +156,18 @@ const REVIVE_COSMETIC = {
     interrupt: 'Resurrection was interrupted' },
 }
 
+// Bard Crescendo tuning. The anthem swells one stack at a time while combat is
+// near, capping at CRESCENDO_MAX; each stack adds atk+spd to nearby party. A
+// solid hit (≥ SOLID_HIT_FRAC of max HP) or CC shatters it to 0 + a brief silence.
+const CRESCENDO_MAX        = 4
+const CRESCENDO_ATK_PER    = 0.05   // +5% atk per stack → +20% at full
+const CRESCENDO_SPD_PER    = 0.04   // +4% spd per stack → +16% at full
+const CRESCENDO_STACK_MS   = 3000   // time to gain one stack while in combat
+const CRESCENDO_DECAY_MS   = 2000   // time to lose one stack out of combat
+const CRESCENDO_SILENCE_MS = 2000   // can't rebuild for this long after a shatter
+const CRESCENDO_HIT_FRAC   = 0.10   // a single hit ≥ this fraction of max HP shatters the song
+const CRESCENDO_REFRESH_MS = 1200   // how long the buff-active window is kept alive between ticks
+
 // Barbarian Reckless Charge timing/tuning.
 const CHARGE_WINDUP_MS   = 400    // telegraphed crouch before the dash — the counterplay window
 const CHARGE_STAGGER_MS  = 1000   // how long path minions are stunned (skip their AI turn)
@@ -198,6 +211,8 @@ export class ClassAbilitySystem {
     EventBus.on('ADVENTURER_FLED', this._onFled, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
     EventBus.on('DAY_PHASE_ENDED', this._clearAllSustained, this)
+    // Bard Crescendo — a solid hit to the bard shatters the song.
+    EventBus.on('COMBAT_HIT', this._onCombatHit, this)
   }
 
   destroy() {
@@ -207,6 +222,7 @@ export class ClassAbilitySystem {
     EventBus.off('ADVENTURER_FLED', this._onFled, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAllSustained, this)
     EventBus.off('DAY_PHASE_ENDED', this._clearAllSustained, this)
+    EventBus.off('COMBAT_HIT', this._onCombatHit, this)
     this._clearAllSustained()
   }
 
@@ -260,6 +276,11 @@ export class ClassAbilitySystem {
     adventurer._tauntActiveUntil      = null
     adventurer._inspireActiveUntil    = null
     adventurer._songSpeedActiveUntil  = null
+    // Bard Crescendo — reset the swell so a re-entering/raised bard starts silent.
+    adventurer._crescendoStacks       = 0
+    adventurer._crescendoAtkMul       = 1
+    adventurer._crescendoSpdMul       = 1
+    adventurer._crescendoSilencedUntil = 0
     adventurer._focusActiveUntil      = null
     adventurer._innerPeaceUntil       = null
     adventurer._boneArmorUntil        = null
@@ -1324,38 +1345,83 @@ export class ClassAbilitySystem {
   // ── Bard ──────────────────────────────────────────────────────────────────
 
   _considerBard(adv, now) {
-    // Inspire Party — fire when a same-party ally within 2 tiles is fighting.
-    // Boosts attack damage during combat.
-    const inspireDef = ABILITY_DEFS.bard_inspire
-    if (this._partyAllyEngagedWithin(adv, inspireDef.auraRangeTiles)) {
-      const ready = AbilitySystem.canUse(adv, inspireDef, now)
-      if (ready.ready) {
-        AbilitySystem.markUsed(adv, inspireDef, now)
-        adv._inspireActiveUntil = now + inspireDef.durationMs
-        this._fireInspireVfx(adv, inspireDef.durationMs)
-        EventBus.emit('ABILITY_TRIGGERED', {
-          adventurer: adv,
-          abilityId: 'inspire_party',
-          message: `${adv.name} struck up an inspiring tune.`,
-        })
+    this._tickCrescendo(adv, now)
+  }
+
+  // Crescendo — one escalating battle hymn. While combat is near, the bard gains
+  // a stack every CRESCENDO_STACK_MS (cap CRESCENDO_MAX); each stack buffs nearby
+  // party attack + speed (read at the _inspireActiveUntil / _songSpeedActiveUntil
+  // sites via the live mults below). Out of combat the swell decays. A solid hit
+  // or CC shatters it to 0 + a brief silence (see _onCombatHit / the CC check).
+  _tickCrescendo(adv, now) {
+    const def = ABILITY_DEFS.bard_crescendo
+    // CC shatter — stunned/staggered/rooted/feared/petrified breaks the song.
+    if ((adv._staggeredUntil ?? 0) > now || (adv._rootedUntil ?? 0) > now ||
+        (adv._panickedUntil ?? 0) > now || (adv._petrifiedUntil ?? 0) > now) {
+      this._shatterCrescendo(adv, now)
+      return
+    }
+    const silenced = (adv._crescendoSilencedUntil ?? 0) > now
+    const inCombat = !silenced && this._partyAllyEngagedWithin(adv, def.auraRangeTiles + 1)
+    let stacks = adv._crescendoStacks ?? 0
+
+    if (inCombat) {
+      if (now >= (adv._crescendoNextStackAt ?? 0) && stacks < CRESCENDO_MAX) {
+        stacks++
+        adv._crescendoNextStackAt = now + CRESCENDO_STACK_MS
+        if (stacks === 1) {
+          EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'crescendo', message: `${adv.name} struck up a battle hymn.` })
+        } else {
+          EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'crescendo', message: `${adv.name}'s hymn swells (×${stacks}).` })
+        }
+        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 26, stacks >= CRESCENDO_MAX ? '♪ CRESCENDO!' : `♪ ×${stacks}`, { color: '#ff8ad6', fontSize: stacks >= CRESCENDO_MAX ? '13px' : '11px' })
       }
+      adv._crescendoDecayAt = now + CRESCENDO_DECAY_MS
+    } else if (stacks > 0 && now >= (adv._crescendoDecayAt ?? 0)) {
+      stacks--
+      adv._crescendoDecayAt = now + CRESCENDO_DECAY_MS
+      if (stacks === 0) EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'crescendo' })
     }
 
-    // Song of Speed — fire when a same-party ally within 2 tiles is fleeing
-    // (or the bard is). Helps escape and chase.
-    const speedDef = ABILITY_DEFS.bard_speed
-    if (this._partyAllyFleeingWithin(adv, speedDef.auraRangeTiles)) {
-      const ready = AbilitySystem.canUse(adv, speedDef, now)
-      if (ready.ready) {
-        AbilitySystem.markUsed(adv, speedDef, now)
-        adv._songSpeedActiveUntil = now + speedDef.durationMs
-        this._fireSpeedSongVfx(adv, speedDef.durationMs)
-        EventBus.emit('ABILITY_TRIGGERED', {
-          adventurer: adv,
-          abilityId: 'song_of_speed',
-          message: `${adv.name} began a Song of Speed.`,
-        })
-      }
+    adv._crescendoStacks = stacks
+    if (stacks > 0) {
+      adv._crescendoAtkMul = 1 + stacks * CRESCENDO_ATK_PER
+      adv._crescendoSpdMul = 1 + stacks * CRESCENDO_SPD_PER
+      // Keep the existing buff-active gates alive (read by CombatSystem / AISystem).
+      adv._inspireActiveUntil   = now + CRESCENDO_REFRESH_MS
+      adv._songSpeedActiveUntil = now + CRESCENDO_REFRESH_MS
+    } else {
+      adv._crescendoAtkMul = 1; adv._crescendoSpdMul = 1
+      adv._inspireActiveUntil = null; adv._songSpeedActiveUntil = null
+    }
+  }
+
+  // Shatter the song: stacks → 0, brief silence so it can't immediately rebuild.
+  _shatterCrescendo(adv, now) {
+    if ((adv._crescendoStacks ?? 0) > 0) {
+      AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'SILENCED', { color: '#9aa7b4', fontSize: '11px' })
+      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'crescendo' })
+    }
+    adv._crescendoStacks = 0
+    adv._crescendoAtkMul = 1; adv._crescendoSpdMul = 1
+    adv._crescendoNextStackAt = now + CRESCENDO_STACK_MS
+    adv._crescendoSilencedUntil = now + CRESCENDO_SILENCE_MS
+    adv._inspireActiveUntil = null; adv._songSpeedActiveUntil = null
+  }
+
+  // COMBAT_HIT listener — a solid blow (≥ CRESCENDO_HIT_FRAC of max HP) to a bard
+  // shatters the crescendo. Chip damage doesn't (the reward for committing a burst).
+  _onCombatHit(payload) {
+    const id = payload?.targetId
+    if (!id || !(payload.damage > 0)) return
+    const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === id)
+      ?? (this._gameState.minions ?? []).find(m => m.instanceId === id && m._raisedClassId === 'bard')
+    if (!adv) return
+    if (adv.classId !== 'bard' && adv._raisedClassId !== 'bard') return
+    const maxHp = adv.resources?.maxHp ?? 0
+    if (maxHp <= 0 || (adv._crescendoStacks ?? 0) <= 0) return
+    if (payload.damage >= maxHp * CRESCENDO_HIT_FRAC) {
+      this._shatterCrescendo(adv, this._scene?.time?.now ?? 0)
     }
   }
 
@@ -1380,28 +1446,6 @@ export class ClassAbilitySystem {
       if (d <= rangeTiles + 0.01) return true
     }
     return false
-  }
-
-  _partyAllyFleeingWithin(bard, rangeTiles) {
-    if (bard._revivedAdv) return false   // minions don't flee — Song of Speed has no trigger
-    if (bard.aiState === 'fleeing') return true
-    if (!bard.partyId) return false
-    for (const adv of this._gameState.adventurers.active) {
-      if (adv === bard || adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
-      if (adv.partyId !== bard.partyId) continue
-      if (adv.aiState !== 'fleeing' && adv.goal?.type !== 'FLEE') continue
-      const d = Math.hypot(adv.tileX - bard.tileX, adv.tileY - bard.tileY)
-      if (d <= rangeTiles + 0.01) return true
-    }
-    return false
-  }
-
-  _fireInspireVfx(adv, durationMs) {
-    this._createGroundHalo(adv, 'inspire', 0xff5577, durationMs)
-  }
-
-  _fireSpeedSongVfx(adv, durationMs) {
-    this._createGroundHalo(adv, 'song_speed', 0x66ccff, durationMs)
   }
 
   _hostileMinionWithin(adv, rangeTiles) {

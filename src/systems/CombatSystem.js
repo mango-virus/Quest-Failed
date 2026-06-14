@@ -1138,8 +1138,9 @@ export class CombatSystem {
     return dmg
   }
 
-  // Phase 5c — Bard Inspire: if attacker is an adventurer and a same-party
-  // Bard within 2 tiles has _inspireActiveUntil > now, multiply damage by 1.15.
+  // Bard Crescendo (attack half): if a same-party Bard within 3 tiles has an
+  // active hymn, multiply damage by the bard's live crescendo atk mult
+  // (1 + stacks×5%, up to 1.20). The bard buffs themselves too.
   _applyInspireBuff(attacker, raw) {
     if (!attacker || raw <= 0) return raw
     if (attacker.classId === undefined) {
@@ -1152,8 +1153,8 @@ export class CombatSystem {
         if (m._raisedClassId !== 'bard') continue
         if (!m._inspireActiveUntil || now >= m._inspireActiveUntil) continue
         const d = Math.hypot((attacker.tileX ?? 0) - (m.tileX ?? 0), (attacker.tileY ?? 0) - (m.tileY ?? 0))
-        if (d > 2.01) continue
-        return Math.max(1, Math.floor(raw * 1.15))
+        if (d > 3.01) continue
+        return Math.max(1, Math.floor(raw * (m._crescendoAtkMul || 1.15)))
       }
       return raw
     }
@@ -1166,8 +1167,8 @@ export class CombatSystem {
         if (!bard.partyId || bard.partyId !== attacker.partyId) continue
       }
       const d = Math.hypot(attacker.tileX - bard.tileX, attacker.tileY - bard.tileY)
-      if (d > 2.01) continue
-      return Math.max(1, Math.floor(raw * 1.15))
+      if (d > 3.01) continue
+      return Math.max(1, Math.floor(raw * (bard._crescendoAtkMul || 1.15)))
     }
     return raw
   }

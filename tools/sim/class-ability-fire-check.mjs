@@ -57,7 +57,7 @@ const TESTS = [
   ['knight', 'knight_taunt'],
   ['necromancer', 'necro_summon'],
   ['rogue', 'rogue_invisibility'],
-  ['bard', 'bard_inspire'],
+  ['bard', 'bard_crescendo'],
   ['monk', 'monk_focus'],
 ]
 for (const [cls, key] of TESTS) {

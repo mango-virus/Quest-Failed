@@ -3974,9 +3974,9 @@ export class AISystem {
     this._maybeConferParty(adv, 'preboss')
   }
 
-  // Phase 5c — Bard Song of Speed: returns 1.20 if a same-party Bard within
-  // 2 tiles has an active speed-song buff, else 1. The Bard themselves get
-  // the buff while their own song is active.
+  // Bard Crescendo (speed half): returns the bard's live crescendo speed mult
+  // (1 + stacks×4%, up to 1.16) if a same-party Bard within 3 tiles has an active
+  // hymn, else 1. The Bard themselves get the buff while their own song plays.
   _songOfSpeedMul(adv) {
     const advs = this._gameState.adventurers?.active ?? []
     const now  = this._scene.time.now
@@ -3987,8 +3987,8 @@ export class AISystem {
         if (!bard.partyId || bard.partyId !== adv.partyId) continue
       }
       const d = Math.hypot(adv.tileX - bard.tileX, adv.tileY - bard.tileY)
-      if (d > 2.01) continue
-      return 1.20
+      if (d > 3.01) continue
+      return bard._crescendoSpdMul || 1.20
     }
     return 1
   }

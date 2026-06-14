@@ -407,6 +407,10 @@ function _rehydrateRunHistory(state) {
     // the buff active until the new scene's clock catches up.
     '_auraActiveUntil', '_tauntActiveUntil',
     '_inspireActiveUntil', '_songSpeedActiveUntil',
+    // Bard Crescendo — stack state + scene.time-stamped build/decay/silence gates
+    // + the derived mults. Drop on load so the bard re-builds the hymn fresh.
+    '_crescendoStacks', '_crescendoAtkMul', '_crescendoSpdMul',
+    '_crescendoNextStackAt', '_crescendoDecayAt', '_crescendoSilencedUntil',
     // Cheater class ability windows + per-tick state. _aimhackUntil
     // gates the per-attack instakill roll; _speedhackUntil gates the
     // 2× movement burst; _lagStunUntil freezes movement after a lag
