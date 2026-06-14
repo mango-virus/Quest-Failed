@@ -786,8 +786,8 @@ export class ClassAbilitySystem {
   }
 
   _fireBlockVfx(adv, durationMs) {
-    // A golden hoplon dome that pops up, holds the brace window, then fades.
-    AbilityVfx.domeShield(this._scene, adv.worldX, (adv.worldY ?? 0) - 6, { color: 0xffd66b, radius: 30, holdMs: durationMs })
+    // A raised bronze hoplon + deflection sheen — the brace stance.
+    AbilityVfx.gladiatorBlockFx?.(this._scene, adv.worldX, adv.worldY, { durationMs: Math.min(durationMs, 900) })
     AbilityVfx.floatingText(this._scene, adv.worldX, (adv.worldY ?? 0) - 30, 'BLOCK', { color: '#ffe08a', fontSize: '13px' })
   }
 
@@ -2119,7 +2119,7 @@ export class ClassAbilitySystem {
         if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 0.15)
         if (s?.body)        AbilityVfx.alphaSet(s.body, 0.15)
         if (s?.label)       AbilityVfx.alphaSet(s.label, 0.15)
-        AbilityVfx.particleBurst(this._scene, adv.worldX, adv.worldY, { color: 0xaaaaaa, count: 12, durationMs: 600, speed: 80 })
+        AbilityVfx.vanishSmokeFx?.(this._scene, adv.worldX, adv.worldY)
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'VANISH', { color: '#cccccc' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'invisibility', message: `${adv.name} vanished from sight.` })
       }
@@ -2133,7 +2133,7 @@ export class ClassAbilitySystem {
     if (s?.lpc?.image) AbilityVfx.alphaSet(s.lpc.image, 1.0)
     if (s?.body)        AbilityVfx.alphaSet(s.body, 1.0)
     if (s?.label)       AbilityVfx.alphaSet(s.label, 1.0)
-    AbilityVfx.particleBurst(this._scene, adv.worldX, adv.worldY, { color: 0xaaaaaa, count: 8, durationMs: 400, speed: 60 })
+    AbilityVfx.vanishSmokeFx?.(this._scene, adv.worldX, adv.worldY, { reveal: true })
   }
 
   // ── Cheater ──────────────────────────────────────────────────────────

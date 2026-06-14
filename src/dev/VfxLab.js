@@ -56,6 +56,9 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Peasant',   fx: ['mobFervorFx'] },
   { label: 'Adv·Miner',     fx: ['digBurstFx'] },
   { label: 'Adv·Valkyrie',  fx: ['wingedFlightFx', 'valkyrieRaiseFx'] },
+  { label: 'Adv·Rogue',     fx: ['vanishSmokeFx'] },
+  { label: 'Adv·Gladiator', fx: ['gladiatorBlockFx', 'crowdRoarFx'] },
+  { label: 'Adv·Gambler',   fx: ['diceRoll', 'coinFlip'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -496,6 +499,8 @@ export class VfxLab {
         case 'arcBoltFx':    AbilityVfx.arcBoltFx(s, e.worldX, e.worldY - 10, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 10, opts); break
         case 'piercingArrowFx': AbilityVfx.piercingArrowFx(s, e.worldX, e.worldY - 8, (d?.worldX ?? e.worldX + 120), (d?.worldY ?? e.worldY) - 8, opts); break
         case 'pounceFx':     AbilityVfx.pounceFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
+        case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
+        case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'pulseRing':    AbilityVfx.pulseRing(s, e.worldX, e.worldY, { color: pal.color, fromR: 6, toR: 40, alpha: 0.85, durationMs: 500 }); break
         case 'juice':        AbilityVfx.juice(s, e.worldX, e.worldY, opts); break

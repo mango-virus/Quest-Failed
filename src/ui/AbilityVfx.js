@@ -4173,8 +4173,16 @@ export const AbilityVfx = {
     scene.time.addEvent({ delay: 80, repeat: 7, callback: () => draw(1 + Math.floor(Math.random() * 6)) })
     scene.time.delayedCall(740, () => {
       if (!cont.active) return
-      draw(face); cont.angle = 0
-      AbilityVfx.pulseRing(scene, x, y - 16, { color: 0xffe066, fromR: 6, toR: 22, thickness: 3, durationMs: 280, alpha: 0.75 })  // circle-ok: deliberate shock-ring accent, not the sole read
+      draw(face); cont.angle = 0; _glow(g, 0xffe066, 2, 8)
+      scene.tweens.add({ targets: cont, scaleX: 1.18, scaleY: 0.85, duration: 90, yoyo: true, ease: 'Quad.easeOut' })
+      const good = face === 6, whiff = face === 1, fc = good ? 0xffe066 : whiff ? 0x9a9aa2 : 0xffd27a
+      AbilityVfx.pulseRing(scene, x, y - 16, { color: fc, fromR: 6, toR: 22, thickness: 3, durationMs: 280, alpha: 0.75 })  // circle-ok: deliberate result shock-ring accent, not the sole read
+      const mult = _particlesMult()
+      if (mult > 0) {
+        const cnt = good ? 14 : whiff ? 5 : 8
+        const p = scene.add.particles(x, y - 16, _softDotTexture(scene), { lifespan: { min: 200, max: 500 }, speed: { min: good ? 60 : 30, max: good ? 160 : 80 }, scale: { start: good ? 0.2 : 0.14, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: good ? [0xffe066, 0xfff6b0] : whiff ? [0x9a9aa2, 0x666666] : [0xffd27a, 0xffe066], blendMode: good ? 'ADD' : 'NORMAL', emitting: false })
+        p.setDepth(o.depth + 1); p.explode(Math.round(cnt * mult)); scene.time.delayedCall(600, () => { try { p.destroy() } catch (e) {} })
+      }
     })
     scene.time.delayedCall(o.durationMs, () => {
       if (cont.active) scene.tweens.add({ targets: cont, alpha: 0, y: y - 32, duration: 220, onComplete: () => cont.destroy() })
@@ -4203,7 +4211,16 @@ export const AbilityVfx = {
     scene.time.delayedCall(740, () => {
       if (!cont.active) return
       drawCoin(win ? 0xffe066 : 0x9a9aa2)
-      AbilityVfx.pulseRing(scene, x, y - 20, { color: win ? 0xffe066 : 0x9a9aa2, fromR: 6, toR: 28, thickness: 3, durationMs: 320, alpha: 0.85 })  // circle-ok: deliberate shock-ring accent, not the sole read
+      const col = win ? 0xffe066 : 0x9a9aa2
+      if (win) _glow(g, 0xffe066, 3, 10)
+      scene.tweens.add({ targets: cont, scaleX: 1.2, scaleY: 0.8, duration: 90, yoyo: true, ease: 'Quad.easeOut' })
+      AbilityVfx.pulseRing(scene, x, y - 20, { color: col, fromR: 6, toR: 28, thickness: 3, durationMs: 320, alpha: 0.85 })  // circle-ok: deliberate result shock-ring accent, not the sole read
+      // glint streaks off the landed coin (sharper for a win)
+      for (let i = 0; i < (win ? 4 : 2); i++) {
+        const a = Math.random() * Math.PI * 2, gl = scene.add.graphics().setPosition(x, y - 20).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD).setRotation(a).setAlpha(0.9)
+        gl.fillStyle(win ? 0xfff6b0 : 0xcfcfd6, 0.9); gl.fillTriangle(0, -1.2, 16 + Math.random() * 8, 0, 0, 1.2)
+        scene.tweens.add({ targets: gl, scaleX: 1.6, alpha: 0, duration: 300, ease: 'Quad.easeOut', onComplete: () => gl.destroy() })
+      }
     })
     scene.time.delayedCall(o.durationMs, () => {
       if (cont.active) scene.tweens.add({ targets: cont, alpha: 0, y: y - 36, duration: 220, onComplete: () => cont.destroy() })
@@ -4938,6 +4955,78 @@ export const AbilityVfx = {
     if (mult > 0) {
       const m = scene.add.particles(x, y + 2, _softDotTexture(scene), { lifespan: { min: life * 0.5, max: life }, speedY: { min: -80, max: -34 }, speedX: { min: -16, max: 16 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.accent, o.color, 0xffe9b0], blendMode: 'ADD', emitting: false })
       m.setDepth(o.depth + 0.3); m.explode(Math.round(16 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // ROGUE · Invisibility — the rogue dissolves into SHADOW: lobed smoke-wisps curl
+  // outward (vanish) or coalesce inward (opts.reveal) + a dark dissipation puff.
+  vanishSmokeFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x6a5a8a, accent: 0x2a2438, depth: 14, durationMs: 520, reveal: false, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const puffs = 5
+    for (let i = 0; i < puffs; i++) {
+      const a = (i / puffs) * Math.PI * 2 + Math.random() * 0.4, r = o.reveal ? 22 : 4
+      const g = scene.add.graphics().setPosition(x + Math.cos(a) * r, y - 6 + Math.sin(a) * r * 0.7).setDepth(o.depth).setScale(o.reveal ? 0.9 : 0.3).setAlpha(o.reveal ? 0.7 : 0); made.push(g)
+      g.fillStyle(o.color, 0.55); for (let l = 0; l < 3; l++) { const la = l / 3 * Math.PI * 2; g.fillCircle(Math.cos(la) * 3, Math.sin(la) * 3, 4) }
+      g.fillStyle(o.accent, 0.5); g.fillCircle(0, 0, 3)
+      const tx = o.reveal ? x : x + Math.cos(a) * (18 + Math.random() * 12)
+      const ty = o.reveal ? y - 6 : y - 14 + Math.sin(a) * 8
+      scene.tweens.add({ targets: g, x: tx, y: ty, scale: o.reveal ? 0.3 : 1.1, alpha: o.reveal ? 0 : 0.55, angle: (Math.random() - 0.5) * 120, duration: life, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
+    if (mult > 0) {
+      const p = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speed: { min: 20, max: 70 }, scale: { start: 0.22, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x6a5a8a, 0x2a2438, 0x4a3a6a], emitting: false })
+      p.setDepth(o.depth - 0.3); p.explode(Math.round(8 * mult)); made.push(p); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // GLADIATOR · Block — a round bronze HOPLON is raised in front (shaded disc + rim
+  // + boss + sheen) and a deflection sheen sweeps across it. The fiction IS a round
+  // shield, so the disc is deliberate. Held for the brace window.
+  gladiatorBlockFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffd66b, accent: 0xfff4d8, depth: 14, durationMs: 700, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const sh = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth).setScale(0.4).setAlpha(0); made.push(sh)
+    sh.fillStyle(0x8a6a2a, 0.95); sh.fillCircle(0, 0, 15)
+    sh.fillStyle(0xb8882a, 0.9); sh.fillCircle(0, 0, 11)
+    sh.lineStyle(2.4, 0xffd66b, 0.95); sh.strokeCircle(0, 0, 15)
+    sh.fillStyle(0xffe9a8, 0.9); sh.fillCircle(0, 0, 4)
+    sh.fillStyle(0xfff4d8, 0.4); sh.fillEllipse(-5, -5, 8, 5); _glow(sh, o.color, 3, 10)
+    scene.tweens.add({ targets: sh, scale: 1, alpha: 0.95, duration: life * 0.18, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: sh, alpha: 0.7, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut',
+        onComplete: () => scene.tweens.add({ targets: sh, alpha: 0, scale: 1.1, duration: life * 0.25, onComplete: () => sh.destroy() }) }) })
+    const sheen = scene.add.graphics().setPosition(x - 8, y - 6).setDepth(o.depth + 0.3).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(sheen)
+    sheen.fillStyle(0xffffff, 0.7); sheen.fillEllipse(0, 0, 5, 26)
+    scene.tweens.add({ targets: sheen, x: x + 8, alpha: 0.8, duration: life * 0.3, delay: life * 0.15, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: sheen, alpha: 0, duration: life * 0.2, onComplete: () => sheen.destroy() }) })
+    return made
+  },
+
+  // GLADIATOR · Crowd Roar — a fierce colosseum ROAR: broken roar-bands radiate (not
+  // clean rings) + a hot up-flare + rising cheer-dust. Intensity scales opts.stacks.
+  crowdRoarFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffb347, accent: 0xffd27a, depth: 14, durationMs: 560, stacks: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const n = Math.min(6, Math.max(1, o.stacks))
+    for (let i = 0; i < 2 + Math.floor(n / 2); i++) {
+      const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9).setScale(0.4); made.push(g)
+      const r = 16 + i * 8
+      g.lineStyle(3.2 - i * 0.5, i ? o.accent : o.color, 0.85)
+      g.beginPath(); g.arc(0, 0, r, -2.2, -0.95, false); g.strokePath()
+      g.beginPath(); g.arc(0, 0, r, 0.95, 2.2, false); g.strokePath()
+      g.beginPath(); g.arc(0, 0, r, -0.55, 0.55, false); g.strokePath(); _glow(g, o.color, 2, 7)
+      scene.tweens.add({ targets: g, scale: 1 + i * 0.3 + n * 0.05, alpha: 0, duration: life * 0.55 + i * 70, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
+    const fl = scene.add.circle(x, y - 8, 5 + n, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 0.5)  // circle-ok: additive roar up-flare core, the broken bands are the read
+    _glow(fl, o.accent, 3, 9 + n); made.push(fl)
+    scene.tweens.add({ targets: fl, alpha: 0.7, scale: 1.8, duration: life * 0.4, yoyo: true, ease: 'Sine.easeOut', onComplete: () => fl.destroy() })
+    if (mult > 0) {
+      const p = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: -70, max: -24 }, speedX: { min: -50, max: 50 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [o.accent, o.color, 0xff8833], blendMode: 'ADD', emitting: false })
+      p.setDepth(o.depth - 0.3); p.explode(Math.round((8 + n * 2) * mult)); made.push(p); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} })
     }
     return made
   },

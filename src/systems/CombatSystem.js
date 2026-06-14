@@ -628,8 +628,7 @@ export class CombatSystem {
         const prev = attacker._crowdRoarStacks ?? 0
         if (prev < CROWD_ROAR_MAX_STACKS) {
           const s = attacker._crowdRoarStacks = prev + 1
-          AbilityVfx.shockwave(this._scene, attacker.worldX, attacker.worldY, { color: 0xffb347, fromR: 8, toR: 64 + s * 6, thickness: 5, durationMs: 420 })
-          AbilityVfx.burstRays(this._scene, attacker.worldX, attacker.worldY - 8, { color: 0xffd27a, count: 8, length: 56 + s * 6, durationMs: 380 })
+          AbilityVfx.crowdRoarFx?.(this._scene, attacker.worldX, attacker.worldY, { stacks: s })
           AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 30, s >= CROWD_ROAR_MAX_STACKS ? 'ROAR! MAX' : `ROAR! x${s}`, { color: '#ffcf6b', fontSize: '13px' })
           EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'crowd_roar', message: `${attacker.name} feeds on the crowd (Roar x${s}).` })
         }
