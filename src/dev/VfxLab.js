@@ -495,7 +495,6 @@ export class VfxLab {
         case 'mesmerizeFx':  AbilityVfx.mesmerizeFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
         case 'manyEyesFx':   AbilityVfx.manyEyesFx(s, e.worldX, e.worldY, [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) - 16 }, { x: e.worldX - 80, y: e.worldY + 8 }], opts); break
         case 'tyrantGlareFx': AbilityVfx.tyrantGlareFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
-        case 'alphaHuntFx':  AbilityVfx.alphaHuntFx(s, e.worldX, e.worldY, { ...opts, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
         case 'thornGuardFx': AbilityVfx.thornGuardFx(s, e.worldX, e.worldY, opts); break
         case 'thornLashFx':  AbilityVfx.thornLashFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
         case 'thornburstFx': AbilityVfx.thornburstFx(s, e.worldX, e.worldY, { ...opts, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
