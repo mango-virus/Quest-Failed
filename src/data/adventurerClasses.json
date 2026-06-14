@@ -169,7 +169,7 @@
     ],
     "unlockDay": 21,
     "rarity": "rare",
-    "description": "Trained handler. Tames a single hostile minion mid-fight; the tamed beast follows and fights for them. Only one companion at a time — if it dies, they tame a replacement.",
+    "description": "Trained handler. TAMES a single hostile minion mid-fight to fight for them (one at a time; re-tames if it dies). SIC 'EM: commands the beast to pounce a foe for a heavy maul. PACK TACTICS: the handler and beast hit harder when both flank the same target — kill the beast to defang them.",
     "flavorText": "Every beast was a person once, in their head."
   },
   {

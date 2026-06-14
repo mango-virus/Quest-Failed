@@ -61,7 +61,10 @@ export const ABILITY_DEFS = {
   ranger_trap_expert:    { id: 'trap_expert',    usesPerDayPerLevel: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }, label: 'Trap Expert', failChance: 0.20 },
   // Beast Master
   bm_tame_beast:         { id: 'tame_beast',     cooldownMs: 8000,                     label: 'Tame Beast', successRate: 0.5, rangeTiles: 1.5 },
-  bm_scout_ahead:        { id: 'scout_ahead',    usesPerDay: 1,                        label: 'Scout Ahead' },
+  // Sic 'Em — command the tamed companion to pounce a nearby hostile (a maul for
+  // a multiple of the beast's attack). Pack Tactics (flanking bonus when BM +
+  // beast share a target) is a passive in CombatSystem. (Replaced Scout Ahead.)
+  bm_sic_em:             { id: 'sic_em',         cooldownMs: 7000, rangeTiles: 5, mult: 1.6, label: "Sic 'Em" },
   // Barbarian
   barb_break_door:       { id: 'break_door',     cooldownMs: 6000,                     label: 'Break Door' }, // dormant — needs locked doors to land
   // Reckless Charge — barrel in a straight line into the densest nearby minion
@@ -1860,35 +1863,23 @@ export class ClassAbilitySystem {
         }
       }
     }
-    // Scout Ahead — fires once per day, when companion is alive AND the
-    // BM "decides" to scout (40% chance, rolled once per day so the choice
-    // is sticky — they either send the beast scouting that day, or keep it
-    // by their side).
-    const scoutDef = ABILITY_DEFS.bm_scout_ahead
+    // Sic 'Em — command the companion to POUNCE a nearby hostile: a directed
+    // maul for a multiple of the beast's attack, then the beast engages it.
+    // (Pack Tactics — the flanking bonus when both attack the same target — is
+    // a passive handled in CombatSystem._computeDamage.)
     const companion = this._beastMasterCompanion(adv)
-    const dayNum = this._gameState.meta?.dayNumber ?? 1
     if (companion) {
-      const ready = AbilitySystem.canUse(adv, scoutDef, now)
-      if (ready.ready) {
-        if (adv._scoutDecisionDay !== dayNum) {
-          adv._scoutDecisionDay = dayNum
-          adv._scoutWillFire    = Math.random() < 0.4
-        }
-        if (!adv._scoutWillFire) return
-        AbilitySystem.markUsed(adv, scoutDef, now)
-        // Transfer knowledge of all rooms — simplest possible "scout" sim.
-        const ks = this._scene.knowledgeSystem
-        if (ks?._grantRoomVisited) {
-          for (const room of this._gameState.dungeon?.rooms ?? []) {
-            ks._grantRoomVisited?.(adv, room.instanceId)
-          }
-        }
-        // Companion vanishes during scouting (briefly): it goes to dead state for 0.3s.
-        // To keep it simple, we just tag a flag and bring it back in 1s.
-        companion._scoutingUntil = now + 1000
-        AbilityVfx.pulseRing(this._scene, adv.worldX, adv.worldY, { color: 0x88ccff, fromR: 6, toR: 30, durationMs: 500, alpha: 0.85 })
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'SCOUT', { color: '#88ccff' })
-        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'scout_ahead', message: `${adv.name} sent a beast scouting.` })
+      const sicDef = ABILITY_DEFS.bm_sic_em
+      const prey = this._nearestHostileMinion(companion, sicDef.rangeTiles)
+      if (prey && AbilitySystem.canUse(adv, sicDef, now).ready) {
+        AbilitySystem.markUsed(adv, sicDef, now)
+        const dmg = Math.max(1, Math.floor((companion.stats?.attack ?? 0) * sicDef.mult) - (prey.stats?.defense ?? 0))
+        prey.resources.hp = Math.max(0, (prey.resources?.hp ?? 0) - dmg)
+        companion.currentTargetId = prey.instanceId
+        EventBus.emit('COMBAT_HIT', { sourceId: companion.instanceId, targetId: prey.instanceId, damage: dmg, damageType: 'physical', isCritical: false })
+        AbilityVfx.beamFx?.(this._scene, companion.worldX, companion.worldY, prey.worldX, prey.worldY, { color: 0xff9944, durationMs: 220 })
+        AbilityVfx.floatingText(this._scene, prey.worldX, (prey.worldY ?? 0) - 22, 'MAULED', { color: '#ff9944', fontSize: '11px' })
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'sic_em', message: `${adv.name} sicced the beast on a foe.` })
       }
     }
   }

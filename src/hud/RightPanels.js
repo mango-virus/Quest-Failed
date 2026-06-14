@@ -183,8 +183,10 @@ const LOG_MAX_COALESCE_CONTEXTS = 3
 const ABILITY_BRIEF = {
   aimhack:        'Aimhack loaded',
   speedhack:      'Speed hack engaged',
-  focus:          'Focus',
-  inner_peace:    'Inner Peace',
+  riposte:        'Riposte',
+  stunning_palm:  'Stunning Palm',
+  reckless_charge:'Reckless Charge',
+  crescendo:      'Crescendo',
   cleric_heal:    'Heal',
   resurrection:   'Resurrection',
   arcane_burst:   'Arcane Burst',
@@ -196,7 +198,7 @@ const ABILITY_BRIEF = {
   trap_expert:    'Trap',
   tame_beast:     'Tame Beast',
   invisibility:   'Vanish',
-  scout_ahead:    'Scout Ahead',
+  sic_em:         "Sic 'Em",
 }
 
 // Brief one-phrase summaries of each flee reason for the coalesced

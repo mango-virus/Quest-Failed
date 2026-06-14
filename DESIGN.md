@@ -498,9 +498,31 @@ _(Ability harness 27/27, soak 120/120, `tools/sim/monk-riposte-check.mjs` 3/3.)_
 - ✅ Inner Peace removed (def + consider block gone; no dangling refs)
 - ✅ Intel description updated
 
+### 🐺 Beast Master — Sic 'Em + Pack Tactics (LOCKED 2026-06-14, built + verified)
+
+**Problem:** Tame Beast is great (flips your minion), but Scout Ahead was near-invisible (room
+reveal + a 1s vanish stub). **Kept Tame; replaced Scout Ahead.**
+
+- **Sic 'Em** (~7s cd) — command the living companion to **pounce** the nearest hostile within 5
+  tiles: a directed **maul for the beast's attack ×1.6** (− defense), and the beast then engages it.
+  The companion becomes an active threat the player watches.
+- **Pack Tactics** (passive) — the BM and its tamed beast deal **+25%** when BOTH are adjacent to
+  the same target (flanking). Applies to the BM's hits AND the beast's hits. **Counterplay: kill
+  the beast to defang the pair.**
+
+**Systems:** `ClassAbilitySystem._considerBeastMaster` (Sic 'Em replaces the Scout Ahead block;
+removed `_scout*`/`_scoutingUntil`) + `CombatSystem._computeDamage` Pack Tactics block
+(`PACK_TACTICS_PCT`). HUD label maps updated (`sic_em`; dropped `scout_ahead`). No new save fields.
+
+#### Acceptance checklist (verified 2026-06-14)
+_(Ability harness 27/27, soak 120/120, `tools/sim/beastmaster-check.mjs` 6/6.)_
+- ✅ Tame Beast unchanged
+- ✅ Sic 'Em: companion mauls nearest hostile for atk×1.6−def (test: 14) + sets the beast onto it
+- ✅ Pack Tactics: +25% when BM's beast flanks the target (BM-attacker side, test)
+- ✅ Pack Tactics: +25% when the BM flanks the target (beast-attacker side, test)
+- ✅ Scout Ahead removed (no dangling refs); intel + HUD labels updated
+
 ### Proposed (pending sign-off — NOT locked, NOT built)
-- **🐺 Beast Master:** keep Tame; replace near-invisible Scout Ahead with **Sic 'Em** (directed
-  companion maul) + **Pack Tactics** (BM+beast flanking bonus on a shared target).
 - **🏹 Ranger:** keep Trap Expert; rework Volley → **Piercing Shot** (line shot piercing every
   minion in a row).
 - **🛡️ Knight:** keep Taunt; tweak the flavorless −25% aura into **Bulwark** (directional

@@ -38,6 +38,10 @@ const MAGE_BURST_DMG_PCT     = 0.6
 // Monk Riposte — a dodged hit counters for this fraction of the monk's attack.
 const MONK_RIPOSTE_FRAC      = 0.8
 
+// Beast Master Pack Tactics — flanking bonus when the BM and its tamed companion
+// are BOTH adjacent to the same target.
+const PACK_TACTICS_PCT       = 0.25
+
 const TS = Balance.TILE_SIZE
 
 // Phase 6 — Gladiator Crowd Roar tuning. Each hostile minion the Gladiator
@@ -815,6 +819,24 @@ export class CombatSystem {
     // class trait; not an ability slot anymore).
     if (cls === 'cleric' && _isUndead(target)) {
       raw = Math.floor(raw * 1.5)
+    }
+
+    // Beast Master Pack Tactics — the BM and its tamed companion get a flanking
+    // bonus when BOTH are adjacent to the same target. Applies to the BM's hits
+    // (find the companion) and the companion's hits (find the BM). Counterplay:
+    // kill the beast to defang the pair.
+    if (cls === 'beast_master') {
+      const comp = (this._gameState.minions ?? []).find(m =>
+        m.tamedByAdvId === attacker.instanceId && m.faction === 'adventurer' &&
+        m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
+      if (comp && Math.hypot((comp.tileX ?? 0) - target.tileX, (comp.tileY ?? 0) - target.tileY) <= 1.5) {
+        raw = Math.floor(raw * (1 + PACK_TACTICS_PCT))
+      }
+    } else if (attacker.tamedByAdvId) {
+      const bm = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === attacker.tamedByAdvId)
+      if (bm && Math.hypot((bm.tileX ?? 0) - target.tileX, (bm.tileY ?? 0) - target.tileY) <= 1.5) {
+        raw = Math.floor(raw * (1 + PACK_TACTICS_PCT))
+      }
     }
 
     // Ranger: arrows removed in 5c rework. Free-shooting now; Volley proc
