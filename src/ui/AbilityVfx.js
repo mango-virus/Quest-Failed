@@ -4151,7 +4151,7 @@ export const AbilityVfx = {
   // "Roll the Dice" VFX (procedural pip-die — no sprite sheet needed).
   diceRoll(scene, x, y, face, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { size: 26, faceColor: 0xfafafa, pipColor: 0x232329, durationMs: 1100, depth: 33, ...opts }
+    const o = { size: 19, faceColor: 0xfafafa, pipColor: 0x232329, durationMs: 1100, depth: 33, ...opts }
     const s = o.size, q = s * 0.26, pr = s * 0.085
     const PIP = { c: [0, 0], tl: [-q, -q], tr: [q, -q], bl: [-q, q], br: [q, q], ml: [-q, 0], mr: [q, 0] }
     const FACES = { 1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'], 4: ['tl', 'tr', 'bl', 'br'],
@@ -4194,7 +4194,7 @@ export const AbilityVfx = {
   // (win) or grey (lose) face with a ring. The Gambler's "Double or Nothing" VFX.
   coinFlip(scene, x, y, win, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { r: 13, durationMs: 1000, depth: 33, ...opts }
+    const o = { r: 10, durationMs: 1000, depth: 33, ...opts }
     const cont = scene.add.container(x, y).setDepth(o.depth)
     const g = scene.add.graphics()
     const drawCoin = (c) => {
@@ -4590,21 +4590,31 @@ export const AbilityVfx = {
     return made
   },
 
-  // MAGE · WIND element — curved air-slash crescents sweep in the push direction
-  // + swept debris. opts.dir = push dir (+1/-1).
+  // MAGE · WIND element — a GREEN gale: curved green air-slash crescents sweep in
+  // the push direction + real tumbling LEAVES caught in the gust + swept grit.
+  // opts.dir = push dir (+1/-1).
   gustFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { color: 0xaaffee, accent: 0xffffff, depth: 14, durationMs: 480, dir: 1, ...opts }
+    const o = { color: 0x88dd55, accent: 0xccff99, depth: 14, durationMs: 520, dir: 1, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
     const dir = o.dir >= 0 ? 1 : -1
+    // green air-slash crescents
     for (let i = 0; i < 3; i++) {
       const g = scene.add.graphics().setPosition(x, y - 8 + (i - 1) * 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5 * dir, 0.7); made.push(g)
-      g.lineStyle(2.4 - i * 0.4, o.color, 0.8); g.beginPath(); g.arc(0, 0, 12 + i * 4, -1.0, 1.0, false); g.strokePath(); _glow(g, o.color, 2, 6)
+      g.lineStyle(2.4 - i * 0.4, o.color, 0.85); g.beginPath(); g.arc(0, 0, 12 + i * 4, -1.0, 1.0, false); g.strokePath(); _glow(g, o.color, 2, 6)
       scene.tweens.add({ targets: g, x: x + 26 * dir, alpha: 0.9, scaleX: 1.1 * dir, duration: life * 0.4, delay: i * 40, ease: 'Quad.easeOut',
         onComplete: () => scene.tweens.add({ targets: g, alpha: 0, x: g.x + 14 * dir, duration: life * 0.4, onComplete: () => g.destroy() }) })
     }
+    // tumbling LEAVES caught in the gust (recognizable, drift + spin in the push dir)
+    const leafCols = [0x6abf3a, 0x88dd55, 0xb8e08a, 0xd8c468]
+    for (let i = 0; i < 4; i++) {
+      const ly = y - 12 + (Math.random() - 0.5) * 16
+      const g = scene.add.graphics().setPosition(x - dir * 6 + (Math.random() - 0.5) * 6, ly).setDepth(o.depth + 0.2).setScale(0.7 + Math.random() * 0.4).setAngle(Math.random() * 360); made.push(g)
+      _drawLeaf(g, 3.2 + Math.random() * 1.6, leafCols[i % leafCols.length])
+      scene.tweens.add({ targets: g, x: x + dir * (44 + Math.random() * 40), y: ly + (Math.random() - 0.5) * 22, angle: g.angle + (180 + Math.random() * 360) * dir, alpha: 0, duration: life * (0.8 + Math.random() * 0.3), ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
     if (mult > 0) {
-      const d = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedX: { min: 40 * dir, max: 160 * dir }, speedY: { min: -30, max: 30 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xeafff6, 0x9bdcc4, 0xcfc0a0], emitting: false })
+      const d = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedX: { min: 40 * dir, max: 160 * dir }, speedY: { min: -30, max: 30 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.55, end: 0 }, tint: [0xccff99, 0x88dd55, 0x6abf3a], emitting: false })
       d.setDepth(o.depth - 0.3); d.explode(Math.round(9 * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
     }
     return made
@@ -4752,7 +4762,7 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { color: 0xe8e2d0, shade: 0xb8ad95, depth: 14, durationMs: 950, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
-    const cy = y - 6
+    const cy = y - 16   // sit the ribcage up on the chest, not the waist
     // one curved rib bone (filled tapered band around radius R, arc a0→a1) + outer knob
     const drawRib = (g, R, a0, a1, hw) => {
       const n = 7; g.fillStyle(o.color, 1); g.beginPath()
@@ -4806,21 +4816,32 @@ export const AbilityVfx = {
     return made
   },
 
-  // RANGER · Trap Expert — deft DISARM: crossed snip-tools flick over the trap + a
-  // clean green snip-spark (success), or a red sputter knocked askew (opts.fail).
+  // RANGER · Trap Expert — a pair of WIRECUTTERS (pivot + jaws + handles) works the
+  // trap and the jaws SNAP SHUT to snip it + a clean green spark (success), or the
+  // jaws slip with a red sputter (opts.fail). A recognizable tool, not crossed lines.
   disarmFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const fail = !!opts.fail
-    const o = { color: fail ? 0xff6644 : 0xaaffaa, accent: fail ? 0xffaa66 : 0xeafff0, depth: 15, durationMs: 420, ...opts }
+    const o = { color: fail ? 0xff6644 : 0xaaffaa, accent: fail ? 0xffaa66 : 0xeafff0, depth: 15, durationMs: 480, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
-    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
-    g.lineStyle(2, o.accent, 0.95); g.beginPath(); g.moveTo(-7, -5); g.lineTo(5, 4); g.moveTo(7, -5); g.lineTo(-5, 4); g.strokePath(); _glow(g, o.color, 2, 7)
-    scene.tweens.add({ targets: g, alpha: 1, angle: fail ? 30 : 0, duration: life * 0.25, ease: 'Quad.easeOut',
-      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.5, onComplete: () => g.destroy() }) })
-    if (mult > 0) {
-      const sp = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.5 }, speed: { min: fail ? 60 : 30, max: fail ? 140 : 80 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: fail ? [0xff6644, 0xffaa44] : [o.accent, o.color], blendMode: 'ADD', emitting: false })
-      sp.setDepth(o.depth + 0.3); sp.explode(Math.round((fail ? 8 : 5) * mult)); made.push(sp); scene.time.delayedCall(life, () => { try { sp.destroy() } catch (e) {} })
+    const metal = 0xcfd6e0, handle = 0x6a5a3a
+    const cut = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.5).setAlpha(0).setAngle(fail ? -20 : 0); made.push(cut)
+    const draw = (jaw) => {
+      cut.clear()
+      cut.lineStyle(2.6, handle, 1); cut.beginPath(); cut.moveTo(0, 0); cut.lineTo(-5, 11); cut.moveTo(0, 0); cut.lineTo(5, 11); cut.strokePath()   // handles
+      cut.lineStyle(2.2, metal, 1); cut.beginPath(); cut.moveTo(0, 0); cut.lineTo(-Math.sin(jaw) * 9, -Math.cos(jaw) * 9); cut.moveTo(0, 0); cut.lineTo(Math.sin(jaw) * 9, -Math.cos(jaw) * 9); cut.strokePath()  // jaws
+      cut.fillStyle(0xe8eef6, 1); cut.fillCircle(0, 0, 2.1)   // pivot rivet
     }
+    draw(0.55)
+    scene.tweens.add({ targets: cut, alpha: 1, scale: 1, duration: life * 0.2, ease: 'Back.easeOut' })
+    const tw = { v: 0.55 }
+    scene.tweens.add({ targets: tw, v: fail ? 0.5 : 0.08, duration: life * 0.22, delay: life * 0.2, ease: 'Quad.easeIn', onUpdate: () => { if (cut.active) draw(tw.v) },
+      onComplete: () => scene.tweens.add({ targets: cut, alpha: 0, angle: cut.angle + (fail ? 44 : 0), duration: life * 0.4, onComplete: () => cut.destroy() }) })
+    if (mult > 0) scene.time.delayedCall(life * 0.42, () => {
+      if (!_validXY(x, y)) return
+      const sp = scene.add.particles(x, y - 8, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.5 }, speed: { min: fail ? 60 : 30, max: fail ? 140 : 80 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: fail ? [0xff6644, 0xffaa44] : [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      sp.setDepth(o.depth + 0.3); sp.explode(Math.round((fail ? 8 : 5) * mult)); scene.time.delayedCall(life, () => { try { sp.destroy() } catch (e) {} })
+    })
     return made
   },
 
