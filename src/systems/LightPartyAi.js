@@ -350,10 +350,10 @@ export class LightPartyAi {
       tank._invulnUntil = (this._scene.time?.now ?? 0) + HALLOWED_DURATION_MS
       EventBus.emit('LIGHT_PARTY_HALLOWED_GROUND', { tankId: tank.instanceId })
       if (this._scene && tank.worldY != null) {
+        AbilityVfx.consecrateFx?.(this._scene, tank.worldX, tank.worldY)
         AbilityVfx.floatingText(this._scene, tank.worldX, tank.worldY - 16, 'HALLOWED GROUND', {
           color: '#ffd66b', fontSize: '12px',
         })
-        AbilityVfx.pulseRing(this._scene, tank.worldX, tank.worldY, { color: 0xffd66b })
       }
       this._scene.time?.delayedCall?.(HALLOWED_DURATION_MS, () => {
         tank._invuln = false

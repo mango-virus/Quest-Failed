@@ -59,6 +59,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Rogue',     fx: ['vanishSmokeFx'] },
   { label: 'Adv·Gladiator', fx: ['gladiatorBlockFx', 'crowdRoarFx'] },
   { label: 'Adv·Gambler',   fx: ['diceRoll', 'coinFlip'] },
+  { label: 'Champion/Event', fx: ['lastVowFx', 'holyAegisFx', 'shadowAriseFx', 'consecrateFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 

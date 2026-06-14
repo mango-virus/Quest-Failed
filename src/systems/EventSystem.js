@@ -361,10 +361,10 @@ export class EventSystem {
     // SoloLevelingCinematic).
     const scene = this._scene
     if (scene) {
+      AbilityVfx.shadowAriseFx?.(scene, shadow.worldX, shadow.worldY)
       AbilityVfx.floatingText(scene, shadow.worldX, shadow.worldY - 16, 'ARISE', {
         color: '#c9a9ff', fontSize: '13px',
       })
-      AbilityVfx.pulseRing(scene, shadow.worldX, shadow.worldY, { color: 0x9b2fe0 })
     }
   }
 

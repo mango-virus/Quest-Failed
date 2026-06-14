@@ -5030,4 +5030,110 @@ export const AbilityVfx = {
     }
     return made
   },
+
+  // CHAMPION · Forlorn Hope "Last Vow" — a martyr's final stand: a crimson resolve
+  // PILLAR erupts + a blood-oath sigil burns at the feet + a defiant up-flare +
+  // rising embers. Dramatic, not a ring stack.
+  lastVowFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff3344, accent: 0xffd23f, depth: 16, durationMs: 900, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const col = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5, 0.3).setAlpha(0); made.push(col)
+    col.fillStyle(o.color, 0.5); col.beginPath(); col.moveTo(-12, 4); col.lineTo(-6, -56); col.lineTo(6, -56); col.lineTo(12, 4); col.closePath(); col.fillPath()
+    col.fillStyle(o.accent, 0.6); col.beginPath(); col.moveTo(-5, 4); col.lineTo(-2.5, -56); col.lineTo(2.5, -56); col.lineTo(5, 4); col.closePath(); col.fillPath(); _glow(col, o.color, 5, 15)
+    scene.tweens.add({ targets: col, scaleX: 1, scaleY: 1, alpha: 1, duration: life * 0.3, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: col, alpha: 0, scaleX: 1.5, duration: life * 0.5, onComplete: () => col.destroy() }) })
+    // blood-oath sigil at the feet — a jagged angular rune, not a clean circle
+    const sig = scene.add.graphics().setPosition(x, y + 4).setDepth(o.depth - 0.4).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(sig)
+    sig.lineStyle(2.4, o.accent, 0.9); sig.beginPath()
+    for (let i = 0; i <= 6; i++) { const a = i / 6 * Math.PI * 2, r = i % 2 ? 16 : 9; const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.5; if (i === 0) sig.moveTo(px, py); else sig.lineTo(px, py) }
+    sig.closePath(); sig.strokePath(); _glow(sig, o.color, 3, 10)
+    scene.tweens.add({ targets: sig, scale: 1, alpha: 0.9, angle: 30, duration: life * 0.4, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: sig, alpha: 0, duration: life * 0.5, onComplete: () => sig.destroy() }) })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -110, max: -50 }, speedX: { min: -30, max: 30 }, x: { min: -10, max: 10 }, scale: { start: 0.22, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.accent, o.color, 0xff6622], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth + 0.3); em.explode(Math.round(18 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // CHAMPION · All-Star "Holy Aegis" — a guardian ward: golden light descends + a
+  // protective wing-shield shimmer enfolds the ally + heal motes. (templar heal)
+  holyAegisFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe066, accent: 0xfff8d0, depth: 15, durationMs: 720, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // protective wing-shield: two feathered arcs sweep up around the ally
+    for (const side of [-1, 1]) {
+      const g = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(g)
+      g.lineStyle(2.6, o.color, 0.85); g.beginPath(); g.arc(0, 0, 18, side < 0 ? 1.3 : -1.3, side < 0 ? 2.7 : -2.7, side < 0); g.strokePath()
+      g.fillStyle(o.accent, 0.5); for (let f = 0; f < 3; f++) { const fa = (side < 0 ? 1.6 : -1.6) + side * f * 0.3; g.fillTriangle(Math.cos(fa) * 18, Math.sin(fa) * 18, Math.cos(fa) * 24, Math.sin(fa) * 24, Math.cos(fa + 0.12) * 18, Math.sin(fa + 0.12) * 18) }
+      _glow(g, o.color, 3, 10)
+      scene.tweens.add({ targets: g, scale: 1, alpha: 0.9, duration: life * 0.3, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 1.2, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    const halo = scene.add.circle(x, y - 6, 8, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive ward glow, the wing-shield arcs are the read
+    _glow(halo, o.accent, 3, 11); made.push(halo)
+    scene.tweens.add({ targets: halo, alpha: 0.5, scale: 1.7, duration: life * 0.4, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => halo.destroy() })
+    if (mult > 0) {
+      const m = scene.add.particles(x, y - 26, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: 16, max: 50 }, speedX: { min: -16, max: 16 }, x: { min: -10, max: 10 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth - 0.3); m.explode(Math.round(10 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // EVENT · Solo Leveling "ARISE" — a violet SHADOW-SOLDIER silhouette rises from a
+  // dark pool + spectral wisps + an eye-glint. The Shadow Monarch's iconic raise.
+  shadowAriseFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9b2fe0, accent: 0xc9a9ff, depth: 15, durationMs: 820, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // dark shadow pool wells up (lobed, additive-dark)
+    const pv = 10, pn = Array.from({ length: pv }, () => 0.7 + Math.random() * 0.5)
+    const pool = scene.add.graphics().setPosition(x, y + 6).setDepth(o.depth - 0.6).setScale(0.4).setAlpha(0); made.push(pool)
+    pool.fillStyle(0x1a0a2e, 0.7); pool.beginPath()
+    for (let i = 0; i <= pv; i++) { const a = i / pv * Math.PI * 2, r = 16 * pn[i % pv]; const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.5; if (i === 0) pool.moveTo(px, py); else pool.lineTo(px, py) }
+    pool.closePath(); pool.fillPath()
+    scene.tweens.add({ targets: pool, alpha: 0.7, scaleX: 1.4, scaleY: 1, duration: life * 0.3, yoyo: true, ease: 'Sine.easeOut', onComplete: () => pool.destroy() })
+    // a shadow-soldier silhouette rises (a hooded figure shape) + violet rim glow
+    const fig = scene.add.graphics().setPosition(x, y + 10).setDepth(o.depth).setScale(0.9).setAlpha(0); made.push(fig)
+    fig.fillStyle(0x2a1148, 0.92); fig.beginPath(); fig.moveTo(0, -26); fig.lineTo(7, -14); fig.lineTo(5, 4); fig.lineTo(-5, 4); fig.lineTo(-7, -14); fig.closePath(); fig.fillPath()  // cloaked body
+    fig.fillCircle(0, -24, 5)  // hood/head
+    fig.fillStyle(o.accent, 0.9); fig.fillCircle(-2, -24, 1.3); fig.fillCircle(2, -24, 1.3)  // glowing eyes
+    _glow(fig, o.color, 3, 10)
+    scene.tweens.add({ targets: fig, y: y - 4, alpha: 1, duration: life * 0.4, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: fig, alpha: 0, y: fig.y - 8, duration: life * 0.4, delay: life * 0.1, onComplete: () => fig.destroy() }) })
+    if (mult > 0) {
+      const w = scene.add.particles(x, y + 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -60, max: -18 }, speedX: { min: -26, max: 26 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [0x9b2fe0, 0x6a1fb0, 0xc9a9ff], blendMode: 'ADD', emitting: false })
+      w.setDepth(o.depth + 0.3); w.explode(Math.round(12 * mult)); made.push(w); scene.time.delayedCall(life, () => { try { w.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // EVENT · Light Party "Hallowed Ground" — a consecrated golden sigil blooms on the
+  // ground + a protective dome shimmer + rising holy motes. Paladin invuln tell.
+  consecrateFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffd66b, accent: 0xfff8d0, depth: 14, durationMs: 800, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // consecrated ground sigil — a radiant cross-in-diamond, drawn (not a ring)
+    const sig = scene.add.graphics().setPosition(x, y + 6).setDepth(o.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(sig)
+    sig.lineStyle(2.4, o.accent, 0.9)
+    sig.beginPath(); sig.moveTo(0, -16); sig.lineTo(20, 0); sig.lineTo(0, 16); sig.lineTo(-20, 0); sig.closePath(); sig.strokePath()   // diamond (ground perspective)
+    sig.lineStyle(2, o.color, 0.85); sig.beginPath(); sig.moveTo(0, -10); sig.lineTo(0, 10); sig.moveTo(-14, 0); sig.lineTo(14, 0); sig.strokePath()  // cross
+    _glow(sig, o.color, 3, 11)
+    scene.tweens.add({ targets: sig, scale: 1, alpha: 0.95, angle: 8, duration: life * 0.35, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: sig, alpha: 0, duration: life * 0.5, delay: life * 0.1, onComplete: () => sig.destroy() }) })
+    // protective dome shimmer (a tall translucent half-dome of light over the unit)
+    const dome = scene.add.graphics().setPosition(x, y - 4).setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5).setAlpha(0); made.push(dome)
+    dome.lineStyle(2, o.accent, 0.6); dome.beginPath(); dome.arc(0, 4, 22, Math.PI, 0, false); dome.strokePath()
+    dome.fillStyle(o.color, 0.12); dome.beginPath(); dome.arc(0, 4, 22, Math.PI, 0, false); dome.closePath(); dome.fillPath(); _glow(dome, o.color, 2, 9)
+    scene.tweens.add({ targets: dome, scale: 1, alpha: 0.7, duration: life * 0.3, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: dome, alpha: 0, duration: life * 0.45, delay: life * 0.15, onComplete: () => dome.destroy() }) })
+    if (mult > 0) {
+      const m = scene.add.particles(x, y + 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.85 }, speedY: { min: -50, max: -16 }, speedX: { min: -18, max: 18 }, x: { min: -16, max: 16 }, scale: { start: 0.18, end: 0 }, alpha: { start: 0.75, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth); m.explode(Math.round(12 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
 }

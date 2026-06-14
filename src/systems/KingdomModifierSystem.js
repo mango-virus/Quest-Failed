@@ -880,12 +880,10 @@ export class KingdomModifierSystem {
       const before = a.resources.hp
       a.resources.hp = Math.min(a.resources.maxHp ?? before, before + heal)
       const restored = a.resources.hp - before
-      AbilityVfx.pulseRing?.(sc, a.worldX ?? 0, a.worldY ?? 0, { color: 0xa8ffb0, fromR: 6, toR: 30, alpha: 0.85, durationMs: 480 })
-      AbilityVfx.particleBurst?.(sc, a.worldX ?? 0, (a.worldY ?? 0) - 6, { color: 0xc8ffd0, count: 8, speed: 70, durationMs: 520 })
+      AbilityVfx.holyAegisFx?.(sc, a.worldX ?? 0, a.worldY ?? 0)
       if (restored > 0) AbilityVfx.floatingText?.(sc, a.worldX ?? 0, (a.worldY ?? 0) - 24, `+${restored}`, { color: '#a8ffb0', fontSize: '13px', driftY: -28, durationMs: 760 })
     }
-    AbilityVfx.godRays?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xc8ffd0, count: 12, length: 90, durationMs: 600 })
-    AbilityVfx.pulseRing?.(sc, hero.worldX ?? 0, hero.worldY ?? 0, { color: 0xa8ffb0, fromR: 10, toR: 80, alpha: 0.7, durationMs: 600 })
+    AbilityVfx.holyAegisFx?.(sc, hero.worldX ?? 0, hero.worldY ?? 0)
     this._emitAllStar(hero, 'Holy Aegis', 'HOLY AEGIS', allies.length)
   }
 
@@ -1364,10 +1362,7 @@ export class KingdomModifierSystem {
     EventBus.emit('CHAMPION_ABILITY', { responseId: 'forlorn_hope', name: 'LAST VOW', champion: champ?.name })
     AbilityVfx.chargeUp?.(sc, x, y, { color: 0xff3a1a, count: 16, radius: 70, durationMs: 240 })
     sc?.time?.delayedCall?.(180, () => {
-      AbilityVfx.shockwave?.(sc, x, y, { color: 0xff3a1a, toR: 150, thickness: 8, durationMs: 600 })
-      AbilityVfx.burstRays?.(sc, x, y, { color: 0xff6a2a, count: 16, length: 110, durationMs: 560 })
-      AbilityVfx.particleBurst?.(sc, x, y, { color: 0xff5a2a, count: 22, speed: 180, durationMs: 640 })
-      AbilityVfx.pulseRing?.(sc, x, y, { color: 0xffb04a, fromR: 10, toR: 90, alpha: 0.9, durationMs: 520 })
+      AbilityVfx.lastVowFx?.(sc, x, y)
       AbilityVfx.screenFlash?.(sc, { color: 0xc0241a, intensity: 0.4, durationMs: 320 })
       sc?.cameras?.main?.shake?.(360, 0.012)
       const squad = (this._gs.adventurers?.active ?? []).filter(a =>
