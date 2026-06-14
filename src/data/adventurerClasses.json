@@ -148,7 +148,7 @@
       "ranged",
       "scout"
     ],
-    "description": "Ranged combatant. Fires arrows from a distance; switches to melee when the quiver runs dry.",
+    "description": "Ranged combatant. PIERCING SHOT: every few arrows fires a line shot that pierces every minion in a row — don't line them up. TRAP EXPERT: disarms your traps (with a fumble chance). Fires from a distance.",
     "flavorText": "First arrow. Second arrow. Third arrow. Out."
   },
   {

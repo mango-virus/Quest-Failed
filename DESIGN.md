@@ -522,9 +522,25 @@ _(Ability harness 27/27, soak 120/120, `tools/sim/beastmaster-check.mjs` 6/6.)_
 - ✅ Pack Tactics: +25% when the BM flanks the target (beast-attacker side, test)
 - ✅ Scout Ahead removed (no dangling refs); intel + HUD labels updated
 
+### 🏹 Ranger — Piercing Shot (LOCKED 2026-06-14, built + verified)
+
+**Problem:** Trap Expert is good (counters your traps), but Volley was a bland every-5th-shot splash
+to 2 nearby minions. **Kept Trap Expert; reworked Volley.**
+
+- **Piercing Shot** — every **5th** arrow becomes a **line shot** that pierces every minion in a row
+  along the ranger→target ray (through the primary and up to ~6 tiles beyond), each for **full
+  damage**. Rewards the player for NOT lining minions up. (Proc in `CombatSystem.tryAttack`,
+  replacing the splash Volley; consts `RANGER_PIERCE_*`.)
+- **Trap Expert** — unchanged.
+
+#### Acceptance checklist (verified 2026-06-14)
+_(Ability harness 27/27, soak 120/120, `tools/sim/ranger-pierce-check.mjs` 4/4.)_
+- ✅ Every 5th shot fires the line; lands on the primary
+- ✅ Pierces minions BETWEEN ranger and target AND BEYOND it (test)
+- ✅ Spares minions OFF the line (perp > 0.7) (test)
+- ✅ Volley removed (def `ranger_volley`→`ranger_piercing`; HUD label + intel + comments updated)
+
 ### Proposed (pending sign-off — NOT locked, NOT built)
-- **🏹 Ranger:** keep Trap Expert; rework Volley → **Piercing Shot** (line shot piercing every
-  minion in a row).
 - **🛡️ Knight:** keep Taunt; tweak the flavorless −25% aura into **Bulwark** (directional
   shield-wall protecting allies behind him) or **Aegis Reflect** (reflect a slice of soaked dmg).
 

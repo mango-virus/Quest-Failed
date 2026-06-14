@@ -57,7 +57,10 @@ export const ABILITY_DEFS = {
   necro_summon:          { id: 'summon_undead',  cooldownMs: 35000,                    label: 'Summon Undead', summonCount: 2 },
   necro_bone_armor:      { id: 'bone_armor',     cooldownMs: 30000, durationMs: 8000,  label: 'Bone Armor', perUndeadAtk: 1, perUndeadDef: 1 },
   // Ranger
-  ranger_volley:         { id: 'volley',         label: 'Volley' }, // proc-based, every 5th shot
+  // Piercing Shot — every 5th arrow becomes a LINE shot that pierces every minion
+  // in a row from the ranger through the target (proc in CombatSystem). Rewards
+  // the player for NOT lining minions up. (Replaced the every-5th-shot Volley.)
+  ranger_piercing:       { id: 'piercing_shot',  label: 'Piercing Shot' },
   ranger_trap_expert:    { id: 'trap_expert',    usesPerDayPerLevel: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }, label: 'Trap Expert', failChance: 0.20 },
   // Beast Master
   bm_tame_beast:         { id: 'tame_beast',     cooldownMs: 8000,                     label: 'Tame Beast', successRate: 0.5, rangeTiles: 1.5 },
@@ -99,7 +102,7 @@ export const ABILITY_DEFS = {
   glad_block:      { id: 'block',      cooldownMs: 9000, durationMs: 1500, label: 'Block' },
   // Crowd Roar — kill-stacking ATK buff (passive). Increment + damage scaling
   // both live in CombatSystem (CROWD_ROAR_* consts); this entry is just the
-  // registry label (no cooldown / per-day budget), like ranger_volley.
+  // registry label (no cooldown / per-day budget), like ranger_piercing.
   glad_crowd_roar: { id: 'crowd_roar', label: 'Crowd Roar' },
 
   // ── Peasant ────────────────────────────────────────────────────────────
@@ -1794,7 +1797,7 @@ export class ClassAbilitySystem {
   // ── Ranger ────────────────────────────────────────────────────────────────
 
   _considerRanger(adv, now) {
-    // Volley is a proc handled in CombatSystem (every 5th shot). Nothing
+    // Piercing Shot is a proc handled in CombatSystem (every 5th shot). Nothing
     // to consider here per-tick.
 
     // Trap Expert — auto-disarm a trap in the same tile or adjacent (1-tile).

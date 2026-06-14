@@ -192,7 +192,7 @@ const ABILITY_BRIEF = {
   arcane_burst:   'Arcane Burst',
   summon_undead:  'Summon Undead',
   bone_armor:     'Bone Armor',
-  volley:         'Volley',
+  piercing_shot:  'Piercing Shot',
   viewers_choice: 'Viewers Choice',
   chat_decides:   'Chat Decides',
   trap_expert:    'Trap',

@@ -42,13 +42,20 @@ const MONK_RIPOSTE_FRAC      = 0.8
 // are BOTH adjacent to the same target.
 const PACK_TACTICS_PCT       = 0.25
 
+// Ranger Piercing Shot — every Nth arrow becomes a line shot that pierces every
+// minion along the ranger→target ray (rewards the player for not lining them up).
+const RANGER_PIERCE_EVERY    = 5
+const RANGER_PIERCE_RANGE    = 6     // tiles the arrow travels
+const RANGER_PIERCE_PERP     = 0.7   // half-width of the line
+const RANGER_PIERCE_DMG_PCT  = 1.0   // damage to each pierced minion (vs the primary's hit)
+
 const TS = Balance.TILE_SIZE
 
 // Phase 6 — Gladiator Crowd Roar tuning. Each hostile minion the Gladiator
 // fells adds an ATK stack; stacks cap and clear on death/flee. Both the
 // increment (kill block) and the damage scaling (_computeDamage) live in this
 // file, so the constants live here too (the ClassAbilitySystem ABILITY_DEFS
-// entry is just a registry label, like ranger_volley).
+// entry is just a registry label, like ranger_piercing).
 const CROWD_ROAR_PER_STACK  = 0.12   // +12% ATK per stack
 const CROWD_ROAR_MAX_STACKS = 6      // → +72% ATK at full crowd
 const UNDERDOG_PER_STACK    = 0.05   // +5% ATK per kill (the underdog aggression snowball)
@@ -541,25 +548,33 @@ export class CombatSystem {
       this._fireArcaneBurst(attacker, target, finalDmg, damageType)
     }
 
-    // Phase 5c — Ranger Volley: every 5th attack fires at 2 extra targets in
-    // a cone toward the primary target (within 2 tiles of the primary).
+    // Ranger Piercing Shot: every Nth arrow becomes a LINE shot that pierces
+    // every minion in a row along the ranger→target ray (through the primary and
+    // beyond), each for full damage. Rewards the player for NOT lining minions up.
     if (attacker.classId === 'ranger') {
       attacker._shotCount = (attacker._shotCount ?? 0) + 1
-      if (attacker._shotCount % 5 === 0) {
-        AbilityVfx.pulseRing(this._scene, attacker.worldX, attacker.worldY, { color: 0xaaffaa, fromR: 6, toR: 24, durationMs: 350, alpha: 0.7 })
-        AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 22, 'VOLLEY', { color: '#aaffaa' })
-        let extraHits = 0
+      if (attacker._shotCount % RANGER_PIERCE_EVERY === 0) {
+        const ax = attacker.tileX, ay = attacker.tileY
+        const len = Math.hypot(target.tileX - ax, target.tileY - ay) || 1
+        const ux = (target.tileX - ax) / len, uy = (target.tileY - ay) / len
+        let pierced = 0
         for (const m of this._gameState.minions ?? []) {
-          if (m === target) continue
+          if (m === target) continue   // primary already took the normal hit
           if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
           if (m.faction === 'adventurer') continue
-          const d = Math.hypot(m.tileX - target.tileX, m.tileY - target.tileY)
-          if (d > 2.01) continue
-          m.resources.hp = Math.max(0, m.resources.hp - finalDmg)
-          EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: m.instanceId, damage: finalDmg, damageType, isCritical: false })
-          if (++extraHits >= 2) break
+          const relx = m.tileX - ax, rely = m.tileY - ay
+          const along = relx * ux + rely * uy
+          if (along < 0.5 || along > RANGER_PIERCE_RANGE + 0.01) continue
+          if (Math.abs(relx * uy - rely * ux) > RANGER_PIERCE_PERP) continue
+          const pd = Math.max(1, Math.floor(finalDmg * RANGER_PIERCE_DMG_PCT))
+          m.resources.hp = Math.max(0, m.resources.hp - pd)
+          EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: m.instanceId, damage: pd, damageType, isCritical: false })
+          pierced++
         }
-        EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'volley', message: `${attacker.name} loosed a volley.` })
+        const TS = Balance.TILE_SIZE
+        AbilityVfx.beamFx?.(this._scene, attacker.worldX, attacker.worldY, (ax + ux * RANGER_PIERCE_RANGE) * TS + TS / 2, (ay + uy * RANGER_PIERCE_RANGE) * TS + TS / 2, { color: 0xaaffaa, durationMs: 240 })
+        AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 22, pierced > 0 ? `PIERCE ×${pierced}` : 'PIERCE', { color: '#aaffaa' })
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'piercing_shot', message: `${attacker.name} loosed a piercing shot.` })
       }
     }
 
