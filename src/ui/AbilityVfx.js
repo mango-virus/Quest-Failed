@@ -4496,22 +4496,37 @@ export const AbilityVfx = {
     return made
   },
 
-  // MAGE · FIRE element — clinging flames lick up the struck minion + rising
-  // embers. Opaque shaded flame silhouettes (via _drawFlame), not a blob.
+  // MAGE · FIRE element — a small bonfire CLINGS to the struck minion: a cluster
+  // of ANIMATED flickering flame tongues (the demon's flameLickFx — height darts,
+  // body pinches, tip wavers) + a floor heat-glow + rising embers. Reuses the
+  // demon's living-fire flame so it reads like real fire, not a static shape.
   emberBurnFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { color: 0xff6622, accent: 0xffd23f, depth: 14, durationMs: 600, ...opts }
+    const o = { color: 0xff6622, accent: 0xffd23f, depth: 14, durationMs: 700, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
-    for (let i = 0; i < 3; i++) {
-      const fx2 = x + (i - 1) * 6 + (Math.random() - 0.5) * 3
-      const g = scene.add.graphics().setPosition(fx2, y + 2).setDepth(o.depth + i * 0.1).setScale(0.5 + Math.random() * 0.3).setAlpha(0); made.push(g)
-      _drawFlame(g, 13 + Math.random() * 5, 7, (Math.random() - 0.5) * 3)
-      scene.tweens.add({ targets: g, alpha: 1, y: y - 2, duration: life * 0.25, ease: 'Quad.easeOut',
-        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 0.5, y: g.y - 10, duration: life * 0.6, onComplete: () => g.destroy() }) })
+    // breathing heat-glow pooled at the feet (irregular, additive — not a flat oval)
+    const gv = 11, gn = Array.from({ length: gv }, () => 0.7 + Math.random() * 0.5)
+    const glow = scene.add.graphics().setPosition(x, y + 5).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0); made.push(glow)
+    glow.fillStyle(0xff5511, 0.18); glow.beginPath()
+    for (let i = 0; i <= gv; i++) { const a = i / gv * Math.PI * 2, rr = 16 * gn[i % gv]; const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.5; if (i === 0) glow.moveTo(px, py); else glow.lineTo(px, py) }
+    glow.closePath(); glow.fillPath()
+    scene.tweens.add({ targets: glow, scale: 1.1, alpha: 0.5, duration: life * 0.3, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
+    // 4 animated flickering flame tongues across the body, centre tallest
+    const flames = 4
+    for (let i = 0; i < flames; i++) {
+      const off = i - (flames - 1) / 2
+      const fx2 = x + off * 5 + (Math.random() - 0.5) * 3, fy2 = y + 5
+      const m = this.flameLickFx(scene, fx2, fy2, {
+        depth: o.depth + (fy2 > y ? 0.2 : 0) + i * 0.05,
+        durationMs: o.durationMs * (0.7 + Math.random() * 0.4),
+        h: 17 + Math.random() * 6 - Math.abs(off) * 2.4, w: 5 + Math.random() * 1.8,
+        embers: false, slow: o.slow,
+      })
+      if (m) made.push(...m)
     }
     if (mult > 0) {
-      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -54, max: -18 }, speedX: { min: -18, max: 18 }, scale: { start: 0.18, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color, 0xff3311], blendMode: 'ADD', emitting: false })
-      em.setDepth(o.depth + 0.5); em.explode(Math.round(8 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+      const em = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -56, max: -20 }, speedX: { min: -16, max: 16 }, x: { min: -8, max: 8 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color, 0xff3311], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth + 0.6); em.explode(Math.round(9 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
     }
     return made
   },
