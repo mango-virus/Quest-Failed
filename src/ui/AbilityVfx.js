@@ -4606,4 +4606,201 @@ export const AbilityVfx = {
     }
     return made
   },
+
+  // CLERIC · Heal — a holy CROSS glints in and descends onto the ally + a warm
+  // restoring bloom + gentle light motes raining down. Soft, not a ring.
+  healLightFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xfff4a8, accent: 0xffffff, depth: 15, durationMs: 620, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const cross = scene.add.graphics().setPosition(x, y - 30).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5); made.push(cross)
+    cross.fillStyle(o.accent, 0.9); cross.fillRect(-1.6, -8, 3.2, 16); cross.fillRect(-6, -3.2, 12, 3.2); _glow(cross, o.color, 3, 9)
+    scene.tweens.add({ targets: cross, y: y - 12, alpha: 1, scale: 1, duration: life * 0.45, ease: 'Sine.easeIn',
+      onComplete: () => scene.tweens.add({ targets: cross, alpha: 0, scale: 1.4, duration: life * 0.4, onComplete: () => cross.destroy() }) })
+    const bloom = scene.add.circle(x, y - 6, 8, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive holy restore glow, the cross + motes are the read
+    _glow(bloom, o.accent, 3, 10); made.push(bloom)
+    scene.tweens.add({ targets: bloom, alpha: 0.5, scale: 1.8, duration: life * 0.4, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => bloom.destroy() })
+    if (mult > 0) {
+      const m = scene.add.particles(x, y - 30, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: 20, max: 55 }, speedX: { min: -16, max: 16 }, x: { min: -10, max: 10 }, scale: { start: 0.18, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth - 0.3); m.explode(Math.round(9 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // CLERIC · Resurrection — a radiant COLUMN of light rises from the fallen + a
+  // ground gather-halo + ascending feathers & motes lift the soul. Grand raise.
+  resurrectionFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xfff4a8, accent: 0xffffff, depth: 16, durationMs: 1100, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const col = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5, 0.4); made.push(col)
+    col.fillStyle(o.color, 0.45); col.beginPath(); col.moveTo(-14, 4); col.lineTo(-7, -64); col.lineTo(7, -64); col.lineTo(14, 4); col.closePath(); col.fillPath()
+    col.fillStyle(o.accent, 0.6); col.beginPath(); col.moveTo(-6, 4); col.lineTo(-3, -64); col.lineTo(3, -64); col.lineTo(6, 4); col.closePath(); col.fillPath(); _glow(col, o.color, 5, 16)
+    scene.tweens.add({ targets: col, scaleX: 1, scaleY: 1, alpha: 1, duration: life * 0.4, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: col, alpha: 0, scaleX: 1.4, duration: life * 0.5, onComplete: () => col.destroy() }) })
+    const halo = scene.add.circle(x, y + 4, 14, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive ground-light gather, the column + feathers are the read
+    _glow(halo, o.accent, 4, 12); made.push(halo)
+    scene.tweens.add({ targets: halo, alpha: 0.55, scaleX: 1.6, scaleY: 0.7, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => halo.destroy() })
+    if (mult > 0) {
+      const m = scene.add.particles(x, y + 2, _softDotTexture(scene), { lifespan: { min: life * 0.5, max: life }, speedY: { min: -90, max: -40 }, speedX: { min: -18, max: 18 }, x: { min: -10, max: 10 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.accent, o.color, 0xffe9b0], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth + 0.3); m.explode(Math.round(18 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    for (let i = 0; i < 4; i++) {
+      const fx2 = x + (Math.random() - 0.5) * 18
+      const g = scene.add.graphics().setPosition(fx2, y).setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9); made.push(g)
+      g.fillStyle(0xfff8e0, 0.9); g.beginPath(); g.moveTo(0, 0); g.lineTo(2, -7); g.lineTo(0, -12); g.lineTo(-2, -7); g.closePath(); g.fillPath()
+      scene.tweens.add({ targets: g, y: y - 50 - Math.random() * 20, x: fx2 + (Math.random() - 0.5) * 20, angle: (Math.random() - 0.5) * 120, alpha: 0, duration: life, ease: 'Sine.easeOut', onComplete: () => g.destroy() })
+    }
+    return made
+  },
+
+  // NECROMANCER · Summon Undead — skeletal CLAW-HANDS burst up out of a sickly
+  // green soul-pool + grave dirt kicks. The dead claw their way up to serve.
+  necroSummonFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x66dd55, accent: 0xccff99, depth: 14, durationMs: 820, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const pv = 10, pn = Array.from({ length: pv }, () => 0.7 + Math.random() * 0.5)
+    const pool = scene.add.graphics().setPosition(x, y + 6).setDepth(o.depth - 0.6).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(pool)
+    pool.fillStyle(o.color, 0.4); pool.beginPath()
+    for (let i = 0; i <= pv; i++) { const a = i / pv * Math.PI * 2, r = 16 * pn[i % pv]; const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.5; if (i === 0) pool.moveTo(px, py); else pool.lineTo(px, py) }
+    pool.closePath(); pool.fillPath(); _glow(pool, o.color, 3, 10)
+    scene.tweens.add({ targets: pool, alpha: 0.5, scaleX: 1.4, scaleY: 1, duration: life * 0.4, yoyo: true, ease: 'Sine.easeOut', onComplete: () => pool.destroy() })
+    const hands = 2 + Math.round(Math.random())
+    for (let i = 0; i < hands; i++) {
+      const hx = x + (i - (hands - 1) / 2) * 12 + (Math.random() - 0.5) * 6
+      const g = scene.add.graphics().setPosition(hx, y + 10).setDepth(o.depth + i * 0.1).setScale(0.8).setAlpha(0); made.push(g)
+      const s = 11 + Math.random() * 3
+      g.fillStyle(0xe8e2d0, 0.95)
+      for (let f = 0; f < 3; f++) { const fxo = (f - 1) * s * 0.5; g.fillRect(fxo - s * 0.08, -s, s * 0.16, s); g.fillCircle(fxo, -s, s * 0.1) }
+      g.fillRect(-s * 0.35, 0, s * 0.7, s * 0.35)
+      scene.tweens.add({ targets: g, y: y - 2, alpha: 1, duration: life * 0.3, delay: i * 70, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, y: g.y - 6, alpha: 0, duration: life * 0.45, delay: life * 0.1, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const m = scene.add.particles(x, y + 6, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speedY: { min: -70, max: -20 }, speedX: { min: -40, max: 40 }, scale: { start: 0.22, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [0x4a3820, 0x66dd55, 0x335522], emitting: false })
+      m.setDepth(o.depth - 0.4); m.explode(Math.round(12 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // NECROMANCER · Bone Armor — curved RIB-PLATES fly inward and clamp around the
+  // necromancer's torso (anatomical, not a ring) + a bone-white assembly flash.
+  boneArmorFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xddccaa, accent: 0xfff4d8, depth: 14, durationMs: 900, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const slots = [[-9, -8, 0], [9, -8, Math.PI], [-9, 2, 0], [9, 2, Math.PI], [0, -14, -Math.PI / 2]]
+    slots.forEach(([dx, dy, rot], i) => {
+      const sa = Math.random() * Math.PI * 2, sd = 30 + Math.random() * 14
+      const g = scene.add.graphics().setPosition(x + Math.cos(sa) * sd, y - 6 + Math.sin(sa) * sd).setDepth(o.depth).setRotation(rot).setScale(0.4).setAlpha(0); made.push(g)
+      const w = 9 + Math.random() * 3
+      g.lineStyle(2.6, o.color, 0.95); g.beginPath(); g.arc(0, 0, w, -0.7, 0.7, false); g.strokePath()
+      g.lineStyle(1.2, o.accent, 0.7); g.beginPath(); g.arc(0, 0, w, -0.6, 0.6, false); g.strokePath()
+      scene.tweens.add({ targets: g, x: x + dx, y: y - 6 + dy, scale: 1, alpha: 1, duration: life * 0.32, delay: i * 45, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, delay: life * 0.25, onComplete: () => g.destroy() }) })
+    })
+    const fl = scene.add.circle(x, y - 6, 7, o.accent, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.4)  // circle-ok: additive armour-set flash, the rib-plates are the read
+    _glow(fl, o.color, 3, 10); made.push(fl)
+    scene.tweens.add({ targets: fl, alpha: 0.5, scale: 2, duration: life * 0.4, delay: life * 0.2, yoyo: true, ease: 'Sine.easeOut', onComplete: () => fl.destroy() })
+    return made
+  },
+
+  // RANGER · Piercing Shot — a real ARROW flies the line (shaft + head + fletching)
+  // along a bright afterimage trail. Reads as a true directional pierce, not a beam.
+  piercingArrowFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xaaffaa, accent: 0xeafff0, depth: 15, durationMs: 280, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const ang = Math.atan2(y2 - y1, x2 - x1)
+    const trail = scene.add.graphics().setDepth(o.depth - 0.3).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.85); made.push(trail)
+    trail.lineStyle(2.4, o.color, 0.45); trail.beginPath(); trail.moveTo(x1, y1); trail.lineTo(x2, y2); trail.strokePath()
+    trail.lineStyle(0.8, o.accent, 0.9); trail.beginPath(); trail.moveTo(x1, y1); trail.lineTo(x2, y2); trail.strokePath(); _glow(trail, o.color, 2, 6)
+    scene.tweens.add({ targets: trail, alpha: 0, duration: life, ease: 'Quad.easeIn', onComplete: () => trail.destroy() })
+    const arrow = scene.add.graphics().setPosition(x1, y1).setDepth(o.depth).setRotation(ang); made.push(arrow)
+    arrow.fillStyle(0xcfc0a0, 1); arrow.fillRect(-9, -0.9, 16, 1.8)
+    arrow.fillStyle(0xe8e2d0, 1); arrow.beginPath(); arrow.moveTo(7, 0); arrow.lineTo(2, -3); arrow.lineTo(2, 3); arrow.closePath(); arrow.fillPath()
+    arrow.fillStyle(0xaaccaa, 1); arrow.beginPath(); arrow.moveTo(-9, 0); arrow.lineTo(-12, -3); arrow.lineTo(-7, 0); arrow.lineTo(-12, 3); arrow.closePath(); arrow.fillPath()
+    scene.tweens.add({ targets: arrow, x: x2, y: y2, duration: life * 0.8, ease: 'Quad.easeIn',
+      onComplete: () => scene.tweens.add({ targets: arrow, alpha: 0, duration: life * 0.2, onComplete: () => arrow.destroy() }) })
+    return made
+  },
+
+  // RANGER · Trap Expert — deft DISARM: crossed snip-tools flick over the trap + a
+  // clean green snip-spark (success), or a red sputter knocked askew (opts.fail).
+  disarmFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const fail = !!opts.fail
+    const o = { color: fail ? 0xff6644 : 0xaaffaa, accent: fail ? 0xffaa66 : 0xeafff0, depth: 15, durationMs: 420, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+    g.lineStyle(2, o.accent, 0.95); g.beginPath(); g.moveTo(-7, -5); g.lineTo(5, 4); g.moveTo(7, -5); g.lineTo(-5, 4); g.strokePath(); _glow(g, o.color, 2, 7)
+    scene.tweens.add({ targets: g, alpha: 1, angle: fail ? 30 : 0, duration: life * 0.25, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    if (mult > 0) {
+      const sp = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.5 }, speed: { min: fail ? 60 : 30, max: fail ? 140 : 80 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: fail ? [0xff6644, 0xffaa44] : [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      sp.setDepth(o.depth + 0.3); sp.explode(Math.round((fail ? 8 : 5) * mult)); made.push(sp); scene.time.delayedCall(life, () => { try { sp.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // BEAST MASTER · Tame Beast — a calming BOND: a soft heart rises over the beast +
+  // a pink calm glow + settling motes (success); a grey "broke free" puff (opts.fail).
+  tameFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const fail = !!opts.fail
+    const o = { color: 0xff99cc, accent: 0xffd6e8, depth: 15, durationMs: 640, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    if (fail) {
+      if (mult > 0) { const p = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speed: { min: 30, max: 80 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x999999, 0x666666], emitting: false }); p.setDepth(o.depth); p.explode(Math.round(7 * mult)); made.push(p); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} }) }
+      return made
+    }
+    const heart = scene.add.graphics().setPosition(x, y - 10).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3).setAlpha(0); made.push(heart)
+    heart.fillStyle(o.color, 0.9); heart.fillCircle(-2.6, -2, 3); heart.fillCircle(2.6, -2, 3); heart.fillTriangle(-5.2, -1, 5.2, -1, 0, 6); _glow(heart, o.color, 2, 8)
+    scene.tweens.add({ targets: heart, y: y - 30, scale: 1, alpha: 1, duration: life * 0.45, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: heart, alpha: 0, y: heart.y - 10, duration: life * 0.4, onComplete: () => heart.destroy() }) })
+    const glow = scene.add.circle(x, y - 6, 7, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive calming-bond glow, the heart is the read
+    _glow(glow, o.accent, 2, 9); made.push(glow)
+    scene.tweens.add({ targets: glow, alpha: 0.45, scale: 1.6, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
+    if (mult > 0) { const p = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: -30, max: -8 }, speedX: { min: -16, max: 16 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false }); p.setDepth(o.depth - 0.3); p.explode(Math.round(7 * mult)); made.push(p); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // BEAST MASTER · Sic 'Em — the beast POUNCES: a curved leap-trail arcs from the
+  // beast to the prey, then 3 claw gashes rake across it on landing + fur/dust.
+  pounceFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xff9944, accent: 0xffd0a0, depth: 15, durationMs: 440, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const ang = Math.atan2(y2 - y1, x2 - x1)
+    const arc = scene.add.graphics().setDepth(o.depth - 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9); made.push(arc)
+    const N = 10, pts = []
+    for (let i = 0; i <= N; i++) { const t = i / N; pts.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t - Math.sin(t * Math.PI) * 30]) }
+    arc.lineStyle(3, o.color, 0.65); arc.beginPath(); arc.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) arc.lineTo(pts[i][0], pts[i][1]); arc.strokePath()
+    arc.lineStyle(1.2, o.accent, 0.9); arc.beginPath(); arc.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) arc.lineTo(pts[i][0], pts[i][1]); arc.strokePath(); _glow(arc, o.color, 3, 8)
+    scene.tweens.add({ targets: arc, alpha: 0, duration: life * 0.6, ease: 'Quad.easeIn', onComplete: () => arc.destroy() })
+    scene.time.delayedCall(life * 0.42, () => {
+      if (!_validXY(x2, y2)) return
+      const g = scene.add.graphics().setPosition(x2, y2 - 4).setDepth(o.depth + 0.3).setRotation(ang + Math.PI / 2)
+      _drawClawGashes(g, 16)
+      scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.6, delay: life * 0.2, onComplete: () => g.destroy() })
+      if (mult > 0) { const p = scene.add.particles(x2, y2, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.5 }, speed: { min: 40, max: 110 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [0xff9944, 0xcc6622, 0xcfc0a0], emitting: false }); p.setDepth(o.depth); p.explode(Math.round(8 * mult)); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} }) }
+    })
+    return made
+  },
+
+  // BEAST MASTER · Pack Tactics — a brief flank GLINT: two crossed fang-shards snap
+  // on the target when the BM + beast flank it (throttled at the call site).
+  packFlankFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffcc66, accent: 0xfff0c0, depth: 15, durationMs: 300, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(g)
+    g.fillStyle(o.accent, 0.95)
+    for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * 6, -5); g.lineTo(s * 3, 0); g.lineTo(s * 7, 5); g.lineTo(s * 8, -3); g.closePath(); g.fillPath() }
+    _glow(g, o.color, 2, 7)
+    scene.tweens.add({ targets: g, scale: 1, alpha: 1, duration: life * 0.3, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    return made
+  },
 }

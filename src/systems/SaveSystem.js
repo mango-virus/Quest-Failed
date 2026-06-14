@@ -533,6 +533,8 @@ function _rehydrateRunHistory(state) {
     '_chargePhase', '_chargeTarget', '_chargeFrom', '_chargeWindupUntil',
     '_chargeDashStart', '_chargeDashUntil', '_chargeDashFrom', '_chargeDashTo',
     '_chargeEndTile',
+    // Beast Master Pack Tactics — scene-time throttle for the flank-glint VFX.
+    '_packFlankAt',
     //   AI overhaul — nerve morale-break accumulator + room-appraisal threshold
     //   beat + party confer huddle (scene.time-stamped freeze/creep/cooldown gates;
     //   a saved future value would freeze/slow the adv until the new clock catches

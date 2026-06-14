@@ -48,6 +48,10 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Bard',      fx: ['crescendoFx', 'discordShatterFx', 'encoreFx'] },
   { label: 'Adv·Monk',      fx: ['focusStanceFx', 'riposteFx', 'stunningPalmFx'] },
   { label: 'Adv·Mage',      fx: ['emberBurnFx', 'frostChillFx', 'arcBoltFx', 'gustFx', 'arcaneChargeFx', 'arcaneBurstFx'] },
+  { label: 'Adv·Cleric',    fx: ['healLightFx', 'resurrectionFx'] },
+  { label: 'Adv·Necro',     fx: ['necroSummonFx', 'boneArmorFx'] },
+  { label: 'Adv·Ranger',    fx: ['piercingArrowFx', 'disarmFx'] },
+  { label: 'Adv·BeastMaster', fx: ['tameFx', 'pounceFx', 'packFlankFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -486,6 +490,8 @@ export class VfxLab {
         case 'beamFx':       AbilityVfx.beamFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'recklessChargeFx': AbilityVfx.recklessChargeFx(s, e.worldX - 70, e.worldY, e.worldX + 40, e.worldY, opts); break
         case 'arcBoltFx':    AbilityVfx.arcBoltFx(s, e.worldX, e.worldY - 10, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 10, opts); break
+        case 'piercingArrowFx': AbilityVfx.piercingArrowFx(s, e.worldX, e.worldY - 8, (d?.worldX ?? e.worldX + 120), (d?.worldY ?? e.worldY) - 8, opts); break
+        case 'pounceFx':     AbilityVfx.pounceFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'pulseRing':    AbilityVfx.pulseRing(s, e.worldX, e.worldY, { color: pal.color, fromR: 6, toR: 40, alpha: 0.85, durationMs: 500 }); break
         case 'juice':        AbilityVfx.juice(s, e.worldX, e.worldY, opts); break

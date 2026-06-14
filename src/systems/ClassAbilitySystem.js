@@ -162,10 +162,10 @@ for (const key of Object.keys(ABILITY_DEFS)) {
 // Rally + Cleric Resurrection). Keyed by the ability's `id`. Keeps colour/text
 // flavour out of the gameplay defs above.
 const REVIVE_COSMETIC = {
-  rally_the_fallen: { color: 0xffe9a8, hex: '#ffe9a8', done: 'RALLIED', verb: 'rallied',
+  rally_the_fallen: { color: 0xffe9a8, hex: '#ffe9a8', done: 'RALLIED', verb: 'rallied', fx: 'valkyrieRaiseFx',
     move: 'moves to rally a fallen ally', kneel: 'kneels beside the fallen and channels Rally',
     interrupt: 'Rally was interrupted' },
-  resurrection:     { color: 0xfff4a8, hex: '#fff4a8', done: 'RESURRECTED', verb: 'revived',
+  resurrection:     { color: 0xfff4a8, hex: '#fff4a8', done: 'RESURRECTED', verb: 'revived', fx: 'resurrectionFx',
     move: 'moves to reach a fallen ally', kneel: 'kneels and channels a Resurrection',
     interrupt: 'Resurrection was interrupted' },
 }
@@ -1017,7 +1017,7 @@ export class ClassAbilitySystem {
     this._scene.bossSystem?._fightStates?.delete(dead.instanceId)
     this._gameState.adventurers.active.push(dead)
     this._scene.aiSystem?.pickInitialGoal?.(dead)
-    AbilityVfx.resurrectBeam?.(this._scene, dead.worldX, dead.worldY, { color: cos.color, durationMs: 750 })
+    ;(AbilityVfx[cos.fx] ?? AbilityVfx.resurrectBeam)?.(this._scene, dead.worldX, dead.worldY, { color: cos.color, durationMs: 750 })
     AbilityVfx.floatingText(this._scene, dead.worldX, (dead.worldY ?? 0) - 30, cos.done, { color: cos.hex, fontSize: '14px' })
     this._endRallyCastBar(adv)
     adv._rallyChannelUntil = null; adv._rallyTargetId = null; adv._castingUntil = null
@@ -1572,7 +1572,7 @@ export class ClassAbilitySystem {
         const heal = Balance.CLERIC_HEAL_AMOUNT ?? 12
         target.resources.hp = Math.min(target.resources.maxHp, target.resources.hp + heal)
         const restored = target.resources.hp - before
-        AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: 0xfff4a8, fromR: 8, toR: 22, durationMs: 400, alpha: 0.85 })
+        AbilityVfx.healLightFx?.(this._scene, target.worldX, target.worldY)
         AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, `+${restored}`, { color: '#fff4a8' })
         EventBus.emit('ALLY_HEALED', { sourceId: adv.instanceId, targetId: target.instanceId, amount: restored })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'cleric_heal', message: `${adv.name} healed ${this._shortName(target)}.` })
@@ -1670,8 +1670,7 @@ export class ClassAbilitySystem {
         AbilitySystem.markUsed(adv, summonDef, now)
         const summoned = this._summonUndead(adv, summonDef.summonCount)
         const x = adv.worldX, y = adv.worldY
-        AbilityVfx.pulseRing(this._scene, x, y, { color: 0xaa66cc, fromR: 8, toR: 36, durationMs: 500, alpha: 0.85 })
-        AbilityVfx.particleBurst(this._scene, x, y, { color: 0x884499, count: 16, durationMs: 700, speed: 100 })
+        AbilityVfx.necroSummonFx?.(this._scene, x, y)
         AbilityVfx.floatingText(this._scene, x, y - 30, 'SUMMON', { color: '#cc99ff' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'summon_undead', message: `${adv.name} summoned ${summoned} undead.` })
       }
@@ -1686,7 +1685,7 @@ export class ClassAbilitySystem {
         adv._boneArmorUntil = now + armorDef.durationMs
         adv._boneArmorAtk = undeadCount * armorDef.perUndeadAtk
         adv._boneArmorDef = undeadCount * armorDef.perUndeadDef
-        this._createGroundHalo(adv, 'bone_armor', 0xddccaa, armorDef.durationMs)
+        AbilityVfx.boneArmorFx?.(this._scene, adv.worldX, adv.worldY)
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'bone_armor', message: `${adv.name} clad in Bone Armor (+${adv._boneArmorAtk} ATK / +${adv._boneArmorDef} DEF).` })
       }
     }
@@ -1820,8 +1819,10 @@ export class ClassAbilitySystem {
       const ready = AbilitySystem.canUse(adv, teDef, now)
       if (!ready.ready) break
       AbilitySystem.markUsed(adv, teDef, now)
+      const trapWX = trap.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE / 2, trapWY = trap.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE / 2
       if (Math.random() < (teDef.failChance ?? 0.2)) {
         // Failure — trigger the trap on the ranger.
+        AbilityVfx.disarmFx?.(this._scene, trapWX, trapWY, { fail: true })
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'FUMBLE!', { color: '#ff6644' })
         EventBus.emit('TRAP_DISARM_FAILED', { trap, adventurer: adv })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'trap_expert', message: `${adv.name} fumbled a trap.` })
@@ -1829,7 +1830,7 @@ export class ClassAbilitySystem {
         this._scene.trapSystem?._fireTrap?.(trap, this._scene.trapSystem._defs?.[trap.definitionId], adv)
       } else {
         trap._disabledThisDay = true
-        AbilityVfx.pulseRing(this._scene, trap.tileX * Balance.TILE_SIZE + Balance.TILE_SIZE/2, trap.tileY * Balance.TILE_SIZE + Balance.TILE_SIZE/2, { color: 0xaaffaa, fromR: 8, toR: 22, durationMs: 400, alpha: 0.85 })
+        AbilityVfx.disarmFx?.(this._scene, trapWX, trapWY)
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'DISARMED', { color: '#aaffaa' })
         EventBus.emit('TRAP_DISARMED', { trap, adventurer: adv })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'trap_expert', message: `${adv.name} disarmed a trap.` })
@@ -1864,11 +1865,12 @@ export class ClassAbilitySystem {
             target.tamedByAdvId = adv.instanceId
             target.currentTargetId = null
             adv.companionId = target.instanceId
-            AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: 0xff99cc, fromR: 8, toR: 28, durationMs: 500, alpha: 0.85 })
+            AbilityVfx.tameFx?.(this._scene, target.worldX, target.worldY)
             AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, 'TAMED', { color: '#ff99cc' })
             EventBus.emit('MINION_TAMED', { minion: target, tamer: adv })
             EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'tame_beast', message: `${adv.name} tamed a beast.` })
           } else {
+            AbilityVfx.tameFx?.(this._scene, target.worldX, target.worldY, { fail: true })
             AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'TAME FAILED', { color: '#999999', fontSize: '10px' })
             EventBus.emit('TAME_FAILED', { minion: target, tamer: adv })
           }
@@ -1889,7 +1891,7 @@ export class ClassAbilitySystem {
         prey.resources.hp = Math.max(0, (prey.resources?.hp ?? 0) - dmg)
         companion.currentTargetId = prey.instanceId
         EventBus.emit('COMBAT_HIT', { sourceId: companion.instanceId, targetId: prey.instanceId, damage: dmg, damageType: 'physical', isCritical: false })
-        AbilityVfx.beamFx?.(this._scene, companion.worldX, companion.worldY, prey.worldX, prey.worldY, { color: 0xff9944, durationMs: 220 })
+        AbilityVfx.pounceFx?.(this._scene, companion.worldX, companion.worldY, prey.worldX, prey.worldY)
         AbilityVfx.floatingText(this._scene, prey.worldX, (prey.worldY ?? 0) - 22, 'MAULED', { color: '#ff9944', fontSize: '11px' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'sic_em', message: `${adv.name} sicced the beast on a foe.` })
       }

@@ -579,7 +579,7 @@ export class CombatSystem {
           pierced++
         }
         const TS = Balance.TILE_SIZE
-        AbilityVfx.beamFx?.(this._scene, attacker.worldX, attacker.worldY, (ax + ux * RANGER_PIERCE_RANGE) * TS + TS / 2, (ay + uy * RANGER_PIERCE_RANGE) * TS + TS / 2, { color: 0xaaffaa, durationMs: 240 })
+        AbilityVfx.piercingArrowFx?.(this._scene, attacker.worldX, attacker.worldY, (ax + ux * RANGER_PIERCE_RANGE) * TS + TS / 2, (ay + uy * RANGER_PIERCE_RANGE) * TS + TS / 2)
         AbilityVfx.floatingText(this._scene, attacker.worldX, attacker.worldY - 22, pierced > 0 ? `PIERCE ×${pierced}` : 'PIERCE', { color: '#aaffaa' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: attacker, abilityId: 'piercing_shot', message: `${attacker.name} loosed a piercing shot.` })
       }
@@ -853,11 +853,15 @@ export class CombatSystem {
         m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
       if (comp && Math.hypot((comp.tileX ?? 0) - target.tileX, (comp.tileY ?? 0) - target.tileY) <= 1.5) {
         raw = Math.floor(raw * (1 + PACK_TACTICS_PCT))
+        const _now = this._scene?.time?.now ?? 0
+        if (_now - (attacker._packFlankAt ?? 0) > 900) { attacker._packFlankAt = _now; AbilityVfx.packFlankFx?.(this._scene, target.worldX, target.worldY) }
       }
     } else if (attacker.tamedByAdvId) {
       const bm = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === attacker.tamedByAdvId)
       if (bm && Math.hypot((bm.tileX ?? 0) - target.tileX, (bm.tileY ?? 0) - target.tileY) <= 1.5) {
         raw = Math.floor(raw * (1 + PACK_TACTICS_PCT))
+        const _now = this._scene?.time?.now ?? 0
+        if (_now - (bm._packFlankAt ?? 0) > 900) { bm._packFlankAt = _now; AbilityVfx.packFlankFx?.(this._scene, target.worldX, target.worldY) }
       }
     }
 
