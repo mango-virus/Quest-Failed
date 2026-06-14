@@ -35,6 +35,9 @@ const MAGE_GUST_CD_MS        = 2500   // per-mage gate on the normal-hit shove
 const MAGE_BURST_AOE_TILES   = 1.4
 const MAGE_BURST_DMG_PCT     = 0.6
 
+// Monk Riposte — a dodged hit counters for this fraction of the monk's attack.
+const MONK_RIPOSTE_FRAC      = 0.8
+
 const TS = Balance.TILE_SIZE
 
 // Phase 6 — Gladiator Crowd Roar tuning. Each hostile minion the Gladiator
@@ -223,17 +226,23 @@ export class CombatSystem {
       this._scene.classAbilitySystem?._endInvisibility?.(attacker)
     }
 
-    // Phase 5c — Monk Focus: 30% chance to dodge incoming damage entirely.
-    // Only applies when target is the focused adventurer (this is the
-    // defender, not the attacker — so we read target._focusActiveUntil).
+    // Monk Riposte stance: while up, a 30% chance to DODGE the incoming hit and
+    // instantly counter-strike the attacker. Read on the DEFENDER (target) via
+    // `_focusActiveUntil` (only the monk sets it).
     if (target._focusActiveUntil && now < target._focusActiveUntil && Math.random() < 0.30) {
-      // Dodge VFX
       AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'MISS', { color: '#eeeeff' })
-      // No damage applied, no kill.
       EventBus.emit('COMBAT_HIT', {
         sourceId: attacker.instanceId, targetId: target.instanceId,
         damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,
       })
+      // Riposte counter — the dodge isn't just evasion, it's an opening. Strike
+      // the attacker back for a fraction of the monk's attack (less their defense).
+      if (attacker && (attacker.resources?.hp ?? 0) > 0) {
+        const counter = Math.max(1, Math.floor((target.stats?.attack ?? 0) * MONK_RIPOSTE_FRAC) - (attacker.stats?.defense ?? 0))
+        attacker.resources.hp = Math.max(0, attacker.resources.hp - counter)
+        AbilityVfx.floatingText(this._scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 18, `RIPOSTE -${counter}`, { color: '#cfe9ff', fontSize: '11px' })
+        EventBus.emit('COMBAT_HIT', { sourceId: target.instanceId, targetId: attacker.instanceId, damage: counter, damageType: 'physical', isCritical: false })
+      }
       return { hit: false, dodged: true }
     }
 

@@ -58,7 +58,7 @@ const TESTS = [
   ['necromancer', 'necro_summon'],
   ['rogue', 'rogue_invisibility'],
   ['bard', 'bard_crescendo'],
-  ['monk', 'monk_focus'],
+  ['monk', 'monk_riposte'],
 ]
 for (const [cls, key] of TESTS) {
   const r = fireOne(cls, key)
@@ -89,6 +89,25 @@ for (const [cls, key] of TESTS) {
   check('barbarian → barb_charge fires (ABILITY_TRIGGERED=reckless_charge)', firedId === 'reckless_charge', `got '${firedId}'`)
   const staggered = (m1._staggeredUntil ?? 0) > 1000 || (m2._staggeredUntil ?? 0) > 1000
   check('barbarian charge staggers a path minion', staggered, `m1=${m1._staggeredUntil} m2=${m2._staggeredUntil}`)
+})()
+
+// Monk Stunning Palm — fires on a nearby minion and stuns it (_staggeredUntil).
+;(function monkPalm() {
+  const m = hostileMinion(); m.tileX = 6; m.tileY = 6   // adjacent to the monk
+  const gs = {
+    adventurers: { active: [] }, minions: [m],
+    dungeon: { rooms: [room()] }, player: { gold: 0 }, _mechanicFlags: {},
+  }
+  const hero = adv('monk', { tileX: 6, tileY: 6 })
+  gs.adventurers.active.push(hero)
+  const cas = new ClassAbilitySystem(scene, gs)
+  let fired = null
+  const onTrig = (p) => { if (p?.abilityId === 'stunning_palm') fired = p.abilityId }
+  EventBus.on('ABILITY_TRIGGERED', onTrig)
+  cas.devFireAbility(hero, 'monk_palm', 1000)
+  EventBus.off('ABILITY_TRIGGERED', onTrig)
+  check('monk → monk_palm fires (ABILITY_TRIGGERED=stunning_palm)', fired === 'stunning_palm', `got '${fired}'`)
+  check('monk Stunning Palm stuns the target', (m._staggeredUntil ?? 0) > 1000, `stag=${m._staggeredUntil}`)
 })()
 
 // Coverage: every class with a _consider method should have ≥1 ability listed.

@@ -473,9 +473,32 @@ _(Ability harness 25/25, soak 120/120, `tools/sim/mage-element-check.mjs` 9/9, b
 - ✅ Burst lightning = branching bolt (≥2 hops) · burst fire/ice/wind = radial AoE + strong element
 - ✅ Transient gate fields stripped on load; intel description updated
 
+### 🧘 Monk — Riposte + Stunning Palm (LOCKED 2026-06-14, built + verified)
+
+**Problem:** Focus (dodge) + Inner Peace (self-regen) were both invisible self-stats with no
+counterplay. Made the kit active + reactive. **Inner Peace cut.**
+
+- **Riposte** — the guard stance (was Focus, internal field `_focusActiveUntil`): raised when a
+  hostile is near (~14s cd, 5s window). While up, a **30% chance to dodge** an incoming hit AND
+  **instantly counter-strike** the attacker for **80% of the monk's attack** (− their defense).
+  Turns the invisible dodge into an offensive exchange. (CombatSystem dodge block.)
+- **Stunning Palm** — a periodic (~9s cd) melee strike on the nearest minion within 1.5 tiles:
+  **stuns it ~2s** (reuses the `_staggeredUntil` skip) + a light palm hit (atk − def). Single-target
+  CC to neutralize a key minion for a beat.
+
+**Systems:** `ClassAbilitySystem._considerMonk` (rewritten) + `CombatSystem` dodge-block counter
+(`MONK_RIPOSTE_FRAC`). No new save fields (`_focusActiveUntil` already stripped; palm cd in
+`adv.cooldowns`; stun via minion `_staggeredUntil`). Intel description updated.
+
+#### Acceptance checklist (verified 2026-06-14)
+_(Ability harness 27/27, soak 120/120, `tools/sim/monk-riposte-check.mjs` 3/3.)_
+- ✅ Riposte stance fires when threatened (harness)
+- ✅ A dodge negates the hit AND counters the attacker for ~80% atk−def (live test: 4 dmg, monk unhurt)
+- ✅ Stunning Palm fires on a nearby minion, stuns it (`_staggeredUntil`) + light hit (harness)
+- ✅ Inner Peace removed (def + consider block gone; no dangling refs)
+- ✅ Intel description updated
+
 ### Proposed (pending sign-off — NOT locked, NOT built)
-- **🧘 Monk:** **Riposte** (Focus dodge → instant counter/reflect) + **Stunning Palm** (periodic
-  single-target stun). Cut or convert the bland self-regen Inner Peace.
 - **🐺 Beast Master:** keep Tame; replace near-invisible Scout Ahead with **Sic 'Em** (directed
   companion maul) + **Pack Tactics** (BM+beast flanking bonus on a shared target).
 - **🏹 Ranger:** keep Trap Expert; rework Volley → **Piercing Shot** (line shot piercing every

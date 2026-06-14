@@ -210,7 +210,7 @@
     ],
     "dodgeChance": 0.3,
     "unlockDay": 11,
-    "description": "Unarmored, lightning-fast. ~30% chance to dodge incoming hits including traps. Strikes ignore half of minion defense.",
+    "description": "Unarmored, lightning-fast martial artist. RIPOSTE stance: a chance to dodge an incoming hit and instantly counter-strike the attacker. STUNNING PALM: a periodic melee strike that stuns a minion. ~30% dodge (incl. traps); strikes ignore half of minion defense.",
     "flavorText": "Be the wind around the blade."
   },
   {

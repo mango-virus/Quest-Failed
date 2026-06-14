@@ -38,8 +38,12 @@ export const ABILITY_DEFS = {
   bard_crescendo: { id: 'crescendo', label: 'Crescendo', auraRangeTiles: 3 },
   // Bard's Encore is a passive — fires on death, no cooldown.
   // Monk
-  monk_focus:        { id: 'focus',        cooldownMs: 14000, durationMs: 5000, label: 'Focus', dodgeChance: 0.3 },
-  monk_inner_peace:  { id: 'inner_peace',  cooldownMs: 40000, durationMs: 8000, label: 'Inner Peace', regenPerSec: 1 },
+  // Monk — Riposte (a guard STANCE: while up, a chance to DODGE an incoming hit
+  // and instantly counter-strike the attacker) + Stunning Palm (a periodic melee
+  // strike that stuns one minion). Inner Peace (passive self-regen) was cut.
+  // Internal stance-window field stays `_focusActiveUntil` (read in CombatSystem).
+  monk_riposte:      { id: 'riposte', cooldownMs: 14000, durationMs: 5000, label: 'Riposte', dodgeChance: 0.3, counterFrac: 0.8 },
+  monk_palm:         { id: 'stunning_palm', cooldownMs: 9000, rangeTiles: 1.5, stunMs: 2000, label: 'Stunning Palm' },
   // Cleric
   cleric_heal:           { id: 'cleric_heal',     cooldownMs: 10000,                   label: 'Heal' },
   // Channeled like the Valkyrie's Rally (2026-06-09): the cleric walks to a
@@ -1488,29 +1492,35 @@ export class ClassAbilitySystem {
   // ── Monk ──────────────────────────────────────────────────────────────────
 
   _considerMonk(adv, now) {
-    // Focus — fire when in combat or hostile minion is close (also when
-    // about to step on a trap, but trap-look-ahead is overkill; combat works).
-    const focusDef = ABILITY_DEFS.monk_focus
+    // Riposte stance — raise it when a hostile is near. While up, CombatSystem
+    // gives the monk a dodge chance AND a successful dodge counter-strikes the
+    // attacker (see the dodge block there). `_focusActiveUntil` is the stance window.
+    const rip = ABILITY_DEFS.monk_riposte
     if (this._hostileMinionWithin(adv, 4)) {
-      const ready = AbilitySystem.canUse(adv, focusDef, now)
+      const ready = AbilitySystem.canUse(adv, rip, now)
       if (ready.ready) {
-        AbilitySystem.markUsed(adv, focusDef, now)
-        adv._focusActiveUntil = now + focusDef.durationMs
-        this._fireFocusVfx(adv, focusDef.durationMs)
-        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'focus', message: `${adv.name} entered Focus.` })
+        AbilitySystem.markUsed(adv, rip, now)
+        adv._focusActiveUntil = now + rip.durationMs
+        this._fireFocusVfx(adv, rip.durationMs)
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'riposte', message: `${adv.name} settled into a riposte stance.` })
       }
     }
-    // Inner Peace — fire when below 70% HP and not currently regenerating.
-    const ipDef = ABILITY_DEFS.monk_inner_peace
-    const frac = adv.resources.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
-    if (frac < 0.7 && !adv._innerPeaceUntil) {
-      const ready = AbilitySystem.canUse(adv, ipDef, now)
+
+    // Stunning Palm — a periodic melee strike that STUNS one nearby minion
+    // (reuses the `_staggeredUntil` skip in MinionAISystem) + a light palm hit.
+    const palm = ABILITY_DEFS.monk_palm
+    const target = this._nearestHostileMinion(adv, palm.rangeTiles)
+    if (target) {
+      const ready = AbilitySystem.canUse(adv, palm, now)
       if (ready.ready) {
-        AbilitySystem.markUsed(adv, ipDef, now)
-        adv._innerPeaceUntil = now + ipDef.durationMs
-        adv._innerPeaceLastTick = now
-        // No ground-halo VFX — only the +2 floating text on each tick.
-        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'inner_peace', message: `${adv.name} found Inner Peace.` })
+        AbilitySystem.markUsed(adv, palm, now)
+        target._staggeredUntil = Math.max(target._staggeredUntil ?? 0, now + palm.stunMs)
+        const dmg = Math.max(1, Math.floor(adv.stats?.attack ?? 0) - (target.stats?.defense ?? 0))
+        target.resources.hp = Math.max(0, (target.resources?.hp ?? 0) - dmg)
+        EventBus.emit('COMBAT_HIT', { sourceId: adv.instanceId, targetId: target.instanceId, damage: dmg, damageType: 'physical', isCritical: false })
+        AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: 0xffe9a8, fromR: 6, toR: 22, durationMs: 320, alpha: 0.8 })
+        AbilityVfx.floatingText(this._scene, target.worldX, (target.worldY ?? 0) - 22, 'STUNNED', { color: '#ffe9a8', fontSize: '11px' })
+        EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'stunning_palm', message: `${adv.name} landed a Stunning Palm.` })
       }
     }
   }
