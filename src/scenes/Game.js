@@ -1206,6 +1206,9 @@ export class Game extends Phaser.Scene {
     // Clear follow state silently — DayPhase UI is already tearing down.
     this._followId = null
     this._duelCamLock = false   // safety: never leave the duel lock set across phases
+    // Wipe all floor hazards (acid puddles, fire/poison trails) — they last for
+    // the raid then dissolve when the day ends; nothing carries into the next day.
+    if (this.gameState?.dungeon) this.gameState.dungeon.hazards = []
     // The intel/knowledge heat map button lives on DayPhase, which is
     // shutting down. The overlay graphics live on this (Game) scene and
     // would otherwise stay visible into the night. Force-off here so the
@@ -2118,6 +2121,10 @@ export class Game extends Phaser.Scene {
       // Persistent ability VFX (plunder brand over marked heroes) so the VFX
       // Lab can show them at night; inert otherwise (no marks exist at night).
       if (this._vfxLabActive) this.plunderMarkRenderer?.update()
+      // Drive the lab's day-combat ability ticks (reassemble revival, DoTs,
+      // plunder bleed) — the real AISystem.update loop is idle at night, so
+      // without this the lab can't exercise time-based / death-triggered kit.
+      if (this._vfxLabActive) this._vfxLab?.tick(delta)
       this.replayGhostRenderer?.update()
     }
     // Knowledge overlay updates in both phases — the rumour pool persists

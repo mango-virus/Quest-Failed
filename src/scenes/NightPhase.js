@@ -3250,6 +3250,12 @@ export class NightPhase extends Phaser.Scene {
       m.aiState !== 'dead' && m.tileX === tx && m.tileY === ty
     )
     if (minionHit) {
+      // Risen zombies (raised from slain heroes) aren't part of the player's
+      // roster — they can't be sold (only killed).
+      if (minionHit._raisedZombie) {
+        this._showPlacementError?.('Risen zombies can\'t be sold')
+        return
+      }
       const mDef   = (this.cache.json.get('minionTypes') ?? []).find(d => d.id === minionHit.definitionId)
       const refund = this._sellRefund('minion', minionHit)
       this._promptSell(

@@ -425,6 +425,12 @@ export class KnowledgeSystem {
       })
       return
     }
+    // Nerve rework (2026-06-11) — a hero who broke and RAN demoralises the GUILD:
+    // the tale of the dungeon's horrors spreads as PANIC, so the next waves arrive
+    // shakier (lower starting nerve). NerveSystem._seed reads `_guildPanic`; it decays
+    // over nights so it's pressure, not a permanent cripple. (Player-positive: even a
+    // clean escape now WEAKENS the next wave instead of only leaking intel.)
+    this._gs._guildPanic = Math.min(25, (this._gs._guildPanic ?? 0) + 5)
     _ensureAdvKnowledge(adventurer)
     this._updateSurvivorRecord(adventurer)
     this._rebuildSharedPool()

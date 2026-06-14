@@ -21,6 +21,16 @@ touch (new or existing):
   the `src/ui/AbilityVfx.js` particle/post-FX primitives (`impactFx`, `beamFx`,
   `shockwaveFx`, `projectileFx`, `burnFx`, `glowPulseFx`, `flipbookFx`, `juice`) +
   `VfxPalette` presets; iterate motion with `window.__qfDev.filmstrip`. See `VISUAL_STANDARDS.md §5`.
+- **⛔ No generic VFX — anti-generic gate is ENFORCED.** A plain circle/ellipse/ring
+  as an effect's *hero read* is the fallback the user keeps catching ("just a circle
+  again"). Before building a VFX: (1) write a one-line concept naming its unique
+  silhouette+motion and *why it's not a ring*, show the user; (2) build to the detail
+  bar (custom shaded path silhouette + choreographed motion + composed sub-elements —
+  see `_drawAcidColumn`/`_drawMiasmaPuff`); (3) **`npm run lint-vfx` must pass** (in the
+  pre-commit hook — fails on untagged `add.circle/ellipse`/`pulseRing`/`shockwaveFx`;
+  tag real incidentals `// circle-ok: <reason>`); (4) compare against the whole library
+  with `__qfDev.vfxGallery()`; (5) screenshot the hero element zoomed-in and show the
+  user before claiming done. Full gate: `VISUAL_STANDARDS.md §5`.
 - **Verify visuals before committing.** For anything that renders: build it with
   the tokens/components, run it in the preview, **screenshot + self-audit**
   against the checklist, fix what's messy, *then* commit and show the proof.

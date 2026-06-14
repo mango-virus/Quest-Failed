@@ -44,10 +44,6 @@ const STATIONARY_DEF_IDS = new Set([
   'mushroom2',
   'lizardman1',
   'ghost1',
-  // Summoner totems (Widen) — rooted founts of swarmlings; never patrol.
-  'bone_totem1',
-  'bone_totem2',
-  'necro_obelisk',
 ])
 
 export class MinionAISystem {
@@ -65,6 +61,7 @@ export class MinionAISystem {
     EventBus.on('COMBAT_HIT', this._onCombatHit, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.on('MINION_DIED', this._onMinionDied, this)
+    EventBus.on('ADVENTURER_DIED', this._onAdvDiedRaise, this)
 
     // Pass-3: wire global behavior listeners (e.g. Mimic Migrate on
     // NIGHT_PHASE_STARTED). Idempotent — re-attaching is a no-op.
@@ -75,10 +72,17 @@ export class MinionAISystem {
     EventBus.off('COMBAT_HIT', this._onCombatHit, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.off('MINION_DIED', this._onMinionDied, this)
+    EventBus.off('ADVENTURER_DIED', this._onAdvDiedRaise, this)
     MinionAbilities.detach()
   }
 
   // Mourner stacking: attack buff for any same-room ally that's still standing
+  // Zombie · RAISE THE DEAD — a slain hero rises as a Risen zombie if a reanimate-
+  // zombie killed it (T1) or it was rot-infected (T2). Delegates to MinionAbilities.
+  _onAdvDiedRaise(payload) {
+    try { MinionAbilities.onAdventurerDied(this._scene, this._gameState, payload) } catch (e) { /* never break the death pipeline */ }
+  }
+
   _onMinionDied({ minion: dead }) {
     if (!dead) return
     const room = dead.assignedRoomId
@@ -204,6 +208,40 @@ export class MinionAISystem {
 
     // Goblin Plunder marks — bleed gold off branded heroes + expire marks.
     MinionAbilities.tickPlunderMarks(this._scene, this._gameState, delta)
+
+    // Skeleton Reassemble — collapsed bone piles that clatter back to life.
+    MinionAbilities.tickReassemble(this._scene, this._gameState, delta)
+
+    // Orc Warpath — restore the Veteran's base speed when its Rampage ends.
+    MinionAbilities.tickOrc(this._scene, this._gameState)
+
+    // Vampire Bloodgorge — decay banked blood-shields so they're temporary.
+    MinionAbilities.tickVampire(this._scene, this._gameState, delta)
+
+    // Rat Vermin Tide — restore base speed when a frenzy window ends.
+    MinionAbilities.tickRat(this._scene, this._gameState)
+
+    // Demon Hellfire — cool off heroes who've left a demon's burning aura.
+    MinionAbilities.tickDemon(this._scene, this._gameState)
+
+    // Ghost Haunt — bleed haunted heroes' nerve + spread panic; expire haunts.
+    MinionAbilities.tickGhost(this._scene, this._gameState, delta)
+
+    // Gnoll Hunt — decay cripple stacks out of combat + restore pack frenzy speed.
+    MinionAbilities.tickGnoll(this._scene, this._gameState)
+
+    // Lich Soul Harvest — resurrect a phylactery-bound lich when its revive lands.
+    MinionAbilities.tickLich(this._scene, this._gameState)
+
+    // Lizardman Camouflage — initial cloak + mid-combat re-cloak + hidden-speed.
+    MinionAbilities.tickLizard(this._scene, this._gameState)
+
+    // Imp Blink — escape-blink from melee + flicker to the backline + frenzy.
+    MinionAbilities.tickImp(this._scene, this._gameState, this._dungeonGrid)
+
+    // Zombie Reanimation — flip spawned-dead Risen alive after their decay
+    // crossfade so MinionRenderer reverse-rises them (corpse → standing zombie).
+    MinionAbilities.tickReanimations(this._scene, this._gameState)
 
     // De-clump STANDING minions — idle guards / settled packs that share a tile
     // fan out so they don't read as one blob. STATIONARY only (idle with no
@@ -878,6 +916,14 @@ export class MinionAISystem {
   // ── Targeting ──────────────────────────────────────────────────────────────
 
   _pickTarget(minion) {
+    // Gnoll BLOODHOUND — a blood-scenting gnoll abandons its post to chase the nearest
+    // BLEEDING hero ANYWHERE in the dungeon (cross-room A* via _engageTarget), no home-
+    // room gate. Re-picks the nearest bleeder each tick; falls through to normal
+    // targeting when nothing is bleeding. (Scent + sprint are managed in tickGnoll.)
+    if (minion._bloodScent) {
+      const prey = MinionAbilities.nearestBleedingAdv(this._gameState, minion, this._scene?.time?.now ?? 0)
+      if (prey) return prey
+    }
     // Solo Leveling — extracted shadows are dungeon-wide hunters. They have no
     // home room and ignore the aggro-range gate: they relentlessly seek the
     // nearest living dungeon-faction minion ANYWHERE on the map and march on it
@@ -1568,10 +1614,10 @@ export class MinionAISystem {
   // ── Death / respawn ───────────────────────────────────────────────────────
 
   _die(minion, idx) {
-    // Pass-2 revive interrupt — Zombie One More Time, Skeleton Reassemble.
-    // Returns true if the death was aborted (minion is now alive again).
+    // Revive interrupt — Skeleton Reassemble. The hook owns the aborted state
+    // (Skeleton drops to a self-reviving 'dead' bone pile; tickReassemble in
+    // update() brings it back). Returns true to skip the whole death routine.
     if (MinionAbilities.onMinionDying(this._scene, minion, this._gameState)) {
-      minion.aiState = 'idle'
       minion.currentTargetId = null
       return
     }

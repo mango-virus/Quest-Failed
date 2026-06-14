@@ -414,8 +414,34 @@ function _rehydrateRunHistory(state) {
     // doesn't load with a permanently-active aimbot window.
     '_aimhackUntil', '_speedhackUntil', '_lagStunUntil',
     '_lastReportFloaterAt',
+    // Slime · Plague infection — `_infectUntil` is scene-time-stamped (drives the
+    // contagion-spread check); the rest carry the DoT params for the spread.
+    '_infectUntil', '_infectDmg', '_infectInterval', '_infectTicks', '_infectSrc',
+    // Zombie · Contagion Bite rot — scene-time-stamped; drives reanimation on death.
+    '_rotInfectedUntil',
+    // Demon · Hellfire heat — `_hellfireAt` is a scene-time stamp; all reset each night.
+    '_hellfireStacks', '_hellfireAt', '_hellfireMax',
+    // Ghost · Haunt — `_hauntedUntil` is scene-time-stamped (drives the per-tick
+    // nerve bleed + contagion + recovery-suppression + attack-fumble); the rest
+    // carry the haunt params. All drop on load (the haunt doesn't survive a reload).
+    '_hauntedUntil', '_hauntNervePerSec', '_hauntContagionR', '_hauntContagionPS', '_hauntFumbleMul', '_hauntSource',
+    // Nerve rework · panic-in-place — `_panickedUntil` is a scene-time stamp (drives the
+    // cower freeze + attack-suppress + +50% vuln); drop on load so a hero doesn't load frozen.
+    '_panickedUntil', '_panicVfxAt', '_breakingMs',
+    // Gnoll BLOOD HUNT — `_bleedUntil`/`_bleedTickAt`/`_noHealUntil` are scene-time stamped;
+    // drop on load so a hero doesn't load bleeding / un-healable / with a stale trail anchor.
+    '_bleedStacks', '_bleedUntil', '_bleedTickAt', '_bleedPerStack', '_bleedInterval', '_bleedSource',
+    '_noHealUntil', '_bloodDripX', '_bloodDripY', '_bleedAuraAt',
     // Boss-archetype timed effects
     '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
+    // Beholder GAZE — `_possessedUntil` (charm→attack-allies) + `_hexUntil`/`_hexVulnMul`
+    // (gaze hex vuln) are scene-time stamped; drop on load.
+    '_possessedUntil', '_hexUntil', '_hexVulnMul',
+    // Plant ENTANGLE / generic CC — scene-time root/slow/stagger stamps; a saved
+    // future value would freeze or slow an adventurer on load until wall-clock catches up.
+    '_rootedUntil', '_staggeredUntil', '_slowUntil', '_slowMult',
+    // Mushroom HALLUCINATION — scene-time daze window + whiff chance; drop on load.
+    '_dazedUntil', '_dazeMissChance',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
     // AI tracking — scene-time based. `lastAttackAt` (no underscore) is
@@ -563,6 +589,79 @@ function _rehydrateRunHistory(state) {
     if ('_patrolTarget' in m)  m._patrolTarget  = null
     if ('_chasePath'    in m)  m._chasePath     = null
     if ('_wasChasingFlee' in m) m._wasChasingFlee = false
+    // Skeleton Reassemble — `_reassembleAt` is a scene-time stamp; a saved
+    // future value would freeze a mid-collapse skeleton as a permanent corpse
+    // after load. Clear the collapse so it loads either whole or truly dead.
+    if ('_reassembleAt' in m)  m._reassembleAt  = null
+    if ('_reassembling' in m)  m._reassembling  = false
+    // Zombie Reanimation — `_reanimRiseAt`/`_reanimFadeFrom` are scene-time stamps.
+    // A Risen saved mid-decay would freeze as a corpse on load (stale future stamp),
+    // so finish the reanimation immediately: stand it up at full HP.
+    if ('_reanimRiseAt' in m) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) {
+        m.aiState = 'idle'
+        if (m.resources) m.resources.hp = m.resources.maxHp ?? m.stats?.hp ?? 1
+      }
+      m._reanimRiseAt = null
+    }
+    if ('_reanimFadeFrom' in m) m._reanimFadeFrom = null
+    if ('_reassembleRapidUntil' in m) m._reassembleRapidUntil = 0  // scene-time stamp (Undying Legion window)
+    if ('_boneShellUntil' in m)       m._boneShellUntil       = 0  // scene-time stamp (bone-armor shell)
+    // Orc Warpath — restore base speed + clear the scene-time rampage window.
+    if (m._rampageBaseSpeed != null && m.stats) m.stats.speed = m._rampageBaseSpeed
+    if ('_rampageUntil' in m)     m._rampageUntil     = 0
+    if ('_rampageBaseSpeed' in m) m._rampageBaseSpeed = null
+    if ('_bloodlustAt' in m)      m._bloodlustAt      = 0  // scene-time stamp; stacks lazily reset
+    // Vampire Bloodgorge — blood-shield is a transient combat buff; `_bloodShieldAt`
+    // is a scene-time stamp. Drop both so a loaded vampire starts unshielded.
+    if ('_bloodShield' in m)      m._bloodShield      = 0
+    if ('_bloodShieldAt' in m)    m._bloodShieldAt    = 0
+    // Rat Vermin Tide — restore base speed + clear the scene-time frenzy window.
+    if (m._swarmFrenzyBaseSpeed != null && m.stats) m.stats.speed = m._swarmFrenzyBaseSpeed
+    if ('_swarmFrenzyUntil' in m)     m._swarmFrenzyUntil     = 0
+    if ('_swarmFrenzyBaseSpeed' in m) m._swarmFrenzyBaseSpeed = null
+    // Gnoll BLOOD HUNT bloodhound sprint — restore base speed + clear the scent/sprint state.
+    if (m._sprintBaseSpeed != null && m.stats) m.stats.speed = m._sprintBaseSpeed
+    if ('_sprintBaseSpeed' in m)  m._sprintBaseSpeed  = null
+    if ('_bloodScent' in m)       m._bloodScent       = false
+    if ('_huntSprinting' in m)    m._huntSprinting    = false
+    if ('_forceScentUntil' in m)  m._forceScentUntil  = 0
+    // Golem Warden Bastion — scene-time DR window; clears each night.
+    if ('_bastionUntil' in m) m._bastionUntil = 0
+    // Ghost Dread — scene-time projected-fear stamp (drives the renderer's reactive
+    // seethe); null so a loaded ghost starts at a quiet idle drift until it ticks again.
+    if ('_dreadAt' in m)     m._dreadAt     = 0
+    if ('_dreadFearK' in m)  m._dreadFearK  = 0
+    // Beholder Gaze — scene-time eye-blaze flash stamp (renderer Glow); clears on load.
+    if ('_gazeFlashUntil' in m) m._gazeFlashUntil = 0
+    // Ent Thornburst — scene-time thorns-amplify window; clears each night.
+    if ('_thornsAmpUntil' in m) m._thornsAmpUntil = 0
+    // Blood Briar — scene-time well-fed glow stamp; clears each night.
+    if ('_briarFedUntil' in m) m._briarFedUntil = 0
+    if ('_thornsAmpMul' in m)   m._thornsAmpMul   = 1
+    if ('_bastionMul' in m)   m._bastionMul   = 1
+    // Lich Soul Harvest — drop the scene-time Soul Conduit ally-share window
+    // (_souls itself is a plain count and persists as wave progress). If the
+    // save caught a phylactery-bound lich mid-resurrection (dead + pending),
+    // finish the revive on load rather than leaving it a stuck corpse.
+    if ('_soulShareUntil' in m) m._soulShareUntil = 0
+    // Lizardman Camouflage — restore the hidden-speed base + drop the scene-time
+    // reveal stamp (a saved future stamp would freeze the re-camo timer). The
+    // `_camouflaged` flag itself persists (the stalker stays hidden across a load).
+    if (m._camoBaseSpeed != null && m.stats) { m.stats.speed = m._camoBaseSpeed; m._camoBaseSpeed = null }
+    if ('_revealedAt' in m) m._revealedAt = 0
+    // Imp Blink — scene-time cooldown/frenzy windows; clear so a load doesn't freeze them.
+    if ('_blinkAt' in m) m._blinkAt = 0
+    if ('_flickerAt' in m) m._flickerAt = 0
+    if ('_blinkFrenzyUntil' in m) m._blinkFrenzyUntil = 0
+    if (m._phylacteryReviveAt != null) {
+      if ((m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) && m.resources) {
+        const maxHp = m.resources.maxHp ?? m.stats?.hp ?? 1
+        m.resources.hp = Math.max(1, Math.round(maxHp * (m._phylacteryFrac ?? 0.5)))
+        m.aiState = 'idle'
+      }
+      m._phylacteryReviveAt = null
+    }
     // Held-by-player flag — set during room pickup, cleared on drop.
     // If autosave caught a held room, minions would stay frozen
     // (MinionAISystem.update returns early on _heldByPlayer = true).

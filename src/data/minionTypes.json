@@ -15,8 +15,17 @@
       "defense": 3,
       "speed": 1.1,
       "damageType": "psychic",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 4
     },
+    "abilities": [
+      {
+        "type": "mesmerize",
+        "trigger": "onHit",
+        "durationMs": 3500,
+        "label": "MESMERIZED"
+      }
+    ],
     "goldCost": 20,
     "powerCostToUnlock": 0,
     "unlockLevel": 10,
@@ -24,9 +33,6 @@
     "tags": [
       "aberration",
       "scout"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -48,6 +54,22 @@
       "abilities": [],
       "attackRange": 3
     },
+    "abilities": [
+      {
+        "type": "mesmerize",
+        "trigger": "onHit",
+        "durationMs": 3500,
+        "label": "MESMERIZED"
+      },
+      {
+        "type": "massHypnosis",
+        "trigger": "onTick",
+        "intervalMs": 5500,
+        "targets": 3,
+        "durationMs": 3500,
+        "label": "HYPNOTISED"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -55,9 +77,6 @@
     "tags": [
       "aberration",
       "ranged"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -69,7 +88,7 @@
     "behaviorType": "guard",
     "color": "0xcc2244",
     "sigil": "♆",
-    "description": "Blue-skinned, trident-armed lesser demon. Hits hard, dies hard.",
+    "description": "A walking bonfire — it radiates hellfire, and the longer a hero fights it up close the hotter they BURN. Don't melee it.",
     "baseStats": {
       "hp": 71,
       "attack": 17,
@@ -78,6 +97,17 @@
       "damageType": "fire",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "burningAura",
+        "trigger": "onTick",
+        "intervalMs": 1000,
+        "radiusTiles": 2.5,
+        "dmg": 3,
+        "per": 0.4,
+        "maxStacks": 5
+      }
+    ],
     "goldCost": 26,
     "powerCostToUnlock": 0,
     "unlockLevel": 13,
@@ -85,9 +115,6 @@
     "tags": [
       "fiend",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -99,7 +126,7 @@
     "behaviorType": "guard",
     "color": "0x880000",
     "sigil": "♆",
-    "description": "Tall, scythe-wielding devil. Walks slow. Reaps fast.",
+    "description": "A hotter, wider hellfire aura — and a hero who burns to the MAX COMBUSTS, blasting fire onto everyone nearby. Keep the party spread out.",
     "baseStats": {
       "hp": 105,
       "attack": 23,
@@ -108,6 +135,20 @@
       "damageType": "fire",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "burningAura",
+        "trigger": "onTick",
+        "intervalMs": 900,
+        "radiusTiles": 3,
+        "dmg": 4,
+        "per": 0.45,
+        "maxStacks": 6,
+        "combust": true,
+        "combustDmg": 8,
+        "combustRadiusTiles": 1.5
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -116,29 +157,57 @@
       "fiend",
       "melee",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "elder_slime1",
-    "name": "Glutinous Elder",
+    "name": "Pandemic",
     "spriteKey": "elder_slime1",
     "frameSize": 128,
     "category": "combat",
     "behaviorType": "guard",
-    "color": "0x33aaee",
+    "color": "0x76cb5a",
     "sigil": "♆",
-    "description": "Bloated blue slime patriarch. Splits when struck.",
+    "description": "A festering plague-mass — periodically infects the whole room at once in a toxic outbreak.",
     "baseStats": {
       "hp": 86,
       "attack": 15,
       "defense": 9,
       "speed": 0.7,
-      "damageType": "physical",
+      "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "infect",
+        "trigger": "onHit",
+        "dmgPerTick": 3,
+        "intervalMs": 1200,
+        "ticks": 5,
+        "label": "INFECTED"
+      },
+      {
+        "type": "contagion",
+        "trigger": "onTick",
+        "intervalMs": 1200,
+        "spreadRadiusTiles": 5,
+        "maxSpread": 5,
+        "trail": true,
+        "trailDmg": 1,
+        "trailMs": 2200,
+        "label": "CONTAGION"
+      },
+      {
+        "type": "outbreak",
+        "trigger": "onTick",
+        "intervalMs": 10000,
+        "dotDmg": 3,
+        "dotIntervalMs": 1200,
+        "dotTicks": 5,
+        "radius": 120,
+        "label": "OUTBREAK"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -146,29 +215,43 @@
     "tags": [
       "ooze",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "elder_slime2",
-    "name": "Acid Patriarch",
+    "name": "The Endless",
     "spriteKey": "elder_slime2",
     "frameSize": 128,
     "category": "combat",
     "behaviorType": "guard",
-    "color": "0x88cc22",
+    "color": "0x825a3f",
     "sigil": "♆",
-    "description": "Caustic green slime mass. Corrodes armor and patience.",
+    "description": "A self-dividing mass — buds an endless stream of slimelings and erupts when killed.",
     "baseStats": {
       "hp": 69,
       "attack": 15,
       "defense": 8,
       "speed": 0.7,
-      "damageType": "acid",
+      "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "split",
+        "trigger": "onDeath",
+        "count": 4,
+        "childHpFrac": 0.4,
+        "maxDepth": 2
+      },
+      {
+        "type": "mitosis",
+        "trigger": "onTick",
+        "intervalMs": 5000,
+        "count": 1,
+        "childHpFrac": 0.3,
+        "label": "MITOSIS"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -176,29 +259,61 @@
     "tags": [
       "ooze",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "elder_slime3",
-    "name": "Primordial Ooze",
+    "name": "The Dissolving",
     "spriteKey": "elder_slime3",
     "frameSize": 128,
     "category": "combat",
     "behaviorType": "guard",
-    "color": "0xddaa22",
+    "color": "0xb2c6d6",
     "sigil": "♆",
-    "description": "Ancient golden slime. Older than the dungeon. Probably hungrier.",
+    "description": "A vast caustic mass that periodically FLOODS its whole room with acid — total floor denial. Melts armor and bogs down anything that stays.",
     "baseStats": {
       "hp": 98,
       "attack": 20,
       "defense": 12,
       "speed": 0.6,
-      "damageType": "physical",
+      "damageType": "acid",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "hazardTrail",
+        "trigger": "onTick",
+        "intervalMs": 300,
+        "element": "acid",
+        "dmg": 3,
+        "radiusTiles": 1.4,
+        "zoneMs": 4500,
+        "armorShred": 2,
+        "armorShredMax": 8,
+        "slow": 0.6
+      },
+      {
+        "type": "acidPool",
+        "trigger": "onDeath",
+        "dmg": 4,
+        "radiusTiles": 1.9,
+        "zoneMs": 7000,
+        "armorShred": 3,
+        "armorShredMax": 8,
+        "slow": 0.55
+      },
+      {
+        "type": "acidFlood",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "dmg": 4,
+        "floodMs": 4500,
+        "armorShred": 2,
+        "armorShredMax": 8,
+        "slow": 0.6,
+        "label": "ACID FLOOD"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -206,9 +321,6 @@
     "tags": [
       "ooze",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -229,6 +341,14 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "thorns",
+        "trigger": "passive",
+        "reflectFrac": 0.4,
+        "flat": 2
+      }
+    ],
     "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 11,
@@ -236,9 +356,6 @@
     "tags": [
       "plant",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -259,6 +376,20 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "thorns",
+        "trigger": "passive",
+        "reflectFrac": 0.55,
+        "flat": 3
+      },
+      {
+        "type": "regrow",
+        "trigger": "onTick",
+        "intervalMs": 1500,
+        "healFrac": 0.03
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -267,9 +398,6 @@
       "plant",
       "melee",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -290,6 +418,30 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "thorns",
+        "trigger": "passive",
+        "reflectFrac": 0.7,
+        "flat": 4
+      },
+      {
+        "type": "regrow",
+        "trigger": "onTick",
+        "intervalMs": 1500,
+        "healFrac": 0.045
+      },
+      {
+        "type": "thornburst",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "dmg": 14,
+        "healFrac": 0.25,
+        "ampMs": 4000,
+        "ampMul": 1.6,
+        "label": "THORNBURST"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -298,9 +450,6 @@
       "plant",
       "melee",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -322,6 +471,21 @@
       "attackRange": 5,
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "dreadAura",
+        "trigger": "onTick",
+        "intervalMs": 600,
+        "radiusTiles": 3.5,
+        "nervePerTick": 1.4
+      },
+      {
+        "type": "fear",
+        "trigger": "onHit",
+        "amount": 9,
+        "label": "FEAR"
+      }
+    ],
     "goldCost": 16,
     "powerCostToUnlock": 0,
     "unlockLevel": 8,
@@ -329,9 +493,6 @@
     "tags": [
       "undead",
       "spectral"
-    ],
-    "vulnerableToElements": [
-      "wind"
     ]
   },
   {
@@ -352,6 +513,31 @@
       "damageType": "psychic",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "dreadAura",
+        "trigger": "onTick",
+        "intervalMs": 600,
+        "radiusTiles": 4,
+        "nervePerTick": 1.9
+      },
+      {
+        "type": "fear",
+        "trigger": "onHit",
+        "amount": 9,
+        "label": "FEAR"
+      },
+      {
+        "type": "haunt",
+        "trigger": "onHit",
+        "durationMs": 5000,
+        "nervePerSec": 4,
+        "contagionRadiusTiles": 3,
+        "contagionPerSec": 1.6,
+        "fumbleMul": 0.72,
+        "label": "HAUNTED"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -360,9 +546,6 @@
       "undead",
       "spectral",
       "support"
-    ],
-    "vulnerableToElements": [
-      "wind"
     ]
   },
   {
@@ -383,6 +566,17 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bleed",
+        "trigger": "onHit",
+        "perStack": 2,
+        "maxStacks": 6,
+        "durationMs": 9000,
+        "intervalMs": 1000,
+        "label": "BLEEDING"
+      }
+    ],
     "goldCost": 14,
     "powerCostToUnlock": 0,
     "unlockLevel": 6,
@@ -392,9 +586,6 @@
       "beast",
       "melee",
       "pack"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -415,6 +606,22 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bleed",
+        "trigger": "onHit",
+        "perStack": 3,
+        "maxStacks": 6,
+        "durationMs": 9000,
+        "intervalMs": 1000,
+        "label": "BLEEDING"
+      },
+      {
+        "type": "bloodhound",
+        "trigger": "passive",
+        "sprintMul": 1.6
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -424,15 +631,16 @@
       "beast",
       "melee",
       "pack"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
     "id": "goblin1",
     "abilities": [
-      { "type": "stealGold", "trigger": "onHit", "amount": 2 }
+      {
+        "type": "stealGold",
+        "trigger": "onHit",
+        "amount": 2
+      }
     ],
     "name": "Sneak Goblin",
     "spriteKey": "goblin1",
@@ -458,16 +666,25 @@
       "goblin",
       "melee",
       "fast"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
     "id": "goblin2",
     "abilities": [
-      { "type": "stealGold", "trigger": "onHit", "amount": 2 },
-      { "type": "markForPlunder", "trigger": "onHit", "durationMs": 6000, "markSteal": 1, "bleedGold": 1, "bleedMs": 1500, "label": "MARKED" }
+      {
+        "type": "stealGold",
+        "trigger": "onHit",
+        "amount": 2
+      },
+      {
+        "type": "markForPlunder",
+        "trigger": "onHit",
+        "durationMs": 6000,
+        "markSteal": 1,
+        "bleedGold": 1,
+        "bleedMs": 1500,
+        "label": "MARKED"
+      }
     ],
     "name": "Cutpurse",
     "spriteKey": "goblin2",
@@ -492,18 +709,40 @@
     "tags": [
       "goblin",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
     "id": "goblin3",
     "abilities": [
-      { "type": "stealGold", "trigger": "onHit", "amount": 2 },
-      { "type": "markForPlunder", "trigger": "onHit", "durationMs": 6000, "markSteal": 1, "bleedGold": 1, "bleedMs": 1500, "label": "MARKED" },
-      { "type": "plunderAura", "trigger": "passive", "mult": 2 },
-      { "type": "massMark", "trigger": "onTick", "intervalMs": 8000, "durationMs": 6000, "markSteal": 1, "bleedGold": 1, "bleedMs": 1500, "label": "GRAND HEIST" }
+      {
+        "type": "stealGold",
+        "trigger": "onHit",
+        "amount": 2
+      },
+      {
+        "type": "markForPlunder",
+        "trigger": "onHit",
+        "durationMs": 6000,
+        "markSteal": 1,
+        "bleedGold": 1,
+        "bleedMs": 1500,
+        "label": "MARKED"
+      },
+      {
+        "type": "plunderAura",
+        "trigger": "passive",
+        "mult": 2
+      },
+      {
+        "type": "massMark",
+        "trigger": "onTick",
+        "intervalMs": 8000,
+        "durationMs": 6000,
+        "markSteal": 1,
+        "bleedGold": 1,
+        "bleedMs": 1500,
+        "label": "GRAND HEIST"
+      }
     ],
     "name": "Plunder King",
     "spriteKey": "goblin3",
@@ -528,9 +767,6 @@
     "tags": [
       "goblin",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -542,7 +778,7 @@
     "behaviorType": "guard",
     "color": "0x888899",
     "sigil": "▣",
-    "description": "Carved-stone construct. Deals damage by existing.",
+    "description": "A slow, immovable wall of carved stone — it shrugs off most of the damage thrown at it. Break the wall, or make no progress past it.",
     "baseStats": {
       "hp": 89,
       "attack": 15,
@@ -551,6 +787,13 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "damageReduction",
+        "trigger": "passive",
+        "mult": 0.6
+      }
+    ],
     "goldCost": 30,
     "powerCostToUnlock": 0,
     "unlockLevel": 14,
@@ -559,9 +802,6 @@
       "construct",
       "tank",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -573,7 +813,7 @@
     "behaviorType": "guard",
     "color": "0xaa9988",
     "sigil": "▣",
-    "description": "Iron-clad war golem. Slow as siege. Hits like one too.",
+    "description": "An iron-clad bulwark that shields its line — allies in its shadow take far less damage too. The whole garrison hardens behind it.",
     "baseStats": {
       "hp": 132,
       "attack": 23,
@@ -582,6 +822,19 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "damageReduction",
+        "trigger": "passive",
+        "mult": 0.5
+      },
+      {
+        "type": "aegis",
+        "trigger": "passive",
+        "radiusTiles": 2.5,
+        "mult": 0.7
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -590,9 +843,6 @@
       "construct",
       "tank",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -604,7 +854,7 @@
     "behaviorType": "roam",
     "color": "0xff6633",
     "sigil": "♃",
-    "description": "Pint-sized devil. Throws fistfuls of flame.",
+    "description": "Pint-sized devil. Throws fistfuls of flame from range, and winks away the instant you swing.",
     "baseStats": {
       "hp": 32,
       "attack": 9,
@@ -614,6 +864,17 @@
       "abilities": [],
       "attackRange": 3
     },
+    "abilities": [
+      {
+        "type": "blink",
+        "trigger": "passive",
+        "escapeRangeTiles": 1.7,
+        "kiteRangeTiles": 3,
+        "cooldownMs": 1500,
+        "label": "BLINK",
+        "frenzyCdMs": 450
+      }
+    ],
     "goldCost": 14,
     "powerCostToUnlock": 0,
     "unlockLevel": 7,
@@ -622,9 +883,6 @@
       "fiend",
       "ranged",
       "fast"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -633,18 +891,32 @@
     "spriteKey": "imp2",
     "frameSize": 64,
     "category": "combat",
-    "behaviorType": "ambush",
+    "behaviorType": "roam",
     "color": "0x442266",
     "sigil": "♃",
-    "description": "Imp wreathed in cold dark. Stings before you see it.",
+    "description": "Imp wreathed in cold dark. Flickers straight past the front line to sting whoever's weakest.",
     "baseStats": {
       "hp": 51,
       "attack": 14,
       "defense": 2,
       "speed": 1.4,
       "damageType": "psychic",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 3
     },
+    "abilities": [
+      {
+        "type": "blink",
+        "trigger": "passive",
+        "escapeRangeTiles": 1.7,
+        "kiteRangeTiles": 3,
+        "cooldownMs": 1300,
+        "flicker": true,
+        "flickerRangeTiles": 3,
+        "label": "FLICKER",
+        "frenzyCdMs": 450
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -652,29 +924,48 @@
     "tags": [
       "fiend",
       "ambush"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "imp3",
-    "name": "Plague Imp",
+    "name": "Hell Imp",
     "spriteKey": "imp3",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
     "color": "0x88aa22",
     "sigil": "♃",
-    "description": "Festering little imp. Carries every disease in the dungeon.",
+    "description": "Festering little devil. Tears a hellrift and the whole pack blinks the room into a fire-storm.",
     "baseStats": {
       "hp": 74,
       "attack": 21,
       "defense": 3,
       "speed": 1.2,
       "damageType": "poison",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 3
     },
+    "abilities": [
+      {
+        "type": "blink",
+        "trigger": "passive",
+        "escapeRangeTiles": 1.7,
+        "kiteRangeTiles": 3,
+        "cooldownMs": 1200,
+        "flicker": true,
+        "flickerRangeTiles": 3,
+        "label": "FLICKER",
+        "frenzyCdMs": 450
+      },
+      {
+        "type": "hellrift",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "dmg": 12,
+        "frenzyMs": 4000,
+        "label": "HELLRIFT"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -682,9 +973,6 @@
     "tags": [
       "fiend",
       "poison"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -696,7 +984,7 @@
     "behaviorType": "guard",
     "color": "0xddaa22",
     "sigil": "♅",
-    "description": "Robed undead spellcaster. Hangs back from melee and heals wounded undead allies in the same room.",
+    "description": "Robed undead soul-eater. Hangs back and blasts with necrotic magic that grows stronger as the dead pile up around it.",
     "baseStats": {
       "hp": 54,
       "attack": 11,
@@ -706,6 +994,16 @@
       "attackRange": 3,
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "soulHarvest",
+        "trigger": "onTick",
+        "intervalMs": 700,
+        "soulCap": 8,
+        "perSoulAtk": 0.07,
+        "label": "SOUL SIPHON"
+      }
+    ],
     "goldCost": 22,
     "powerCostToUnlock": 0,
     "unlockLevel": 12,
@@ -714,9 +1012,6 @@
       "undead",
       "support",
       "caster"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -728,7 +1023,7 @@
     "behaviorType": "guard",
     "color": "0xeeccaa",
     "sigil": "♅",
-    "description": "Lich apprentice who chose offense over offering.",
+    "description": "Lich apprentice whose harvested souls overflow into the whole crypt — the more that die, the deadlier every undead around it.",
     "baseStats": {
       "hp": 83,
       "attack": 17,
@@ -737,6 +1032,19 @@
       "damageType": "psychic",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "soulHarvest",
+        "trigger": "onTick",
+        "intervalMs": 600,
+        "soulCap": 12,
+        "perSoulAtk": 0.07,
+        "shareUndead": true,
+        "allyAtkPerSoul": 0.035,
+        "allyAtkCap": 0.5,
+        "label": "SOUL CONDUIT"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -744,9 +1052,6 @@
     "tags": [
       "undead",
       "caster"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -755,10 +1060,10 @@
     "spriteKey": "lizardman1",
     "frameSize": 64,
     "category": "combat",
-    "behaviorType": "ambush",
+    "behaviorType": "roam",
     "color": "0x446644",
     "sigil": "♉",
-    "description": "Cold-blooded ambusher. Strikes from the reeds.",
+    "description": "Cold-blooded ambusher. Blends into the dungeon, unseen, until its fangs are already in you.",
     "baseStats": {
       "hp": 32,
       "attack": 9,
@@ -767,6 +1072,15 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "camouflage",
+        "trigger": "passive",
+        "ambushMul": 2.2,
+        "recamoMs": 0,
+        "label": "AMBUSH"
+      }
+    ],
     "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 4,
@@ -775,9 +1089,6 @@
       "lizardman",
       "reptile",
       "ambush"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -789,7 +1100,7 @@
     "behaviorType": "patrol",
     "color": "0x336644",
     "sigil": "♉",
-    "description": "Veteran lizardman with a wickedly curved blade.",
+    "description": "Veteran stalker who slips back into the shadows mid-fight, again and again — you never see the blade twice.",
     "baseStats": {
       "hp": 51,
       "attack": 14,
@@ -798,6 +1109,17 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "camouflage",
+        "trigger": "passive",
+        "ambushMul": 2.4,
+        "recamoMs": 4500,
+        "hiddenSpeedMul": 1.5,
+        "killRecamo": true,
+        "label": "STALK"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -806,9 +1128,6 @@
       "lizardman",
       "reptile",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -820,7 +1139,7 @@
     "behaviorType": "patrol",
     "color": "0x9966cc",
     "sigil": "♣",
-    "description": "Sentient cap. Releases a cloud of confusing spores when hit.",
+    "description": "Sentient cap. Its hallucinogenic spores leave you swinging at things that aren't there.",
     "baseStats": {
       "hp": 27,
       "attack": 5,
@@ -829,6 +1148,15 @@
       "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "daze",
+        "trigger": "onHit",
+        "durationMs": 3000,
+        "missChance": 0.3,
+        "label": "DAZE"
+      }
+    ],
     "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
@@ -837,9 +1165,6 @@
       "plant",
       "support",
       "poison"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -851,7 +1176,7 @@
     "behaviorType": "guard",
     "color": "0x884466",
     "sigil": "♣",
-    "description": "Larger fungal warrior. Spits acidic spores.",
+    "description": "Larger fungal warrior. Belches drifting clouds of disorienting spores over the whole front line.",
     "baseStats": {
       "hp": 44,
       "attack": 8,
@@ -861,6 +1186,24 @@
       "abilities": [],
       "attackRange": 2
     },
+    "abilities": [
+      {
+        "type": "daze",
+        "trigger": "onHit",
+        "durationMs": 3500,
+        "missChance": 0.4,
+        "label": "DAZE"
+      },
+      {
+        "type": "sporePuff",
+        "trigger": "onTick",
+        "intervalMs": 3500,
+        "radiusTiles": 2.5,
+        "durationMs": 3000,
+        "missChance": 0.3,
+        "label": "SPORE CLOUD"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -868,9 +1211,6 @@
     "tags": [
       "plant",
       "poison"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -882,7 +1222,7 @@
     "behaviorType": "roam",
     "color": "0xaa3322",
     "sigil": "♆",
-    "description": "Wild-eyed orc with a heavy axe. No subtlety.",
+    "description": "Wild-eyed orc with a heavy axe — the longer it brawls, the harder it swings.",
     "baseStats": {
       "hp": 35,
       "attack": 11,
@@ -891,6 +1231,16 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bloodlust",
+        "trigger": "onHit",
+        "atkPerStack": 0.08,
+        "maxStacks": 6,
+        "decayMs": 4000,
+        "label": "BLOODLUST"
+      }
+    ],
     "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 4,
@@ -898,9 +1248,6 @@
     "tags": [
       "orc",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -912,7 +1259,7 @@
     "behaviorType": "roam",
     "color": "0x882211",
     "sigil": "♆",
-    "description": "Battle-scarred orc commander. Hits hard, leads harder.",
+    "description": "Battle-scarred commander — its war cry whips the whole warband into a frenzy.",
     "baseStats": {
       "hp": 59,
       "attack": 17,
@@ -921,6 +1268,23 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bloodlust",
+        "trigger": "onHit",
+        "atkPerStack": 0.08,
+        "maxStacks": 6,
+        "decayMs": 4000,
+        "label": "BLOODLUST"
+      },
+      {
+        "type": "warCry",
+        "trigger": "onTick",
+        "intervalMs": 6000,
+        "stacks": 2,
+        "label": "WAR CRY"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -928,9 +1292,6 @@
     "tags": [
       "orc",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -942,7 +1303,7 @@
     "behaviorType": "guard",
     "color": "0x559944",
     "sigil": "✿",
-    "description": "Creeping vine creature. Slows whatever brushes it.",
+    "description": "Creeping vine creature. Its tendrils snare your legs and root you where you stand.",
     "baseStats": {
       "hp": 24,
       "attack": 5,
@@ -951,6 +1312,14 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "entangle",
+        "trigger": "onHit",
+        "durationMs": 1800,
+        "label": "ENTANGLE"
+      }
+    ],
     "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
@@ -958,9 +1327,6 @@
     "tags": [
       "plant",
       "support"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -969,10 +1335,10 @@
     "spriteKey": "plant2",
     "frameSize": 64,
     "category": "combat",
-    "behaviorType": "ambush",
+    "behaviorType": "guard",
     "color": "0xcc4477",
     "sigil": "✿",
-    "description": "Toothed flower the size of a man. Eats everything that walks.",
+    "description": "Toothed flower the size of a man. Roots its prey, then feeds harder on whatever it's already holding down.",
     "baseStats": {
       "hp": 39,
       "attack": 9,
@@ -981,6 +1347,15 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "entangle",
+        "trigger": "onHit",
+        "durationMs": 2400,
+        "devourMul": 1.6,
+        "label": "ENTANGLE"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -988,9 +1363,6 @@
     "tags": [
       "plant",
       "ambush"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1002,7 +1374,7 @@
     "behaviorType": "guard",
     "color": "0xaa3344",
     "sigil": "✿",
-    "description": "Thorned, blood-fed bramble. Heals when it draws blood.",
+    "description": "Thorned, blood-fed bramble. Erupts a thicket that pins the whole party and drinks them dry.",
     "baseStats": {
       "hp": 59,
       "attack": 14,
@@ -1011,6 +1383,24 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "entangle",
+        "trigger": "onHit",
+        "durationMs": 2400,
+        "devourMul": 1.6,
+        "label": "ENTANGLE"
+      },
+      {
+        "type": "stranglethorn",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "rootMs": 3000,
+        "drain": 8,
+        "healPerHit": 6,
+        "label": "STRANGLETHORN"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1018,9 +1408,6 @@
     "tags": [
       "plant",
       "lifesteal"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1032,15 +1419,23 @@
     "behaviorType": "patrol",
     "color": "0x886644",
     "sigil": "♜",
-    "description": "Diseased rat. Bites carry fever.",
+    "description": "One rat is nothing. Pathetic alone — but it bites harder for every other rat skittering beside it.",
     "baseStats": {
       "hp": 20,
       "attack": 5,
       "defense": 2,
       "speed": 1.5,
-      "damageType": "poison",
+      "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "swarm",
+        "trigger": "onHit",
+        "atkPer": 0.12,
+        "cap": 6
+      }
+    ],
     "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
@@ -1048,10 +1443,8 @@
     "tags": [
       "beast",
       "fast",
-      "poison"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "rat",
+      "swarm"
     ]
   },
   {
@@ -1063,7 +1456,7 @@
     "behaviorType": "patrol",
     "color": "0x665544",
     "sigil": "♜",
-    "description": "Faster, leaner rat. Travels in packs.",
+    "description": "Pack tactics — bites harder AND takes less of a beating for every rat clustered with it. Cleave them apart to break the pack.",
     "baseStats": {
       "hp": 32,
       "attack": 8,
@@ -1072,16 +1465,25 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "swarm",
+        "trigger": "onHit",
+        "atkPer": 0.15,
+        "cap": 7,
+        "drPer": 0.05,
+        "drCap": 7
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "beast",
-      "fast"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "fast",
+      "rat",
+      "swarm"
     ]
   },
   {
@@ -1093,7 +1495,7 @@
     "behaviorType": "guard",
     "color": "0x554433",
     "sigil": "♜",
-    "description": "Wagon-sized rat. Should not be possible. Is anyway.",
+    "description": "Wagon-sized rat that drives the whole nest. Periodically whips every rat in the room into a frenzied, fearless VERMIN TIDE.",
     "baseStats": {
       "hp": 47,
       "attack": 12,
@@ -1102,15 +1504,33 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "swarm",
+        "trigger": "onHit",
+        "atkPer": 0.15,
+        "cap": 8,
+        "drPer": 0.06,
+        "drCap": 8,
+        "frenzyAtk": 0.25
+      },
+      {
+        "type": "verminTide",
+        "trigger": "onTick",
+        "intervalMs": 9000,
+        "frenzyMs": 4000,
+        "speedMul": 1.4,
+        "label": "VERMIN TIDE"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
-      "beast"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "beast",
+      "rat",
+      "swarm"
     ]
   },
   {
@@ -1122,7 +1542,7 @@
     "behaviorType": "patrol",
     "color": "0xc8c0a0",
     "sigil": "☠",
-    "description": "A basic patrolling skeleton. Cheap, reliable, expendable.",
+    "description": "A basic patrolling skeleton. Cheap, reliable — and it doesn't stay down.",
     "baseStats": {
       "hp": 32,
       "attack": 8,
@@ -1131,6 +1551,16 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reassemble",
+        "trigger": "onDying",
+        "maxRevives": 1,
+        "delayMs": 3000,
+        "hpFraction": 0.5,
+        "label": "REASSEMBLING"
+      }
+    ],
     "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
@@ -1138,9 +1568,6 @@
     "tags": [
       "undead",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1152,7 +1579,7 @@
     "behaviorType": "guard",
     "color": "0xb0a880",
     "sigil": "☠",
-    "description": "Armored skeleton with shield and spear. Holds the line.",
+    "description": "Armored skeleton. The more you break it, the harder it gets back up.",
     "baseStats": {
       "hp": 51,
       "attack": 11,
@@ -1161,6 +1588,20 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reassemble",
+        "trigger": "onDying",
+        "maxRevives": 2,
+        "delayMs": 2500,
+        "hpFraction": 0.5,
+        "armorMs": 5000,
+        "armorReduction": 0.4,
+        "shardDamage": 6,
+        "shardRadiusTiles": 2,
+        "label": "REASSEMBLING"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1169,9 +1610,6 @@
       "undead",
       "melee",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1183,7 +1621,7 @@
     "behaviorType": "guard",
     "color": "0x886644",
     "sigil": "☠",
-    "description": "Risen knight, sword still in hand. Remembers the day it fell.",
+    "description": "Risen knight. Raises the fallen and refuses to stay down.",
     "baseStats": {
       "hp": 74,
       "attack": 15,
@@ -1192,6 +1630,29 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reassemble",
+        "trigger": "onDying",
+        "maxRevives": 3,
+        "delayMs": 1500,
+        "hpFraction": 0.5,
+        "armorMs": 5000,
+        "armorReduction": 0.5,
+        "shardDamage": 9,
+        "shardRadiusTiles": 2,
+        "rapidReviveDelayMs": 500,
+        "label": "REASSEMBLING"
+      },
+      {
+        "type": "undyingLegion",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "raiseRadiusTiles": 6,
+        "rapidReviveMs": 6000,
+        "label": "UNDYING LEGION"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1199,21 +1660,18 @@
     "tags": [
       "undead",
       "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
     "id": "slime1",
-    "name": "Bomb Slime",
+    "name": "Brood Slime",
     "spriteKey": "slime1",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0x44aaff",
+    "color": "0x3d4259",
     "sigil": "♢",
-    "description": "Small blue slime. Bouncy. Wet. Aggressive.",
+    "description": "Splits into THREE — and its spawn can split again. A cascading swarm.",
     "baseStats": {
       "hp": 47,
       "attack": 11,
@@ -1222,45 +1680,56 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "split",
+        "trigger": "onDeath",
+        "count": 3,
+        "childHpFrac": 0.45,
+        "maxDepth": 2
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "ooze"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "slime2",
-    "name": "Acid Slime",
+    "name": "Slime",
     "spriteKey": "slime2",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0x99dd33",
+    "color": "0xb54d35",
     "sigil": "♢",
-    "description": "Sickly-green slime. Hisses where it splatters.",
+    "description": "A common green slime. Kill it and you've made two problems.",
     "baseStats": {
       "hp": 20,
       "attack": 5,
       "defense": 2,
       "speed": 0.9,
-      "damageType": "acid",
+      "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "split",
+        "trigger": "onDeath",
+        "count": 2,
+        "childHpFrac": 0.4,
+        "maxDepth": 1
+      }
+    ],
     "goldCost": 6,
     "powerCostToUnlock": 0,
     "unlockLevel": 1,
     "evolutionPaths": [],
     "tags": [
-      "ooze",
-      "acid"
-    ],
-    "vulnerableToElements": [
-      "ice"
+      "ooze"
     ]
   },
   {
@@ -1270,9 +1739,9 @@
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0xaa44cc",
+    "color": "0x6e5195",
     "sigil": "♢",
-    "description": "Purple poison slime. Apply liberally to adventurers.",
+    "description": "A diseased slime — every hit infects a hero with a stacking poison.",
     "baseStats": {
       "hp": 24,
       "attack": 6,
@@ -1281,6 +1750,16 @@
       "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "infect",
+        "trigger": "onHit",
+        "dmgPerTick": 2,
+        "intervalMs": 1500,
+        "ticks": 4,
+        "label": "INFECTED"
+      }
+    ],
     "goldCost": 10,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
@@ -1288,89 +1767,131 @@
     "tags": [
       "ooze",
       "poison"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "slime4",
-    "name": "Frost Slime",
+    "name": "Acid Slime",
     "spriteKey": "slime4",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0x66ccee",
+    "color": "0x5dcef3",
     "sigil": "♢",
-    "description": "Chill slime. Slows what it touches.",
+    "description": "When it dies it bursts — leaving a caustic acid puddle that eats at whoever stands in it.",
     "baseStats": {
       "hp": 27,
       "attack": 6,
       "defense": 3,
       "speed": 0.7,
-      "damageType": "ice",
+      "damageType": "acid",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "acidPool",
+        "trigger": "onDeath",
+        "dmg": 3,
+        "radiusTiles": 1,
+        "zoneMs": 5000
+      }
+    ],
     "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 5,
     "evolutionPaths": [],
     "tags": [
       "ooze",
-      "ice"
-    ],
-    "vulnerableToElements": [
-      "ice"
+      "acid"
     ]
   },
   {
     "id": "slime5",
-    "name": "Electric Slime",
+    "name": "Caustic Slime",
     "spriteKey": "slime5",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0xee6633",
+    "color": "0xf5c23a",
     "sigil": "♢",
-    "description": "Glowing red slime. Burns on contact.",
+    "description": "Sweats acid as it roams — every tile it crosses smokes with a caustic trail, and it bursts into a puddle when killed.",
     "baseStats": {
       "hp": 44,
       "attack": 11,
       "defense": 5,
       "speed": 0.9,
-      "damageType": "fire",
+      "damageType": "acid",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "hazardTrail",
+        "trigger": "onTick",
+        "intervalMs": 300,
+        "element": "acid",
+        "dmg": 2,
+        "radiusTiles": 1,
+        "zoneMs": 3500
+      },
+      {
+        "type": "acidPool",
+        "trigger": "onDeath",
+        "dmg": 3,
+        "radiusTiles": 1.2,
+        "zoneMs": 5000
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "ooze",
-      "fire"
-    ],
-    "vulnerableToElements": [
-      "ice"
+      "acid"
     ]
   },
   {
     "id": "slime6",
-    "name": "Demon Slime",
+    "name": "Corrosive Ooze",
     "spriteKey": "slime6",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0xddaaff",
+    "color": "0x7e1b27",
     "sigil": "♢",
-    "description": "Slime hardened with mineral shards. Surprisingly tough.",
+    "description": "Its acid is potent enough to MELT armor — bigger, longer-lasting puddles that shred defense and bog heroes down as they stand in them.",
     "baseStats": {
       "hp": 66,
       "attack": 14,
       "defense": 8,
       "speed": 0.7,
-      "damageType": "physical",
+      "damageType": "acid",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "hazardTrail",
+        "trigger": "onTick",
+        "intervalMs": 300,
+        "element": "acid",
+        "dmg": 3,
+        "radiusTiles": 1.3,
+        "zoneMs": 4500,
+        "armorShred": 2,
+        "armorShredMax": 8,
+        "slow": 0.6
+      },
+      {
+        "type": "acidPool",
+        "trigger": "onDeath",
+        "dmg": 4,
+        "radiusTiles": 1.6,
+        "zoneMs": 7000,
+        "armorShred": 3,
+        "armorShredMax": 8,
+        "slow": 0.55
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1378,51 +1899,63 @@
     "tags": [
       "ooze",
       "tank"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "slime7",
-    "name": "Crystal Slime",
+    "name": "Plague Slime",
     "spriteKey": "slime7",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0x221133",
+    "color": "0x51a38a",
     "sigil": "♢",
-    "description": "Light-eating black slime. Unsettlingly silent.",
+    "description": "Its infection JUMPS — sick heroes spread the poison to anyone nearby.",
     "baseStats": {
       "hp": 39,
       "attack": 9,
       "defense": 3,
       "speed": 1,
-      "damageType": "psychic",
+      "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "infect",
+        "trigger": "onHit",
+        "dmgPerTick": 2,
+        "intervalMs": 1500,
+        "ticks": 4,
+        "label": "INFECTED"
+      },
+      {
+        "type": "contagion",
+        "trigger": "onTick",
+        "intervalMs": 2000,
+        "spreadRadiusTiles": 3,
+        "maxSpread": 3,
+        "label": "CONTAGION"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "ooze",
-      "psychic"
-    ],
-    "vulnerableToElements": [
-      "ice"
+      "poison"
     ]
   },
   {
     "id": "slime8",
-    "name": "Death Slime",
+    "name": "Pestilent Slime",
     "spriteKey": "slime8",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0x665533",
+    "color": "0x49719d",
     "sigil": "♢",
-    "description": "Murky brown slime full of swamp gas.",
+    "description": "A walking plague — stronger venom, spreads farther, and infected heroes leave a toxic trail.",
     "baseStats": {
       "hp": 59,
       "attack": 12,
@@ -1431,6 +1964,27 @@
       "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "infect",
+        "trigger": "onHit",
+        "dmgPerTick": 3,
+        "intervalMs": 1200,
+        "ticks": 5,
+        "label": "INFECTED"
+      },
+      {
+        "type": "contagion",
+        "trigger": "onTick",
+        "intervalMs": 1500,
+        "spreadRadiusTiles": 4,
+        "maxSpread": 4,
+        "trail": true,
+        "trailDmg": 1,
+        "trailMs": 2000,
+        "label": "CONTAGION"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1438,39 +1992,49 @@
     "tags": [
       "ooze",
       "poison"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
     "id": "slime9",
-    "name": "Lava Slime",
+    "name": "Splitter Slime",
     "spriteKey": "slime9",
     "frameSize": 64,
     "category": "combat",
     "behaviorType": "roam",
-    "color": "0xffcc44",
+    "color": "0xedaa33",
     "sigil": "♢",
-    "description": "Brilliant yellow slime. Painful to look at.",
+    "description": "Splits when it dies — and buds off a slimeling when it's badly hurt.",
     "baseStats": {
       "hp": 32,
       "attack": 8,
       "defense": 3,
       "speed": 0.9,
-      "damageType": "fire",
+      "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "split",
+        "trigger": "onDeath",
+        "count": 2,
+        "childHpFrac": 0.4,
+        "maxDepth": 1
+      },
+      {
+        "type": "splitWhenHurt",
+        "trigger": "onTick",
+        "intervalMs": 500,
+        "hpThreshold": 0.5,
+        "count": 1,
+        "childHpFrac": 0.35
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
-      "ooze",
-      "fire"
-    ],
-    "vulnerableToElements": [
-      "ice"
+      "ooze"
     ]
   },
   {
@@ -1482,7 +2046,7 @@
     "behaviorType": "ambush",
     "color": "0x882244",
     "sigil": "♥",
-    "description": "Newly-turned vampire. Bites first, asks nothing. Heals from blood drawn.",
+    "description": "Newly-turned vampire. Bites first, asks nothing — every hit heals it from the blood it draws.",
     "baseStats": {
       "hp": 44,
       "attack": 11,
@@ -1491,6 +2055,13 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "lifesteal",
+        "trigger": "onHit",
+        "frac": 0.5
+      }
+    ],
     "goldCost": 18,
     "powerCostToUnlock": 0,
     "unlockLevel": 9,
@@ -1499,9 +2070,6 @@
       "vampire",
       "fast",
       "lifesteal"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1513,7 +2081,7 @@
     "behaviorType": "guard",
     "color": "0x661133",
     "sigil": "♥",
-    "description": "Charmed mortal turned vampire. Drains life. Doesn't sleep.",
+    "description": "Gorged on blood — it drains harder, and life taken past full clots into a blood-shield. The longer it feeds, the tankier it gets.",
     "baseStats": {
       "hp": 66,
       "attack": 15,
@@ -1522,6 +2090,15 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "lifesteal",
+        "trigger": "onHit",
+        "frac": 0.65,
+        "overheal": true,
+        "shieldFracMax": 0.6
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1529,9 +2106,6 @@
     "tags": [
       "vampire",
       "lifesteal"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1543,7 +2117,7 @@
     "behaviorType": "roam",
     "color": "0x668844",
     "sigil": "☠",
-    "description": "Slow, mindless walking corpse. Cheap meat for the front line.",
+    "description": "Slow, mindless walking corpse — but a hero it drags down RISES as one of yours. Every kill grows the horde.",
     "baseStats": {
       "hp": 27,
       "attack": 6,
@@ -1552,16 +2126,20 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reanimate",
+        "trigger": "passive"
+      }
+    ],
     "goldCost": 8,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
     "tags": [
       "undead",
-      "melee"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "melee",
+      "zombie"
     ]
   },
   {
@@ -1573,7 +2151,7 @@
     "behaviorType": "roam",
     "color": "0x447755",
     "sigil": "☠",
-    "description": "Festering zombie. Bites carry rot.",
+    "description": "Its bites carry ROT — an infected hero that dies to ANYTHING (a trap, the boss, anything) rises as a zombie. The plague spreads the outbreak.",
     "baseStats": {
       "hp": 44,
       "attack": 9,
@@ -1582,16 +2160,29 @@
       "damageType": "poison",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reanimate",
+        "trigger": "passive"
+      },
+      {
+        "type": "rotBite",
+        "trigger": "onHit",
+        "durationMs": 8000,
+        "dmgPerTick": 2,
+        "intervalMs": 1500,
+        "ticks": 3,
+        "label": "ROT"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "undead",
-      "poison"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "poison",
+      "zombie"
     ]
   },
   {
@@ -1603,7 +2194,7 @@
     "behaviorType": "guard",
     "color": "0x884466",
     "sigil": "☠",
-    "description": "Bloated, tomb-bound zombie. Devastating when it lands a hit.",
+    "description": "Tomb-bound master of the dead. Periodically holds a MASS GRAVE — clawing the room's fallen heroes back up at once + spreading rot to the living.",
     "baseStats": {
       "hp": 71,
       "attack": 15,
@@ -1612,16 +2203,37 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "reanimate",
+        "trigger": "passive"
+      },
+      {
+        "type": "rotBite",
+        "trigger": "onHit",
+        "durationMs": 8000,
+        "dmgPerTick": 2,
+        "intervalMs": 1500,
+        "ticks": 3,
+        "label": "ROT"
+      },
+      {
+        "type": "massGrave",
+        "trigger": "onTick",
+        "intervalMs": 10000,
+        "maxRaise": 5,
+        "infectMs": 9000,
+        "label": "MASS GRAVE"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
     "evolutionPaths": [],
     "tags": [
       "undead",
-      "tank"
-    ],
-    "vulnerableToElements": [
-      "fire"
+      "tank",
+      "zombie"
     ]
   },
   {
@@ -1641,8 +2253,34 @@
       "defense": 6,
       "speed": 1,
       "damageType": "psychic",
-      "abilities": []
+      "abilities": [],
+      "attackRange": 4
     },
+    "abilities": [
+      {
+        "type": "mesmerize",
+        "trigger": "onHit",
+        "durationMs": 4000,
+        "label": "MESMERIZED"
+      },
+      {
+        "type": "massHypnosis",
+        "trigger": "onTick",
+        "intervalMs": 5500,
+        "targets": 4,
+        "durationMs": 4000,
+        "label": "HYPNOTISED"
+      },
+      {
+        "type": "tyrantGlare",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "petrifyMs": 2200,
+        "hexMul": 1.6,
+        "hexMs": 5000,
+        "label": "TYRANT'S GLARE"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1650,9 +2288,6 @@
     "tags": [
       "aberration",
       "miniboss"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -1665,7 +2300,7 @@
     "behaviorType": "guard",
     "color": "0xaa1133",
     "sigil": "♆",
-    "description": "Crowned devil. Burns in three colors.",
+    "description": "Crowned devil, master of hellfire. Periodically erupts the entire room into an INFERNO — there is no safe distance from a Demon Lord.",
     "baseStats": {
       "hp": 156,
       "attack": 32,
@@ -1674,6 +2309,28 @@
       "damageType": "fire",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "burningAura",
+        "trigger": "onTick",
+        "intervalMs": 900,
+        "radiusTiles": 3,
+        "dmg": 4,
+        "per": 0.45,
+        "maxStacks": 6,
+        "combust": true,
+        "combustDmg": 8,
+        "combustRadiusTiles": 1.5
+      },
+      {
+        "type": "inferno",
+        "trigger": "onTick",
+        "intervalMs": 10000,
+        "dmg": 6,
+        "maxStacks": 6,
+        "label": "INFERNO"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1682,9 +2339,6 @@
       "fiend",
       "melee",
       "miniboss"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -1706,6 +2360,38 @@
       "damageType": "shadow",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "dreadAura",
+        "trigger": "onTick",
+        "intervalMs": 600,
+        "radiusTiles": 4.5,
+        "nervePerTick": 2.3
+      },
+      {
+        "type": "fear",
+        "trigger": "onHit",
+        "amount": 11,
+        "label": "FEAR"
+      },
+      {
+        "type": "haunt",
+        "trigger": "onHit",
+        "durationMs": 6000,
+        "nervePerSec": 5,
+        "contagionRadiusTiles": 3.5,
+        "contagionPerSec": 2,
+        "fumbleMul": 0.65,
+        "label": "HAUNTED"
+      },
+      {
+        "type": "pallOfDread",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "nerveFloor": 12,
+        "label": "PALL OF DREAD"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1714,8 +2400,7 @@
       "undead",
       "phasing",
       "miniboss"
-    ],
-    "vulnerableToElements": []
+    ]
   },
   {
     "id": "gnoll_alpha",
@@ -1736,6 +2421,32 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bleed",
+        "trigger": "onHit",
+        "perStack": 4,
+        "maxStacks": 6,
+        "durationMs": 9000,
+        "intervalMs": 1000,
+        "label": "BLEEDING"
+      },
+      {
+        "type": "bloodhound",
+        "trigger": "passive",
+        "sprintMul": 1.7
+      },
+      {
+        "type": "bloodFrenzy",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "ruptureDmgPerStack": 7,
+        "noHealMs": 5000,
+        "sprintMul": 1.8,
+        "frenzyMs": 6000,
+        "label": "BLOOD FRENZY"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1744,8 +2455,7 @@
       "beastfolk",
       "melee",
       "miniboss"
-    ],
-    "vulnerableToElements": []
+    ]
   },
   {
     "id": "golem_warden",
@@ -1757,7 +2467,7 @@
     "behaviorType": "guard",
     "color": "0x776655",
     "sigil": "▣",
-    "description": "Bound construct sentinel. Slow. Patient. Inevitable.",
+    "description": "The keep made flesh-of-stone. Periodically raises a BASTION — a stone rampart that turtles the entire garrison behind near-impervious armor.",
     "baseStats": {
       "hp": 195,
       "attack": 30,
@@ -1766,6 +2476,27 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "damageReduction",
+        "trigger": "passive",
+        "mult": 0.5
+      },
+      {
+        "type": "aegis",
+        "trigger": "passive",
+        "radiusTiles": 3,
+        "mult": 0.65
+      },
+      {
+        "type": "bastion",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "durationMs": 5000,
+        "mult": 0.4,
+        "label": "BASTION"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1774,9 +2505,6 @@
       "construct",
       "tank",
       "miniboss"
-    ],
-    "vulnerableToElements": [
-      "lightning"
     ]
   },
   {
@@ -1789,7 +2517,7 @@
     "behaviorType": "guard",
     "color": "0xddccff",
     "sigil": "♅",
-    "description": "Phylactery-bound archmage. Already dead, still annoyed.",
+    "description": "Phylactery-bound archmage. Devours the souls of the fallen, unleashes them in a death-storm, and refuses to stay dead.",
     "baseStats": {
       "hp": 125,
       "attack": 27,
@@ -1798,6 +2526,37 @@
       "damageType": "necrotic",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "soulHarvest",
+        "trigger": "onTick",
+        "intervalMs": 500,
+        "soulCap": 16,
+        "perSoulAtk": 0.07,
+        "shareUndead": true,
+        "allyAtkPerSoul": 0.035,
+        "allyAtkCap": 0.6,
+        "label": "SOUL HARVEST"
+      },
+      {
+        "type": "soulStorm",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "baseDmg": 8,
+        "dmgPerSoul": 4,
+        "spendSouls": true,
+        "label": "SOUL STORM"
+      },
+      {
+        "type": "phylactery",
+        "trigger": "onDying",
+        "reviveDelayMs": 3500,
+        "hpFraction": 0.5,
+        "maxRevives": 1,
+        "keepSouls": true,
+        "label": "PHYLACTERY"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1806,8 +2565,7 @@
       "undead",
       "caster",
       "miniboss"
-    ],
-    "vulnerableToElements": []
+    ]
   },
   {
     "id": "serpent_captain",
@@ -1819,7 +2577,7 @@
     "behaviorType": "patrol",
     "color": "0x55aa55",
     "sigil": "♉",
-    "description": "Cold-blooded warband captain. The blade is sharper than the tongue.",
+    "description": "Warband captain. With a hiss the whole pack vanishes at once — then the room erupts in fangs.",
     "baseStats": {
       "hp": 78,
       "attack": 21,
@@ -1828,6 +2586,23 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "camouflage",
+        "trigger": "passive",
+        "ambushMul": 2.6,
+        "recamoMs": 4000,
+        "hiddenSpeedMul": 1.5,
+        "killRecamo": true,
+        "label": "STALK"
+      },
+      {
+        "type": "vanishingWarband",
+        "trigger": "onTick",
+        "intervalMs": 12000,
+        "label": "VANISHING WARBAND"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1836,9 +2611,6 @@
       "reptilian",
       "melee",
       "miniboss"
-    ],
-    "vulnerableToElements": [
-      "ice"
     ]
   },
   {
@@ -1851,7 +2623,7 @@
     "behaviorType": "guard",
     "color": "0xaa55aa",
     "sigil": "♣",
-    "description": "Sentient spore-keeper. Walks where the moss already remembers you.",
+    "description": "Sentient spore-keeper. Blooms a storm of hallucinogenic spores that leaves the whole party swinging at ghosts.",
     "baseStats": {
       "hp": 66,
       "attack": 14,
@@ -1861,6 +2633,23 @@
       "abilities": [],
       "attackRange": 3
     },
+    "abilities": [
+      {
+        "type": "daze",
+        "trigger": "onHit",
+        "durationMs": 3500,
+        "missChance": 0.4,
+        "label": "DAZE"
+      },
+      {
+        "type": "sporeStorm",
+        "trigger": "onTick",
+        "intervalMs": 11000,
+        "durationMs": 4500,
+        "missChance": 0.55,
+        "label": "SPORE STORM"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1869,9 +2658,6 @@
       "plant",
       "ranged",
       "miniboss"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
   },
   {
@@ -1884,7 +2670,7 @@
     "behaviorType": "roam",
     "color": "0x553311",
     "sigil": "♆",
-    "description": "Old-blood warlord. Survived a hundred raids. Made the hundred-and-first personal.",
+    "description": "Old-blood warlord — maxes the whole warband's fury and goes on an unstoppable rampage.",
     "baseStats": {
       "hp": 86,
       "attack": 26,
@@ -1893,6 +2679,32 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "bloodlust",
+        "trigger": "onHit",
+        "atkPerStack": 0.08,
+        "maxStacks": 8,
+        "decayMs": 4000,
+        "label": "BLOODLUST"
+      },
+      {
+        "type": "warCry",
+        "trigger": "onTick",
+        "intervalMs": 6000,
+        "stacks": 2,
+        "label": "WAR CRY"
+      },
+      {
+        "type": "warpath",
+        "trigger": "onTick",
+        "intervalMs": 14000,
+        "rampageMs": 5000,
+        "atkMult": 1.6,
+        "speedMult": 1.5,
+        "label": "WARPATH"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1901,8 +2713,7 @@
       "greenskin",
       "melee",
       "miniboss"
-    ],
-    "vulnerableToElements": []
+    ]
   },
   {
     "id": "vampire_sovereign",
@@ -1914,7 +2725,7 @@
     "behaviorType": "guard",
     "color": "0x440011",
     "sigil": "♥",
-    "description": "Old blood, older title. Charms with one hand, opens veins with the other.",
+    "description": "Old blood, older title. Periodically holds a BLOOD FEAST — siphoning life from the whole room at once to gorge itself behind a wall of clotted blood.",
     "baseStats": {
       "hp": 105,
       "attack": 24,
@@ -1923,6 +2734,23 @@
       "damageType": "physical",
       "abilities": []
     },
+    "abilities": [
+      {
+        "type": "lifesteal",
+        "trigger": "onHit",
+        "frac": 0.65,
+        "overheal": true,
+        "shieldFracMax": 0.8
+      },
+      {
+        "type": "bloodFeast",
+        "trigger": "onTick",
+        "intervalMs": 9000,
+        "drainPerAdv": 6,
+        "shieldFracMax": 0.8,
+        "label": "BLOOD FEAST"
+      }
+    ],
     "goldCost": 0,
     "powerCostToUnlock": 0,
     "unlockLevel": 99,
@@ -1930,9 +2758,9 @@
     "tags": [
       "undead",
       "vampiric",
+      "vampire",
       "miniboss"
-    ],
-    "vulnerableToElements": []
+    ]
   },
   {
     "id": "mimic",
@@ -1961,230 +2789,6 @@
       "mimic",
       "beast",
       "ambush"
-    ],
-    "vulnerableToElements": [
-      "fire"
     ]
-  },
-  {
-    "id": "web1",
-    "spriteKey": "web1",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "ambush",
-    "color": "0x6a7b4a",
-    "sigil": "✷",
-    "description": "Cave Spinner. Strings the dark with web and snares whatever brushes it.",
-    "baseStats": { "hp": 30, "attack": 7, "defense": 2, "speed": 1.1, "damageType": "physical", "abilities": [] },
-    "goldCost": 14,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 5,
-    "evolutionPaths": [],
-    "tags": ["beast", "control"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "web2",
-    "spriteKey": "web2",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "ambush",
-    "color": "0x4f5d38",
-    "sigil": "✷",
-    "description": "Web Lurker. Bigger, patient, faster to bind.",
-    "baseStats": { "hp": 50, "attack": 12, "defense": 4, "speed": 1.0, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["beast", "control"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "broodmother",
-    "spriteKey": "broodmother",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "guard",
-    "color": "0x3a4a2a",
-    "sigil": "✷",
-    "description": "Broodmother. Floods a room with webbing — nothing crosses at speed.",
-    "baseStats": { "hp": 86, "attack": 18, "defense": 7, "speed": 0.9, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["beast", "control", "miniboss"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "cmd1",
-    "spriteKey": "cmd1",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0xd0a030",
-    "sigil": "⚑",
-    "description": "Goblin Drummer. Hangs back and beats the war-rhythm — nearby minions hit harder.",
-    "baseStats": { "hp": 34, "attack": 6, "defense": 3, "speed": 0.9, "damageType": "physical", "abilities": [] },
-    "goldCost": 20,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 8,
-    "evolutionPaths": [],
-    "tags": ["support", "commander"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "cmd2",
-    "spriteKey": "cmd2",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0xb88820",
-    "sigil": "⚑",
-    "description": "War Drummer. The cadence quickens; the warband answers.",
-    "baseStats": { "hp": 54, "attack": 9, "defense": 5, "speed": 0.9, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["support", "commander"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "warlord_herald",
-    "spriteKey": "warlord_herald",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0x9a6a10",
-    "sigil": "⚑",
-    "description": "Warlord Herald. Its banner turns a room of minions into an army.",
-    "baseStats": { "hp": 80, "attack": 14, "defense": 8, "speed": 0.9, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["support", "commander", "miniboss"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "bone_totem1",
-    "spriteKey": "bone_totem1",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0xc9bfa0",
-    "sigil": "♁",
-    "description": "Bone Totem. Rooted in place, it keeps belching up a trickle of swarmlings.",
-    "baseStats": { "hp": 40, "attack": 4, "defense": 4, "speed": 0.0, "damageType": "physical", "abilities": [] },
-    "goldCost": 24,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 10,
-    "evolutionPaths": [],
-    "tags": ["construct", "summoner"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "bone_totem2",
-    "spriteKey": "bone_totem2",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0xb0a070",
-    "sigil": "♁",
-    "description": "Hex Pylon. The trickle becomes a stream.",
-    "baseStats": { "hp": 64, "attack": 6, "defense": 6, "speed": 0.0, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["construct", "summoner"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "necro_obelisk",
-    "spriteKey": "necro_obelisk",
-    "frameSize": 64,
-    "category": "support",
-    "behaviorType": "guard",
-    "color": "0x8a7a55",
-    "sigil": "♁",
-    "description": "Necro Obelisk. An endless font of bodies — kill it or drown.",
-    "baseStats": { "hp": 95, "attack": 8, "defense": 8, "speed": 0.0, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["construct", "summoner", "miniboss"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "swarmling",
-    "spriteKey": "swarmling",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "guard",
-    "color": "0xd8cba2",
-    "sigil": "·",
-    "description": "A summoned husk. Weak alone, a problem in numbers.",
-    "baseStats": { "hp": 10, "attack": 3, "defense": 0, "speed": 1.2, "damageType": "physical", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["construct", "swarm"],
-    "vulnerableToElements": ["fire"]
-  },
-  {
-    "id": "rust1",
-    "spriteKey": "rust1",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "roam",
-    "color": "0xb5651d",
-    "sigil": "⚙",
-    "description": "Rust Gremlin. Corrodes armor on contact and leaves a smear of acid in its wake.",
-    "baseStats": { "hp": 32, "attack": 8, "defense": 3, "speed": 1.2, "damageType": "acid", "abilities": [] },
-    "goldCost": 16,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 6,
-    "evolutionPaths": [],
-    "tags": ["construct", "debuff"],
-    "vulnerableToElements": ["lightning"]
-  },
-  {
-    "id": "rust2",
-    "spriteKey": "rust2",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "roam",
-    "color": "0x9a5418",
-    "sigil": "⚙",
-    "description": "Corrosion Imp. The smear becomes a trail; the armor becomes scrap.",
-    "baseStats": { "hp": 50, "attack": 12, "defense": 4, "speed": 1.2, "damageType": "acid", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["construct", "debuff"],
-    "vulnerableToElements": ["lightning"]
-  },
-  {
-    "id": "rust_tyrant",
-    "spriteKey": "rust_tyrant",
-    "frameSize": 64,
-    "category": "combat",
-    "behaviorType": "roam",
-    "color": "0x7a3e10",
-    "sigil": "⚙",
-    "description": "Rust Tyrant. Walks a room into ruin — floors slick, armor gone.",
-    "baseStats": { "hp": 78, "attack": 17, "defense": 6, "speed": 1.1, "damageType": "acid", "abilities": [] },
-    "goldCost": 0,
-    "powerCostToUnlock": 0,
-    "unlockLevel": 99,
-    "evolutionPaths": [],
-    "tags": ["construct", "debuff", "miniboss"],
-    "vulnerableToElements": ["lightning"]
   }
 ]

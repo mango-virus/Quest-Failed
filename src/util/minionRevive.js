@@ -41,6 +41,12 @@ export function isPermadeadAtDawn(m, flags = {}) {
   if (m._mercenary && dead) return true
   // Slime Split mini-slimes are temporary — wiped every dawn regardless.
   if (m._isMiniSlime) return true
+  // Zombie Reanimate / Mass Grave Risen — slain heroes raised as permanent
+  // undead minions: a LIVING Risen persists across nights/days (it's garrison
+  // class → no cap, no pay-to-revive, not sellable/movable). Only a KILLED Risen
+  // stays dead (no free dawn auto-revive that other garrison spawns get) — so the
+  // outbreak army grows only while they survive.
+  if (m._raisedZombie && dead) return true
   // Summoner adds (Bone Totem) are net-new transient entities — wiped every
   // dawn so a summoner can't grow a permanent army. (Elder Lich's Raise-Dead
   // reanimates EXISTING minions, which just follow their normal revive rules.)

@@ -88,7 +88,12 @@ export class NerveSystem {
     this._profiles.clear()
   }
 
-  _onNightNerve() { this._profiles.clear() }
+  _onNightNerve() {
+    this._profiles.clear()
+    // Nerve rework — the guild's PANIC (from heroes who fled, KnowledgeSystem) decays
+    // each night: a scare wears off over a few days rather than crippling the guild forever.
+    if (this._gameState._guildPanic) this._gameState._guildPanic = Math.max(0, this._gameState._guildPanic - 8)
+  }
 
   // ── Personality nerve profile ───────────────────────────────────────────────
   // The profile is DERIVED from behaviorWeights (so even personalities without an
@@ -141,7 +146,10 @@ export class NerveSystem {
   _seed(adv) {
     if (adv._nerveSeeded) return this._profile(adv)
     const prof = this._profile(adv)
-    adv.nerve = prof.baseline
+    // Nerve rework — start below baseline by the guild's accumulated PANIC (heroes who
+    // fled in earlier waves spread the dread). Floored so a personality floor still holds.
+    const panic = this._gameState._guildPanic ?? 0
+    adv.nerve = _clamp(prof.baseline - panic, prof.floor ?? 0, 100)
     adv._nerveSeeded = true
     adv.mood = _bandFor(adv.nerve)
     return prof
@@ -151,6 +159,7 @@ export class NerveSystem {
   update(delta) {
     const dtSec = delta / 1000
     if (dtSec <= 0) return
+    const now = this._scene?.time?.now ?? 0
     const advs = this._gameState.adventurers?.active ?? []
     for (const adv of advs) {
       if (!adv || adv.aiState === 'dead') continue
@@ -185,7 +194,9 @@ export class NerveSystem {
         // Recover — only when genuinely safe: known ground, no threat, healthy.
         // Tapered above baseline so cleared ground returns them toward their
         // baseline but NOT to Bold — reaching Bold is earned via the impulses.
-        if (known && threatTiles > THREAT_RADIUS && hpFrac >= 0.5) {
+        // A HAUNTED adv (ghost kit) cannot recover — the dread clings to them.
+        const haunted = adv._hauntedUntil > now
+        if (known && threatTiles > THREAT_RADIUS && hpFrac >= 0.5 && !haunted) {
           const headroom = Math.max(0, Math.min(1, 1 - (adv.nerve - prof.baseline) / RECOVER_HEADROOM))
           rate += RECOVER_SAFE * prof.recoverMul * headroom
         }

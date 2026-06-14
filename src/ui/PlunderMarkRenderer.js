@@ -12,7 +12,12 @@ import { Balance } from '../config/balance.js'
 import { CRYPT }   from './UIKit.js'
 
 const TS = Balance.TILE_SIZE
-const DEPTH = 8.5          // above the entity layer so the brand is always visible
+// Overhead UI brand — must sit ABOVE the entity Y-sort band, which is
+// `~7 + worldY*0.0005`, so a small constant like 8.5 sinks behind heroes at
+// high worldY (deep dungeon rows / the off-grid VFX-lab stage). Park it in the
+// world-VFX band (alongside the coin-burst sprites at 58) so it's always seen.
+const DEPTH = 56
+
 const FADE_MS = 600
 const BOB_AMP = 4
 const BOB_FREQ = 360       // ms per bob cycle
@@ -58,7 +63,9 @@ export class PlunderMarkRenderer {
       if (!live || !(a._plunderUntil > now)) continue
       seen.add(a.instanceId)
       const bx = a.worldX ?? 0
-      const by = (a.worldY ?? 0) - TS * 0.7 + Math.sin(now / BOB_FREQ + (a.tileX + a.tileY)) * BOB_AMP
+      // Hover the brand just above the hero's head (worldY is their feet; the
+      // sprite stands ~1.3 tiles tall), not resting on it.
+      const by = (a.worldY ?? 0) - TS * 1.25 + Math.sin(now / BOB_FREQ + (a.tileX + a.tileY)) * BOB_AMP
       let rec = this._marks.get(a.instanceId)
       if (!rec) { rec = { coin: this._makeCoin(bx, by) }; this._marks.set(a.instanceId, rec) }
       rec.coin?.setPosition?.(bx, by)

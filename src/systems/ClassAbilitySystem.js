@@ -47,7 +47,7 @@ export const ABILITY_DEFS = {
   cleric_resurrection:   { id: 'resurrection',   usesPerDay: 1, castMs: 3000, reviveFrac: 0.30, rangeTiles: 6, label: 'Resurrection' }, // 1 per day per cleric
   // Mage
   mage_arcane_burst:     { id: 'arcane_burst',   cooldownMs: 20000,                    label: 'Arcane Burst', aoeRangeTiles: 1 },
-  // Mage Elemental Affinity is a passive (rolled at spawn; CombatSystem reads adv._element).
+  // Mage Arcane Mastery is a flat spell-power passive (CombatSystem); adv._element is cosmetic VFX only.
   // Necromancer
   necro_summon:          { id: 'summon_undead',  cooldownMs: 35000,                    label: 'Summon Undead', summonCount: 2 },
   necro_bone_armor:      { id: 'bone_armor',     cooldownMs: 30000, durationMs: 8000,  label: 'Bone Armor', perUndeadAtk: 1, perUndeadDef: 1 },
@@ -1505,9 +1505,10 @@ export class ClassAbilitySystem {
   // ── Mage ──────────────────────────────────────────────────────────────────
 
   _considerMage(adv, now) {
-    // Make sure Elemental Affinity is rolled (passive trait set on first sight).
-    // Phase 5c — no above-head icon or combat-log emit; the element only
-    // surfaces through bonus damage on vulnerable minions.
+    // Roll a cosmetic spell element on first sight — purely tints the Arcane
+    // Burst VFX (fire/ice/lightning/wind). The old Elemental Affinity damage
+    // bonus retired with the vulnerability system (2026-06-10); the mage's
+    // damage now comes from the flat Arcane Mastery passive in CombatSystem.
     if (!adv._element) {
       const ELEMENTS = ['fire', 'ice', 'lightning', 'wind']
       adv._element = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)]

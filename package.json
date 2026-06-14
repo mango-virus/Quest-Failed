@@ -9,6 +9,7 @@
     "verify-docs:fix": "node tools/verify-docs.mjs --fix",
     "lint-content": "node tools/lint-content.mjs",
     "lint-content:strict": "node tools/lint-content.mjs --strict",
+    "lint-vfx": "node tools/lint-vfx.mjs",
     "serve": "node tools/devserve.mjs",
     "sim": "node tools/sim/harness.mjs game",
     "sim:balance": "node tools/sim/balance.mjs",

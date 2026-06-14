@@ -155,6 +155,56 @@ polished animation is one of the strongest signals of "this is a complete game."
 
 ## 5. VFX & game feel — "juice"
 
+> ### ⛔ The anti-generic gate (read before building ANY new VFX)
+> A plain **circle / ellipse / ring** (`shockwaveFx`, `pulseRing`, `add.circle`,
+> `add.ellipse`) as the **hero read** of an effect is the cheap, same-y fallback —
+> the user has flagged it more than once ("this is just a circle again. you keep
+> falling back to that"). The discipline is now **enforced**, not optional:
+>
+> 1. **Concept first.** Before coding a VFX, write a one-line concept naming its
+>    unique **silhouette + motion** and *why it isn't a ring/circle* — and show it
+>    to the user. (e.g. Acid Flood = "erupting acid geysers sweeping outward + a
+>    lobed flooding sheet," not a shockwave ring.)
+> 2. **Build to the detail bar.** Custom shaded silhouette (drop-shadow + body +
+>    shade-side + highlight, drawn as a path — see `_drawBoneSpike` / `_drawAcidColumn`
+>    / `_drawMiasmaPuff`), choreographed motion (anticipation → overshoot → settle),
+>    composed sub-elements. A flat single-colour shape is never acceptable as a hero.
+> 3. **`npm run lint-vfx` must pass** (it's in the pre-commit hook). It fails on any
+>    untagged `add.circle/ellipse`/`pulseRing`/`shockwaveFx` in `AbilityVfx.js`. A
+>    legit incidental (bubble, droplet, spec dot, flash core, deliberate accent ring)
+>    gets a conscious `// circle-ok: <reason>` tag; a lazy hero-ring gets replaced.
+> 4. **Compare in the gallery.** `__qfDev.vfxGallery()` renders the whole library in
+>    a grid — eyeball your new effect against the others; if it *rhymes* with one,
+>    redesign it.
+> 5. **Verify zoomed-in, then show the user.** Screenshot the hero element at full
+>    extent in the VFX Lab (`__qfDev.vfxLab()`); if it reads as a generic shape, redo
+>    it. Don't claim a VFX done without the screenshot.
+>
+> **No hard geometric shapes.** A flat oval/ellipse, a square/rectangle, or a clean
+> circle/ring as a VFX field/glow/hero element reads cheap. Make it **organic** — an
+> irregular lobed blob (outline = a ring of points × per-vertex noise), layered in
+> 2–3 tones, gently breathing/animated (see the `heat()`/`wash()` helpers in
+> `hellfireAuraFx`/`infernoFx`, or `_drawAcidBlob`). Clean shapes are fine only for a
+> tiny incidental (bubble, spec dot, flash core), a deliberate accent ring, or when
+> the fiction itself is geometric (a sigil, shield dome, UI frame). `lint-vfx` catches
+> `add.circle/ellipse/ring` but NOT `add.rectangle` / graphics `fillEllipse/fillRect`
+> — keep those organic yourself.
+>
+> **Vary the COMPOSITION, not just the shapes.** A second same-y trap (user flagged
+> it 2026-06-11: "you keep doing similar animations… some graphic in a circle around
+> the sprite"): even with organic shapes, every ult had defaulted to the SAME staging
+> — *N objects spawned in a ring/spread around the caster, erupting outward* (tombstone
+> ring, geyser spread, fire columns, stone rampart). Don't reuse that layout. Each ult
+> picks a **deliberately different composition** — effect ON the unit (a material/state
+> transform), **converging/assembling inward** (opposite motion), a directional sweep,
+> a single giant hero element (not N small ones), a link/network between units, a
+> vertical drop-in. Name the chosen composition in the concept line and why it isn't
+> "another ring of objects." (Fix that landed: Golem Bastion ring-of-slabs → **Stone
+> Carapace** = plates fly *inward* and clamp onto the golem's body slots — armour
+> assembling ON the sprite, verified on-screen.)
+>
+> This gate is a **definition of done** for VFX, not a suggestion.
+
 The biggest lever from "asset flip" to "premium." Layer it on, tastefully:
 - **Impact:** hitstop (freeze a few frames on a big hit/kill), screen shake
   (scaled to weight), flash/chromatic pop on crits.

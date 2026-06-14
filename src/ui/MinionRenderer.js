@@ -15,6 +15,7 @@
 // loaded sprite (covers any minion id added by data without an asset yet).
 
 import { EventBus }         from '../systems/EventBus.js'
+import { AbilityVfx }       from './AbilityVfx.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
 import { upgradeCost }      from '../util/minionRevive.js'
@@ -42,7 +43,11 @@ const RAISED_DEAD_SCALE = 0.75
 // "almost as big as the boss" without needing a separate sprite sheet.
 // Reads from `m._mbDisplayScale` (number) → defaults to 1.0 when unset.
 function _displayScaleFor(m) {
-  return (typeof m?._mbDisplayScale === 'number') ? m._mbDisplayScale : 1.0
+  if (typeof m?._mbDisplayScale === 'number') return m._mbDisplayScale
+  // Split slimelings render SMALLER than their parent — and smaller still when
+  // they're a deeper cascade generation — so the swarm reads as little slimes.
+  if (m?._isMiniSlime) return (m._splitDepth >= 2) ? 0.45 : 0.62
+  return 1.0
 }
 const PLACEHOLDER_SIZE = 18
 const HURT_FLASH_MS    = 300
@@ -148,6 +153,14 @@ export class MinionRenderer {
 
     const minions = this._gameState.minions ?? []
     const seen    = new Set()
+
+    // Shared per-frame delta (ms), derived from scene.time.now (Phaser's smoothed
+    // loop.delta reads 0 from some call paths). Cached once per update so every minion
+    // shares one value; clamped vs tab-stalls. Drives frame-rate-independent eases
+    // (e.g. the ghost dread-seethe lerp). Mirrors the rat-skitter delta cache.
+    const _nowFrame = this._scene.time.now
+    this._frameDt = this._frameNow ? Math.min(100, _nowFrame - this._frameNow) : 16.667
+    this._frameNow = _nowFrame
 
     // Camera world-view bounds (with margin) for off-screen culling.
     // Same pattern as AdventurerRenderer (see commit 00b37f3): minions
@@ -398,12 +411,31 @@ export class MinionRenderer {
       // Play anim if changed and registered. _resolveAnimKey tries direction
       // fallbacks then state fallbacks so a missing sheet never leaves the
       // sprite frozen on a stale frame.
+      //
+      // RISE FROM DEATH — generic: if this sprite was a corpse last frame and
+      // the entity is alive again now, it just got revived (Skeleton Reassemble,
+      // pay-to-revive, any future raise). Play the DEATH clip in REVERSE so the
+      // body knits back together and stands up, then fall through to normal
+      // states. Detected from the dead→alive transition, so revival code never
+      // has to know about the renderer.
       if (s.sprite) {
-        const resolved = this._resolveAnimKey(prefix, wantState, s.facing)
-        if (resolved && s.currentAnim !== resolved) {
-          s.currentAnim = resolved
-          s.sprite.play(resolved, true)
+        const stillRising = !isDead && s._riseUntil && now < s._riseUntil
+        if (!isDead && s._wasDead && !m._vfxLabAnim) {
+          const deathKey = this._resolveAnimKey(prefix, 'death', s.facing)
+          if (deathKey) {
+            s._riseUntil = now + ((this._scene.anims.get(deathKey)?.duration) || 500)
+            s.currentAnim = '__rising__'
+            s.sprite.playReverse(deathKey)
+          }
+        } else if (!stillRising) {
+          const resolved = this._resolveAnimKey(prefix, wantState, s.facing)
+          if (resolved && s.currentAnim !== resolved) {
+            s.currentAnim = resolved
+            s.sprite.play(resolved, true)
+          }
         }
+        // else: hold the reverse-death rise clip until s._riseUntil elapses
+        s._wasDead = isDead   // track for next frame's revival detection
       }
 
       // Visibility — spectral minions translucent; hidden mimics fully invisible.
@@ -413,9 +445,10 @@ export class MinionRenderer {
       // stepping into the underpass shadow.
       let alpha = 1
       if (m.isSpectral) alpha = 0.55
-      // Phase 1b.6 — Lizardman Camouflage: player can see camouflaged minions
-      // but they're translucent so the camo state reads at a glance.
-      if (m._camouflaged) alpha *= 0.5
+      // Phase 1b.6 — Lizardman Camouflage: player can see camouflaged minions but they're
+      // translucent. WAVERING (not flat) so the held state reads as an actively-blending
+      // stalker — the green sheen + scale-glints are added below.
+      if (m._camouflaged) alpha *= 0.4 + 0.12 * Math.sin(now / 300 + (m.worldX ?? 0) * 0.05)
       // Pass-3: Vampire Sleep on Ceiling / generic ambush — hidden until
       // the trigger condition flips _hidden off (adv enters room).
       // Adventurers skip _hidden minions in target acquisition (see
@@ -427,7 +460,58 @@ export class MinionRenderer {
       if (m._hidden && !String(m.definitionId ?? '').startsWith('golem')) {
         alpha *= HIDDEN_ALPHA
       }
+      // Zombie reanimation crossfade — a Risen spawned DEAD slowly fades IN over the
+      // adventurer corpse (which dissolves) so the body reads as decaying into a
+      // zombie before it reverse-rises. Ramps 0→1 over _reanimFadeMs, then clears.
+      if (m._reanimFadeFrom) {
+        const p = Math.min(1, (now - m._reanimFadeFrom) / Math.max(1, m._reanimFadeMs ?? 1))
+        alpha *= p
+        if (p >= 1) { m._reanimFadeFrom = null }
+      }
       s.container.setAlpha(alpha)
+
+      // Lizardman CAMOUFLAGE sheen — while cloaked, the sprite wears a faint green
+      // chameleon Glow (pulsing) + sheds occasional scale-glints, so the held camo state
+      // reads as a shimmering, terrain-blending stalker rather than a flat ghost.
+      if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+        if (!isDead && m._camouflaged) {
+          if (!s._camoGlow) { try { s._camoGlow = s.sprite.postFX.addGlow(0x6fdf7a, 1.5, 0, false, 0.06, 6) } catch (e) { s._camoGlow = null } }
+          else if (s._camoGlow !== true) s._camoGlow.outerStrength = 1.1 + 0.7 * Math.sin(now / 280)
+          if (Number.isFinite(m.worldX) && now - (s._camoGlintAt ?? 0) > 360 + Math.random() * 260) { s._camoGlintAt = now; AbilityVfx.camoShimmerFx?.(this._scene, m.worldX, m.worldY - 8) }
+        } else if (s._camoGlow) { try { if (s._camoGlow !== true) s.sprite.postFX.remove(s._camoGlow) } catch (e) {} s._camoGlow = null }
+      }
+
+      // Gnoll BLOOD HUNT — after-image trail while sprinting after bleeding prey (sells
+      // the speed). Emit a faded, red-tinted copy of the current sprite frame on a short
+      // cadence; each copy fades out + self-destroys. Fire-and-forget like a VFX.
+      if (m._huntSprinting && s.isMoving && s.sprite && now - (s._afterImgAt ?? 0) >= 70) {
+        s._afterImgAt = now
+        try {
+          const tex = s.sprite.texture?.key
+          if (tex) {
+            const ai = this._scene.add.sprite(m.worldX, m.worldY, tex, s.sprite.frame?.name)
+              .setOrigin(s.sprite.originX, s.sprite.originY)
+              .setScale(s.sprite.scaleX, s.sprite.scaleY)
+              .setFlipX(s.sprite.flipX)
+              .setDepth((s.container.depth ?? 7) - 0.01)
+              .setAlpha(0.4).setTint(0xcc4433)
+            this._scene.tweens.add({ targets: ai, alpha: 0, duration: 260, onComplete: () => { try { ai.destroy() } catch (e) {} } })
+          }
+        } catch (e) {}
+      }
+
+      // Gnoll BLOOD FRENZY — while the pack is feral (`_forceScentUntil` window, set on
+      // the Alpha + every bleed-pack gnoll by the ult), the gnoll WEARS its frenzy as a
+      // throbbing feral red Glow on the sprite, so the SOURCE of the carnage reads (not
+      // just the gore on the heroes).
+      if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+        const frenzied = !isDead && m._forceScentUntil && now < m._forceScentUntil
+        if (frenzied) {
+          const str = 3 + 1.7 * Math.sin(now / 85)                                   // throbbing feral pulse
+          if (!s._frenzyGlow) { try { s._frenzyGlow = s.sprite.postFX.addGlow(0xe0201a, str, 0, false, 0.06, 8) } catch (e) { s._frenzyGlow = null } }
+          else if (s._frenzyGlow !== true) s._frenzyGlow.outerStrength = str
+        } else if (s._frenzyGlow) { try { if (s._frenzyGlow !== true) s.sprite.postFX.remove(s._frenzyGlow) } catch (e) {} s._frenzyGlow = null }
+      }
 
       // HP bars hidden for minions per user request — bar+bg are still
       // created (so any other code that pokes `s.hp` still works) but the
@@ -471,6 +555,387 @@ export class MinionRenderer {
             s._lastTint = expectedTint
           }
         }
+      }
+
+      // Lich SOUL HARVEST — the Lich WEARS its banked souls: a ring of soul-wisps
+      // (one per soul, capped) slowly orbiting the caster + a green glow that
+      // intensifies with the count. A readable "how charged am I" tell — you watch
+      // souls accumulate as the dungeon kills, and Soul Storm visibly spends them
+      // (the wisps wink out as `_souls` drops). Wisps are cheap cached-texture
+      // Images parented to the container; orbited each frame, depth-faked by scale/
+      // alpha. Glow is WebGL-only (postFX no-op on Canvas).
+      {
+        const souls = (!isDead && m._souls > 0) ? Math.min(m._soulCap ?? 8, m._souls) : 0
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (souls > 0) {
+            const strength = 1.5 + (souls / (m._soulCap ?? 8)) * 4
+            if (!s._soulGlow) { try { s._soulGlow = s.sprite.postFX.addGlow(0x4cff9e, strength, 0, false, 0.06, 8) } catch (e) { s._soulGlow = null } }
+            else if (s._soulGlow !== true) { s._soulGlow.outerStrength = strength }
+          } else if (s._soulGlow) {
+            try { if (s._soulGlow !== true) s.sprite.postFX.remove(s._soulGlow) } catch (e) {}
+            s._soulGlow = null
+          }
+        }
+        s._soulWisps = s._soulWisps ?? []
+        if (s._soulWisps.length !== souls) {
+          while (s._soulWisps.length < souls) {
+            const w = this._scene.add.image(0, 0, AbilityVfx.soulWispTexture(this._scene)).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5)
+            s.container.add(w); s._soulWisps.push(w)
+          }
+          while (s._soulWisps.length > souls) { const w = s._soulWisps.pop(); try { w.destroy() } catch (e) {} }
+        }
+        const n = s._soulWisps.length
+        if (n) {
+          const R = 17
+          for (let i = 0; i < n; i++) {
+            const a = now / 1100 + i * (Math.PI * 2 / n)
+            const front = (Math.sin(a) + 1) / 2          // 0 back … 1 front
+            const w = s._soulWisps[i]
+            w.setPosition(Math.cos(a) * R, -13 + Math.sin(a) * R * 0.4 + Math.sin(now / 360 + i) * 1.5)
+            w.setScale(0.4 + front * 0.32).setAlpha(0.45 + front * 0.5)
+            w.rotation = Math.cos(a) * 0.25
+          }
+        }
+      }
+
+      // Orc BLOODLUST — the orc WEARS its rage: a reddening glow that intensifies
+      // with Bloodlust stacks + blood-rune pips (one per stack, capped) HOVERING in
+      // an arc above its shoulders and THROBBING on a shared rage pulse (deliberately
+      // NOT a smooth orbit, so it reads distinct from the Lich's souls). You see a
+      // maxed-out orc about to wreck the room before it swings.
+      {
+        const cap = m._bloodlustMax ?? 6
+        const stacks = (!isDead && m._bloodlustStacks > 0) ? Math.min(cap, m._bloodlustStacks) : 0
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (stacks > 0) {
+            const strength = 1 + (stacks / cap) * 5
+            if (!s._rageGlow) { try { s._rageGlow = s.sprite.postFX.addGlow(0xc41525, strength, 0, false, 0.05, 8) } catch (e) { s._rageGlow = null } }
+            else if (s._rageGlow !== true) { s._rageGlow.outerStrength = strength }
+          } else if (s._rageGlow) {
+            try { if (s._rageGlow !== true) s.sprite.postFX.remove(s._rageGlow) } catch (e) {}
+            s._rageGlow = null
+          }
+        }
+        s._ragePips = s._ragePips ?? []
+        if (s._ragePips.length !== stacks) {
+          while (s._ragePips.length < stacks) {
+            const p = this._scene.add.image(0, 0, AbilityVfx.rageRuneTexture(this._scene)).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5)
+            s.container.add(p); s._ragePips.push(p)
+          }
+          while (s._ragePips.length > stacks) { const p = s._ragePips.pop(); try { p.destroy() } catch (e) {} }
+        }
+        const rn = s._ragePips.length
+        if (rn) {
+          const throb = 0.85 + 0.28 * Math.sin(now / 130)   // shared fast rage pulse
+          const rageK = stacks / cap
+          for (let i = 0; i < rn; i++) {
+            const t = rn === 1 ? 0.5 : i / (rn - 1)
+            const px = (t - 0.5) * 32                                  // spread across the shoulders
+            const py = -19 - Math.abs(t - 0.5) * 7 + Math.sin(now / 210 + i * 1.7) * 1.6   // arched up + slight bob
+            const p = s._ragePips[i]
+            p.setPosition(px, py).setScale((0.4 + rageK * 0.28) * throb).setAlpha(0.65 + rageK * 0.35)
+            p.rotation = Math.sin(now / 280 + i) * 0.14
+          }
+        }
+      }
+
+      // Vampire BLOODGORGE — the vampire WEARS its blood-shield: a slow ring of
+      // congealed blood-clots HUGGING the body as a dark carapace, denser the more
+      // shield it carries, thinning/dimming as it decays or absorbs. Opaque dark
+      // clots (NOT additive) + a dark-red glow — distinct from the Lich's glowing
+      // souls and the Orc's overhead pips. You read its tankiness at a glance.
+      {
+        const maxHp = m.resources?.maxHp ?? m.stats?.hp ?? 1
+        const shieldK = (!isDead && m._bloodShield > 0) ? Math.min(1, m._bloodShield / Math.max(1, maxHp * 0.6)) : 0
+        const clots = shieldK > 0 ? Math.max(2, Math.round(2 + shieldK * 6)) : 0   // 2 … 8
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (clots > 0) {
+            const strength = 1 + shieldK * 3
+            if (!s._shieldGlow) { try { s._shieldGlow = s.sprite.postFX.addGlow(0x8a0d1e, strength, 0, false, 0.05, 8) } catch (e) { s._shieldGlow = null } }
+            else if (s._shieldGlow !== true) { s._shieldGlow.outerStrength = strength }
+          } else if (s._shieldGlow) {
+            try { if (s._shieldGlow !== true) s.sprite.postFX.remove(s._shieldGlow) } catch (e) {}
+            s._shieldGlow = null
+          }
+        }
+        s._shieldClots = s._shieldClots ?? []
+        if (s._shieldClots.length !== clots) {
+          while (s._shieldClots.length < clots) {
+            const c = this._scene.add.image(0, 0, AbilityVfx.bloodClotTexture(this._scene)).setScale(0.5)
+            s.container.add(c); s._shieldClots.push(c)
+          }
+          while (s._shieldClots.length > clots) { const c = s._shieldClots.pop(); try { c.destroy() } catch (e) {} }
+        }
+        const cn = s._shieldClots.length
+        if (cn) {
+          const R = 15
+          for (let i = 0; i < cn; i++) {
+            const a = now / 1600 + i * (Math.PI * 2 / cn)
+            const front = (Math.sin(a) + 1) / 2          // 0 back … 1 front (fake depth)
+            const c = s._shieldClots[i]
+            c.setPosition(Math.cos(a) * R, -8 + Math.sin(a) * R * 0.45)
+            c.setScale((0.4 + shieldK * 0.18) * (0.8 + front * 0.4))
+            c.setAlpha((0.55 + shieldK * 0.35) * (0.65 + front * 0.35))
+            c.rotation = a * 0.4
+          }
+        }
+      }
+
+      // Zombie OUTBREAK — every zombie (and risen husk) WEARS a swarm of carrion flies
+      // buzzing around it, thickening as the room's zombie count grows so a packed
+      // outbreak visibly crawls with flies. Motion is erratic/jittery with a buzzing
+      // alpha flicker — deliberately NOT a smooth orbit (Lich souls), slow ring
+      // (Vampire clots) or overhead throb (Orc pips). Reads as "this thing is rotting."
+      if (!isDead && Array.isArray(m.tags) && (m.tags.includes('zombie') || m.tags.includes('raised'))) {
+        const zc = this._zombieRoomCount(m.assignedRoomId, now)
+        const flies = Math.min(3, Math.max(1, Math.round(zc * 0.5)))
+        s._zFlies = s._zFlies ?? []
+        const _hasFlySheet = this._scene.textures.exists('fly-sheet')
+        if (s._zFlies.length !== flies) {
+          while (s._zFlies.length < flies) {
+            const f = _hasFlySheet ? this._scene.add.sprite(0, 0, 'fly-sheet')
+                                   : this._scene.add.image(0, 0, AbilityVfx.flyTexture(this._scene))
+            if (_hasFlySheet && this._scene.anims.exists('fly-buzz')) f.play({ key: 'fly-buzz', startFrame: Math.floor(Math.random() * 8) })
+            s.container.add(f); s._zFlies.push(f)
+          }
+          while (s._zFlies.length > flies) { const f = s._zFlies.pop(); try { f.destroy() } catch (e) {} }
+        }
+        const fn = s._zFlies.length, t = now / 1000
+        const _flyBase = _hasFlySheet ? 0.24 : 0.46            // 32px animated sheet vs the 16px baked tex
+        for (let i = 0; i < fn; i++) {
+          const ph = i * 2.39                                   // golden-ish spacing so they don't sync
+          const ang = t * (1.6 + i * 0.3) + ph
+          const rad = 9 + Math.sin(t * 5 + ph) * 4              // pulsing wander radius
+          const fx = Math.cos(ang) * rad + Math.sin(t * 7 + ph) * 3
+          const fy = -11 + Math.sin(ang * 1.3) * rad * 0.5 + Math.cos(t * 6 + ph) * 2.5
+          const f = s._zFlies[i]
+          const _sc = _flyBase + 0.06 * ((Math.sin(ang) + 1) / 2)
+          // face the orbital travel direction — sprite art faces RIGHT, so flip
+          // scaleX negative while moving left (x-velocity ∝ -sin(ang)).
+          const _dir = Math.sin(ang) < 0 ? 1 : -1
+          f.setPosition(fx, fy).setScale(_dir * _sc, _sc)
+          f.setAlpha(0.78 + 0.2 * Math.sin(t * 11 + ph * 1.7))   // buzzing flicker, never fully vanishes
+        }
+      } else if (s._zFlies && s._zFlies.length) {
+        for (const f of s._zFlies) { try { f.destroy() } catch (e) {} }
+        s._zFlies = []
+      }
+
+      // Demon HELLFIRE WREATH — a DEMON is a walking bonfire: flame-tongues lick UP
+      // around its body (flickering height/alpha on their own phases) + a constant
+      // red-hot Glow + a steady shed of rising embers. Always on (the burning aura
+      // never stops). Literal fire — distinct from every other "wear-your-resource" tell.
+      // Gated to demon* defs (NOT the `fiend` tag) — imps share `fiend` but must not wear
+      // the demon's bonfire; they read as nimble fiends via their own blink VFX instead.
+      if (!isDead && String(m.definitionId ?? '').startsWith('demon')) {
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (!s._fireGlow) { try { s._fireGlow = s.sprite.postFX.addGlow(0xff5a18, 3, 0, false, 0.05, 8) } catch (e) { s._fireGlow = null } }
+          else if (s._fireGlow !== true) { s._fireGlow.outerStrength = 2.6 + 0.8 * Math.sin(now / 160) }
+        }
+        s._fireFlames = s._fireFlames ?? []
+        // T1 Brimstone Fiend wears only the glow + embers (smoldering); the visible
+        // flame-tongue wreath is a tier-progression tell that starts at T2.
+        const FN = m.definitionId === 'demon1' ? 0 : 5
+        if (s._fireFlames.length !== FN) {
+          while (s._fireFlames.length < FN) {
+            const fl = this._scene.add.image(0, 0, AbilityVfx.flameTongueTexture(this._scene)).setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5)
+            s.container.add(fl); s._fireFlames.push(fl)
+          }
+          while (s._fireFlames.length > FN) { const fl = s._fireFlames.pop(); try { fl.destroy() } catch (e) {} }
+        }
+        const fnF = s._fireFlames.length
+        // Bigger tiers sit lower in their frame → drop the wreath to keep it at the feet
+        // (T1 perfect at the base value; T2 a touch lower; T3 miniboss lower still).
+        const _fireDrop = m.definitionId === 'demon_lord' ? 7 : m.definitionId === 'demon2' ? 2 : 0
+        for (let i = 0; i < fnF; i++) {
+          const tt = fnF === 1 ? 0.5 : i / (fnF - 1)
+          const px = (tt - 0.5) * 24                                  // spread across the body width
+          const baseY = 17 + _fireDrop - Math.abs(tt - 0.5) * 5       // base hugs the feet, slight arch
+          const ph = i * 1.9
+          const flick = 0.72 + 0.36 * Math.sin(now / 90 + ph) + 0.12 * Math.sin(now / 47 + ph * 2)   // licking height
+          const fl = s._fireFlames[i]
+          fl.setPosition(px + Math.sin(now / 130 + ph) * 1.6, baseY)
+          fl.setScale((0.42 + 0.05 * Math.sin(now / 200 + ph)) * (i === Math.floor(fnF / 2) ? 1.25 : 1), Math.max(0.18, 0.52 * flick))
+          fl.setAlpha(0.7 + 0.25 * Math.sin(now / 70 + ph * 1.3))
+        }
+        // Rising embers are the T3 Demon Lord's tell only (smolder→flames→embers tier
+        // progression). Spawn spread across the body width, not a single column.
+        if (m.definitionId === 'demon_lord' && now - (s._fireEmberAt ?? 0) > 150 && Number.isFinite(m.worldX)) {
+          s._fireEmberAt = now
+          AbilityVfx.emberRiseFx?.(this._scene, m.worldX, m.worldY - 6, { count: 2, originW: 15, depth: 11 + (m.worldY ?? 0) * 0.0005 + 0.5 })
+        }
+      } else if (s._fireFlames && s._fireFlames.length) {
+        for (const fl of s._fireFlames) { try { fl.destroy() } catch (e) {} }
+        s._fireFlames = []
+        if (s._fireGlow && s.sprite) { try { if (s._fireGlow !== true) s.sprite.postFX.remove(s._fireGlow) } catch (e) {} s._fireGlow = null }
+      }
+
+      // Ghost SPECTRAL DREAD — a spectral minion is a floating wraith that radiates fear:
+      // it HOVERS (float-bob), wears a cold pallid glow, pools a faint dread-field on the
+      // floor, and is watched by ambient eyes. All of it SEETHES harder the more adventurers
+      // it's currently frightening — the engine stamps `m._dreadFearK` each dread tick; a
+      // lone/idle ghost is just a quiet cold drift.
+      if (!isDead && Array.isArray(m.tags) && m.tags.includes('spectral')) {
+        // (C) reactive intensity — lerp toward the engine's current projected-fear, which
+        // decays to 0 when the dread tick goes stale (no prey near / night). Frame-indep.
+        const fresh = (now - (m._dreadAt ?? 0)) < 900
+        const targetK = fresh ? (m._dreadFearK ?? 0) : 0
+        s._dreadK = (s._dreadK ?? 0)
+        s._dreadK += (targetK - s._dreadK) * (1 - Math.pow(0.9, (this._frameDt ?? 16) / 16.667))
+        const dk = s._dreadK
+        const isSorrow = m.definitionId === 'ghost2'
+        const tint = isSorrow ? 0x7fa8e0 : 0x9fb6e8
+        if (m._spectralPhase == null) m._spectralPhase = ((Math.round((m.worldX ?? 0) + (m.worldY ?? 0)) % 100) / 100) * Math.PI * 2
+        const ph = m._spectralPhase
+
+        // (A) float-bob — ethereal hover. Own the sprite's local x/y (nothing else writes it).
+        if (s.sprite) {
+          s.sprite.y = Math.sin(now / (isSorrow ? 720 : 560) + ph) * (2.0 + dk * 1.6)
+          s.sprite.x = Math.sin(now / 1100 + ph) * (0.7 + dk * 0.8)
+        }
+        // (A) cold pallid glow — strength ramps with the dread it's projecting.
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          const strength = 1.3 + dk * 4.6
+          if (!s._dreadGlow) { try { s._dreadGlow = s.sprite.postFX.addGlow(tint, strength, 0, false, 0.06, 8) } catch (e) { s._dreadGlow = null } }
+          else if (s._dreadGlow !== true) { s._dreadGlow.outerStrength = strength }
+        }
+        // (B) dread-field — a faint cold gloom pooled on the floor in its aura radius;
+        // density tracks dk so it's barely there when idle, denser when terrorising. A
+        // soft feathered blob (NOT a ring/dome — kept subtle to avoid clutter). Separate
+        // scene Image at floor depth (positioned each frame); torn down in _destroySprite.
+        if (Number.isFinite(m.worldX)) {
+          if (!s._dreadField) { s._dreadField = this._scene.add.image(0, 0, AbilityVfx.dreadFieldTexture(this._scene)).setDepth(2) }
+          const rTiles = isSorrow ? 3.4 : 3.0, fr = (rTiles * 32) / 78
+          const breath = 0.96 + 0.06 * Math.sin(now / 900 + ph)
+          s._dreadField.setPosition(m.worldX, m.worldY + 6).setScale(fr * breath, fr * 0.5 * breath).setAlpha(0.05 + dk * 0.13)
+        }
+        // (B) ambient watching-eyes — the idle "you're being watched" read. Sparse blinks
+        // on a slow cadence ONLY when fairly idle (dk low); during active terror the engine
+        // already fires dread eyes toward the prey, so we don't double up.
+        if (dk < 0.3 && Number.isFinite(m.worldX) && now - (s._dreadEyeAt ?? 0) > 1500 + Math.random() * 900) {
+          s._dreadEyeAt = now
+          AbilityVfx.dreadAuraFx?.(this._scene, m.worldX, m.worldY, { radiusTiles: 2.2, count: 1, color: tint })
+        }
+      } else if (s._dreadField || s._dreadGlow) {
+        // Leaving spectral state (death / morph) — tear down the dread tells + restore sprite.
+        if (s._dreadField) { try { s._dreadField.destroy() } catch (e) {} s._dreadField = null }
+        if (s._dreadGlow && s.sprite) { try { if (s._dreadGlow !== true) s.sprite.postFX.remove(s._dreadGlow) } catch (e) {} s._dreadGlow = null }
+        if (s.sprite) { s.sprite.y = 0; s.sprite.x = 0 }
+        s._dreadK = 0
+      }
+
+      // Beholder GAZE — when a gaze ability fires, the creature's OWN eye blazes: a violet
+      // Glow flash on the sprite (engine stamps `_gazeFlashUntil`), decaying over the
+      // window. Welds the ability to the art (the in-world eye-ignite bloom sits on top).
+      if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+        const gUntil = m._gazeFlashUntil || 0
+        if (!isDead && now < gUntil) {
+          const p = Math.max(0, Math.min(1, (gUntil - now) / (m._gazeFlashMs || 560)))
+          const str = 1.5 + (m._gazeFlashStr || 4) * p
+          if (!s._gazeGlow) { try { s._gazeGlow = s.sprite.postFX.addGlow(0xc060ff, str, 0, false, 0.06, 8) } catch (e) { s._gazeGlow = null } }
+          else if (s._gazeGlow !== true) s._gazeGlow.outerStrength = str
+        } else if (s._gazeGlow) { try { if (s._gazeGlow !== true) s.sprite.postFX.remove(s._gazeGlow) } catch (e) {} s._gazeGlow = null }
+      }
+
+      // Blood Briar (plant3) WELL-FED — it WEARS its lifesteal as a deep-red life-glow:
+      // a faint breathing red at rest that FLARES bright as it drains the room (the engine
+      // stamps `_briarFedUntil` when Stranglethorn heals it), then settles. Its sustain,
+      // made visible on the briar itself.
+      if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL && m.definitionId === 'plant3') {
+        if (!isDead) {
+          const fed = m._briarFedUntil && now < m._briarFedUntil
+          const str = fed ? 4.5 + 1.5 * Math.sin(now / 90) : 1.0 + 0.4 * Math.sin(now / 620)
+          if (!s._briarGlow) { try { s._briarGlow = s.sprite.postFX.addGlow(0x9a1530, str, 0, false, 0.05, 8) } catch (e) { s._briarGlow = null } }
+          else if (s._briarGlow !== true) s._briarGlow.outerStrength = str
+        } else if (s._briarGlow) { try { if (s._briarGlow !== true) s.sprite.postFX.remove(s._briarGlow) } catch (e) {} s._briarGlow = null }
+      }
+
+      // Golem AEGIS — an ally INSIDE a guardian's aura WEARS a faint multi-rock shield:
+      // a few small stone plates overlaid on its sprite (a protective carapace) so the
+      // player reads it as shielded. Persistent while covered; cleared when it leaves.
+      if (!isDead && this._aegisProtectedSet(now).has(m.instanceId)) {
+        s._aegisPlates = s._aegisPlates ?? []
+        const PN = 5
+        if (s._aegisPlates.length !== PN) {
+          while (s._aegisPlates.length < PN) {
+            const pl = this._scene.add.image(0, 0, AbilityVfx.rockPlateTexture(this._scene)).setAlpha(0.5)
+            s.container.add(pl); s._aegisPlates.push(pl)
+          }
+          while (s._aegisPlates.length > PN) { const pl = s._aegisPlates.pop(); try { pl.destroy() } catch (e) {} }
+        }
+        // anatomical plate slots over the body: [dx, dy, scale, fixed-rotation].
+        // The slot values are tuned to look right on the T1 golem (display height ~128);
+        // scale by the sprite's actual display height vs that baseline so a SMALLER sprite
+        // (skeleton, rat) wears a smaller shield and a bigger one (warden, ent) a bigger one.
+        const szf = Math.max(0.45, Math.min(1.8, (s.sprite?.displayHeight || 128) / 128))
+        const slots = [[0, -8, 0.62, 0.2], [-7, -3, 0.5, 1.1], [7, -3, 0.5, -1.0], [0, -16, 0.46, 0.0], [0, 3, 0.56, 2.4]]
+        for (let i = 0; i < s._aegisPlates.length; i++) {
+          const [dx, dy, sc, rot] = slots[i], pl = s._aegisPlates[i]
+          pl.setPosition(dx * szf, dy * szf + Math.sin(now / 420 + i) * 0.5).setScale(sc * szf).setRotation(rot)
+          pl.setAlpha(0.4 + 0.16 * Math.sin(now / 520 + i * 1.3))   // faint, subtly shimmering
+        }
+      } else if (s._aegisPlates && s._aegisPlates.length) {
+        for (const pl of s._aegisPlates) { try { pl.destroy() } catch (e) {} }
+        s._aegisPlates = []
+      }
+
+      // Golem BASTION window — while the Warden's bastion holds (`_bastionUntil`), every
+      // hardened unit wears a stone-blue Glow so you SEE the garrison turtled up, then it
+      // wears off. (The bastionFx burst is the one-shot; this is the persistent window.)
+      {
+        const bastioned = !isDead && m._bastionUntil && now < m._bastionUntil
+        if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (bastioned) { if (!s._bastionFx) { try { s._bastionFx = s.sprite.postFX.addGlow(0xaebccd, 3, 0, false, 0.05, 8) } catch (e) { s._bastionFx = null } } }
+          else if (s._bastionFx) { try { if (s._bastionFx !== true) s.sprite.postFX.remove(s._bastionFx) } catch (e) {} s._bastionFx = null }
+        }
+      }
+
+      // Rat SWARM — the SEETHE: a clustered pack OVERFLOWS with extra skittering rats
+      // (the real rat1 sheet) milling around each rat, density scaling with pack size,
+      // so the pile reads as a writhing swarm far bigger than its sprite count. Plus a
+      // skitter-dust trail kicked up when a rat scurries.
+      if (!isDead && Array.isArray(m.tags) && m.tags.includes('rat') && this._scene.textures.exists('minion-rat1-idle')) {
+        const pack = this._ratPackCount(m.assignedRoomId, now)
+        const seethe = pack > 0 ? Math.min(4, Math.max(1, Math.round(pack * 0.6))) : 0
+        s._seetheRats = s._seetheRats ?? []
+        if (s._seetheRats.length !== seethe) {
+          while (s._seetheRats.length < seethe) {
+            const img = this._scene.add.image(0, 0, 'minion-rat1-idle', 12).setScale(0.34).setAlpha(0.9)
+            s.container.add(img); s.container.sendToBack(img)
+            s._seetheRats.push({ img, tx: Math.random() * 48 - 24, ty: Math.random() * 26 - 6, repickAt: 0 })
+          }
+          while (s._seetheRats.length > seethe) { const r = s._seetheRats.pop(); try { r.img.destroy() } catch (e) {} }
+        }
+        const SEETHE_SC = 0.34
+        // Frame-rate-independent ease toward the target: the 0.1/frame approach is
+        // normalized by the real frame delta (derived from scene.time.now, which is
+        // reliable — Phaser's smoothed loop.delta reads 0 here) so the rats skitter at a
+        // CONSTANT real-time speed instead of accelerating as FPS climbs out of the boot
+        // dip. Cached per-frame (recomputed only when `now` advances) so every minion in
+        // a frame shares one delta and we never divide a frozen 0; clamped vs tab-stalls.
+        if (this._ratFrameNow !== now) { this._ratFrameDt = this._ratFrameNow ? Math.min(100, now - this._ratFrameNow) : 16.667; this._ratFrameNow = now }
+        const _ratK = 1 - Math.pow(0.9, this._ratFrameDt / 16.667)
+        for (const sr of s._seetheRats) {
+          const dx = sr.tx - sr.img.x, dy = sr.ty - sr.img.y
+          if (Math.hypot(dx, dy) < 3 || now > sr.repickAt) { sr.tx = Math.random() * 46 - 23; sr.ty = Math.random() * 24 - 4; sr.repickAt = now + 300 + Math.random() * 600 }
+          else { sr.img.x += dx * _ratK; sr.img.y += dy * _ratK }
+          // pick the directional frame from the scurry vector: rows are up(6)/down(0)/
+          // side(12, faces LEFT). Vertical movement → up/down row; else side + flip.
+          if (Math.abs(dy) > Math.abs(dx)) { sr.img.setFrame(dy < 0 ? 6 : 0); sr.img.setScale(SEETHE_SC, SEETHE_SC) }
+          else { sr.img.setFrame(12); sr.img.setScale(dx >= 0 ? -SEETHE_SC : SEETHE_SC, SEETHE_SC) }
+        }
+        // skitter-dust kicked up when the rat moves
+        const moved = Math.abs((m.worldX ?? 0) - (s._ratLastX ?? m.worldX ?? 0)) + Math.abs((m.worldY ?? 0) - (s._ratLastY ?? m.worldY ?? 0))
+        s._ratLastX = m.worldX; s._ratLastY = m.worldY
+        if (moved > 0.5 && now - (s._ratDustAt ?? 0) > 150 && Number.isFinite(m.worldX)) {
+          s._ratDustAt = now
+          const dust = this._scene.add.graphics().setPosition(m.worldX + (Math.random() * 8 - 4), m.worldY + 4).setDepth(7.5)
+          dust.fillStyle(0x5a4632, 0.35); dust.fillCircle(0, 0, 2 + Math.random())
+          this._scene.tweens.add({ targets: dust, alpha: 0, scaleX: 2, scaleY: 1.4, duration: 320, ease: 'Quad.easeOut', onComplete: () => dust.destroy() })
+        }
+      } else if (s._seetheRats && s._seetheRats.length) {
+        for (const r of s._seetheRats) { try { r.img.destroy() } catch (e) {} }
+        s._seetheRats = []
       }
 
       // Solo Leveling — the same looping black-flame aura Jinwoo wears, behind
@@ -646,6 +1111,13 @@ export class MinionRenderer {
     if (m.isMimicVaultSpawn) {
       const np = this._scene?.scene?.get?.('NightPhase')
       np?._showPlacementError?.('Vault mimics can\'t be moved')
+      return
+    }
+    // Risen zombies (raised from slain heroes) are not part of the player's
+    // managed roster — they can't be picked up / repositioned.
+    if (m._raisedZombie) {
+      const np = this._scene?.scene?.get?.('NightPhase')
+      np?._showPlacementError?.('Risen zombies can\'t be moved')
       return
     }
     this._beginPickup(m)
@@ -876,6 +1348,58 @@ export class MinionRenderer {
     return 1.0
   }
 
+  // Live rat count per room (for the SWARM seethe). Memoized per frame (`now`) so
+  // it's O(minions) once, not O(rats²): the first rat that asks rebuilds the map.
+  _ratPackCount(roomId, now) {
+    if (this._ratCacheAt !== now) {
+      this._ratCacheAt = now; this._ratCache = {}
+      for (const mm of (this._gameState?.minions ?? [])) {
+        if (mm.faction !== 'dungeon' || mm.aiState === 'dead' || (mm.resources?.hp ?? 0) <= 0) continue
+        if (!Array.isArray(mm.tags) || !mm.tags.includes('rat')) continue
+        this._ratCache[mm.assignedRoomId] = (this._ratCache[mm.assignedRoomId] ?? 0) + 1
+      }
+    }
+    return this._ratCache[roomId] ?? 0
+  }
+
+  // Live zombie count per room (for the fly-swarm body tell — denser outbreak = more
+  // flies on each body). Memoized per frame, same shape as _ratPackCount. Counts the
+  // whole horde: placed zombies (tag 'zombie') AND short-lived Risen (tag 'raised').
+  _zombieRoomCount(roomId, now) {
+    if (this._zCacheAt !== now) {
+      this._zCacheAt = now; this._zCache = {}
+      for (const mm of (this._gameState?.minions ?? [])) {
+        if (mm.faction !== 'dungeon' || mm.aiState === 'dead' || (mm.resources?.hp ?? 0) <= 0) continue
+        if (!Array.isArray(mm.tags) || !(mm.tags.includes('zombie') || mm.tags.includes('raised'))) continue
+        this._zCache[mm.assignedRoomId] = (this._zCache[mm.assignedRoomId] ?? 0) + 1
+      }
+    }
+    return this._zCache[roomId] ?? 0
+  }
+
+  // Set of minion ids currently inside a guardian golem's Aegis aura (same room, within
+  // its radius). Memoized per frame (`now`) so the aegis-sheen check is O(golems×minions)
+  // once, not per-minion. Mirrors MinionAbilities.aegisMul's gate.
+  _aegisProtectedSet(now) {
+    if (this._aegisCacheAt !== now) {
+      this._aegisCacheAt = now
+      const set = new Set()
+      const mins = this._gameState?.minions ?? []
+      const golems = mins.filter(g => g.faction === 'dungeon' && g.aiState !== 'dead' && (g.resources?.hp ?? 0) > 0 && (g.definitionId === 'golem2' || g.definitionId === 'golem_warden'))
+      for (const g of golems) {
+        const R = g.definitionId === 'golem_warden' ? 3 : 2.5
+        for (const m of mins) {
+          if (m === g || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+          if (m.assignedRoomId !== g.assignedRoomId) continue
+          if (Math.hypot((m.tileX ?? 0) - (g.tileX ?? 0), (m.tileY ?? 0) - (g.tileY ?? 0)) > R + 0.01) continue
+          set.add(m.instanceId)
+        }
+      }
+      this._aegisCache = set
+    }
+    return this._aegisCache
+  }
+
   // 1-based evolution tier of a minion def (chain position + 1); 1 for defs
   // with no chain. Mirrors minionRevive.tierOf, computed locally off _chains so
   // the renderer stays self-contained for the per-frame badge draw.
@@ -979,6 +1503,16 @@ export class MinionRenderer {
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
       .setScale(baseScale * tierScale * dispScale)
+
+    // Slimeling pop-in — a newly-split mini-slime bounces into existence (after
+    // the gooey slimeSplit animation) so it reads as emerging from the split,
+    // not just appearing. One-shot on first render; container scale isn't
+    // touched per-frame so the tween isn't fought.
+    if (m._isMiniSlime && !m._poppedIn) {
+      m._poppedIn = true
+      c.setScale(0)
+      s.tweens.add({ targets: c, scale: 1, duration: 280, delay: 140, ease: 'Back.easeOut' })
+    }
 
     const fs          = def.frameSize ?? 64
     const displaySize = fs * baseScale * dispScale
@@ -1121,6 +1655,7 @@ export class MinionRenderer {
     const s = this._sprites[id]
     if (!s) return
     s.sellPool?.destroy()
+    s._dreadField?.destroy?.()   // ghost dread-field lives at floor depth, outside the container
     s.container.destroy()
     delete this._sprites[id]
     // If the hover label was tracking this minion, hide it — otherwise the

@@ -12,6 +12,7 @@
 // ADVENTURER_CLICKED on EventBus.
 
 import { EventBus } from '../systems/EventBus.js'
+import { AbilityVfx } from './AbilityVfx.js'
 import { Balance }  from '../config/balance.js'
 import { entryDoorWorldCenter } from '../systems/DungeonGrid.js'
 import { rgbParticleBurst } from '../util/cheaterVfx.js'
@@ -802,12 +803,156 @@ export class AdventurerRenderer {
         // Banned cheater — modded client is locked out, tint clears.
         if (s.lpc?.image?.clearTint) s.lpc.image.clearTint()
       }
+
+      // Beholder PETRIFY — while petrified (Tyrant's Glare), the hero is turned to
+      // STONE: desaturate the sprite to true grayscale via a ColorMatrix postFX, and
+      // revert the instant the petrify ends. Added/removed once per state change
+      // (tracked on the sprite) so it doesn't re-stack every frame.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const petrified = (adv._petrifiedUntil ?? 0) > (this._scene.time.now ?? 0)
+        if (pImg && pImg.postFX) {
+          if (petrified && !s._petrifyFx) {
+            try {
+              const cm = pImg.postFX.addColorMatrix()
+              // grayscale (replace), then darken slightly to read as stone (multiply=true
+              // so it STACKS onto the grayscale rather than resetting the matrix).
+              if (cm) { cm.grayscale(1); if (cm.brightness) cm.brightness(0.78, true) }
+              s._petrifyFx = cm ?? true
+            } catch (e) { s._petrifyFx = null }
+          } else if (!petrified && s._petrifyFx) {
+            try { if (s._petrifyFx !== true) pImg.postFX.remove(s._petrifyFx); else pImg.postFX.clear() } catch (e) {}
+            s._petrifyFx = null
+          }
+        }
+      }
+
+      // Slime PLAGUE — while infected (`_infectUntil`), the hero is visibly ROTTING:
+      // a faint sickly-green glow on the sprite + a low-cadence rising sick-spore
+      // puff, so the player reads who's poisoned at a glance (parallel to the Gnoll
+      // bleed-aura). Cleared the instant the infection lapses.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const infected = (adv._infectUntil ?? 0) > now
+        if (pImg && pImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (infected && !s._plagueFx) { try { s._plagueFx = pImg.postFX.addGlow(0x88cc33, 2.4, 0, false, 0.05, 6) } catch (e) { s._plagueFx = null } }
+          else if (!infected && s._plagueFx) { try { if (s._plagueFx !== true) pImg.postFX.remove(s._plagueFx) } catch (e) {} s._plagueFx = null }
+        }
+        if (infected && Number.isFinite(adv.worldX) && now - (s._plagueAuraAt ?? 0) >= 700) {
+          s._plagueAuraAt = now
+          AbilityVfx.plagueAuraFx?.(this._scene, adv.worldX, adv.worldY)
+        }
+      }
+
+      // Zombie ROT — while rot-infected (`_rotInfectedUntil`), the hero is a walking
+      // CORPSE-in-waiting (it rises as YOUR zombie if it dies). Distinct from the
+      // slime's bright-green glow: an ASHEN necrotic pallor (partial desaturate + dim
+      // via ColorMatrix, state-tracked like petrify), a "DOOMED" skull pip bobbing
+      // over the head, and a low-cadence fly/rot waft.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const rotting = (adv._rotInfectedUntil ?? 0) > now && (adv.resources?.hp ?? 0) > 0
+        if (pImg && pImg.postFX) {
+          if (rotting && !s._rotFx) {
+            try { const cm = pImg.postFX.addColorMatrix(); if (cm) { cm.saturate(-0.55, true); if (cm.brightness) cm.brightness(0.82, true) } s._rotFx = cm ?? true } catch (e) { s._rotFx = null }
+          } else if (!rotting && s._rotFx) {
+            try { if (s._rotFx !== true) pImg.postFX.remove(s._rotFx) } catch (e) {}
+            s._rotFx = null
+          }
+        }
+        if (rotting && Number.isFinite(adv.worldX)) {
+          if (!s._doomPip) { try { s._doomPip = this._scene.add.image(adv.worldX, adv.worldY - 38, 'doom-skull').setDepth(60).setScale(0.09) } catch (e) { s._doomPip = null } }
+          if (s._doomPip) { s._doomPip.setPosition(adv.worldX, adv.worldY - 38 + Math.sin(now / 260) * 1.2).setAlpha(0.85 + 0.15 * Math.sin(now / 180)) }
+        } else if (s._doomPip) { try { s._doomPip.destroy() } catch (e) {} s._doomPip = null }
+        if (rotting && Number.isFinite(adv.worldX) && now - (s._rotAuraAt ?? 0) >= 620) {
+          s._rotAuraAt = now
+          AbilityVfx.rotAuraFx?.(this._scene, adv.worldX, adv.worldY)
+        }
+      }
+
+      // Plant ENTANGLE root — while ROOTED (`_rootedUntil`), vines GRIP the hero's legs
+      // the whole time (a held snare that subtly tightens/struggles), so the player reads
+      // WHY the hero is stuck — not just the one-shot entangle whip. Mirrors the doom-pip.
+      {
+        const now = this._scene.time.now ?? 0
+        const rooted = (adv._rootedUntil ?? 0) > now && (adv.resources?.hp ?? 0) > 0
+        if (rooted && Number.isFinite(adv.worldX)) {
+          if (!s._rootVines) { try { s._rootVines = this._scene.add.image(adv.worldX, adv.worldY, AbilityVfx.rootVineTexture(this._scene)).setDepth(58).setScale(0.95) } catch (e) { s._rootVines = null } }
+          if (s._rootVines) { s._rootVines.setPosition(adv.worldX, adv.worldY - 4).setScale(0.92 + 0.07 * Math.sin(now / 170), 0.95 + 0.05 * Math.sin(now / 150)).setRotation(0.05 * Math.sin(now / 320)) }
+        } else if (s._rootVines) { try { s._rootVines.destroy() } catch (e) {} s._rootVines = null }
+      }
+
+      // Mushroom DAZE — while dazed (`_dazedUntil`), the hero is HALLUCINATING (whiffs
+      // its attacks): a faint purple "swim" Glow wavering on the sprite + a persistent
+      // dizzy-spiral/spore-mote tell re-fired over the head on a cadence, so the miss-
+      // window reads the WHOLE time — not just the one-shot daze puff.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const dazed = (adv._dazedUntil ?? 0) > now && (adv.resources?.hp ?? 0) > 0
+        if (pImg && pImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (dazed) {
+            const str = 1.5 + 1.0 * Math.sin(now / 240)   // the "swim"
+            if (!s._dazeFx) { try { s._dazeFx = pImg.postFX.addGlow(0x9966cc, str, 0, false, 0.06, 6) } catch (e) { s._dazeFx = null } }
+            else if (s._dazeFx !== true) s._dazeFx.outerStrength = str
+          } else if (s._dazeFx) { try { if (s._dazeFx !== true) pImg.postFX.remove(s._dazeFx) } catch (e) {} s._dazeFx = null }
+        }
+        if (dazed && Number.isFinite(adv.worldX) && now - (s._dazeAuraAt ?? 0) >= 780) {
+          s._dazeAuraAt = now
+          AbilityVfx.dazeFx?.(this._scene, adv.worldX, adv.worldY)
+        }
+      }
+
+      // Demon HELLFIRE heat — a hero standing in the Burning Aura visibly HEATS UP: a
+      // Glow that intensifies with the Hellfire stack + rising heat-shimmer that gets
+      // brighter/faster (white-hot) as it nears max → so the player reads WHO's about to
+      // COMBUST. Distinct from slime green-plague / zombie ashen rot. Cools when it leaves.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const stacks = adv._hellfireStacks ?? 0
+        const maxS = Math.max(1, adv._hellfireMax ?? 6)
+        const k = Math.max(0, Math.min(1, stacks / maxS))
+        const hot = stacks > 0 && (adv.resources?.hp ?? 0) > 0
+        if (pImg && pImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (hot) {
+            if (!s._heatFx) { try { s._heatFx = pImg.postFX.addGlow(0xff5a1e, 2 + k * 4, 0, false, 0.05, 8) } catch (e) { s._heatFx = null } }
+            else if (s._heatFx !== true) { s._heatFx.outerStrength = 2 + k * 4 }
+          } else if (s._heatFx) {
+            try { if (s._heatFx !== true) pImg.postFX.remove(s._heatFx) } catch (e) {}
+            s._heatFx = null
+          }
+        }
+        if (hot && Number.isFinite(adv.worldX) && now - (s._heatShimAt ?? 0) >= (520 - k * 300)) {
+          s._heatShimAt = now
+          AbilityVfx.heatShimmerFx?.(this._scene, adv.worldX, adv.worldY - 4, { k })
+        }
+      }
     }
 
     // Clean up sprites whose adventurers are no longer active. Corpses (dead
     // sprites) stay parked at their death position until NIGHT_PHASE_STARTED.
+    //
+    // Zombie reanimation crossfade — a rot-infected hero's corpse DISSOLVES as a
+    // Risen zombie fades in over it (MinionRenderer). The graveyard entry carries
+    // `_reanimFadeOutFrom`; ramp the corpse alpha 1→0 over the same window, then
+    // destroy it. (The corpse left `active` on death, so it's only reachable here.)
+    const reanimGraves = {}
+    for (const g of (this._gameState.adventurers?.graveyard ?? [])) {
+      if (g._reanimFadeOutFrom) reanimGraves[g.instanceId] = g
+    }
+    const _rnow = this._scene.time.now ?? 0
     for (const id of Object.keys(this._sprites)) {
       const s = this._sprites[id]
+      const g = reanimGraves[id]
+      if (g) {
+        const p = Math.min(1, (_rnow - g._reanimFadeOutFrom) / Math.max(1, g._reanimFadeMs ?? 1))
+        s.container?.setAlpha?.(1 - p)
+        if (p >= 1) { g._reanimFadeOutFrom = null; this._destroySprite(id) }
+        continue
+      }
       if (s.isDead) continue
       if (!seen.has(id)) this._destroySprite(id)
     }
@@ -995,6 +1140,30 @@ export class AdventurerRenderer {
     // Resolve the right texture/anim — slash and thrust swap to the `_atk`
     // texture (192×192 frames) so long weapons render at native scale.
     const { animKey: wantKey, originY } = this._resolveLpcAnimKey(s, anim, dir)
+
+    // RISE FROM DEATH (generic) — if this sprite was a corpse last frame and the
+    // adventurer is alive again now, it just got revived (cleric Resurrection,
+    // valkyrie Rally, any future raise). For sheets with a real `death` clip
+    // (minion/boss-archetype advs) play it in REVERSE so the body stands back
+    // up. LPC adventurer sheets have no death clip (they use the hurt frame as a
+    // corpse), so they just resume normally. Detected from the dead→alive
+    // transition, so revival code never has to know about the renderer.
+    const nowT = this._scene.time?.now ?? 0
+    const isDeadNow = (adv.resources?.hp ?? 1) <= 0
+    const stillRising = !isDeadNow && s._riseUntil && nowT < s._riseUntil
+    if (!isDeadNow && s._wasDead && (s.lpc.isMinionSheet || s.lpc.bossSheet) && !adv._vfxLabAnim) {
+      s._wasDead = false
+      const { animKey: deathKey } = this._resolveLpcAnimKey(s, 'death', dir)
+      if (this._scene.anims.exists(deathKey)) {
+        s._riseUntil = nowT + ((this._scene.anims.get(deathKey)?.duration) || 500)
+        s.lpc.lastAnim = '__rising__'
+        s.lpc.image.anims.playReverse(deathKey)
+        return
+      }
+    }
+    s._wasDead = isDeadNow
+    if (stillRising) return   // hold the reverse-death rise clip
+
     if (s.lpc.lastAnim === wantKey) return
 
     // Let an in-flight attack swing finish before transitioning back to
@@ -1578,6 +1747,10 @@ export class AdventurerRenderer {
     // reference parked on the sprite record.
     if (s.cheaterHalo?.active) s.cheaterHalo.destroy()
     s.cheaterHalo = null
+    s._doomPip?.destroy?.()
+    s._doomPip = null
+    s._rootVines?.destroy?.()
+    s._rootVines = null
     s.container.destroy()
     delete this._sprites[id]
     this._keyIcons?.[id]?.destroy?.()

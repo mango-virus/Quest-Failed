@@ -24,6 +24,7 @@ import { installDevInvariants } from './DevInvariants.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { VfxLab } from './VfxLab.js'
+import { VfxGallery } from './VfxGallery.js'
 
 const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
@@ -58,6 +59,10 @@ export function installDevSandbox(scene) {
     // VFX LAB — isolated stage to review a frozen minion/adventurer's abilities,
     // VFX and sprite animations on demand (DOM control panel). Toggle on/off.
     vfxLab() { const on = VfxLab.toggle(scene); log(`VFX Lab ${on ? 'opened' : 'closed'}`); return { ok: true, open: on } },
+
+    // VFX GALLERY — the whole AbilityVfx library firing in a labelled grid so you
+    // can spot effects that rhyme (same ring/burst/glow) at a glance. Toggle on/off.
+    vfxGallery() { const on = VfxGallery.toggle(scene); log(`VFX Gallery ${on ? 'opened' : 'closed'}`); return { ok: true, open: on } },
 
     // Spawn `minions` test minions + `traps` traps near the boss so champion
     // abilities + the trap-flip have real targets. Returns the counts.

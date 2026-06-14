@@ -41,8 +41,8 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 |---|---|---|---|
 | Boss archetypes | **12** | `bossArchetypes.json` | beholder, demon, myconid, wraith, gnoll, golem, lich, lizardman, orc, vampire, succubus, slime. All have wired headline abilities. **Base fight stats are flat (200/12/10) across all 12** — differentiation is abilities-only (deferred stat-profile pass). |
 | Rooms | **21** | `rooms.json` | ~16 have wired behaviors in `RoomBehaviorSystem.js`; the rest are pure layout. |
-| Minions | **77** | `minionTypes.json` | Families × tiers (e.g. goblin1/2/3, slime1–9, skeleton1/2/3). |
-| Evolution chains | **26** | `minionEvolutions.json` | Evolution data lives HERE, not in `minionTypes.json`'s `evolutionPaths` (which is empty by design). |
+| Minions | **64** | `minionTypes.json` | Families × tiers (e.g. goblin1/2/3, slime1–9, skeleton1/2/3). |
+| Evolution chains | **22** | `minionEvolutions.json` | Evolution data lives HERE, not in `minionTypes.json`'s `evolutionPaths` (which is empty by design). |
 | Traps | **8** | `trapTypes.json` | shooting_arrows, bomb, cannon, spike_pillar, dragon_trap, spike_pit, rotating_blades, saw_blade. Fully wired in `TrapSystem.js`. **(NOTE: older docs/memories that say traps are unimplemented are STALE — traps shipped.)** |
 | Pacts (dungeon mechanics) | **92** | `dungeonMechanics.json` | 9 common · 14 uncommon · 24 rare · 9 epic · 16 legendary · 24 damned. |
 | Events | **35** | `events.json` | Incl. scripted set-pieces: Solo Leveling (Shadow Monarch), Light Party (FFXIV trinity), Rival Dungeon, Loot Goblin Heist, etc. |

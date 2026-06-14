@@ -100,6 +100,15 @@ export class CombatSystem {
     }
 
     const now = this._scene.time.now
+    // PANIC (nerve rework) — a terror-stricken hero cowers and CANNOT fight back; a
+    // genuinely FLEEING hero is likewise too busy running to swing. Either way their
+    // attacks are suppressed so your minions cut them down for free.
+    if (attacker._panickedUntil != null && now < attacker._panickedUntil) return null
+    if (attacker._petrifiedUntil != null && now < attacker._petrifiedUntil) return null   // Beholder petrify — a statue can't swing
+    if (attacker.faction !== 'dungeon' && attacker.aiState === 'fleeing') return null
+    // Lizardman CAMOUFLAGE — heroes literally can't hit what they can't see. A
+    // hard-guard backing the AISystem target-skip so no stray/AoE swing lands.
+    if (target._camouflaged && attacker.faction !== 'dungeon') return null
     const cooldown = this._cooldownFor(attacker)
     if (now - (attacker.lastAttackAt ?? 0) < cooldown) return null
 
@@ -147,12 +156,37 @@ export class CombatSystem {
       }
     }
 
+    // Mushroom HALLUCINATION — a DAZED hero swings at phantoms: a chance to whiff
+    // the swing entirely (reuses the whiff path). Only adventurers are dazed.
+    if (attacker.faction !== 'dungeon') {
+      const _dazeMiss = MinionAbilities.dazeMissChance(attacker, now)
+      if (_dazeMiss > 0 && Math.random() < _dazeMiss) {
+        AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'MISS', { color: '#b98fd0' })
+        EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: target.instanceId, damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false })
+        return { hit: false, whiffed: true }
+      }
+    }
+
     const damage     = this._computeDamage(attacker, target)
     // Phase 5c — Rogue Invisibility: if attacker is an invisible Rogue,
     // their attack is a guaranteed crit AND immediately reveals them.
     const rogueInvisCrit = (attacker.classId ?? attacker._raisedClassId) === 'rogue' && attacker._invisible
     const isCritical = rogueInvisCrit ? true : Math.random() < 0.10
     let   finalDmg   = isCritical ? Math.floor(damage * 1.5) : damage
+
+    // PANIC / FLEE vulnerability (nerve rework) — a hero who has dropped their guard
+    // takes +50% damage: terror-panicked (frozen, cowering) or genuinely fleeing
+    // (running exposed, back turned). Makes "broke their nerve" cash out as a faster
+    // kill for the player instead of a lost one.
+    {
+      const tNow = this._scene?.time?.now ?? 0
+      const exposed = (target._panickedUntil != null && tNow < target._panickedUntil) ||
+                      (target.faction !== 'dungeon' && target.aiState === 'fleeing')
+      if (exposed && finalDmg > 0) finalDmg = Math.max(1, Math.round(finalDmg * 1.5))
+      // Beholder GAZE hex — a hexed hero takes amplified damage for the window.
+      const hex = MinionAbilities.gazeHexMul(target, tNow)
+      if (hex > 1 && finalDmg > 0) finalDmg = Math.max(1, Math.round(finalDmg * hex))
+    }
 
     // Gambler dice damage face 6 = jackpot crit (×2.5). Face 4 (double strike)
     // lands a SECOND separate hit after this one — handled post-hit below.
@@ -221,7 +255,13 @@ export class CombatSystem {
       }
     }
 
-    // (Ambush reveal 1.5× bonus was wiped with the per-minion behavior quirks.)
+    // Lizardman CAMOUFLAGE — a strike FROM concealment is a devastating ambush
+    // (×ambushMul); landing it REVEALS the lizardman (clears _camouflaged) so the
+    // party gets a window to punish before it can slink back into hiding.
+    if (attacker._camouflaged && attacker.faction === 'dungeon' && finalDmg > 0) {
+      finalDmg = Math.max(1, Math.round(finalDmg * MinionAbilities.ambushStrikeMul(attacker, this._scene)))
+      MinionAbilities.revealCamouflage(attacker, this._scene)
+    }
 
     // Dungeon event: Dungeon Pestilence — when an adventurer melees a
     // dungeon-faction minion, they get infected with Blight. AISystem
@@ -336,7 +376,29 @@ export class CombatSystem {
       EventBus.emit('FORLORN_LAST_VOW', { adventurer: target })
     }
 
+    // Vampire Bloodgorge — a banked blood-shield (overheal) soaks damage before HP.
+    if (finalDmg > 0 && target._bloodShield > 0) finalDmg = MinionAbilities.absorbBloodShield(target, finalDmg, this._scene)
+
     target.resources.hp = Math.max(Math.max(_smFloor, _lastVowFloor), target.resources.hp - finalDmg)
+
+    // Ent THORNS — a MELEE hero that just struck a thorned ent takes reflect damage
+    // straight back (the tree punishes everything that touches it). No-op for non-ents.
+    if (finalDmg > 0 && target.faction === 'dungeon' && attacker.faction !== 'dungeon') {
+      MinionAbilities.thornsReflect(target, attacker, finalDmg, this._scene)
+    }
+
+    // Lizardman CAMOUFLAGE — a T2+ stalker that lands the KILLING blow vanishes
+    // instantly (a clean getaway), re-cloaking before the body even drops.
+    if (attacker.faction === 'dungeon' && target.faction !== 'dungeon' && target.resources.hp <= 0) {
+      MinionAbilities.maybeKillRecamo(attacker, this._scene)
+    }
+
+    // Rat SWARM — every rat bite gets a gnashing chomp on the hero; a whole pack
+    // biting reads as being swarmed and gnawed (small, fast VFX-only flourish).
+    if (finalDmg > 0 && attacker.faction === 'dungeon' && target.faction !== 'dungeon' &&
+        Array.isArray(attacker.tags) && attacker.tags.includes('rat') && Number.isFinite(target.worldX)) {
+      AbilityVfx.gnashFx?.(this._scene, target.worldX, target.worldY, { dir: (attacker.tileX ?? 0) <= (target.tileX ?? 0) ? 1 : -1 })
+    }
 
     // Templar "Lay on Hands" — reactive holy self-heal the first time a Templar
     // is chipped below the threshold (once per delve). Fires AFTER the hit lands.
@@ -535,6 +597,7 @@ export class CombatSystem {
     if (!healer || !target) return null
     if (target.resources.hp >= target.resources.maxHp) return null
     if (target.aiState === 'dead' || target.resources.hp <= 0) return null
+    if (target._noHealUntil && (this._scene?.time?.now ?? 0) < target._noHealUntil) return null   // Gnoll Blood Frenzy
 
     const now = this._scene.time.now
     const cooldown = this._cooldownFor(healer)
@@ -569,6 +632,7 @@ export class CombatSystem {
   _maybeLayOnHands(adv) {
     if (!adv || adv.classId !== 'templar') return
     if ((adv.resources?.hp ?? 0) <= 0) return
+    if (adv._noHealUntil && (this._scene?.time?.now ?? 0) < adv._noHealUntil) return   // Gnoll Blood Frenzy
     if ((adv.layOnHandsUsedToday ?? 0) >= 1) return
     const maxHp = adv.resources?.maxHp ?? 0
     if (maxHp <= 0) return
@@ -671,20 +735,13 @@ export class CombatSystem {
     // class's combat passives. Inert for living advs (they always have classId).
     const cls = attacker.mimickedClassId ?? attacker.classId ?? attacker._raisedClassId
 
-    // Mage: free-casting now (mana removed in Phase 5b cooldown rework). Spells
-    // get a 10% damage bump over mundane attacks. Elemental Affinity (passive)
-    // adds a further 50% if the target's vulnerableToElements list includes
-    // the mage's rolled element. Arcane Burst (cooldown ability) flags the
-    // next spell as AoE — the AoE pass is handled below in tryAttack.
+    // Mage — Arcane Mastery: free-casting (mana removed in Phase 5b cooldown
+    // rework) with a flat +30% spell-power passive. Replaces the old Elemental
+    // Affinity (+50% vs a target's elemental weakness), which retired with the
+    // vulnerability system (2026-06-10). Arcane Burst (cooldown ability) flags
+    // the next spell as AoE — the AoE pass is handled below in tryAttack.
     if (cls === 'mage') {
-      raw = Math.floor(raw * 1.1)
-      const el = attacker._element
-      const vulns = target.tags ?? target.stats?.tags ?? target.def?.vulnerableToElements ?? []
-      const minionDef = this._minionDefFor(target)
-      const targetVulns = minionDef?.vulnerableToElements ?? []
-      if (el && targetVulns.includes(el)) {
-        raw = Math.floor(raw * 1.5)
-      }
+      raw = Math.floor(raw * 1.3)
     }
 
     // Phase 5c — Barbarian Rage Scaling: damage = base × (1 + (1 − hpFrac))
@@ -774,11 +831,35 @@ export class CombatSystem {
       raw = Math.floor(raw * attacker._rallyAtkMul)
     }
 
+    // Orc BLOODLUST (+ Rampage) — stacking attack from hits landed, decaying out
+    // of combat. The live (lazily-decayed) multiplier is computed in
+    // MinionAbilities; folds in the Veteran's Warpath surge while active.
+    const _blMul = MinionAbilities.bloodlustAtkMul(attacker, this._scene)
+    if (_blMul > 1) raw = Math.floor(raw * _blMul)
+
+    // Rat SWARM — strength in numbers: +damage per swarm-rat sharing the room.
+    const _swMul = MinionAbilities.swarmAtkMul(attacker, this._scene, this._gameState)
+    if (_swMul > 1) raw = Math.floor(raw * _swMul)
+
+    // Lich SOUL HARVEST — banked souls scale the Lich's necrotic blasts, and its
+    // Soul Conduit shares that power to nearby undead (flag windows on each).
+    const _soulMul = MinionAbilities.soulAtkMul(attacker, this._scene)
+    if (_soulMul > 1) raw = Math.floor(raw * _soulMul)
+
+    // Plant DEVOUR — the carnivore bites harder into prey it's already rooted.
+    const _devourMul = MinionAbilities.devourMul(attacker, target, this._scene)
+    if (_devourMul > 1) raw = Math.floor(raw * _devourMul)
+
     // Thread C — wounded bruiser ENRAGE: a cornered melee minion fights harder
     // (+30% damage) once below the enrage threshold (flag set by MinionAISystem).
     if (attacker._enraged) {
       raw = Math.floor(raw * 1.3)
     }
+
+    // Ghost FEAR — a HAUNTED hero who is already Spooked/Breaking fights worse:
+    // their dread makes them falter (attack-fumble). Read from the ghost kit.
+    const _fearMul = MinionAbilities.fearAtkMul(attacker, this._scene?.time?.now ?? 0)
+    if (_fearMul < 1) raw = Math.max(1, Math.floor(raw * _fearMul))
 
     // Tinkerer's Workshop "Eagle Eye" — guard-post-assigned minions
     // deal +25% damage when ambushing into a connected room (their
@@ -840,6 +921,10 @@ export class CombatSystem {
     // abilities on the TARGET minion.
     const _drMul = MinionAbilities.damageTakenMul(target, attacker, this._gameState, this._scene)
     if (_drMul !== 1) mit = Math.max(1, Math.floor(mit * _drMul))
+    // Golem Bulwark — stone chips fly when a construct soaks a reduced hit.
+    if (_drMul < 1 && Array.isArray(target.tags) && target.tags.includes('construct') && Number.isFinite(target.worldX)) {
+      AbilityVfx.bulwarkFx?.(this._scene, target.worldX, target.worldY)
+    }
 
     // Phase 9 mechanic damage modifiers.
     // `sup` = Inquisition pact-BENEFIT suppression (KR): while an inquisitor is in
@@ -1085,18 +1170,6 @@ export class CombatSystem {
       return Math.max(1, Math.floor(raw * 1.15))
     }
     return raw
-  }
-
-  // Phase 5c — minion definition lookup (for vulnerableToElements checks).
-  _minionDefFor(target) {
-    if (!target?.definitionId) return null
-    const defs = this._minionDefsCache ?? (this._minionDefsCache = (() => {
-      const arr = this._scene?.cache?.json?.get('minionTypes') ?? []
-      const map = {}
-      for (const m of arr) map[m.id] = m
-      return map
-    })())
-    return defs[target.definitionId]
   }
 
   _inferMethod(attacker, damageType) {

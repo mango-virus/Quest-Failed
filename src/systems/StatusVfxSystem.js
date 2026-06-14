@@ -69,8 +69,9 @@ export class StatusVfxSystem {
         this._active.set(id, rec)
       }
       seen.add(id)
-      // Follow the entity (advs walk; minions roam).
-      try { rec.em.setPosition(e.worldX ?? 0, e.worldY ?? 0) } catch (err) {}
+      // Follow the entity (advs walk; minions roam) + ride IN FRONT of its sprite
+      // (entity y-sort band ≈ 7 + worldY*0.0005; +4 keeps the DoT aura on top).
+      try { rec.em.setPosition(e.worldX ?? 0, e.worldY ?? 0); rec.em.setDepth(11 + (e.worldY ?? 0) * 0.0005) } catch (err) {}
     }
   }
 

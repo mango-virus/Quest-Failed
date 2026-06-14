@@ -19,9 +19,30 @@ import { AbilityVfx, VfxPalette } from '../ui/AbilityVfx.js'
 
 const MINION_ANIMS = ['idle', 'walk', 'run', 'attack', 'hurt', 'death']
 const ADV_ANIMS    = ['idle', 'walk', 'slash', 'thrust', 'spellcast', 'shoot', 'hurt', 'death']
-const RAW_VFX = [
-  'impactFx', 'shockwaveFx', 'glowPulseFx', 'sparkleFx', 'burnFx',
-  'particleBurstFx', 'pulseRing', 'juice', 'beamFx', 'projectileFx',
+// Grouped by toolkit so the RAW VFX panel renders under collapsible-style section
+// headers (it was a single long flat grid). Each group = { label, fx: [...] }.
+const RAW_VFX_GROUPS = [
+  { label: 'Core',      fx: ['impactFx', 'shockwaveFx', 'glowPulseFx', 'sparkleFx', 'burnFx', 'particleBurstFx', 'pulseRing', 'juice', 'beamFx', 'projectileFx'] },
+  { label: 'Brute',     fx: ['furyAura', 'soundWave', 'groundCrack', 'streakDash'] },
+  { label: 'Bone',      fx: ['boneShatter', 'boneKnit', 'necroticErupt'] },
+  { label: 'Gold',      fx: ['goldStamp', 'coinRain'] },
+  { label: 'Slime',     fx: ['slimeSplit'] },
+  { label: 'Plague',    fx: ['plagueBurst', 'contagionTendril', 'plagueCloud', 'plagueAuraFx'] },
+  { label: 'Acid',      fx: ['acidSplash', 'acidGeyser', 'acidFloodFx'] },
+  { label: 'Vampire',   fx: ['bloodThread', 'bloodShieldFx', 'bloodShieldHit', 'bloodFeastFx'] },
+  { label: 'Rat',       fx: ['swarmBiteFx', 'verminTideFx', 'gnashFx'] },
+  { label: 'Zombie',    fx: ['reanimateFx', 'massGraveFx', 'graveRotFx', 'rotAuraFx'] },
+  { label: 'Demon',     fx: ['flameLickFx', 'hellfireAuraFx', 'combustFx', 'infernoFx', 'emberRiseFx', 'heatShimmerFx'] },
+  { label: 'Golem',     fx: ['bulwarkFx', 'bastionFx', 'aegisShimmerFx'] },
+  { label: 'Ghost',     fx: ['fearStrikeFx', 'dreadAuraFx', 'hauntCloakFx', 'pallOfDreadFx', 'panicStateFx'] },
+  { label: 'Beholder',  fx: ['mesmerizeFx', 'manyEyesFx', 'tyrantGlareFx'] },
+  { label: 'Gnoll',     fx: ['bleedSlashFx', 'bleedingAuraFx', 'bloodTrailFx', 'ruptureFx', 'bloodFrenzyFx'] },
+  { label: 'Ent',       fx: ['thornGuardFx', 'thornLashFx', 'regrowFx', 'thornburstFx'] },
+  { label: 'Lich',      fx: ['soulHarvestFx', 'soulConduitFx', 'soulStormFx', 'phylacteryShatterFx', 'phylacteryReviveFx'] },
+  { label: 'Lizardman', fx: ['camouflageFx', 'camoShimmerFx', 'ambushStrikeFx', 'vanishingWarbandFx'] },
+  { label: 'Imp',       fx: ['blinkFx', 'hellriftFx'] },
+  { label: 'Plant',     fx: ['entangleFx', 'stranglethornFx'] },
+  { label: 'Mushroom',  fx: ['dazeFx', 'sporePuffFx', 'sporeStormFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -53,6 +74,7 @@ export class VfxLab {
     if (this._open) return
     this._open = true
     this._scene._vfxLabActive = true   // suspends Game._clampCameraToPlayArea
+    this._scene._vfxLab = this          // Game.update drives our per-frame tick()
     const cam = this._scene.cameras.main
     this._savedCam = { x: cam.scrollX, y: cam.scrollY, zoom: cam.zoom }
     // The play camera is CLAMPED to the dungeon bounds (and the renderers cull
@@ -85,6 +107,7 @@ export class VfxLab {
     if (!this._open) return
     this._open = false
     this._scene._vfxLabActive = false
+    this._scene._vfxLab = null
     this._stopLoop()
     this._despawn()
     this._backdrop?.destroy(); this._backdrop = null
@@ -112,10 +135,12 @@ export class VfxLab {
     sweep(this._gs.minions)
     sweep(this._gs.adventurers?.active)
     this._entity = null; this._dummy = null
+    this._lab2ndHero = null; this._labFallen = null   // primed-precondition entities (swept above)
   }
 
   _spawn(kind, id) {
     this._despawn()
+    this._curKind = kind; this._curId = id   // for the RESET button
     const cache = this._scene.cache.json
     // The lab entity.
     if (kind === 'minion') {
@@ -212,6 +237,50 @@ export class VfxLab {
     }
   }
 
+  // ── per-frame tick (driven by Game.update while the lab is open) ──────────
+  // The real MinionAISystem.update loop is idle at night, so time-based and
+  // death-triggered kit (Skeleton Reassemble revival, DoTs, Goblin plunder
+  // bleed) never advances in the lab. Drive those ticks here so day-combat
+  // mechanics are fully reviewable. Scoped to safe, leak-free ticks: global
+  // sweeps are harmless on the inert real entities, and the per-entity DoT
+  // tick only touches the lab entity. (onTick auras/summons/hazards still fire
+  // via their ability button — auto-running them could drop summons/hazards
+  // into the real dungeon via the entity's in-room tile coords.)
+  tick(delta) {
+    if (!this._open) return
+    const s = this._scene, gs = this._gs
+    try {
+      MinionAbilities.tickReassemble?.(s, gs, delta)
+      MinionAbilities.tickPlunderMarks?.(s, gs, delta)
+      MinionAbilities.tickVampire?.(s, gs, delta)
+      MinionAbilities.tickRat?.(s, gs)
+      const e = this._entity
+      if (e?.definitionId) MinionAbilities.tickEntity?.(e, s, delta)
+    } catch (err) { /* never let a lab tick break the frame */ }
+  }
+
+  // ☠ KILL — run the REAL death pipeline on the lab entity so death-triggered
+  // abilities fire exactly as they would in combat (Skeleton Reassemble's
+  // onDying interrupt, slime Split / imp aoe onDeath, …). For an adventurer
+  // there's no death-ability hook, so just drop it to the death animation.
+  _killEntity() {
+    const e = this._entity
+    if (!e) return
+    if (e.definitionId) {
+      e.resources.hp = 0
+      const idx = this._gs.minions.indexOf(e)
+      this._scene.minionAiSystem?._die?.(e, idx)
+    } else {
+      e.resources.hp = 0
+      e.aiState = 'dead'
+      this._playAnim('death')
+    }
+  }
+
+  _respawnCurrent() {
+    if (this._curKind && this._curId) this._spawn(this._curKind, this._curId)
+  }
+
   // Uniform ability list — each item is { label, fire }. Minions use their JSON
   // data abilities; adventurers use their class abilities (force-fired via
   // ClassAbilitySystem.devFireAbility, with the fake arena set up in _spawn).
@@ -221,7 +290,20 @@ export class VfxLab {
       const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === entity.definitionId)
       return (def?.abilities ?? []).map(ab => ({
         label: `${ab.label ?? ab.type} ·${ab.trigger}`,
-        fire: () => MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab),
+        ab,
+        // onDying kit (Skeleton Reassemble) only fires through the real death
+        // pipeline — running it via the hit/tick dispatch is a silent no-op. So
+        // route those buttons through KILL (respawn first if already down so each
+        // press cleanly re-demos the death→revive).
+        fire: () => {
+          if (ab.trigger === 'onDying') {
+            const e = this._entity
+            if (!e || e.aiState === 'dead' || (e.resources?.hp ?? 1) <= 0) this._respawnCurrent()
+            this._killEntity()
+            return
+          }
+          MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab)
+        },
       }))
     }
     return (CLASS_ABILITIES[entity.classId] ?? []).map(key => ({
@@ -231,7 +313,116 @@ export class VfxLab {
   }
 
   _fireAbility(item) {
+    this._primeForAbility(item.ab)
     item.fire(); this._setLoop('fire', item.fire)
+  }
+
+  // Several abilities only DO something when a precondition holds (an infected
+  // hero to spread from, a fallen undead to raise, a wounded self to bud from…).
+  // In an empty lab those buttons silently no-op, which reads as "the lab stopped
+  // working". Seed the minimal state right before firing so every button produces
+  // a visible effect. Safe: all seeded entities are _vfxLabFrozen → swept on despawn.
+  _primeForAbility(ab) {
+    const e = this._entity
+    if (!ab || !e || !e.definitionId) return
+    const now = this._scene.time?.now ?? 0
+    switch (ab.type) {
+      case 'contagion': {
+        // Needs an already-infected hero in the room to spread FROM + an
+        // uninfected hero to spread TO. Infect the dummy, keep the 2nd hero
+        // clean each press so the spread re-demos every time.
+        const h2 = this._ensureSecondHero()
+        if (h2) h2._infectUntil = 0
+        if (this._dummy) MinionAbilities._infectAdv?.(this._scene, this._dummy, 2, 1500, 4, e.instanceId, now)
+        break
+      }
+      case 'undyingLegion':
+        this._ensureFallenUndead()   // a fallen undead in the room to raise
+        break
+      case 'bloodFeast':
+        this._ensureSecondHero()     // a 2nd hero so the ult reels multiple threads
+        break
+      case 'swarm':
+      case 'verminTide':
+        this._ensureSwarmPack(4)      // sibling rats so the pack-scaling + tide show
+        break
+      case 'massGrave':
+        this._seedGraveyard(5)        // fallen heroes in the room for the Crypt Lord to raise
+        break
+      case 'burningAura':
+      case 'inferno':
+        this._ensureSecondHero()      // heroes in the aura to burn (+ a neighbour for Combustion)
+        if (this._dummy) this._dummy._hellfireStacks = (ab.maxStacks ?? 5) - 1   // pre-heat so a press can show Combustion
+        break
+      case 'splitWhenHurt': {        // only buds below its HP threshold, once — re-arm + wound
+        const thr = ab.hpThreshold ?? 0.5
+        e._hasBudded = false
+        e.resources.hp = Math.max(1, Math.floor((e.resources.maxHp ?? 10) * thr * 0.8))
+        break
+      }
+      case 'hazardTrail':            // only drops on a NEW tile — nudge so each press lays a fresh puddle
+        e._lastHazardTile = null; e.tileX += (this._trailFlip = !this._trailFlip) ? 1 : -1
+        break
+      default: break
+    }
+  }
+
+  // A second live hero standing by the entity (for spread / multi-target abilities).
+  _ensureSecondHero() {
+    const gs = this._gs, e = this._entity
+    if (this._lab2ndHero && gs.adventurers?.active?.includes(this._lab2ndHero)) return this._lab2ndHero
+    const def = (this._scene.cache.json.get('adventurerClasses') ?? []).find(d => d.id === 'knight')
+    if (!def || !e) return null
+    const a = createAdventurer(def, { x: e.tileX, y: e.tileY }, 1)
+    a._vfxLabFrozen = true; a.aiState = 'fighting'; a.partyId = '__vfxlab'
+    a.assignedRoomId = e.assignedRoomId; a.tileX = e.tileX; a.tileY = e.tileY
+    a.worldX = e.worldX + 64; a.worldY = e.worldY + 44
+    a.resources.hp = a.resources.maxHp = 220; a._lpcDir = 'down'
+    gs.adventurers.active.push(a); this._lab2ndHero = a
+    return a
+  }
+
+  // Sibling rats clustered around the entity so the SWARM scaling (count-based
+  // atk/DR) + the pack-bite/Vermin-Tide VFX have a real pack to act on.
+  _ensureSwarmPack(n = 3) {
+    const gs = this._gs, e = this._entity
+    if (!e || !e.definitionId) return
+    const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === e.definitionId)
+    if (!def) return
+    const have = (gs.minions ?? []).filter(m => m._vfxLabPackRat).length
+    for (let i = have; i < n; i++) {
+      const m = createMinion(def, { x: e.tileX, y: e.tileY }, e.assignedRoomId, { bossLevel: gs.boss?.level ?? 1 })
+      m._vfxLabFrozen = true; m._vfxLabPackRat = true; m.faction = 'dungeon'; m.aiState = 'idle'
+      m.assignedRoomId = e.assignedRoomId; m.tileX = e.tileX; m.tileY = e.tileY
+      m.worldX = e.worldX + (i - 1) * 42 - 20; m.worldY = e.worldY + 34
+      gs.minions.push(m)
+    }
+  }
+
+  // Seed the run graveyard with fallen heroes IN the entity's room so the Crypt
+  // Lord's Mass Grave has corpses to claw back up. Tagged so RESET/re-prime tops up.
+  _seedGraveyard(n = 4) {
+    const gs = this._gs, e = this._entity
+    gs.adventurers = gs.adventurers ?? {}
+    gs.adventurers.graveyard = gs.adventurers.graveyard ?? []
+    const have = gs.adventurers.graveyard.filter(g => g._vfxLabGrave).length
+    for (let i = have; i < n; i++) {
+      gs.adventurers.graveyard.push({ instanceId: `lab_grave_${i}`, classId: 'knight', tileX: e?.tileX ?? 5, tileY: e?.tileY ?? 5, worldX: e?.worldX ?? 160, worldY: e?.worldY ?? 160, _vfxLabGrave: true })
+    }
+  }
+
+  // A fallen undead minion in the entity's room (for raise/reanimate abilities).
+  _ensureFallenUndead() {
+    const gs = this._gs, e = this._entity
+    if (this._labFallen && gs.minions?.includes(this._labFallen) && this._labFallen.aiState === 'dead') return this._labFallen
+    const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === 'skeleton1')
+    if (!def || !e) return null
+    const m = createMinion(def, { x: e.tileX, y: e.tileY }, e.assignedRoomId, {})
+    m._vfxLabFrozen = true; m.faction = 'dungeon'; m.assignedRoomId = e.assignedRoomId
+    m.tileX = e.tileX; m.tileY = e.tileY; m.worldX = e.worldX - 70; m.worldY = e.worldY + 34
+    m.resources.hp = 0; m.aiState = 'dead'
+    gs.minions.push(m); this._labFallen = m
+    return m
   }
 
   _playAnim(state) {
@@ -291,6 +482,30 @@ export class VfxLab {
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'pulseRing':    AbilityVfx.pulseRing(s, e.worldX, e.worldY, { color: pal.color, fromR: 6, toR: 40, alpha: 0.85, durationMs: 500 }); break
         case 'juice':        AbilityVfx.juice(s, e.worldX, e.worldY, opts); break
+        case 'streakDash':   AbilityVfx.streakDash(s, e.worldX - 34, e.worldY, e.worldX + 34, e.worldY, opts); break
+        case 'furyAura':     AbilityVfx.furyAura(s, e.worldX, e.worldY + 6, { ...opts, intensity: 1 }); break
+        case 'soundWave':    AbilityVfx.soundWave(s, e.worldX, e.worldY - 6, opts); break
+        case 'groundCrack':  AbilityVfx.groundCrack(s, e.worldX, e.worldY + 8, opts); break
+        case 'contagionTendril': AbilityVfx.contagionTendril(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
+        case 'bloodThread':  AbilityVfx.bloodThread(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), e.worldX, e.worldY - 12, opts); break
+        case 'bloodFeastFx': AbilityVfx.bloodFeastFx(s, e.worldX, e.worldY - 12, [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) - 10 }, { x: e.worldX - 80, y: e.worldY - 10 }], opts); break
+        case 'fearStrikeFx': AbilityVfx.fearStrikeFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
+        case 'dreadAuraFx':  AbilityVfx.dreadAuraFx(s, e.worldX, e.worldY, { ...opts, radiusTiles: 4, targets: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) - 16 }] }); break
+        case 'pallOfDreadFx': AbilityVfx.pallOfDreadFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'mesmerizeFx':  AbilityVfx.mesmerizeFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
+        case 'manyEyesFx':   AbilityVfx.manyEyesFx(s, e.worldX, e.worldY, [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) - 16 }, { x: e.worldX - 80, y: e.worldY + 8 }], opts); break
+        case 'tyrantGlareFx': AbilityVfx.tyrantGlareFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'alphaHuntFx':  AbilityVfx.alphaHuntFx(s, e.worldX, e.worldY, { ...opts, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'thornGuardFx': AbilityVfx.thornGuardFx(s, e.worldX, e.worldY, opts); break
+        case 'thornLashFx':  AbilityVfx.thornLashFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
+        case 'thornburstFx': AbilityVfx.thornburstFx(s, e.worldX, e.worldY, { ...opts, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'soulHarvestFx': AbilityVfx.soulHarvestFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) + 14, { ...opts, toX: e.worldX, toY: e.worldY - 18 }); break
+        case 'soulConduitFx': AbilityVfx.soulConduitFx(s, e.worldX, e.worldY, { ...opts, targets: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) - 6 }, { x: e.worldX - 80, y: e.worldY + 8 }] }); break
+        case 'soulStormFx':   AbilityVfx.soulStormFx(s, e.worldX, e.worldY, { ...opts, souls: 12, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'blinkFx':       AbilityVfx.blinkFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 6, opts); break
+        case 'hellriftFx':    AbilityVfx.hellriftFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'stranglethornFx': AbilityVfx.stranglethornFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
+        case 'sporeStormFx':  AbilityVfx.sporeStormFx(s, e.worldX, e.worldY, { ...opts, rectW: 130, rectH: 92, victims: [{ x: (d?.worldX ?? e.worldX + 90), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 80, y: e.worldY + 6 }] }); break
         default:             (AbilityVfx[name] ?? AbilityVfx.impactFx)(s, e.worldX, e.worldY, opts)
       }
     }
@@ -376,6 +591,14 @@ export class VfxLab {
     }
     p.appendChild(faceRow)
 
+    // State controls — KILL runs the real death pipeline (fires onDying/onDeath
+    // kit, e.g. Skeleton Reassemble); RESET respawns a fresh entity.
+    const stateSec = this._section('STATE')
+    const kill = this._btn('☠ KILL', () => this._killEntity()); kill.style.color = '#ff7766'; kill.style.borderColor = '#7a3a3a'
+    const reset = this._btn('↺ RESET', () => this._respawnCurrent()); reset.style.color = '#7ee0a0'
+    stateSec.appendChild(kill); stateSec.appendChild(reset)
+    p.appendChild(stateSec)
+
     // Dynamic sections (rebuilt per entity)
     this._abilitySec = this._section('ABILITIES')
     this._animSec = this._section('ANIMATIONS')
@@ -392,7 +615,11 @@ export class VfxLab {
       colorRow.appendChild(sw)
     }
     rawSec.appendChild(colorRow)
-    for (const v of RAW_VFX) rawSec.appendChild(this._btn(v.replace('Fx', ''), () => this._fireRaw(v, colorKey)))
+    for (const grp of RAW_VFX_GROUPS) {
+      const hdr = this._el('div', 'width:100%;margin:5px 0 1px;font:9px monospace;color:#9a8fb0;letter-spacing:1px;border-bottom:1px solid #3a3045;', grp.label.toUpperCase())
+      rawSec.appendChild(hdr)
+      for (const v of grp.fx) rawSec.appendChild(this._btn(v.replace('Fx', ''), () => this._fireRaw(v, colorKey)))
+    }
     p.appendChild(rawSec)
 
     document.body.appendChild(p)

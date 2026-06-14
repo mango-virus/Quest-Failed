@@ -39,11 +39,13 @@ http.createServer(async (req, res) => {
     const st = await fs.stat(abs).catch(() => null)
     if (!st || !st.isFile()) { res.writeHead(404).end('not found'); return }
     res.writeHead(200, {
-      // Binaries (sprites/audio) cache hard so reloads don't re-fetch; code stays
-      // fresh so live edits show on reload.
+      // Big, rarely-swapped binaries (audio/video/fonts) cache hard so reloads
+      // don't re-fetch. IMAGES stay no-cache so swapped sprites/art show on the
+      // next reload (caching them bit us: edited PNGs kept serving the stale copy
+      // for 24h). Code is always no-cache so live edits show on reload too.
       'Content-Type': MIME[extname(abs).toLowerCase()] || 'application/octet-stream',
       'Content-Length': st.size,
-      'Cache-Control': /\.(png|jpe?g|gif|svg|ico|ttf|woff2?|mp3|wav|ogg|webm|mp4)$/i.test(abs)
+      'Cache-Control': /\.(mp3|wav|ogg|webm|mp4|ttf|woff2?)$/i.test(abs)
         ? 'public, max-age=86400' : 'no-cache',
       'Access-Control-Allow-Origin': '*',
     })

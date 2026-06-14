@@ -11,6 +11,7 @@ import { DebugOverlay }     from './DebugOverlay.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
 import { minionLabel, roomLabel } from '../util/displayNames.js'
 import { applyCrowdSeparation } from '../util/crowdSeparation.js'
+import { AbilityVfx }        from '../ui/AbilityVfx.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -26,6 +27,14 @@ const GLOAT_DURATION_MS            = 1500   // freeze in place this long
 // in a fraction of the time it used to.
 const FLEE_SPEED_MULT              = 1.6
 const MORALE_BREAK_MS              = 1300   // game-time in the Breaking band before a normal adv cracks and bolts
+// Nerve rework (2026-06-11): terror no longer ROUTES heroes out — it PANICS them in
+// place (a helpless, defenceless kill pinned in the killzone). PANIC_ONSET = breaking
+// + pressure time before they freeze; PANIC_HOLD = how long a panic lasts before it
+// can lapse (refreshed each tick the condition holds, so they stay frozen near a ghost).
+const PANIC_ONSET_MS               = 550
+const PANIC_HOLD_MS                = 1200
+const PANIC_VFX_CADENCE_MS         = 650
+// (panicked heroes take +50% damage — that multiplier lives in CombatSystem._computeDamage.)
 // Room appraisal (Thread 2) — the "read the room" threshold beat.
 const APPRAISE_PAUSE_MIN_MS        = 220    // a quick glance (confident entry)
 const APPRAISE_PAUSE_MAX_MS        = 620    // a long, wary read (well under the 1.5s soft / 10s hard stuck timers)
@@ -644,6 +653,7 @@ export class AISystem {
   // still carries regen into the fight).
   _tryHealAtFountain(adv) {
     const now = this._scene?.time?.now ?? 0
+    if (adv._noHealUntil && now < adv._noHealUntil) return   // Gnoll Blood Frenzy — can't be healed
     if (now < (adv._fountainTouchAt ?? 0)) return
     for (const f of this._gameState.dungeon?.fountains ?? []) {
       const d = Math.max(Math.abs(f.tileX - adv.tileX), Math.abs(f.tileY - adv.tileY))
@@ -1301,7 +1311,7 @@ export class AISystem {
     // aren't lost to integer rounding.
     {
       const bNow = this._scene?.time?.now ?? 0
-      if ((adv._fountainBlessUntil ?? 0) > bNow) {
+      if ((adv._fountainBlessUntil ?? 0) > bNow && !(adv._noHealUntil && bNow < adv._noHealUntil)) {
         if (adv.resources.hp < adv.resources.maxHp) {
           const tick = adv.resources.maxHp * Balance.FOUNTAIN_BLESS_REGEN_PCT * (delta / 1000)
           adv._fountainRegenAcc = (adv._fountainRegenAcc ?? 0) + tick
@@ -1417,6 +1427,15 @@ export class AISystem {
     // doesn't get punished as no-progress.
     {
       const wNow = this._scene?.time?.now ?? 0
+      // PANIC (nerve rework) — a panicking hero is FROZEN by design (the cower gate
+      // below returns before movement), so keep both stuck-watchdogs' baselines fresh
+      // while panicked, exactly like the appraisal/confer pauses, so they don't misfire
+      // a panic-walk on an intentionally stationary hero.
+      if ((adv._panickedUntil != null && wNow < adv._panickedUntil) ||
+          (adv._petrifiedUntil != null && wNow < adv._petrifiedUntil)) {
+        adv._loopBestAt = wNow; adv._loopBestDist = null
+        adv._stagAnchorAt = wNow; adv._stagAnchorX = adv.tileX; adv._stagAnchorY = adv.tileY
+      }
       const goalTypeKey = adv.goal?.type ?? 'none'
       if (adv._loopGoalKey !== goalTypeKey || adv._loopBestDist == null) {
         // Goal changed (or first time) — reset the watchdog baseline.
@@ -1536,6 +1555,19 @@ export class AISystem {
     // in DungeonMechanicSystem on tile entry; same freeze-in-place semantics
     // as root/stagger.
     if (adv._sunderedStunUntil != null && _now < adv._sunderedStunUntil) {
+      return
+    }
+    // PANIC (nerve rework) / PETRIFY (Beholder Tyrant's Glare) — a terror-stricken or
+    // stone-locked hero COWERS in place: no movement, no goal pursuit, no attack (same
+    // freeze-by-design as root/stagger, so the early return skips the whole movement +
+    // combat tail). DoT above still ticks (they can still bleed out), and minions hit
+    // them freely (+ panic vuln / gaze hex).
+    if ((adv._panickedUntil != null && _now < adv._panickedUntil) ||
+        (adv._petrifiedUntil != null && _now < adv._petrifiedUntil)) {
+      if (this._occupancy) {
+        const key = `${adv.tileX},${adv.tileY}`
+        if (this._occupancy[key] !== adv.instanceId) this._occupancy[key] = adv.instanceId
+      }
       return
     }
 
@@ -2295,7 +2327,11 @@ export class AISystem {
       // trap soft-block (set further down on softOpts). The pathfinder
       // picks the most direct route — through traps if needed.
       const panicWalk = (adv._panicWalkUntil ?? 0) > this._scene.time.now
-      const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE' && !panicWalk
+      // Bold = RECKLESS (nerve rework): an overconfident hero ignores trap- and
+      // minion-room caution and barrels the most direct route into danger — the
+      // player can bait them bold and watch them overextend into traps/ambushes.
+      const reckless = adv.mood === 'bold'
+      const useKnowledgeCost = this._knowledgeSystem && adv.goal?.type !== 'FLEE' && !panicWalk && !reckless
       let trapRejectsThisPath = 0
       // Room-level trap avoidance (replaces per-tile detour + side-bias,
       // 2026-05-27). Pre-compute the set of room instanceIds this adv
@@ -3143,6 +3179,11 @@ export class AISystem {
       // threshold so a future drop re-rolls. The ignore probability is driven by
       // NERVE (AI overhaul): a Bold adventurer holds (~0.9 ignore → rarely
       // flees), a Breaking one bolts (~0.27 ignore). Was a flat 0.8.
+      // Bold = RECKLESS (nerve rework): an overconfident hero (Bold band) fights to
+      // the DEATH — never breaks off at low HP — so the player gets the kill (and the
+      // gold/xp/sealed knowledge) instead of a wounded escapee. High-nerve play is the
+      // player's friend: bait them bold and they overextend into the grave.
+      if (adv.mood === 'bold') { adv._fleeRolled = false; return }
       if (adv._fleeRolled) return
       adv._fleeRolled = true
       const nerve = adv.nerve ?? 100
@@ -3212,6 +3253,20 @@ export class AISystem {
     }
 
     adv.goal = { type: 'FLEE', reason, context }
+    // PUNISH THE FLEE (nerve rework) — a hero who breaks and runs DROPS gold in their
+    // panic, so even a clean escape still pays you something for the scare. They also
+    // run the gauntlet out exposed + unable to fight (CombatSystem vuln + attack gate),
+    // so most don't make it. Once per flee.
+    if (!adv._fleeLootDropped) {
+      adv._fleeLootDropped = true
+      const lvl = this._gameState.boss?.level ?? 1
+      const drop = Math.max(3, Math.round(4 + lvl * 1.5))
+      this._gameState.player.gold += drop
+      adv.goldDropped = (adv.goldDropped ?? 0) + drop
+      if (Number.isFinite(adv.worldX)) {
+        EventBus.emit('RESOURCES_AWARDED', { gold: drop, reason: 'adventurer_flee_drop', worldX: adv.worldX, worldY: adv.worldY })
+      }
+    }
     // 50% chance to flee toward a False Exit (if one exists) instead of a
     // real entry hall — the adv mistakes the fake door for a way out.
     // _fleeExitTile routes them to the false exit; on arrival
@@ -3511,11 +3566,25 @@ export class AISystem {
       if (Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY) <= 5) { threatNear = true; break }
     }
     if (!damaged && !threatNear && !deep) { adv._breakingMs = 0; return }
-    adv._breakingMs = (adv._breakingMs ?? 0) + (delta ?? 16)
-    if (adv._breakingMs >= MORALE_BREAK_MS) {
-      adv._breakingMs = 0
-      EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a cracked cry as they break
-      this._setFleeGoal(adv, 'morale_break')
+    adv._breakingMs = Math.min(PANIC_ONSET_MS, (adv._breakingMs ?? 0) + (delta ?? 16))
+    if (adv._breakingMs >= PANIC_ONSET_MS) {
+      // PANIC IN PLACE (nerve rework) — terror no longer routes them out (that just
+      // hands the player a lost kill + a knowledge leak). Instead it PINS them: they
+      // freeze and cower (the freeze gate in _tickAdventurer), can't fight back
+      // (CombatSystem attack gate), and take +50% damage — a helpless, defenceless
+      // kill standing in your killzone. Refreshed each tick the pressure holds, so a
+      // hero stays panicked while a ghost is near; lapses when nerve recovers.
+      const now = this._scene?.time?.now ?? 0
+      const wasPanicked = adv._panickedUntil != null && now < adv._panickedUntil
+      adv._panickedUntil = now + PANIC_HOLD_MS
+      if (!wasPanicked) {
+        EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a terrified cry as they freeze
+        adv._panicVfxAt = 0
+      }
+      if (now - (adv._panicVfxAt ?? 0) >= PANIC_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
+        AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+        adv._panicVfxAt = now
+      }
     }
   }
 

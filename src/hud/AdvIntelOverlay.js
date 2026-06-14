@@ -5,8 +5,7 @@
 // Left pane: approaching-party list, one card per adventurer (sprite +
 // name + class·LV + threat chip + redacted flag + veteran badge).
 // Right pane: selected-adv detail (portrait + stat tiles HP/ATK/SPD +
-// RESISTS / WEAK TO chips + notes) and intel ledger ("WHAT THEY KNOW")
-// with counter-advice callout.
+// notes) and intel ledger ("WHAT THEY KNOW").
 //
 // Data sources:
 //   * Day phase: reads `gameState.adventurers.active` (live in-dungeon).
@@ -23,8 +22,6 @@
 //     dead adv, +1 LV over baseline).
 //   * When neither feed has anything, the panel falls back to an
 //     "INTEL UNKNOWN" placeholder.
-//   * RESISTS / WEAK TO read from `adv.stats.resists` / `adv.stats.weakTo`
-//     when defined on the class JSON, otherwise empty arrays.
 //   * Veteran flag from `adv.isVeteran` or a presence in
 //     `gameState.adventurers.known[].escapeCount > 0`.
 
@@ -246,8 +243,6 @@ export class AdvIntelOverlay {
         hp,
         attack: atk,
         speed:  baseStats.speed  ?? baseStats.spd   ?? 1.0,
-        resists: def?.resists ?? [],
-        weakTo:  def?.weakTo  ?? def?.vulnerableToElements ?? [],
       },
       // Mirror the scaled HP onto resources so the panel's
       // resources.maxHp-first read (and the threat score) pick it up.
@@ -281,8 +276,6 @@ export class AdvIntelOverlay {
             hp,
             attack: atk,
             speed:  baseStats.speed ?? 1.0,
-            resists: def?.resists ?? [],
-            weakTo:  def?.weakTo  ?? def?.vulnerableToElements ?? [],
           },
           resources: { hp, maxHp: hp },
         }
@@ -635,7 +628,7 @@ export class AdvIntelOverlay {
     const lv = (sel._shadowMonarch || sel.classId === 'shadow_monarch')
       ? '∞' : (sel.level ?? sel.lv ?? 1)
     // Library tier reveals — drives which sections of the detail card
-    // are visible. Stats / resists / weak-to require Tier 3 (3+ Libs);
+    // are visible. Stats require Tier 3 (3+ Libs);
     // personalities require Tier 2 (2+ Libs); planned route requires
     // Tier 4 (4 Libs). Day phase is always "all revealed".
     const _statsRevealed         = this._canReveal(TIER_STATS)
@@ -647,8 +640,6 @@ export class AdvIntelOverlay {
     const hp  = sel.resources?.maxHp ?? sel.stats?.hp ?? sel.hp ?? 30
     const atk = sel.stats?.attack ?? sel.atk ?? 5
     const spd = sel.stats?.speed ?? sel.spd ?? 1.0
-    const resists = def?.resists ?? sel.stats?.resists ?? []
-    const weakTo  = def?.weakTo  ?? sel.stats?.weakTo  ?? def?.vulnerableToElements ?? []
     const notes = def?.flavorText || def?.description || '—'
     const veteran = this._isVeteran(sel)
     const redacted = !!sel.redacted
@@ -730,29 +721,6 @@ export class AdvIntelOverlay {
                       : '—')
               ),
         ]),
-        // Resists / weak
-        h('div', { className: 'qf-advintel-detail-relations' }, [
-          h('div', null, [
-            h('div', { className: 'pix qf-advintel-relation-label rumor' }, 'RESISTS'),
-            h('div', { className: 'qf-advintel-chips' },
-              resists.length === 0
-                ? [h('span', { className: 'qf-advintel-chip-empty' }, '—')]
-                : resists.map(r => h('span', {
-                    className: 'pix qf-advintel-chip qf-advintel-chip-resist',
-                  }, String(r).toUpperCase()))
-            ),
-          ]),
-          h('div', null, [
-            h('div', { className: 'pix qf-advintel-relation-label blood' }, 'WEAK TO'),
-            h('div', { className: 'qf-advintel-chips' },
-              weakTo.length === 0
-                ? [h('span', { className: 'qf-advintel-chip-empty' }, '—')]
-                : weakTo.map(w => h('span', {
-                    className: 'pix qf-advintel-chip qf-advintel-chip-weak',
-                  }, String(w).toUpperCase()))
-            ),
-          ]),
-        ]),
         // Notes
         h('div', { className: 'qf-advintel-detail-notes' }, notes),
       ]),
@@ -771,18 +739,6 @@ export class AdvIntelOverlay {
                 h('span', null, line),
               ]))
         ),
-        // Counter advice
-        (resists.length > 0 || weakTo.length > 0) && h('div', {
-          className: 'qf-advintel-counter',
-        }, [
-          h('div', { className: 'pix qf-advintel-counter-label' }, '◇ COUNTER ADVICE'),
-          h('div', { className: 'qf-advintel-counter-text' }, [
-            weakTo[0]
-              ? ['Exploit ', h('span', { style: { color: 'var(--blood)' } }, String(weakTo[0]).toUpperCase()), ' weakness with traps or minions of that type.']
-              : 'No exploitable weakness intel.',
-            resists[0] && [' Avoid relying on ', h('span', { style: { color: 'var(--rumor)' } }, String(resists[0]).toUpperCase()), ' damage.'],
-          ]),
-        ]),
         // Library tier 4 — planned route through the dungeon. Visible
         // during day phase or at night with all 4 Libraries. Computed
         // on-demand via _plannedRoute (entry → boss BFS through the

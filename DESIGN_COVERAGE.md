@@ -1332,11 +1332,11 @@ families render + summon-caps / hazard-trails / rally-aura / enrage observed fir
 | min-C-kite | ranged/caster KITE | ✅ DONE | `_kiteStep` backsteps within home room when adv <2 tiles. |
 | min-C-fallback | fragile/support FALL BACK | ✅ DONE | wounded fragile retreats to home tile (not garrison/stationary). |
 | min-C-safe | watchdog/leash safe, tells, stationary exempt | ✅ DONE | constrained to home room (no door/leash break); enrage glow + FALL BACK tell; stationary exempt. |
-| min-W-crowdcontrol | Webspinner line | ✅ DONE | web1/web2/broodmother — slow+root, broodmother web hazardTrail. |
-| min-W-commander | Drillmaster line | ✅ DONE | cmd1/cmd2/warlord_herald — Rally buffAura; drops after death (live: 21 buffed). |
-| min-W-summoner | Bone Totem line + swarmling | ✅ DONE | capped summon (live 3+4=7, held); swarmling add; stationary; dawn-swept. |
-| min-W-debuffer | Rust Gremlin line | ✅ DONE | rust1/2/tyrant — armorShred + acid hazardTrail (live 3–4 zones). |
-| min-W-wiring | types + chains + unlocks + costs + tooltips | ✅ DONE | 13 entries, 4 chains, unlocks seed, unlockLevels, goldCosts, tooltips; color+sigil render. |
+| min-W-crowdcontrol | Webspinner line | ❌ REMOVED (2026-06-10) | web1/web2/broodmother deleted in the ground-up minion ability redesign (see §Minion Ability Ground-Up Redesign). |
+| min-W-commander | Drillmaster line | ❌ REMOVED (2026-06-10) | cmd1/cmd2/warlord_herald deleted in the redesign. |
+| min-W-summoner | Bone Totem line + swarmling | ❌ REMOVED (2026-06-10) | bone_totem1/bone_totem2/necro_obelisk + swarmling add deleted in the redesign. |
+| min-W-debuffer | Rust Gremlin line | ❌ REMOVED (2026-06-10) | rust1/rust2/rust_tyrant deleted in the redesign. |
+| min-W-wiring | types + chains + unlocks + costs + tooltips | ❌ REMOVED (2026-06-10) | The 13 widen entries + 4 chains removed from minionTypes/minionEvolutions/GameState roster + MinionAISystem totem set. |
 | min-verify | soak + balance + lint + verify-docs + harness + preview | ✅ DONE | See header above. |
 | min-D-ults | Miniboss ULTs (was optional/stretch): `novaBurst` onTick handler + 8 signatures (Hellfire Nova / Sanguine Drain / Tyrant's Gaze / Seismic Slam / Venom Storm / Whirlwind / Wail of Sorrow + Gnoll Alpha Rally) | ✅ DONE (2026-06-10) | Harness 48/48 (9 ult checks incl. burn/heal/root/stagger-radius/nerve/rally); soak 120/120; lint green; live preview — demon_lord burn, wraith nerve-drain on 11 advs, sovereign self-heal to full, 0 errors. |
 

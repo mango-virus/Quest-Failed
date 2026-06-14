@@ -360,6 +360,13 @@ export class Preload extends Phaser.Scene {
     this.load.image('cobweb-medium', 'assets/sprites/cobweb-medium.png')
     this.load.image('cobweb-large',  'assets/sprites/cobweb-large.png')
 
+    // DOOMED skull pip — green-eyed skull that bobs over a rot-infected hero
+    // (it rises as a zombie if it dies). Used by AdventurerRenderer's rot tell.
+    this.load.image('doom-skull', 'assets/sprites/doom-skull.png')
+    // Carrion fly — animated wing-flap (4×2 grid = 8 frames). Worn as the zombie
+    // outbreak swarm + kicked up by the rot VFX. Anim 'fly-buzz' registered below.
+    this.load.spritesheet('fly-sheet', 'assets/sprites/fly-sheet.png', { frameWidth: 32, frameHeight: 32 })
+
     // Room decor props — themed cosmetic dressing used by DecorRenderer.
     // Five families: floor skeletons, wall-chained skeletons, skulls
     // (two facings + flips), skull pile, statues, and chains (singles
@@ -794,6 +801,7 @@ export class Preload extends Phaser.Scene {
 
   create() {
     this._registerHeartAnimation()
+    this._registerFlyAnimation()
     this._registerBossAnimations()
     this._registerMinionAnimations()
     // Base adventurer anims are now registered on demand per variant as its sheet
@@ -824,6 +832,19 @@ export class Preload extends Phaser.Scene {
       frames:    this.anims.generateFrameNumbers('heart-lose', { start: 0, end: 4 }),
       frameRate: 10,
       repeat:    0,
+    })
+  }
+
+  // Carrion-fly wing-flap loop (8 frames). Each fly plays it from a random start
+  // frame so a swarm never beats in sync. Used by MinionRenderer's zombie tell
+  // + the rot VFX (graveRot / rotAura).
+  _registerFlyAnimation() {
+    if (this.anims.exists('fly-buzz') || !this.textures.exists('fly-sheet')) return
+    this.anims.create({
+      key:       'fly-buzz',
+      frames:    this.anims.generateFrameNumbers('fly-sheet', { start: 0, end: 7 }),
+      frameRate: 18,
+      repeat:    -1,
     })
   }
 

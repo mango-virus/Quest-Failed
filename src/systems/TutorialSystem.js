@@ -399,7 +399,7 @@ const TUTORIALS = [
   {
     id: 'firstMenuIntel', title: 'Adventurer Intel',
     lead: 'STUDY THE PREY BEFORE THE HUNT',
-    body: 'The Intel panel lists every adventurer in the incoming wave by class — their HP, attack, signature ability, and known weakness. Read it during the night so the dungeon you build is shaped for the wave tomorrow will actually have to walk through.',
+    body: 'The Intel panel lists every adventurer in the incoming wave by class — their HP, attack, and signature ability. Read it during the night so the dungeon you build is shaped for the wave tomorrow will actually have to walk through.',
     tips: [
       'Click an adventurer to inspect them in detail.',
       'Several casters? Anti-magic rooms. All melee? Choke points and traps.',

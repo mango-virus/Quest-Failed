@@ -279,7 +279,7 @@ Approved overhaul of every adventurer class. Mana system removed entirely — ab
 
 1. **Knight** — *Protective Aura* (set duration, large CD; party allies within 1 tile take 25% less damage). *Taunt* (medium CD; forces minion/boss aggro onto Knight).
 2. **Rogue** — *Lockpick* (1–5/day by level, 20% fail; opens locked doors silently — dormant until locked-doors land). *Invisibility* (set duration, large CD; sprite α=0.4; minions ignore Rogue but boss does not; attack while invis = guaranteed crit + immediate reveal).
-3. **Mage** — *Elemental Affinity* (passive trait; rolled element on spawn from {fire, ice, lightning, wind}; 1.5× damage vs minions vulnerable to that element). *Arcane Burst* (cooldown ~20s; activate → next spell hits 1-tile AoE).
+3. **Mage** — *Arcane Mastery* (passive; flat +30% spell damage). *Arcane Burst* (cooldown ~20s; activate → next spell hits 1-tile AoE). *(Was Elemental Affinity — 1.5× vs a target's elemental weakness — retired 2026-06-10 with the vulnerability system; a cosmetic spell element still tints the Arcane Burst VFX.)*
 4. **Cleric** — *Resurrection* (1/run; revive a fallen party member at 30% HP). *Heal* (medium CD ~10s; targets lowest-HP ally <70% in range). Passive: 1.5× damage vs undead minions.
 5. **Necromancer** — *Summon Undead* (large CD; spawns 2 fresh low-HP/low-ATK skeletons or zombies on adventurer faction). *Bone Armor* (active, large CD; +ATK/+DEF buff for set duration, scales with currently-living summons).
 6. **Ranger** — *Volley* (every-5th-shot proc; fires a 3-arrow cone). *Trap Expert* (1–5/day by level, 20% fail-then-trigger; disabled traps stay disabled until day end). Arrow consumption removed.
@@ -291,7 +291,11 @@ Approved overhaul of every adventurer class. Mana system removed entirely — ab
 
 Cooldown buckets: short = 5–8s, medium = 12–18s, large = 30–60s. Per-day budgets refilled at day start. Debug toggle (Ctrl+Shift+C) clamps every cooldown to 1 second so all abilities can be visually verified within a single dungeon run.
 
-**Element vulnerabilities** added to `minionTypes.json` as `vulnerableToElements: [...]`. Distribution is uneven (rough first pass; will retune as Mage feels off).
+**Element vulnerabilities** — ❌ REMOVED 2026-06-10 (per user: "too complicated"). The
+`vulnerableToElements` field was stripped from all minions, the Mage's Elemental Affinity
+became the flat Arcane Mastery passive, and the (always-empty) WEAK TO / RESISTS chips were
+removed from the Adv Intel panel. `damageType` (hit-spark colors + minion damage-reduction
+gating) and the Cleric's tag-based anti-undead bonus are separate systems and were kept.
 
 ---
 
@@ -2223,3 +2227,645 @@ Enables the "goblin gold-rush" build (pack cheap goblins to mint gold every inva
   (ult, ~every 8s: **brands every hero in its room** for 6s — mass Mark for Plunder). VFX: golden
   warhorn shock-ring, a coin-brand snaps onto every hero, coin rain as minions swing.
 - Arc: steal from one hero → mark one hero for the team → mark the whole party + double the take.
+
+## Skeleton — mechanic: REASSEMBLY ("they don't stay dead")  [LOCKED 2026-06-10]
+Identity: the attrition wall — the opposite pole to the Goblin's smash-and-grab on the treasury.
+Skeletons make the party pay twice: spend HP, time, and cooldowns killing the same bones again.
+Enables a chokepoint-stall build. Reassembly is **unconditional** (the fire-deny-reassembly hook
+was dropped when elemental vulnerabilities were removed 2026-06-10).
+- **T1 · Risen Bones** (`skeleton1`, 10g) — **Reassemble:** on death it collapses into a bone pile
+  instead of dying; after ~3s it clatters back together at **50% HP**, **once**. The party must kill
+  it twice. VFX: bones scatter → pile rattles → fragments spiral upward → necrotic flash → it stands.
+- **T2 · Boneguard** (`skeleton2`) — same mechanic, harder to keep down: reassembles **up to 2×**, and
+  **each** rise it returns sheathed in a **bone-armor shell** (temporary damage-reduction that decays)
+  and flings a **ring of bone shards** outward (chip damage to adjacent heroes). "The more you break
+  it, the angrier it gets." VFX: reknit + plating shimmer + shard-ring burst; eye-glow white→amber.
+- **T3 · Grave Knight** (`skeleton3`; final/mini-boss) — keeps Reassemble, adds **Undying Legion**
+  (ult): it plants its sword and fires a **necrotic pulse** — **every fallen bone-pile in range erupts
+  back to its feet**, and for the ult window the Knight itself **revives almost instantly** when downed
+  (a near-unkillable window). A "cleared" room becomes a full fight again. VFX: sword slam → green-white
+  death-pulse ring → bone piles geyser into skeletons → shared aura links the risen → roar.
+- Arc: get back up once → get back up twice, armored & spiteful → raise the whole graveyard and refuse
+  to stay down.
+
+## Orc — mechanic: BLOODLUST ("the longer they fight, the harder they hit")  [LOCKED 2026-06-10]
+Identity: the offensive-tempo bruisers — third archetype after Goblin (economy) and Skeleton (defense).
+They get STRONGER the longer a fight drags; enables an aggressive "feed them a sustained brawl"
+build that snowballs into a wipe threat. **Bloodlust stacks build PER HIT LANDED** (locked — most
+legible / rewards staying in the fight) and decay out of combat.
+- **T1 · Orc Marauder** (`orc1`, 12g) — **Bloodlust:** each hit it lands adds a stack (+ATK per stack,
+  up to a cap); stacks decay when it's out of combat. A lone brawler that ramps. VFX: a low blood-mist
+  aura that thickens + rises redder as stacks climb (roiling, NOT a ring); a red claw-slash flash per
+  stack; a roar + screen-shake at max stacks.
+- **T2 · Warlord Orc** (`orc2`) — keeps Bloodlust **+ War Cry:** periodically shouts, granting Bloodlust
+  stacks to **every orc in the room** (the whole pack ramps together). VFX: a sound-wave shout — expanding
+  chevron/arc bands sweeping outward (megaphone cone) + screen-shake; each affected orc flashes red with a
+  small "↑RAGE" tick.
+- **T3 · Orc Veteran** (`orc_veteran`; final/mini-boss) — keeps Bloodlust + War Cry, adds **Warpath**
+  (ult): instantly maxes its OWN + the warband's Bloodlust and enters a **Rampage** (big ATK/speed surge,
+  bulldozes/cleaves) for a window. VFX: a Warstomp ground-crack + dust ring, a towering blood-red aura
+  column, motion-streak charge trails, heavy screen-shake, a war-skull glyph rising.
+- Arc: one orc ramps itself → the Warlord ramps the pack → the Veteran maxes everyone and goes on a rampage.
+- New reusable `AbilityVfx` primitives added for this (variety mandate): `furyAura`, `soundWave`,
+  `groundCrack`, `streakDash`, `screenShake` — deliberately non-ring looks.
+
+## Slime — THREE distinct 4-tier chains (the only 4-tier minions)  [LOCKED 2026-06-10] · ✅ ALL 3 CHAINS BUILT 2026-06-11
+Slimes are 3 separate buildable chains, each its own mechanic/strategy (all "ooze"-flavored). Pricier
+root = stronger kit. Tier names reflavored coherently (the old mixed-element names were a grab-bag).
+Build one chain at a time (Splitter → Plague → Corrosive), verifying each. Each gets its own detailed,
+distinct gooey VFX (to the detail bar — see [[feedback_vfx_variety_mandate]]).
+Verified: headless `slime-{split,plague,corrosive}-check.mjs` all green + soak 120/120 clean + in-lab.
+
+### Splitter (ids `slime2`→`slime9`→`slime1`→`elder_slime2`; root 6g, day 1) — mechanic: SPLIT
+The classic. Cheap, multiplies — kill it and it becomes two. Strategy: overwhelm with bodies, tie up
+and soak the party.
+- **T1 Slime** (`slime2`) — splits into 2 weak slimelings on death.
+- **T2 Splitter Slime** (`slime9`) — splits on death **+ buds off a slimeling when it takes a big hit**.
+- **T3 Brood Slime** (`slime1`) — splits into 3 on death, and the slimelings can split once themselves
+  (cascading division).
+- **T4 The Endless** (`elder_slime2`; mini-boss ULT) — **Mitosis Storm:** constantly buds slimelings on a
+  timer + erupts a big batch on death. A slime tide.
+- VFX: wet blob that stretches & pinches apart with a gooey splat + jiggle.
+
+### Plague (ids `slime3`→`slime7`→`slime8`→`elder_slime1`; root 10g, day 3) — mechanic: CONTAGION
+Infect the party; the poison jumps hero to hero. Strategy: spreading DoT attrition — the more they
+cluster, the worse.
+- **T1 Toxic Slime** (`slime3`) — hits apply a stacking poison DoT.
+- **T2 Plague Slime** (`slime7`) — infected heroes **spread** the poison to nearby allies (it jumps).
+- **T3 Pestilent Slime** (`slime8`) — stronger DoT, spreads farther/faster + infected heroes leave a
+  brief toxic trail.
+- **T4 Pandemic** (`elder_slime1`; mini-boss ULT) — **Outbreak:** periodically infects everyone in the
+  room at once + contagion turns virulent.
+- VFX: sickly green-purple miasma + contagion tendrils linking infected heroes + a plague cloud.
+
+### Corrosive (ids `slime4`→`slime5`→`slime6`→`elder_slime3`; root 12g, day 5) — mechanic: ACID PUDDLES
+Melts the floor — lay caustic puddles that damage + slow whoever stands in them. Strategy: zone control,
+shape the room into a hazard maze. Reuses the existing hazard-zone engine (`_hazardTrail`/`tickHazards`).
+- **T1 Acid Slime** (`slime4`) — leaves a caustic puddle where it dies.
+- **T2 Caustic Slime** (`slime5`) — leaves an acid **trail as it moves** (paints corridors).
+- **T3 Corrosive Ooze** (`slime6`) — bigger/longer puddles + standing in them **melts armor** (def shred)
+  + slows.
+- **T4 The Dissolving** (`elder_slime3`; mini-boss ULT) — **Acid Flood:** periodically floods its whole
+  room with acid for a window — total floor denial.
+- VFX: bubbling yellow-green acid puddles with hissing sizzle + drips.
+- **Puddles PERSIST for the whole raid** (don't fade on a timer); cleared at day-end (`Game._onDayEnded`
+  wipes `dungeon.hazards`). Capped at 60 acid zones (oldest dissolve first) so a roaming Caustic Slime
+  can't carpet the room. Puddle **size scales with tier** (`radiusTiles` 1.0→1.9; `acidSplash` scales to it).
+  The Acid Flood pulse stays timed (it re-floods on its own cadence).
+- **Acid Flood VFX = `acidFloodFx`** (rebuilt 2026-06-11 — was a generic ring): an irregular lobed acid
+  SHEET floods the floor (foaming jagged rim) + a wave of erupting `acidGeyser` columns sweeping outward +
+  steam + green room-tint. Plague/acid VFX also de-circled (`_drawMiasmaPuff` lumpy cloud puffs,
+  `_drawAcidBlob` lobed pools). No ring/circle hero shapes anywhere in the slime kit.
+
+## Vampire — mechanic: LIFE DRAIN ("you can't out-damage it")  [LOCKED 2026-06-11]
+Chain `vampire_minion1` → `vampire_minion2` → `vampire_sovereign` (root 18g, day 9; final = mini-boss
+ULT). ONE mechanic: it heals off the life it takes, and each tier converts drained blood into more
+staying power. Strategy: an ATTRITION WALL — the party must BURST it down fast or it heals through
+everything (counter = focus-fire / front-load damage). Distinct from Goblin (economy) / Skeleton (revive)
+/ Orc (offense) / Slime (zoning).
+- **T1 Vampire Spawn** (`vampire_minion1`) — **Lifesteal:** heals a % of the damage it deals on every
+  hit. Outlasts a slow fight.
+- **T2 Vampire Thrall** (`vampire_minion2`) — **Bloodgorge:** stronger lifesteal, and healing PAST full
+  HP banks as a temporary **blood-shield** (overheal → absorb, capped at a fraction of maxHP, decays out
+  of combat). The longer it drains, the tankier it gets.
+- **T3 Vampire Sovereign** (`vampire_sovereign`; mini-boss ULT) — **Blood Feast:** periodically siphons HP
+  from EVERY adventurer in the room at once, healing itself to overflow (big blood-shield) + topping up
+  nearby vampire-kin. Single-target drain → the whole party bleeds for it.
+- VFX (concept-first, no rings): **bloodThread** (lifesteal — a crimson ribbon whips off the bitten hero
+  + fang-mark, reels into the vampire), **bloodShieldFx** (lumpy blood-platelet husk that thickens with
+  overheal, sheds shards when hit), **bloodFeastFx** (threads lash to ALL heroes then reel inward to a
+  rising blood-geyser column at the vampire — converging inward, the opposite of an expanding ring).
+
+### Vampire acceptance checklist — ✅ ALL BUILT + VERIFIED 2026-06-11
+- ✅ T1 lifesteal heals attacker by `frac` of damage dealt (existing `lifesteal` type) + fires bloodThread
+- ✅ T2 lifesteal `overheal:true` banks excess heal into `_bloodShield` (cap `shieldFracMax`×maxHP)
+- ✅ `_bloodShield` ABSORBS damage before HP (CombatSystem:339 `absorbBloodShield`) + sheds-shard VFX
+- ✅ `_bloodShield` DECAYS over time (tickVampire, wired MinionAISystem); cleared at dawn; stripped in SaveSystem
+- ✅ T3 bloodFeast onTick drains every adv in room, heals self→overflow shield + tops vampire-kin
+- ✅ bloodThread / bloodShieldFx / bloodShieldHit / bloodFeastFx built to the detail bar, lint-vfx clean, in gallery
+- ✅ MINION_ABILITY_INFO text for all 3 tiers (current + next-tier shown in UI)
+- ✅ headless `vampire-drain-check.mjs` 15/15 · soak 120/120 clean · verified in lab
+
+## Rat — mechanic: SWARM ("strength in numbers")  [LOCKED 2026-06-11]
+Chain `rat1` → `rat2` → `rat3` (root 6g, day 1; cheap/fast/low-HP beasts). ONE mechanic: *the pack
+empowers each rat by its size* — only swarm-rats in the SAME room count (via a `swarm` ability marker),
+so it won't free-ride on unrelated minions. Strategy: cheap board-flooding swarm, only scary while
+clustered — the counter is AoE/cleave to thin the pack (distinct from slime, which SPAWNS more bodies).
+- **T1 Plague Rat** (`rat1`) — **Swarm:** +atk for each other swarm-rat in its room (capped). Pathetic
+  alone, dangerous in a pack.
+- **T2 Sewer Skitterer** (`rat2`) — **Pack Tactics:** steeper atk-per-rat **+ Pack Armor** — clustered
+  rats also take LESS damage per pack member (so cleaving them apart, dropping the count, is the counter).
+- **T3 Dire Vermin** (`rat3`; final ULT) — **Vermin Tide:** periodically whips EVERY rat in the room into
+  a frenzy — max swarm bonus (atk + DR) + a speed surge for a window, the whole pack a devouring tide.
+- Engine (reuses the bloodlust/rampage pattern): `swarmAtkMul(minion,scene,gs)` read in CombatSystem +
+  `swarmDrMul` folded into `damageTakenMul`; both count living swarm-rats in the room (`_swarmCount`).
+  Vermin Tide sets `_swarmFrenzyUntil` on all room rats (forces max stacks) + a speed surge restored by
+  `tickRat`. Dawn-reset + SaveSystem-stripped.
+- VFX (concept-first, no rings): `_drawRat` tiny shaded rat-silhouette → **swarmBiteFx** (on a packed hit,
+  a few rats skitter in + a bite-chomp + kicked grime, more rats the bigger the pack) + **verminTideFx**
+  (the ult — a tide of scurrying rat-silhouettes floods outward + dust wave + red frenzy glints).
+
+### Rat acceptance checklist — ✅ ALL BUILT + VERIFIED 2026-06-11
+- ✅ T1 `swarm` onHit ability: `swarmAtkMul` gives +atk per OTHER swarm-rat in room (capped), read in CombatSystem
+- ✅ swarm counts ONLY living swarm-rats in the same room (`_swarmCount` via the `swarm` ability marker)
+- ✅ T2 Pack Armor: `swarmDrMul` reduces damage per pack member (floored at 0.35), via `damageTakenMul`
+- ✅ T3 Vermin Tide onTick: frenzy all room rats (`_swarmFrenzyUntil` → max stacks for atk+DR) + speed surge; `tickRat` restores speed; dawn-reset + SaveSystem strip
+- ✅ swarmBiteFx (scaled by pack count) on a packed hit + verminTideFx on the ult — `_drawRat` silhouette, lint-vfx clean, in gallery+lab; VERIFIED on-screen (legible brown rat silhouettes skitter in / pour outward, no rings)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `rat-swarm-check.mjs` 16/16 · soak 120/120 clean · verified in lab
+
+## Zombie — mechanic: RAISE THE DEAD ("the outbreak turns your kills into your army")  [LOCKED 2026-06-11]
+Chain `zombie1` → `zombie2` → `zombie3` (root 8g, day 2; slow relentless undead). ONE mechanic: zombies
+convert slain heroes into more zombies (a snowball). Strategy: kill the party and the dead JOIN your horde
+— counter is to kill fast / not let the horde build. Distinct from Skeleton (self-revive), Slime (self-copy),
+Rat (count-buff).
+- **T1 Shambler** (`zombie1`) — **Reanimate:** a hero this zombie lands the killing blow on rises as a weak
+  **Risen** zombie under your control (room-capped, sterile so no recursion). Slow but relentless.
+- **T2 Plague Walker** (`zombie2`) — **Contagion Bite:** its bites INFECT heroes with rot; an infected hero
+  that dies to ANYTHING (trap/boss/other minion) rises as a zombie — spreads the reanimate trigger to the
+  whole party.
+- **T3 Crypt Lord** (`zombie3`; final ULT) — **Mass Grave:** periodically claws the room's fallen back up at
+  once (raise a batch from the run graveyard) + a room-wide rot infection. The outbreak peaks.
+- Engine: subscribe `ADVENTURER_DIED` (`{adventurer,killerId,roomId}`) → `MinionAbilities.onAdventurerDied`:
+  raise if the killer is a non-raised `reanimate`-zombie (T1) OR the hero was `_rotInfected` (T2). `_raiseZombie`
+  reuses the slime-split runtime-spawn pattern (a weak zombie1-stat minion, `class:'garrison'`, `_raisedZombie`
+  → wiped each dawn via `isPermadeadAtDawn`, sterile = no reanimate/contagion, room-capped `ZOMBIE_ROOM_CAP`).
+  `rotBite` onHit sets `_rotInfectedUntil`. `_massGrave` onTick raises a batch from the graveyard + room-infects.
+- VFX (concept-first, no rings): `_drawClawHand` rotten grasping-hand silhouette → **reanimateFx** (clawing
+  hands burst from the ground + grave-dirt + sickly green-brown necrotic mist as the corpse jerks upright) +
+  **massGraveFx** (hand-bursts erupt across the room + a necrotic ground pall). Rot infect = a small rot wisp.
+
+### Zombie acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ in-lab visual pending preview reopen)
+- ✅ T1 Reanimate: a hero killed by a (non-raised) `reanimate`-zombie rises as a Risen zombie (room-capped, sterile)
+- ✅ T2 Contagion Bite (`rotBite` onHit): infected hero that dies to ANY source rises (`onAdventurerDied` checks `_rotInfectedUntil`)
+- ✅ Raised zombies are sterile (no recursion) + `class:'garrison'` + wiped each dawn (`isPermadeadAtDawn` `_raisedZombie`)
+- ✅ T3 Mass Grave onTick: raise a batch from the run graveyard (each corpse once) + room-wide rot infect
+- ✅ `ADVENTURER_DIED` subscribed in MinionAISystem (unsub in destroy — EventBus-leak gotcha); adv `_rotInfectedUntil` SaveSystem-stripped
+- ✅ reanimateFx — green necrotic upwelling (grave-crack + green energy wells up + mist; clawing-hands REMOVED per user, `_drawClawHand` deleted) + rot burst — lint-vfx clean, in gallery+lab
+- ✅ massGraveFx — final = TOMBSTONES IN A RING (v1 scattered hands + v2 fissure/climbing-corpses rejected as messy; v3 straight row → user wanted a circle): grey gravestones (`_drawTombstone`) thrust up in an evenly-spaced ELLIPSE ring around the crypt at a distance (squashed for floor perspective, front stones bigger + drawn over back ones), each with a green necrotic glow + rising soul-wisp + earth-kick, over a faint pall. Tuned (user): slower (durationMs 2600 + longer hold), BIGGER stones (sS base 7.4), ring a bit CLOSER (rx halfW×0.55). VERIFIED on-screen (clean ring encircling the sprite).
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `zombie-raise-check.mjs` 18/18 · soak 120/120 clean · VFX verified in lab
+
+## Demon — mechanic: HELLFIRE / IMMOLATION ("a walking bonfire")  [LOCKED 2026-06-11]
+Chain `demon1` → `demon2` → `demon_lord` (root 26g, day 13; premium hard-hitting fire elites). ONE mechanic:
+escalating HELLFIRE heat — the demon radiates a burn aura that stacks heat on nearby heroes (more heat =
+more burn); back off and it cools. Strategy: you can't fight it up close — burst from range or it cooks the
+party. Distinct from slime-acid (floor zones + armor-melt) — this is a damaging heat AURA + escalating burn.
+- **T1 Brimstone Fiend** (`demon1`) — **Burning Aura:** heroes within ~2.5 tiles take fire damage each second
+  that ESCALATES with a per-hero Hellfire stack (builds while close `_hellfireStacks`, cools via `tickDemon`).
+- **T2 Hellforged Reaper** (`demon2`) — bigger/hotter aura **+ Combustion:** a hero whose heat hits MAX
+  COMBUSTS — a fire blast damaging nearby heroes, then their heat resets (punishes clustering, chains a packed party).
+- **T3 Demon Lord** (`demon_lord`; final ULT) — **Inferno:** periodically erupts the whole room into hellfire —
+  max heat on everyone + a big fire AoE.
+- Engine: `_burningAura` onTick (damage + stack, `combust` flag detonates at maxStacks via `_combust`), `tickDemon`
+  decays stale `_hellfireStacks` (wired MinionAISystem), `_inferno` onTick ult. adv `_hellfireStacks/_hellfireAt`
+  SaveSystem-stripped. VFX (reuse `_drawFlameTongue`): `hellfireAuraFx` (roiling flame-tongues + embers around the
+  demon), small flame-lick per burning hero, `combustFx` (flame burst out), `infernoFx` (staggered fire bursts
+  across the room + ember rain + heat wash).
+
+### Demon acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ in-lab visual pending preview reopen)
+- ✅ T1 `burningAura` onTick: heroes in radius take fire dmg escalating with `_hellfireStacks` (build in aura), far heroes safe
+- ✅ `tickDemon` decays `_hellfireStacks` when a hero leaves the aura (cools, wired MinionAISystem); SaveSystem strips `_hellfire*`
+- ✅ T2 `combust:true`: a hero at maxStacks detonates (`_combust` AoE fire to nearby heroes, splash heat) + heat resets
+- ✅ T3 `inferno` onTick: room-wide fire AoE + maxes everyone's heat
+- ✅ hellfireAuraFx + combustFx + infernoFx — built from `flameLickFx` (animated flickering flame, `_drawFlame` teardrop; NOT static spikes/worms) + ORGANIC fields (irregular layered breathing heat-glow aura, soft lobed heat pall for inferno — NOT a flat oval / square). Burn DoT rides in front of heroes (depth fix). lint-vfx clean, in gallery+lab. VERIFIED + user-approved on-screen.
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `demon-hellfire-check.mjs` 15/15 · soak 120/120 clean · VFX verified + approved in lab
+
+## Golem — mechanic: FORTRESS / BULWARK ("an immovable protector wall")  [LOCKED 2026-06-11]
+Chain `golem1` → `golem2` → `golem_warden` (root 30g, day 14; huge-HP, crawling-slow constructs). ONE
+mechanic: DAMAGE MITIGATION, scope widening per tier (self → allies → room). Strategy: a literal wall —
+break the golem first or you make no progress on anything behind it. Distinct ROLE (no protector family).
+- **T1 Stone Sentinel** (`golem1`) — **Bulwark:** takes heavily reduced damage (`damageReduction` passive,
+  read in `damageTakenMul`). A slow immovable wall.
+- **T2 Iron Behemoth** (`golem2`) — bigger self-DR **+ Aegis aura:** allied minions within ~2.5 tiles take
+  reduced damage too (`aegis` passive; `aegisMul` folded into `damageTakenMul` — strongest nearby guardian wins).
+- **T3 Golem Warden** (`golem_warden`; final ULT) — **Bastion:** periodically raises a stone bastion — a big
+  DR spike on itself AND every allied minion in the room for a window (`_bastionUntil/_bastionMul`).
+- Engine: self-DR via the existing `damageReduction` ability; `aegisMul(target,scene,gs)` + the bastion-window
+  read added to `damageTakenMul`; `_bastion` onTick stamps `_bastionUntil/_bastionMul` on all room allies
+  (dawn-reset + SaveSystem strip). Per-hit `bulwarkFx` fired from CombatSystem when a `construct` soaks a DR'd hit.
+- VFX (organic, no hard shapes/rings — NEW `_drawRockShard` jagged stone helper): `bulwarkFx` (stone chips fly
+  off + dust when the golem soaks a hit), `bastionFx` (rough stone slabs HEAVE up from the ground in a ring
+  forming a jagged rampart + earthen ground-glow + dust — the earth rising into a fortress).
+
+### Golem acceptance checklist — ✅ BUILT + verified on-screen 2026-06-11
+- ✅ T1 `damageReduction` passive reduces the golem's damage taken (via `damageTakenMul`)
+- ✅ T2 `aegis`: `aegisMul` reduces damage for allied minions within radius of the guardian (strongest wins); not for far/enemy
+- ✅ T3 `bastion` onTick: DR spike (`_bastionUntil/_bastionMul`) on self + ALL room allies for the window; read in `damageTakenMul`; dawn-reset + SaveSystem strip
+- ✅ `bulwarkFx` fires from CombatSystem when a construct soaks a DR'd hit; `bastionFx` on the ult
+- ✅ VFX organic + INNOVATIVE — Bastion reworked from ring-of-slabs (user: "you keep doing a graphic in a circle around the sprite") into **Stone Carapace**: `_drawRockShard` plates fly INWARD and CLAMP onto anatomical body slots (helm/pauldrons/chest/vambraces/greaves) sheathing the golem in stone + a petrify pulse + per-ally `_hardenFlashFx`. Converge-and-lock ON the unit — opposite of the erupt-outward ult pattern. lint-vfx clean, in gallery+lab. **✅ VERIFIED ON-SCREEN** (zoom 4.2 on a spawned golem_warden — plates clamp onto the sprite body)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `golem-bulwark-check.mjs` 13/13 · soak 120/120 clean · ✅ on-sprite screenshot verified
+
+## Ghost — mechanic: FEAR ("win by breaking morale, not HP")  [LOCKED 2026-06-11]
+Chain `ghost1` → `ghost2` → `dark_wraith`. ONE mechanic: NERVE WARFARE — drain the adventurers' courage
+(`adv.nerve` 0–100 → bands → `_checkMoraleBreak`, which already routs any `breaking`-band adv under pressure;
+a nearby ghost IS that pressure). Scope/depth widens per tier: bite → sticky+spreading affliction → mass rout.
+Strategy: ghosts don't out-muscle — they erode resolve; stack them to push the party to Breaking, then let your
+traps/killzones punish the rout. The ONLY family that attacks the mind. ghost2 (Sorrow Wisp) becomes a buyable T2.
+- **T1 Restless Wraith** (`ghost1`) — **Dread:** psychic attacks frighten as they wound — every hit drains the
+  target's NERVE (`fear` onHit, on top of HP), and lingering near it bleeds nerve faster than an ordinary threat
+  (`dreadAura` onTick presence). Softens the party's resolve.
+- **T2 Sorrow Wisp** (`ghost2`) — **Haunt** (deepens fear into a sticky, spreading affliction): a hit HAUNTS the
+  target — for a window their nerve keeps bleeding and CANNOT recover; a haunted adv who is already Spooked/Breaking
+  FIGHTS WORSE (reduced attack via `_computeDamage`); and panic is CONTAGIOUS (a haunted adv leaks dread to nearby
+  party-mates each tick). Keeps the T1 fear-on-hit + dread presence.
+- **T3 Dark Wraith** (`dark_wraith`; final ULT) — **Pall of Dread:** the sovereign throws up a shroud and craters
+  the NERVE of every adventurer in the room (slams them toward Breaking, `nerveFloor`), forcing a MASS ROUT — the
+  advancing party turns and flees (via the existing morale-break path). Keeps fear + haunt + dread presence.
+- Engine: `_applyFear(adv, amount, scene)` clamps `adv.nerve` + updates `adv.mood` band + emits `NERVE_BAND_CHANGED`
+  (precedent: AISystem already writes nerve for beats). `case 'fear'`/`'haunt'` onHit; `case 'dreadAura'`/`'pallOfDread'`
+  onTick (interval-gated by `tickAbilities`); `tickGhost(scene,gs,delta)` drains haunted advs + contagion + expires
+  haunt (wired MinionAISystem); NerveSystem suppresses safe-recovery while `_hauntedUntil`; `fearAtkMul(attacker,now)`
+  read in `_computeDamage` for the haunted-fumble; SaveSystem strips `_haunted*`/`_hauntNervePerSec`/etc.
+- VFX (organic, NON-RING composition — varied per the gate): `fearStrikeFx` (a spectral wail-FACE lunges from the
+  ghost into the target + the TARGET blanches/desaturates with a fright-mark — on-the-unit); `dreadMistFx` (a low cold
+  mist that TENDRILS toward nearby advs — directional reach, not a ring); `hauntCloakFx` (a translucent ghost-face
+  CLINGS to / orbits the haunted adv — sticky, on-the-unit); `pallOfDreadFx` (a gloom shroud DESCENDS over the room
+  from above, desaturating, while wailing wisps STREAK through and each adv recoils with a terror-mark — descend +
+  streak + per-unit reaction, NOT a ring of objects).
+
+### Ghost acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ on-screen VFX capture pending live preview)
+- ✅ T1 `fear` onHit drains the struck adv's nerve + updates mood band; `dreadAura` onTick bleeds nerve off advs in radius (not far/non-adv)
+- ✅ T2 `haunt` onHit sets `_hauntedUntil` + params; `tickGhost` drains haunted nerve over the window, expires cleanly
+- ✅ T2 haunted adv can't safe-recover nerve (NerveSystem suppression while `_hauntedUntil`)
+- ✅ T2 haunted adv in Spooked/Breaking deals reduced damage (`fearAtkMul` in `_computeDamage`); normal adv unaffected
+- ✅ T2 contagion: a haunted adv bleeds a little nerve off nearby party-mates each tick
+- ✅ T3 `pallOfDread` onTick craters every room adv's nerve toward `nerveFloor` → they rout (existing morale-break)
+- ✅ ghost2 buyable (unlockLevel 14, goldCost 36); dark_wraith stays miniboss
+- ✅ VFX organic + NON-RING (wail-face/blanch · mist tendrils · clinging cloak · descending shroud), lint-vfx clean, in gallery+lab. ⚠ ON-SCREEN capture pending (preview loop throttled / boot-wedged during this build)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers (current + next-tier reads)
+- ✅ headless `ghost-fear-check.mjs` 24/24 · soak 120/120 clean · SaveSystem strips transient fields
+
+## Nerve → PLAYER-POSITIVE rework (Ghost follow-up)  [LOCKED 2026-06-11]
+**Problem (user):** "adventurers fleeing the dungeon due to nerve is bad for the player because they lose out
+on a kill, xp, gold, and the adventurer spreads knowledge. so we need to make high nerve benefit the player."
+**Principle:** the player IS the dungeon — every adventurer mind-state must cash out as a KILL for the player.
+Nerve currently has only a player-NEGATIVE tail (flee = the one outcome that denies kill+xp+gold+seals no knowledge
+leak). Rework so BOTH ends feed the player kills; only the calm middle is "safe" for the adventurer. User picked
+all 4 (verbatim selections):
+1. **"Fear = panic in place"** (RECOMMENDED core fix) — low nerve no longer routes heroes out. Terror makes them
+   freeze/cower, drop their guard (take MORE damage), and fumble attacks: a helpless easy kill pinned in your
+   killzone. The Ghost family delivers kills, not escapes.
+2. **"Bold = reckless (high-nerve payoff)"** — overconfident heroes overextend: rush deeper, split from the group,
+   ignore traps, fight on while wounded → they die more. Player can win by baiting heroes bold.
+3. **"Punish the rare true flee"** — keep a real break possible for drama but make it player-positive: a routed
+   hero drops gold in panic and runs exposed/unable to fight back through your dungeon (traps + minions cut most
+   down); any escapee spreads PANIC (weakens the next wave's starting nerve), not useful intel.
+4. **"also probably need a vfx animation to show the nerve levels of adventurers when they are panicking"** — a
+   readable panic-state visual on cowering heroes (tremble / sweat / terror emote) so the player can SEE the fear.
+
+### Implementation map (build in verifiable pieces)
+- **A · Panic-in-place** — new `_panickedUntil` status. `AISystem._checkMoraleBreak`: breaking-band + pressure now
+  SETS panic (refreshed while the condition holds) instead of `_setFleeGoal('morale_break')`. While panicked: hero
+  COWERS (no advance, no attack — gate movement + `tryAttack`), is VULNERABLE (CombatSystem: incoming dmg ×panicVuln
+  ~1.5), and fumbles. Snaps out when nerve recovers above Breaking. SaveSystem-strip `_panicked*`.
+- **B · Bold = reckless** — at the BOLD band (>80): suppress the low-HP retreat (fight to the death) + ignore
+  trap-caution routing (path through known-trapped rooms). Both = "they die more."
+- **C · Punish true flee** — on a genuine flee-start (low-HP retreat of a non-bold hero, scripted breaks): credit
+  the player a "panic-dropped gold" sum + VFX; fleeing hero is vulnerable (reuse panicVuln) + can't fight; on actual
+  ESCAPE, lower next wave's nerve baseline (panic-spread) and suppress that escapee's intel contribution.
+- **D · Panic VFX** — `panicStateFx` (tremble shudder + sweat-flick droplets + a terror emote / fright-mark), shown
+  on panicked heroes (driven from the panic tick or a StatusVfx-style tracker). Reuses `_drawFrightMark`.
+- **E · Ghost ult reframe** — "Pall of Dread" mass-rout → **mass PANIC** (craters nerve → the room panics in place =
+  mass slaughter, not mass flee). Update MINION_ABILITY_INFO/flavor; the `pallOfDreadFx` apparition still fits.
+
+### Nerve-rework acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ on-screen VFX pending live preview; intel-suppression deferred)
+- ✅ A: breaking+pressure sets `_panickedUntil` (NOT flee, in `_checkMoraleBreak`); panicked hero COWERS (early-return freeze gate in `_tickAdventurer`, watchdog-exempt) + can't attack (CombatSystem gate) + takes ×1.5 damage; lapses on recovery; SaveSystem strips `_panickedUntil/_panicVfxAt/_breakingMs`
+- ✅ B: BOLD hero skips low-HP retreat (`_checkFleeTrigger` early-out) + ignores trap/minion-room caution routing (`reckless` disables `useKnowledgeCost` in `_replan`)
+- ✅ C: genuine flee drops gold to the player (`_setFleeGoal`, once per hero) + fleeing hero is vulnerable (×1.5) + can't-fight (CombatSystem gates); an ESCAPEE raises `_guildPanic` → NerveSystem `_seed` lowers next-wave nerve, decays nightly. ⚠ **intel-suppression DEFERRED** — left the existing intel-leak intact (gutting it destabilises the knowledge-escalation + leaderboard leak stats); the panic-spread is the additive player-positive half. Ask user whether to also reduce/suppress escapee intel.
+- ✅ D: `panicStateFx` (sweat beads + head-tremble jitter + terror emote, organic non-ring), fired on a cadence from `_checkMoraleBreak`; in gallery+lab; lint-vfx clean. ⚠ ON-SCREEN capture pending (preview throttled/wedged during build)
+- ✅ E: Pall of Dread = mass PANIC-in-place (`_pallOfDread` seeds `_panickedUntil` on victims + craters nerve; text reframed to "freeze/panic", not "rout"); ghost kit still 24/24
+- ✅ headless `nerve-rework-check.mjs` 17/17 · ghost 24/24 · lint-vfx/lint-content/verify-docs clean · soak 120/120 clean
+
+## Beholder — mechanic: GAZE / DOMINATION ("the eye that seizes control")  [LOCKED 2026-06-11]
+Chain `beholder1` Watcher Eye → `beholder2` Tendril Seer (made buyable T2) → `beholder_tyrant` Beholder Tyrant
+(T3 miniboss ULT). ONE mechanic: the gaze SEIZES CONTROL of heroes, escalating one → several → total. Fully
+player-positive (charmed heroes kill each other; petrified heroes are sitting ducks — nothing escapes). The only
+ranged mind-control / hard-control family. User-locked: T1/T2 = DOMINATION (charm, "turn the party against itself");
+T3 = Tyrant's Glare (petrify + hex), kept from the first pitch. Reuses existing engine: `_possessedUntil` +
+`maybeRedirectPossessedAttack` (already wired in CombatSystem.tryAttack), `_petrifiedUntil` (hook + hard-stuck
+exemption already present), `_slowUntil/_slowMult`.
+- **T1 Watcher Eye** (`beholder1`) — **Mesmerize:** its gaze-ray CHARMS the struck hero (`mesmerize` onHit →
+  `_possessedUntil`) — for a few seconds they attack their OWN nearest ally. One eye, one traitor. (Gets a real
+  attackRange — a floating gaze sentry, not a melee.)
+- **T2 Tendril Seer** (`beholder2`) — **Mass Hypnosis:** keeps the on-hit charm + a periodic eyestalk VOLLEY
+  (`massHypnosis` onTick) that charms SEVERAL nearest room heroes at once → a chunk of the party turns on each other.
+- **T3 Beholder Tyrant** (`beholder_tyrant`; final ULT) — **Tyrant's Glare:** the great central eye sweeps the room —
+  every hero is PETRIFIED (`_petrifiedUntil` freeze: can't move or act) AND deep-HEXED (`_hexUntil/_hexVulnMul`,
+  heavy +damage-taken) for a window. A room frozen solid + softened = free massacre.
+- Engine: `case 'mesmerize'` onHit (set `_possessedUntil` + mesmerizeFx); `_massHypnosis` onTick (charm N nearest
+  room heroes); `_tyrantGlare` onTick (petrify + hex all room heroes); `gazeHexMul(target,now)` read in
+  `_computeDamage`; AISystem petrify freeze gate reading `_petrifiedUntil` (next to the panic gate, watchdog-exempt);
+  CombatSystem attack-gate extended so a petrified hero can't swing; SaveSystem strips `_possessedUntil/_petrifiedUntil/_hexUntil/_hexVulnMul`.
+- VFX (organic, non-ring; deliberately distinct from the ghost's PALE hollow eyes): NEW `_drawBeholderEye` (a FLESHY
+  bloodshot eye — sclera + coloured dilating iris/pupil + veins) and `_drawStoneCrust`. `mesmerizeFx` (the eye glares +
+  a wavering iris-textured GAZE-RAY lances to the hero + a hypnotic SWIRL spins over the charmed head), `manyEyesFx`
+  (a FAN of gaze-rays to several heroes), `tyrantGlareFx` (the giant central eye OPENS + per-hero STONE CRUST crackles
+  over them + grey-out — not a ring, not the ghost pall).
+
+### Beholder acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ on-screen VFX pending live preview)
+- ✅ T1 `mesmerize` onHit charms the struck hero (`_possessedUntil`) → swing redirects to a same-party ally (`maybeRedirectPossessedAttack`); beholder1 got attackRange 4
+- ✅ T2 `massHypnosis` onTick charms the N nearest room heroes at once (+ keeps the on-hit charm)
+- ✅ T3 `tyrantGlare` onTick PETRIFIES (`_petrifiedUntil` freeze: no move/attack) + HEXES (`_hexUntil/_hexVulnMul`) every room hero; `_canControl` immunities (barbarian/scripted/already-charmed)
+- ✅ AISystem petrify freeze gate (`_petrifiedUntil`, folded into the panic gate + watchdog-exempt); CombatSystem petrified-can't-attack; `gazeHexMul` in `_computeDamage`; SaveSystem strips `_possessedUntil/_hexUntil/_hexVulnMul` (`_petrifiedUntil` already stripped)
+- ✅ beholder2 buyable (unlock 16, goldCost 38); beholder_tyrant stays miniboss
+- ✅ VFX organic + NON-RING — NEW `_drawBeholderEye` (fleshy bloodshot, distinct from ghost's pale eye) + `_drawStoneCrust`; `mesmerizeFx` (eye + wavering gaze-ray + hypnotic swirl), `manyEyesFx` (fan of rays), `tyrantGlareFx` (giant eye opens + per-hero stone crust). lint-vfx clean, gallery+lab.
+- ✅ Polish pass (user, 2026-06-11): (1) mesmerize gaze-ray now lands on the CENTRE of the swirl (over the head, not the body); (2) T2 "HYPNOTISED" given a DISTINCT tell — `_hypnoDazeFx` = dazed stars ORBITING the head (vs mesmerize's single spinning spiral) so the player reads them apart; (3) **PETRIFY now greys the SPRITE** — AdventurerRenderer applies a true-grayscale ColorMatrix postFX (`pImg.postFX.addColorMatrix().grayscale(1).brightness(0.78,true)`) while `_petrifiedUntil`, removed when it ends (tracked via `s._petrifyFx`; WebGL renderer confirmed). ⚠ ON-SCREEN capture pending (preview throttled)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `beholder-gaze-check.mjs` 18/18 · nerve 17/17 + ghost 24/24 regressions clean · soak 120/120 clean · SaveSystem strips transient fields
+
+## Gnoll — mechanic: BLOOD HUNT ("bleed them, smell it, run them down")  [LOCKED 2026-06-11, replaces the scrapped HAMSTRING pitch]
+Chain `gnoll1` Hyena Whelp → `gnoll2` Pack Stalker (buyable T2) → `gnoll_alpha` Gnoll Alpha (T3 miniboss ULT).
+ONE mechanic: BLEED + the HUNT for the bleeding. Distinct from Rat's count-swarm (this is a DoT + cross-room
+pursuit). Player-positive: bleeds tick free damage + the pack abandons its post to chase wounded/fleeing prey down.
+- **T1 Hyena Whelp** (`gnoll1`) — **Bleed:** each attack applies a long-lasting BLEED that STACKS (capped). VFX:
+  a claw-slash on hit, a persistent bleeding tell on the hero, and a BLOOD TRAIL dripped behind them as they move.
+  (`bleed` onHit → `_bleedStacks`/`_bleedUntil`; damage ticked in `tickGnoll` = stacks × perStack each interval.)
+- **T2 Pack Stalker** (`gnoll2`) — **Bloodhound:** these gnolls SMELL bleeding prey anywhere in the dungeon and
+  ABANDON their room to SPRINT after them (boosted speed + the run animation + a faded after-image trail). Keeps Bleed.
+  (`bloodhound` passive → tickGnoll sets `_bloodScent`/sprint when a bleeding hero exists; `_pickTarget` early-return
+  in MinionAISystem makes a scenting gnoll target the nearest BLEEDING hero cross-room — no room gate, no behaviorType
+  swap; run anim is automatic via `aiState==='engaging'`; after-image ghost-trail in MinionRenderer while sprinting.)
+- **T3 Gnoll Alpha** (`gnoll_alpha`; final ULT) — **Blood Frenzy / Rupture:** the alpha HOWLS — every bleed stack on
+  every hero RUPTURES at once (a burst scaled by how deep you stacked it), bleeds deepen to max + CAN'T BE HEALED for
+  a window, and the WHOLE pack goes feral (sprint + after-images) to run down the bloodied. Pays off the bleed-stacking
+  AND the hunt. (`bloodFrenzy` onTick → `_bloodFrenzy`: rupture dmg = stacks × ruptureDmgPerStack; max bleeds; `_noHealUntil`
+  anti-heal gated at fountain/templar/cleric heal sites; force-scent all pack gnolls.)
+- Engine: `case 'bleed'` onHit (`_bleed` — stack + refresh); `tickGnoll(scene,gs)` (apply bleed dmg + drip the blood
+  trail + expire bleeds + manage bloodhound scent/sprint + restore speed); `_pickTarget` bloodhound early-return
+  (`_nearestBleedingAdv`); `_bloodFrenzy` onTick; `_noHealUntil` checks added at the heal sites. SaveSystem strips
+  `_bleedStacks/_bleedUntil/_bleedAt/_bleedSource/_noHealUntil/_bloodScent/_sprintBaseSpeed/_huntSprinting`.
+- VFX (organic, non-ring; reuse `_drawClawSlash`): `bleedSlashFx` (claw-slash + blood spray on the hit hero),
+  `bleedingAuraFx` (a small dripping/oozing tell while bleeding), `bloodTrailFx` (a dark splat dripped under a moving
+  bleeder), `ruptureFx` (a blood burst scaled by stacks), `bloodFrenzyFx` (the alpha's feral howl + per-victim ruptures).
+  After-image = `MinionRenderer` ghost-trail (fading sprite copies of the current frame) emitted while `_huntSprinting`.
+
+### Blood Hunt acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ on-screen VFX pending live preview)
+- ✅ T1 `bleed` onHit stacks (cap 6) a long (9s) bleed; `tickGnoll` ticks stacks×perStack dmg + drips `bloodTrailFx` on movement + `bleedingAuraFx` tell; bleed kills attributed to the gnoll source
+- ✅ T2 `bloodhound`: `_pickTarget` early-return → nearest BLEEDING hero cross-room (verified through the real MinionAISystem); tickGnoll sets `_bloodScent`+sprint (run anim auto via `aiState==='engaging'`) only while a bleeder exists, restores when none; MinionRenderer after-image ghost-trail while `_huntSprinting`
+- ✅ T3 `bloodFrenzy` onTick: every bleed RUPTURES (burst = stacks×ruptureDmgPerStack) + bleeds maxed + `_noHealUntil` anti-heal + whole pack `_forceScentUntil` (incl T1 gnolls)
+- ✅ anti-heal gates added (fountain heal + bless-regen [AISystem] / templar Lay on Hands / cleric `tryHeal` [CombatSystem]); gnoll2 buyable (unlock 12, gold 30); gnoll_alpha miniboss
+- ✅ VFX organic + non-ring; **detail pass (user, 2026-06-11: "you've fallen back to generic stuff again"):** NEW helpers `_drawClawGashes` (layered wound: dark torn interior + blood + bright torn edge), `_drawGoreGob` (shaded heavy droplet), `_drawBloodColumn` (geyser silhouette). `bleedSlashFx` CENTRED on the sprite (y−10) + directional gravity arterial spray + gore gobs + red flash; `bleedingAuraFx` scales HARD with stacks (pulsing wound-glow + welling beads + gushing rivulets at ≥3 stacks) at depth 43 (IN FRONT of the sprite); `bloodTrailFx` richer (layered pool + glossy spot + flecks by stacks); `ruptureFx` gory (core flash + radiating streaks + gravity spray + gore gobs, stack-scaled); `bloodFrenzyFx` REDESIGNED (was a generic surge) → feral HOWL core + radiating claw-streaks + red blood-moon camera flash + per-victim GORE GEYSERS (blood columns fountain up). after-image = red-tinted fading sprite copies. lint-vfx clean. ⚠ on-screen capture still blocked (preview render won't composite for automated screenshots; renders live for the user)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `gnoll-hunt-check.mjs` 23/23 (rewritten) · beholder 18/18 + nerve 17/17 + ghost 24/24 + vampire 15/15 regressions clean · soak 120/120 clean · SaveSystem strips `_bleed*`/`_noHealUntil`/`_bloodDrip*` + sprint state
+
+## Ent — mechanic: THORNS / OLD GROWTH ("an enduring tree that turns your assault against you")  [LOCKED 2026-06-11]
+Chain `ent1` Sapling Sentinel → `ent2` Mossback Treant → `ent3` Ancient Oakwarden (slow, high-def guardians).
+ONE mechanic: a LOSING TRADE — attacking it backfires (thorns reflect), and it REGROWS so you can't out-damage it.
+The only defensive-PUNISH family (Golem is the only other defensive one, and it just mitigates). Player-positive:
+the party's own swings rack up kills, and it stalls the assault as a near-unkillable wall. NOTE: T2/T3 are
+UPGRADE-only (unlock 99 / gold 0 — never touched); only ent1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Sapling Sentinel** (`ent1`) — **Thornskin:** a hero who hits it in MELEE takes THORN damage back (reflect a
+  fraction + a flat minimum). Ranged heroes don't trigger it (not touching the thorns).
+- **T2 Mossback Treant** (`ent2`) — **Old Growth:** thicker bark (reflects more) **+ REGROW** — slowly heals a % of
+  max HP each tick, so you can't out-trade it; the thorns keep coming.
+- **T3 Ancient Oakwarden** (`ent3`; final ULT) — **Thornburst:** erupts a thorn-thicket — a burst of thorns rakes
+  EVERY hero in the room, the oak SURGES with regrowth (big self-heal), and its thorns are amplified for a window.
+- Engine: `thorns` passive — `MinionAbilities.thornsReflect(target,attacker,dmg,scene)` called from CombatSystem
+  after a MELEE adventurer damages an ent → reflect `max(flat, dmg×reflectFrac)` to the attacker (×amp during
+  Thornburst). `regrow` onTick (`_regrow` self-heal % maxHp). `thornburst` onTick ULT (`_thornburst`: room AoE thorn
+  dmg + self-heal surge + sets `_thornsAmpUntil/_thornsAmpMul`). SaveSystem strips the amp window.
+- VFX (organic, detailed; thorns are the FICTION here, drawn as curved wooden barbs not generic spikes): NEW
+  `_drawThorn` (a shaded curved wood barb) + a leaf helper. `thornLashFx` (barbs jab out toward the attacker + a
+  wood-chip puff), `regrowFx` (green-gold leaves + new shoots spiral up the trunk + a healing glow), `thornburstFx`
+  (an irregular thorn-thicket erupts around the oak + a big regrowth bloom).
+
+### Ent acceptance checklist — ✅ BUILT + verified 2026-06-11 (⚠ on-screen VFX pending live preview)
+- ✅ T1 `thorns`: a MELEE hero that damages the ent takes reflect dmg (max of flat + frac via `thornsReflect` in CombatSystem); a RANGED hero (attackRange>1.5) does NOT
+- ✅ T2 `regrow` onTick self-heals a % of maxHp (capped); thorns reflect more
+- ✅ T3 `thornburst` onTick: room AoE thorn dmg + a big self-heal surge + thorns amplified (`_thornsAmpUntil`) for a window
+- ✅ reflect amplified during the Thornburst window; SaveSystem strips `_thornsAmp*`; T2/T3 stay upgrade-only (99/0)
+- ✅ VFX organic + detailed — NEW `_drawThorn` (curved wood barb) + `_drawLeaf`; `thornLashFx` (barbs jab into the attacker + wood-chip/blood puff), `regrowFx` (leaves drift up + heal glow), `thornburstFx` (regrowth bloom + an irregular thorn-thicket erupts from the ground + per-victim rakes). lint-vfx clean, gallery+lab. ⚠ on-screen capture pending (preview throttled)
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `ent-thorns-check.mjs` 16/16 · ghost 24 + beholder 18 + gnoll 23 + nerve 17 regressions clean (after fixing stale "buyable" assertions) · soak 120/120 clean (0 issues)
+
+## Lich — mechanic: SOUL HARVEST ("death feeds the necromancer")  [LOCKED 2026-06-11]
+Chain `lich1` Bone Cleric → `lich2` Death Acolyte → `elder_lich` Elder Lich (slow ranged necrotic caster).
+ONE mechanic: the Lich EATS the souls of the dead. Every death near it (either faction) banks a SOUL → escalating
+necrotic power. A death-fuelled scaling-artillery identity. **Deliberately distinct from the families that already
+own bodies:** Zombie converts dead HEROES into a horde (Reanimate/Mass Grave); Skeleton self-reassembles + raises
+fallen undead — so the Lich makes NO bodies. It's the only "deaths → escalating caster power" family (Orc Bloodlust
+escalates from the orc's OWN melee hits; the Lich escalates from DEATHS anywhere in its room, ranged, and shares the
+power to the crypt). Fully player-positive: your dungeon is a kill-factory, so the Lich is always fed — pile bodies
+near it and it becomes a room-nuke. (User picked "Soul Harvest" over Curse-of-Wither / narrowed-Reanimation after I
+flagged that Reanimation overlapped the Zombie family, 2026-06-11.) NOTE: T2/T3 are UPGRADE-only (unlock 99 / gold 0
+— never touched); only lich1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Bone Cleric** (`lich1`) — **Soul Siphon:** whenever any unit dies in the Lich's room (hero OR minion), the
+  Lich harvests a soul (`_souls` +1, capped). Each banked soul boosts the Lich's own attack — its necrotic blasts hit
+  harder the more bodies have fallen. Weak early, terrifying after the room fills with corpses.
+- **T2 Death Acolyte** (`lich2`) — **Soul Conduit:** the harvested power overflows — nearby UNDEAD allies also gain an
+  attack share scaled by the Lich's soul count (self → crypt). Higher soul cap. The whole garrison sharpens as bodies
+  pile up.
+- **T3 Elder Lich** (`elder_lich`; final ULT) — **Soul Storm + Phylactery:** periodically SPENDS the entire soul bank
+  in a room-wide necrotic detonation (damage scales with souls banked, then souls reset to 0) — the payoff for the
+  harvest. **PLUS the phylactery — the Elder Lich cannot stay dead: the first time it's killed it self-resurrects once**
+  (after a short delay, at a fraction of HP, wreathed in green soul-flame; keeps its souls). Put it down twice.
+- Engine: `soulHarvest` onTick (`_soulHarvest`) — scans the room for NEW corpses (fresh same-day hero graveyard
+  entries + dead dungeon minions, each flagged `_soulHarvested` so counted once) and increments `lich._souls` (cap
+  `soulCap`); if `shareUndead`, stamps a soul-share atk window on nearby undead allies. `MinionAbilities.soulAtkMul
+  (attacker, scene)` (read in CombatSystem `_computeDamage`, attacker-side >1, alongside bloodlust/swarm) returns
+  `1 + min(souls,cap)·perSoulAtk` for the Lich itself and the share window for buffed allies. `soulStorm` onTick ULT
+  (`_soulStorm`: room AoE = `baseDmg + souls·dmgPerSoul`, then spends souls). `phylactery` onDying — intercepted in
+  `onMinionDying` (first death → schedule a timed revive, `keepSouls`) + `tickLich` performs the soul-flame
+  resurrection. SaveSystem strips the scene-time soul-share/phylactery-timer flags; `_souls` persists (wave progress).
+- VFX (organic, non-ring; sickly-green SOUL fiction — clearly distinct from the Ghost's pale wail-faces and the
+  Skeleton's bone-shatter): NEW `_drawSoulWisp` (a green necrotic will-o-wisp with a wispy tail), `_drawPhylactery`
+  (a cracked soul-gem). `soulHarvestFx` (a soul-wisp tears free of the corpse and STREAMS into the Lich, which pulses
+  brighter), `soulConduitFx` (green soul-threads tether the Lich to nearby undead, who flash with necrotic empower —
+  directional tethers, NOT a ring), `soulStormFx` (the banked souls erupt into a swirling vortex of wisps that
+  detonates across the room + per-victim necrotic bursts + screen flash), `phylacteryReviveFx` (the phylactery gem
+  shatters then reknits as the Lich reforms in a green-flame column). MinionRenderer adds a soft green soul-glow on
+  the Lich that scales with `_souls` (a readable power tell; mirrors the `_shadowExtracted` glow precedent).
+
+### Lich acceptance checklist — ✅ BUILT + verified 2026-06-11 (on-screen VFX fire confirmed; fine detail best eyeballed live)
+- ✅ T1 `soulHarvest` onTick: any unit dying in the Lich's room (hero via fresh same-day graveyard entry + dead dungeon minion) banks one soul (counted once via `_soulHarvested`), capped at `soulCap`; the Lich's attack scales with souls (`soulAtkMul` in CombatSystem `_computeDamage`, attacker-side)
+- ✅ T2 `soulHarvest` deepened: higher cap + `shareUndead` stamps a soul-scaled atk share (`_soulShareUntil/_soulShareMul`) on nearby undead allies (read by the same `soulAtkMul`); a non-undead ally is NOT buffed
+- ✅ T3 `soulStorm` onTick: room AoE = baseDmg + souls·dmgPerSoul to every room hero, then spends the souls (reset to 0)
+- ✅ T3 `phylactery` onDying: the elder lich's FIRST death is intercepted (`onMinionDying` → collapse + `_phylacteryReviveAt`) → revives once after a delay (`tickLich`) at a fraction of HP, keeping its souls; the SECOND death is permanent
+- ✅ souls are wave-scoped: reset each dawn (`resetOneShotsForNight`); SaveSystem drops the scene-time soul-share window + finishes any mid-save phylactery revive (`_souls` persists as wave progress)
+- ✅ T2/T3 stay UPGRADE-only (unlock 99 / gold 0); only lich1 shop-placeable
+- ✅ VFX organic + non-ring — NEW `_drawSoulWisp` (green teardrop flame + tail) + `_drawPhylactery` (cracked soul-gem); `soulHarvestFx`, `soulConduitFx`, `soulStormFx`, `phylacteryShatterFx`/`phylacteryReviveFx`. lint-vfx clean, gallery+lab registered. **VFX upgrade pass (user, 2026-06-11 — "make some better"):** (A) the Lich now WEARS its souls — soul-wisp Images (cached `AbilityVfx.soulWispTexture`) ORBIT the caster, one per `_souls` (capped), + a scaling green glow (MinionRenderer); you watch souls accumulate and Soul Storm visibly spends them. (B) Soul Storm REDESIGNED off the flat green-wash → souls rush in → compress to a blinding core → ERUPT as streaking soul-bolts that slam each hero (per-victim burst) over green flame-tongues raking the floor; short punchy flash (no room fill). (C) harvest is a real transfer — corpse spirit-exhale gasp + a mote trail following the wisp + an intake flare on the Lich on arrival. (D) Soul Conduit beads FLOW Lich→ally along the thread + a green flame-lick (not a circle) on the ally; the phylactery loop closes — the soul that escapes on shatter plunges back down on revive. On-screen: confirmed via dev sandbox — orbiting wisps + green glow read clearly on the Lich sprite; Soul Storm fires with NO green wash; zero console errors across all five effects
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `lich-soul-check.mjs` 28/28 · ghost 24 + beholder 18 + gnoll 23 + ent 16 + nerve 17 regressions clean · soak 120/120 clean (0 issues) · lint-vfx/lint-content/verify-docs clean
+
+## Lizardman — mechanic: CAMOUFLAGE ("the hunter you can't hit")  [LOCKED 2026-06-11]
+Chain `lizardman1` Marsh Stalker → `lizardman2` Scaled Hunter → `serpent_captain` Serpent Captain (cold-blooded
+reptile ambushers). ONE mechanic: ACTIVE CAMOUFLAGE — a lizardman blends into the dungeon and is UNTARGETABLE while
+hidden (heroes literally can't see/hit it), strikes from concealment for a devastating ambush bonus, then can melt
+back into hiding to do it again. **Deliberately deeper/distinct from the generic ambush** (`behaviorType:'ambush'` →
+`_hidden`+`_ambushBuffActive` 1.5× one-shot, used by plant2/imp2): that's a passive lurk-in-an-empty-room pop on entry;
+the Lizardman's is the only "untargetable + renewable MID-COMBAT re-cloak + mass vanish" family. **Reuses the existing
+`_camouflaged` plumbing** (Phase 1b.6: `AISystem._findEngageableMinion` skips camo minions = untargetable;
+`MinionRenderer` 0.5 alpha so the PLAYER still sees them; `KnowledgeSystem` skips camo minions for intel) but that
+system was boss-archetype-gated (`_archId()==='lizardman'`) with its reveal/ambush bonus WIPED in the redesign — so the
+family kit makes camouflage intrinsic via the ability engine and rebuilds reveal/ambush/re-camo/ult on top.
+Player-positive: your lizardmen are persistent damage the party can't remove; pairs perfectly with chip families (a
+camo stalker safely finishing bleeding/poisoned heroes). Counterplay/balance lever: STRIKING BREAKS CAMO, exposing it
+for a window. (User picked camouflage/sneaky + "untargetable while hidden", 2026-06-11.) NOTE: T2/T3 are UPGRADE-only
+(unlock 99 / gold 0 — never touched); only lizardman1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Marsh Stalker** (`lizardman1`) — **Camouflage:** starts the wave hidden (untargetable); its strike from
+  camouflage lands a big ambush bonus (`ambushMul`). Striking REVEALS it (clears `_camouflaged`) — one free ambush per
+  wave, then it's a normal fragile melee until next dawn.
+- **T2 Scaled Hunter** (`lizardman2`) — **Stalk:** deepened — after striking it RE-CAMOUFLAGES mid-combat once it's
+  been out of attacking for `recamoMs` (slinks back into stealth), moves FASTER while hidden to reposition
+  (`hiddenSpeedMul`), and landing a KILL instantly re-cloaks it (`killRecamo` — a clean getaway). Vanishes and
+  re-strikes over and over.
+- **T3 Serpent Captain** (`serpent_captain`; final ULT) — **Vanishing Warband:** periodically the captain hisses and
+  the WHOLE reptile warband in the room re-camouflages at once (every target the party was fighting vanishes), priming
+  a synchronized ambush volley as they each strike from the renewed concealment.
+- Engine: `camouflage` passive (read by combat hooks + `tickLizard`, NOT a tick/hit dispatch). `tickLizard(scene,gs)`
+  = lifecycle: initial cloak, mid-combat re-camo timer (T2+ `recamoMs` since `_revealedAt`), faster-while-hidden speed
+  swap (`_camoBaseSpeed`). CombatSystem: (1) untargetable hard-guard in `tryAttack` (`target._camouflaged` + non-dungeon
+  attacker → null); (2) ambush bonus + REVEAL after `finalDmg` (`MinionAbilities.ambushStrikeMul` ×, then
+  `revealCamouflage`); (3) kill-recamo after the hit applies (`maybeKillRecamo` if `killRecamo` + target died).
+  `vanishingWarband` onTick ULT (`_vanishingWarband`: re-cloak every reptile in the captain's room). `resetOneShots
+  ForNight` re-arms the cloak each dawn. SaveSystem strips scene-time `_revealedAt` + restores `_camoBaseSpeed`.
+- VFX (organic, non-ring; reptile-scales/heat-shimmer fiction): NEW `_drawScaleFleck` (a small shaded reptile scale);
+  `camouflageFx` (the lizardman dissolves into a heat-shimmer + a scatter of green scale-flecks settling — a VANISH),
+  `ambushStrikeFx` (it materializes in a snap with a fang/claw lunge as it strikes from hiding), `vanishingWarbandFx`
+  (a wave of camo-shimmer washes across the room + a vanish puff at each reptile). MinionRenderer keeps the 0.5-alpha
+  hidden read; add a faint scales-shimmer while camouflaged.
+
+### Lizardman acceptance checklist — ✅ BUILT + verified 2026-06-11 (on-screen VFX confirmed via dev sandbox)
+- ✅ T1 `camouflage`: a lizardman starts the wave `_camouflaged` (untargetable via the existing `_findEngageableMinion` skip + a NEW CombatSystem `tryAttack` hard-guard); its strike from camo gets `ambushMul` (`ambushStrikeMul` in `_computeDamage`) then REVEALS it (`revealCamouflage` clears `_camouflaged`, stamps `_revealedAt`)
+- ✅ T2 deepened: `recamoMs` mid-combat re-cloak (`tickLizard`, since `_revealedAt`) + `hiddenSpeedMul` faster while hidden (`_camoBaseSpeed` swap) + `killRecamo` instant re-cloak on a kill (CombatSystem `maybeKillRecamo` when the hit drops the hero)
+- ✅ T3 `vanishingWarband` onTick: re-camouflages every camo-kit reptile in the captain's room at once (room-scoped)
+- ✅ camouflage is intrinsic to the FAMILY (driven by the ability, works under ANY boss — not just the lizardman archetype); reuses the existing `_camouflaged` flag so renderer (0.5 alpha) / knowledge-skip / targeting-skip all already honor it
+- ✅ camo re-arms each dawn (`resetOneShotsForNight`); SaveSystem strips `_revealedAt` + restores `_camoBaseSpeed`
+- ✅ T2/T3 stay UPGRADE-only (unlock 99 / gold 0); only lizardman1 shop-placeable; `lizardman1` behaviorType moved `ambush`→`roam` so it doesn't double up with the generic `_ambushBehavior`
+- ✅ VFX organic + non-ring — NEW `_drawScaleFleck` (shaded reptile scale); `camouflageFx` (heat-shimmer veil + scale-flecks scatter = VANISH), `ambushStrikeFx` (reveal pop + claw-rake lunge + scale-flecks reassemble), `vanishingWarbandFx` (brief faint room shimmer-sweep + per-reptile vanish puffs). lint-vfx clean, gallery+lab registered. On-screen capture pending final eyeball
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `lizardman-camo-check.mjs` 25/25 · ghost 24 + beholder 18 + gnoll 23 + ent 16 + nerve 17 + lich 28 regressions clean · soak 120/120 clean (0 issues) · lint-vfx/lint-content/verify-docs clean
+
+## Imp — mechanic: BLINK ("the uncatchable harasser")  [LOCKED 2026-06-11]
+Chain `imp1` Ember Imp → `imp2` Shadow Imp → `imp3` Plague Imp (fast, fragile, ranged pint-sized devils). ONE
+mechanic: BLINK — the imp TELEPORTS, so the party can never corner it and never shield their backline from it.
+The only mobility/teleport family. Distinct from Demon (which owns the escalating hellfire AURA — the imp just
+plinks ranged attacks while teleporting) and from the generic ambush. (The teleport base-behavior quirk was WIPED
+in the redesign, so this is a clean build via the ability engine.) Player-positive: a durable chip-damage harasser
+that always reaches the enemy's squishies, wastes the party's time (uncorner-able), and ends in a room-wide fire
+storm. Unifies the through-line of the three previously-incoherent tiers (damage-type flavor stays per-sprite-art —
+the MECHANIC is what's unified). (User picked Blink over Sabotage-silence / Wildfire, 2026-06-11.) NOTE: T2/T3 are
+UPGRADE-only (unlock 99 / gold 0 — never touched); only imp1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Ember Imp** (`imp1`) — **Blink:** a fast ranged attacker that BLINKS to a new spot the instant a hero closes
+  to melee (`escapeRangeTiles`), teleporting to kite range (`kiteRangeTiles`) from the heroes. Uncorner-able — it's
+  never where you swing, plinking from safety all fight. (On a `cooldownMs`.)
+- **T2 Shadow Imp** (`imp2`) — **Flicker Strike:** + blinks OFFENSIVELY (`flicker`) — when not threatened it flickers
+  to within attack range of the MOST-WOUNDED hero in the room and strikes, then escape-blinks back out. Your tank
+  can't body-block it; the backline is never safe.
+- **T3 Plague Imp** (`imp3`; final ULT) — **Hellrift Frenzy:** periodically tears a rift (`hellrift` onTick) — a
+  room-wide fire pulse + a dramatic self-teleport + it whips the whole imp pack in the room into a blink FRENZY
+  (`_blinkFrenzyUntil`, slashed blink cooldown) for a window, so the room fills with teleporting, fire-flinging devils.
+- Engine: `blink` passive (read by `tickImp(scene,gs,dungeonGrid)`, wired in MinionAISystem next to tickLizard) —
+  cooldown-gated (`_blinkAt`): ESCAPE blink (hero within `escapeRangeTiles` → `_teleportMinion` to a sampled floor
+  tile ≥ `kiteRangeTiles` from the nearest hero) takes priority; else (T2+ `flicker`) a FLICKER blink to within
+  `flickerRangeTiles` of the lowest-HP room hero. `_pickBlinkTile` samples room floor tiles (`_isFloorTile` accepts
+  the grid's numeric 1/5 AND the headless 'floor'/'boss_floor'). `hellrift` onTick ULT (`_hellrift`: room AoE fire +
+  self-teleport + stamp `_blinkFrenzyUntil` on room imps → tickImp uses `frenzyCdMs`). `resetOneShotsForNight` clears
+  the blink timers; SaveSystem strips `_blinkAt`/`_flickerAt`/`_blinkFrenzyUntil`.
+- VFX (organic, non-ring; fire-tinged teleport): NEW `_drawEmber` (a shaded flame-mote); `blinkFx(scene,fromX,fromY,
+  toX,toY)` (the imp IMPLODES to a point + an ember puff at the OUT end, a quick arc streak, then a fire burst-in
+  flash at the IN end), `hellriftFx` (a vertical hellfire rift tears open + a fire AoE pulse + scattered blink-sparks
+  around the room). MinionRenderer: a brief stretch/pop on the teleported sprite (optional).
+
+### Imp acceptance checklist — ✅ BUILT + verified 2026-06-11 (hellrift confirmed on-screen; blinkFx verified by construction)
+- ✅ T1 `blink`: when a hero is within `escapeRangeTiles`, the imp teleports (`tickImp`, cooldown `_blinkAt`) to a sampled room floor tile ≥ `kiteRangeTiles` from EVERY room hero (kiting); never corner-able
+- ✅ T2 `flicker`: when not threatened, blinks to within `flickerRangeTiles` of the LOWEST-HP room hero (center-biased tile sampling so it reliably reaches the backline), targets it; the escape-blink takes it back out when a hero closes
+- ✅ T3 `hellrift` onTick: room AoE fire pulse + `_blinkFrenzyUntil` frenzy (blink cooldown → `frenzyCdMs`) on every blink-kit imp in the room (non-imps unaffected)
+- ✅ teleport lands on a real floor tile (`_pickBlinkTile` + `_isFloorTile` accepts numeric 1/5 AND string 'floor'); `_teleportMinion` clears path/pathIndex/_patrolTarget; cooldown-gated
+- ✅ blink timers reset each dawn (`resetOneShotsForNight`); SaveSystem strips `_blinkAt`/`_flickerAt`/`_blinkFrenzyUntil`
+- ✅ T2/T3 stay UPGRADE-only (unlock 99 / gold 0); only imp1 shop-placeable; imp2 behaviorType moved `ambush`→`roam`; all three imps made ranged (attackRange 3) for the kiter identity
+- ✅ VFX organic + non-ring — NEW `_drawEmber`; `blinkFx(from,to)` (implode + ember-puff-out + arc streak + fire burst-in scatter), `hellriftFx` (vertical hellfire rift + FAINT room fire-pulse + scattered blink-sparks + per-victim bursts). lint-vfx clean, gallery+lab registered. On-screen pending final eyeball
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `imp-blink-check.mjs` 21/21 · ghost 24 + beholder 18 + gnoll 23 + ent 16 + nerve 17 + lich 28 + lizardman 25 regressions clean · soak 120/120 clean (0 issues) · lint-vfx/lint-content/verify-docs clean
+
+## Plant — mechanic: ENTANGLE ("root them in the kill zone")  [LOCKED 2026-06-11]
+Chain `plant1` Vinekin → `plant2` Carnivore Bloom → `plant3` Blood Briar (slow, rooted-in-place carnivorous flora).
+ONE mechanic: ENTANGLE — the plant GRABS heroes with vines and ROOTS them in place: they can still swing, but they
+CAN'T move (can't advance to the boss, can't flee, can't reposition). The dungeon's living flypaper — a control/zoning
+family. **Deliberately distinct from its two flora neighbours:** Ent owns reflect+regrow (thorns), and the upcoming
+Mushroom will own spores — so Plant touches NONE of reflect/regen/spores. Also distinct from Beholder (petrify = can't
+ACT) and Ghost (panic = cower/morale): a plant root = can't MOVE but fights on. Deepens the Vinekin's existing "slows
+whatever brushes it". **Reuses the existing, working root status** (`MinionAbilities._applyRoot`/`isRooted`/`_rootedUntil`,
+already honored by `AISystem` line ~1550 — "a rooted adv stands still; minions in range get free swings"). Player-positive:
+pin the party in your traps and gauntlets, deny escape AND advance, and bonus-damage the trapped. (User picked Entangle
+over Devour-swallow / Sap-drain, 2026-06-11.) NOTE: T2/T3 are UPGRADE-only (unlock 99 / gold 0 — never touched); only
+plant1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Vinekin** (`plant1`) — **Entangle:** its hit ROOTS the struck hero (`_applyRoot`, `durationMs`) — vines snare the
+  legs; they're locked in the kill zone for the rest of the dungeon to butcher.
+- **T2 Carnivore Bloom** (`plant2`) — **Devour:** longer/stronger root, AND it CHOMPS a rooted hero for bonus damage
+  (`devourMul`, read in CombatSystem) — the man-eater feeds harder on prey it's already holding down.
+- **T3 Blood Briar** (`plant3`; final ULT) — **Stranglethorn:** periodically erupts a thicket (`stranglethorn` onTick)
+  that ROOTS every hero in the room at once + DRAINS HP from each rooted hero (blood-fed, healing the briar) — the whole
+  party pinned in the briar patch while it feeds.
+- Engine: `entangle` onHit (`_entangle` → `_applyRoot` on an adventurer target only + VFX). `devourMul(attacker,target,
+  scene)` read in CombatSystem `_computeDamage` (attacker-side, alongside bloodlust/swarm/soul): if the attacker's
+  entangle ability has `devourMul` AND the target is currently rooted → ×devourMul. `stranglethorn` onTick ULT
+  (`_stranglethorn`: room-root every hero + per-hero drain + self-heal). Root lives on the ADVENTURER (`_rootedUntil`)
+  so there's no minion state to reset; SaveSystem already clears adv `_rootedUntil` (verify; add if missing).
+- VFX (organic, non-ring; vines/thorns fiction — reuse `_drawThorn` + NEW `_drawVine`): `entangleFx` (vines whip up out
+  of the ground and CINCH around the hero's legs — a snare, with a few leaves), `stranglethornFx` (a briar thicket
+  erupts across the room + grasping vines cinch every hero + a blood-drain mote stream back to the briar). MinionRenderer
+  / a status tell: a small vine-cuff at the rooted hero's feet while `_rootedUntil` (optional, via the renderer).
+
+### Plant acceptance checklist — ✅ BUILT + verified 2026-06-11 (on-screen VFX confirmed via dev sandbox)
+- ✅ T1 `entangle` onHit: a struck ADVENTURER is rooted (`_applyRoot`, `_rootedUntil`), honored by AISystem (stands still, minions get free swings); a dungeon-faction target is NOT rooted
+- ✅ T2 `devourMul`: the plant deals bonus damage to a target that is currently rooted (`MinionAbilities.devourMul` in CombatSystem `_computeDamage`, attacker-side); no bonus vs an un-rooted target, and plant1 (no devourMul) gets none even vs rooted
+- ✅ T3 `stranglethorn` onTick: roots EVERY room hero + drains HP from each + heals the briar per hero drained (capped at maxHp)
+- ✅ reuses the existing root system (no new movement code); SaveSystem now strips adv `_rootedUntil`/`_staggeredUntil`/`_slowUntil`/`_slowMult`
+- ✅ T2/T3 stay UPGRADE-only (unlock 99 / gold 0); only plant1 shop-placeable; plant2 behaviorType moved `ambush`→`guard`
+- ✅ VFX organic + non-ring — NEW `_drawVine` (curling tendril) + reuse `_drawLeaf`; `entangleFx` (vines whip up from the ground + cinch the legs + a tightening flutter of leaves), `stranglethornFx` (briar thicket erupts room-wide + per-hero vine-cinch + a blood-drain mote stream siphoned back to the briar + a dark-red feed glow). lint-vfx clean, gallery+lab registered. On-screen pending final eyeball
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `plant-entangle-check.mjs` 17/17 · ghost 24 + beholder 18 + gnoll 23 + ent 16 + nerve 17 + lich 28 + lizardman 25 + imp 21 regressions clean · soak 120/120 clean (0 issues) · lint-vfx/lint-content/verify-docs clean
+
+## Mushroom — mechanic: HALLUCINATION ("daze them blind")  [LOCKED 2026-06-11 — the FINAL family]
+Chain `mushroom1` Spore Sprite → `mushroom2` Toxic Cap → `myconid_stalker` Myconid Stalker (sentient fungal casters).
+ONE mechanic: HALLUCINOGENIC SPORES that DAZE — a dazed hero can't fight straight, swinging at phantoms and WHIFFING
+their attacks (an accuracy/DPS-denial family). **The only family that attacks ACCURACY** (Ghost reduces hero damage
+via fear-fumble, but nobody makes heroes outright MISS). Matches the T1 sprite's literal "confusing spores", and
+deliberately dodges every overlap: NOT poison-DoT/contagion (Slime PLAGUE), NOT acid floor-denial (Slime CORROSIVE),
+and NOT the Myconid BOSS-ARCHETYPE's Spore Network (spore-cloud DoT) / Corpse Bloom (dead → fungal sprouts). Reuses
+the existing CombatSystem WHIFF path (`{hit:false, whiffed:true}`, already used by the Gambler dice). Player-positive:
+a dazed party can't kill your minions, so your bruisers survive and the dungeon holds; pairs with everything (whiffing
+heroes can't break your tanks). (User picked Hallucination over Spore-Cloud / Corpse-Bloom — both flagged as
+overlapping existing systems, 2026-06-11.) NOTE: T2/T3 are UPGRADE-only (unlock 99 / gold 0 — never touched); only
+mushroom1 is shop-placeable. (See [[minion tier gating]].)
+- **T1 Spore Sprite** (`mushroom1`) — **Hallucinogenic Spores:** its hit DAZES the hero (`_applyDaze`, `durationMs` +
+  `missChance`) — for a few seconds they have a chance to WHIFF each attack (swinging at phantoms). A fragile
+  spore-puffer that craters the party's damage.
+- **T2 Toxic Cap** (`mushroom2`) — **Disorienting Cloud:** a stronger/longer daze on hit, AND it periodically puffs a
+  spore cloud (`sporePuff` onTick, `radiusTiles`) that dazes every hero near it — the front line starts missing en masse.
+- **T3 Myconid Stalker** (`myconid_stalker`; final ULT) — **Spore Storm:** a room-wide hallucinogenic bloom
+  (`sporeStorm` onTick) — every hero in the room is HEAVILY dazed (high `missChance`), whiffing most of their attacks
+  and flailing at phantoms while your real minions cut them down.
+- Engine: `daze` onHit (`_applyDaze` on an ADVENTURER target only → `_dazedUntil` + `_dazeMissChance`, keep-strongest).
+  `MinionAbilities.dazeMissChance(attacker, now)` read in CombatSystem.tryAttack (right after the Gambler whiff): if a
+  dazed adventurer rolls under the chance → return the existing WHIFF result (the swing does nothing). `sporePuff` onTick
+  (`_sporePuff`: daze heroes within `radiusTiles` of the mushroom) + `sporeStorm` onTick ULT (`_sporeStorm`: daze every
+  room hero, heavy). Daze lives on the ADVENTURER so there's no minion state to reset; SaveSystem strips adv
+  `_dazedUntil`/`_dazeMissChance`.
+- VFX (organic, non-ring; spore-mote/cap fiction — NEW `_drawSporeCap` (a small toadstool) + spore motes): `dazeFx`
+  (a puff of drifting spore motes around the hero's head + wobbling phantom "?"/swirl over them — the disorientation
+  tell), `sporePuffFx` (the cap belches a spreading spore cloud — drifting motes, low + textured, not a wash),
+  `sporeStormFx` (a room-wide haze of rising spore motes + per-hero daze puffs). MinionRenderer / a status tell on the
+  dazed hero (optional spore-mote loop while `_dazedUntil`).
+
+### Mushroom acceptance checklist — ✅ BUILT + verified 2026-06-11 (on-screen VFX confirmed via dev sandbox) — **FINAL FAMILY · REDESIGN COMPLETE**
+- ✅ T1 `daze` onHit: a struck ADVENTURER gets `_dazedUntil`+`_dazeMissChance` (`_applyDaze`); a dungeon-faction target is NOT dazed
+- ✅ a dazed hero WHIFFS attacks at `missChance` (`MinionAbilities.dazeMissChance` rolled in CombatSystem.tryAttack → the existing `{hit:false,whiffed:true}` result); an un-dazed hero never whiffs from this (verified statistically: 0% vs ~50%)
+- ✅ T2 `sporePuff` onTick: dazes every hero within `radiusTiles` of the mushroom (not the far ones)
+- ✅ T3 `sporeStorm` onTick: dazes EVERY room hero at a high miss chance (0.55)
+- ✅ daze keep-strongest (max chance + latest expiry); lives on the adv (no minion reset); SaveSystem strips `_dazedUntil`/`_dazeMissChance`
+- ✅ T2/T3 stay UPGRADE-only (unlock 99 / gold 0); only mushroom1 shop-placeable
+- ✅ VFX organic + non-ring — NEW `_drawSporeCap` (toadstool); `dazeFx` (drifting spore motes + a wobbling dizzy SPIRAL over the head — the hallucination tell), `sporePuffFx` (a spreading purple spore haze [low alpha, not a wash] + rising motes + a few little caps puffing out), `sporeStormFx` (faint room haze + a gust of rising spore motes + a per-hero daze puff). lint-vfx clean, gallery+lab registered. On-screen pending final eyeball
+- ✅ MINION_ABILITY_INFO text for all 3 tiers
+- ✅ headless `mushroom-daze-check.mjs` 18/18 · ghost 24 + beholder 18 + gnoll 23 + ent 16 + nerve 17 + lich 28 + lizardman 25 + imp 21 + plant 17 regressions clean · soak 120/120 clean (0 issues) · lint-vfx/lint-content/verify-docs clean
+
+> **🎉 MINION ABILITY REDESIGN COMPLETE — all 18 families** have a distinct, deepened-per-tier mechanic with a
+> capstone ULT and bespoke non-generic VFX: Goblin (Plunder) · Skeleton (Reassemble) · Orc (Bloodlust) · Slime
+> (Split/Plague/Acid) · Vampire (Lifesteal) · Rat (Swarm) · Zombie (Reanimate-horde) · Demon (Hellfire aura) · Golem
+> (Fortress/DR) · Ghost (Fear/nerve) · Beholder (Gaze/charm-petrify) · Gnoll (Blood Hunt) · Ent (Thorns) · Lich (Soul
+> Harvest) · Lizardman (Camouflage) · Imp (Blink) · Plant (Entangle) · Mushroom (Hallucination). Push still HELD (main
+> would deploy the half-wiped roster); all work is LOCAL.

@@ -31,6 +31,17 @@ else
   echo "[pre-commit] lint-content ✓"
 fi
 
+out=$(node tools/lint-vfx.mjs 2>&1)
+if [ $? -ne 0 ]; then
+  echo "$out"
+  echo "  ✗ a VFX uses an untagged circle/ellipse/ring as a hero shape — the generic"
+  echo "    fallback. Replace it with a custom shaded silhouette, or tag intentional"
+  echo "    incidentals: // circle-ok: <reason>"
+  fail=1
+else
+  echo "[pre-commit] lint-vfx ✓"
+fi
+
 if [ "$fail" != "0" ]; then
   echo ""
   echo "[pre-commit] commit BLOCKED. Fix the above, or bypass once with:"
