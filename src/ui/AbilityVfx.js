@@ -31,6 +31,25 @@ function _validXY(x, y) {
   return Number.isFinite(x) && Number.isFinite(y)
 }
 
+// Room-containment for flood / ground VFX (cracks, geysers, puddles, fissures).
+// When `opts.roomRect` (world {x,y,w,h} of the room's FLOOR area) is supplied the
+// effect centres on the ROOM and every scattered point is clamped inside it — so
+// ground decals never paint onto walls or spill outside the room the minion is
+// in. Falls back to a minion-centred box (ox,oy ± rectW/rectH) for the dev
+// VFX-Lab / any caller that doesn't know the room.
+function _floodField(ox, oy, opts) {
+  const r = opts.roomRect
+  if (r && r.w > 0 && r.h > 0) {
+    const clamp = (px, py) => [
+      Math.max(r.x, Math.min(r.x + r.w, px)),
+      Math.max(r.y, Math.min(r.y + r.h, py)),
+    ]
+    return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, halfW: r.w / 2, halfH: r.h / 2, rect: r, clamp }
+  }
+  const hw = (opts.rectW ?? 220) / 2, hh = (opts.rectH ?? 140) / 2
+  return { cx: ox, cy: oy, halfW: hw, halfH: hh, rect: { x: ox - hw, y: oy - hh, w: hw * 2, h: hh * 2 }, clamp: (px, py) => [px, py] }
+}
+
 // Phase 34C.5 — Particles quality setting. Inline localStorage read
 // instead of importing src/hud/userSettings.js to keep src/ui/ free of
 // HUD dependencies. Defaults to 'high' (multiplier 1.0). The 5 levels:
@@ -1449,30 +1468,32 @@ export const AbilityVfx = {
     if (typeof color === 'string') color = parseInt(color.replace(/^0x/i, ''), 16) || 0xaadd33
     const o = { durationMs: 1300, depth: 11, rectW: 220, rectH: 140, geysers: 7, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
-    const halfW = o.rectW / 2, halfH = o.rectH / 2, maxR = Math.hypot(halfW, halfH) * 1.05
-    // 1. green tint washes over the room, then recedes
-    const wash = scene.add.rectangle(ox, oy, o.rectW, o.rectH, color, 0).setDepth(o.depth - 2); made.push(wash)
+    // Contain the flood to the room floor (no acid on walls / next room).
+    const F = _floodField(ox, oy, o), cx = F.cx, cy = F.cy, halfW = F.halfW, halfH = F.halfH
+    const maxR = Math.hypot(halfW, halfH) * 1.05
+    // 1. green tint washes over the room floor, then recedes
+    const wash = scene.add.rectangle(cx, cy, halfW * 2, halfH * 2, color, 0).setDepth(o.depth - 2); made.push(wash)
     scene.tweens.add({ targets: wash, fillAlpha: 0.16, duration: life * 0.25, ease: 'Sine.easeOut',
       onComplete: () => scene.tweens.add({ targets: wash, fillAlpha: 0, duration: life * 0.6, onComplete: () => wash.destroy() }) })
     // 2. irregular coating sheet flooding across the floor (jagged lobed edge + foaming rim)
     const sheet = scene.add.graphics().setDepth(o.depth - 1); made.push(sheet)
     const V = 18, noise = Array.from({ length: V }, () => 0.55 + Math.random() * 0.7), rim = _lerpColor(color, 0xffffff, 0.35)
-    const ring = (rf, p) => { for (let i = 0; i <= V; i++) { const a = i / V * Math.PI * 2, r = maxR * p * noise[i % V] * rf * (1 + 0.06 * Math.sin(i * 1.7 + p * 5)); const px = ox + Math.cos(a) * r, py = oy + Math.sin(a) * r * 0.6; if (i === 0) sheet.moveTo(px, py); else sheet.lineTo(px, py) } }
+    const ring = (rf, p) => { for (let i = 0; i <= V; i++) { const a = i / V * Math.PI * 2, r = maxR * p * noise[i % V] * rf * (1 + 0.06 * Math.sin(i * 1.7 + p * 5)); const [px, py] = F.clamp(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6); if (i === 0) sheet.moveTo(px, py); else sheet.lineTo(px, py) } }
     scene.tweens.addCounter({ from: 0, to: 1, duration: life * 0.5, ease: 'Cubic.easeOut',
       onUpdate: (tw) => { const p = tw.getValue(); sheet.clear()
         sheet.fillStyle(color, 0.18); sheet.beginPath(); ring(1, p); sheet.closePath(); sheet.fillPath()
         sheet.fillStyle(color, 0.16); sheet.beginPath(); ring(0.66, p); sheet.closePath(); sheet.fillPath()
         sheet.lineStyle(2.5, rim, 0.55 * (1 - p * 0.6)); sheet.beginPath(); ring(1, p); sheet.closePath(); sheet.strokePath() },
       onComplete: () => scene.tweens.add({ targets: sheet, alpha: 0, duration: life * 0.4, onComplete: () => sheet.destroy() }) })
-    // 3. geysers erupting in a wave that sweeps OUTWARD from the slime
+    // 3. geysers erupting in a wave that sweeps OUTWARD across the room floor
     for (let i = 0; i < o.geysers; i++) {
-      const gx = ox + (Math.random() * 2 - 1) * halfW * 0.92, gy = oy + (Math.random() * 2 - 1) * halfH * 0.92
-      const delay = (Math.hypot(gx - ox, gy - oy) / maxR) * life * 0.42 + Math.random() * 60
+      const [gx, gy] = F.clamp(cx + (Math.random() * 2 - 1) * halfW * 0.92, cy + (Math.random() * 2 - 1) * halfH * 0.92)
+      const delay = (Math.hypot(gx - cx, gy - cy) / maxR) * life * 0.42 + Math.random() * 60
       scene.time.delayedCall(delay, () => this.acidGeyser?.(scene, gx, gy, { color, depth: o.depth + 1, slow, h: 30 + Math.random() * 22, w: 5.5 + Math.random() * 3 }))
     }
-    // 4. sheeting steam rising across the whole room
+    // 4. sheeting steam rising across the room floor
     if (mult > 0) {
-      const em = scene.add.particles(ox, oy, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: -46, max: -14 }, speedX: { min: -24, max: 24 }, x: { min: -halfW, max: halfW }, y: { min: -halfH * 0.5, max: halfH * 0.5 }, scale: { start: 0.32, end: 0 }, alpha: { start: 0.4, end: 0 }, tint: [color, 0xddffaa], blendMode: 'ADD', emitting: false })
+      const em = scene.add.particles(cx, cy, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: -46, max: -14 }, speedX: { min: -24, max: 24 }, x: { min: -halfW, max: halfW }, y: { min: -halfH * 0.5, max: halfH * 0.5 }, scale: { start: 0.32, end: 0 }, alpha: { start: 0.4, end: 0 }, tint: [color, 0xddffaa], blendMode: 'ADD', emitting: false })
       em.setDepth(o.depth + 2); em.explode(Math.round(26 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
     }
     return made
@@ -1640,19 +1661,19 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { depth: 12, durationMs: 1300, rectW: 220, rectH: 140, count: 28, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
-    const halfW = o.rectW / 2, halfH = o.rectH / 2, maxR = Math.hypot(halfW, halfH)
+    // Contain the tide to the room floor — rats / grime stay off walls + corridor.
+    const F = _floodField(x, y, o), cx = F.cx, cy0 = F.cy, halfW = F.halfW, halfH = F.halfH, maxR = Math.hypot(halfW, halfH)
     // 0) the room darkens as the tide rises (a dark lobed floor-wash welling up)
     const dark = scene.add.graphics().setDepth(o.depth - 1.5).setScale(0.3).setAlpha(0); made.push(dark)
     const dv = 16, dn = Array.from({ length: dv }, () => 0.6 + Math.random() * 0.5); dark.fillStyle(0x1a0c08, 0.5); dark.beginPath()
-    for (let i = 0; i <= dv; i++) { const ang = i / dv * Math.PI * 2, r = maxR * dn[i % dv]; const px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r * 0.62; if (i === 0) dark.moveTo(px, py); else dark.lineTo(px, py) }
+    for (let i = 0; i <= dv; i++) { const ang = i / dv * Math.PI * 2, r = maxR * dn[i % dv]; const [px, py] = F.clamp(cx + Math.cos(ang) * r, cy0 + Math.sin(ang) * r * 0.62); if (i === 0) dark.moveTo(px, py); else dark.lineTo(px, py) }
     dark.closePath(); dark.fillPath()
     scene.tweens.add({ targets: dark, scale: 1, alpha: 0.45, duration: life * 0.32, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: dark, alpha: 0, duration: life * 0.45, onComplete: () => dark.destroy() }) })
-    try { scene.cameras.main.flash(Math.min(160, 120 * Math.sqrt(slow)), 60, 8, 6, false) } catch (e) {}
     // 1) a writhing carpet of real rats surging outward (red frenzy tint)
     const N = Math.min(52, Math.round(o.count * (mult > 0 ? mult : 0.5)))
     for (let i = 0; i < N; i++) {
       const a = Math.random() * Math.PI * 2, dist = 0.4 + Math.random() * 0.7
-      const tx = x + Math.cos(a) * halfW * dist, ty = y + Math.sin(a) * halfH * dist
+      const [tx, ty] = F.clamp(x + Math.cos(a) * halfW * dist, y + Math.sin(a) * halfH * dist)
       const sc = 0.15 + Math.random() * 0.12
       const r = _swarmRat(scene, x + Math.cos(a) * 6, y + Math.sin(a) * 4, tx - x, ty - y, sc, o.depth + (ty > y ? 0.4 : 0), 0xc24632)
       r.setAlpha(0); made.push(r)
@@ -1661,7 +1682,7 @@ export const AbilityVfx = {
     }
     // 2) kicked grime particles
     if (mult > 0) {
-      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speedX: { min: -70, max: 70 }, speedY: { min: -34, max: 12 }, x: { min: -halfW * 0.5, max: halfW * 0.5 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.42, end: 0 }, tint: [0x6b5238, 0x3a2a1c], emitting: false })
+      const em = scene.add.particles(cx, cy0, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speedX: { min: -70, max: 70 }, speedY: { min: -34, max: 12 }, x: { min: -halfW * 0.5, max: halfW * 0.5 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.42, end: 0 }, tint: [0x6b5238, 0x3a2a1c], emitting: false })
       em.setDepth(o.depth + 1); em.explode(Math.round(22 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
     }
     return made
@@ -1704,16 +1725,26 @@ export const AbilityVfx = {
     const o = { glow: 0x6fe39a, depth: 12, durationMs: 1700, rectW: 240, rectH: 160, risePts: null, count: 5, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
     const GREEN = o.glow, DARK = 0x2a1c0e, DIRT = 0x3a2a1c
+    // Contain the eruption to the room floor — cracks must not run onto walls.
+    const F = _floodField(x, y, o)
+    // Cap a fissure's length so its far end stays inside the room floor rect,
+    // given an origin (ox0,oy0) and a (non-unit) per-len direction (dirX,dirY).
+    const capLen = (ox0, oy0, dirX, dirY, len) => {
+      const r = F.rect; let t = len
+      if (dirX > 0) t = Math.min(t, (r.x + r.w - ox0) / dirX); else if (dirX < 0) t = Math.min(t, (r.x - ox0) / dirX)
+      if (dirY > 0) t = Math.min(t, (r.y + r.h - oy0) / dirY); else if (dirY < 0) t = Math.min(t, (r.y - oy0) / dirY)
+      return Math.max(0, Math.min(len, t))
+    }
     // 0) the whole room floods sickly green — a floor pall that swells then fades
     const pall = scene.add.graphics().setDepth(o.depth - 1.5); made.push(pall)
     scene.tweens.addCounter({ from: 0, to: 1, duration: life * 0.3, ease: 'Quad.easeOut',
-      onUpdate: (tw) => { const p = tw.getValue(); pall.clear(); pall.fillStyle(0x1e3a1e, 0.16 * (1 - p * 0.3)); pall.fillEllipse(x, y + 6, o.rectW * 1.1 * p, o.rectH * 0.95 * p) },
+      onUpdate: (tw) => { const p = tw.getValue(); pall.clear(); pall.fillStyle(0x1e3a1e, 0.16 * (1 - p * 0.3)); pall.fillEllipse(F.cx, F.cy, F.halfW * 2 * p, F.halfH * 2 * p) },
       onComplete: () => scene.tweens.add({ targets: pall, alpha: 0, duration: life * 0.4, onComplete: () => pall.destroy() }) })
     // 1) the ground splits — jagged cracked-earth fissures race outward from the crypt
     const fiss = 7
     for (let i = 0; i < fiss; i++) {
       const a = (i / fiss) * Math.PI * 2 + (Math.random() * 0.4 - 0.2)
-      const len = (o.rectW * 0.26) * (0.7 + Math.random() * 0.5)
+      const len = capLen(x, y + 4, Math.cos(a), Math.sin(a) * 0.55, (o.rectW * 0.26) * (0.7 + Math.random() * 0.5))
       const cr = scene.add.graphics().setDepth(o.depth - 0.8).setPosition(x, y + 4).setScale(0.2, 0.2).setAlpha(0); made.push(cr)
       const pts = [[0, 0]]; const seg = 5
       for (let s = 1; s <= seg; s++) { const t = s / seg; pts.push([Math.cos(a) * len * t + (Math.random() * 10 - 5), Math.sin(a) * len * 0.55 * t + (Math.random() * 8 - 4)]) }
@@ -1725,7 +1756,8 @@ export const AbilityVfx = {
     this.screenShake?.(scene, { intensity: 0.008, durationMs: 380 })
     // 2) GROUND-HEAVE eruption at each spot a hero fell (fallback: erupt at the crypt)
     const pts = (Array.isArray(o.risePts) && o.risePts.length) ? o.risePts.slice(0, 6) : [{ x, y }]
-    pts.forEach((pt, i) => {
+    pts.forEach((ptRaw, i) => {
+      const [cpx, cpy] = F.clamp(ptRaw.x, ptRaw.y); const pt = { x: cpx, y: cpy }
       scene.time.delayedCall(i * 90 + Math.random() * 40, () => {
         if (!_validXY(pt.x, pt.y)) return
         // floor bulge + dark crack
@@ -1750,7 +1782,7 @@ export const AbilityVfx = {
     for (let i = 0; i < flyN; i++) {
       const f = this._flySprite(scene, x, y - 4, 0.26, o.depth + 1).setAlpha(0); made.push(f)
       const a = Math.random() * Math.PI * 2, r = (o.rectW * 0.3) * (0.4 + Math.random() * 0.7)
-      const tx = x + Math.cos(a) * r, ty = y + Math.sin(a) * r * 0.6 - 6
+      const [tx, ty] = F.clamp(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.6 - 6)
       f.setScale((tx >= x ? 1 : -1) * 0.26, 0.26)   // face travel direction (art faces right)
       scene.tweens.add({ targets: f, alpha: 0.9, duration: 150, delay: i * 18 })
       scene.tweens.addCounter({ from: 0, to: 1, duration: life * (0.7 + Math.random() * 0.4), delay: i * 18, ease: 'Linear',
@@ -1993,9 +2025,11 @@ export const AbilityVfx = {
     const erupt = scene.add.image(x, y + 2, this.flameTongueTexture(scene)).setOrigin(0.5, 1).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4, 0).setAlpha(0.95); made.push(erupt)
     scene.tweens.add({ targets: erupt, scaleY: 3.4, scaleX: 1.8, duration: life * 0.16, ease: 'Back.easeOut',
       onComplete: () => scene.tweens.add({ targets: erupt, scaleY: 1.0, scaleX: 1.2, alpha: 0, duration: life * 0.42, ease: 'Quad.easeIn', onComplete: () => erupt.destroy() }) })
+    // ground fires erupt across the room FLOOR (clamped — no flames on walls)
+    const F = _floodField(x, y, o)
     const N = Math.min(16, o.count)
     for (let i = 0; i < N; i++) {
-      const bx = x + (Math.random() * 2 - 1) * halfW * 0.95, by = y + (Math.random() * 2 - 1) * halfH * 0.95
+      const [bx, by] = F.clamp(x + (Math.random() * 2 - 1) * halfW * 0.95, y + (Math.random() * 2 - 1) * halfH * 0.95)
       const delay = (Math.hypot(bx - x, by - y) / maxR) * life * 0.42 + Math.random() * 60
       scene.time.delayedCall(delay, () => {
         if (!_validXY(bx, by)) return
@@ -2004,7 +2038,7 @@ export const AbilityVfx = {
       })
     }
     if (mult > 0) {
-      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.85 }, speedY: { min: -50, max: -12 }, speedX: { min: -30, max: 30 }, x: { min: -halfW, max: halfW }, y: { min: -halfH * 0.5, max: halfH * 0.5 }, scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xffaa33, 0xff4411], blendMode: 'ADD', emitting: false })
+      const em = scene.add.particles(F.cx, F.cy, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.85 }, speedY: { min: -50, max: -12 }, speedX: { min: -30, max: 30 }, x: { min: -F.halfW, max: F.halfW }, y: { min: -F.halfH * 0.5, max: F.halfH * 0.5 }, scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xffaa33, 0xff4411], blendMode: 'ADD', emitting: false })
       em.setDepth(o.depth + 2); em.explode(Math.round(24 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
     }
     return made

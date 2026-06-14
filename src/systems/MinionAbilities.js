@@ -24,6 +24,7 @@
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { EventBus }   from './EventBus.js'
 import { NerveBands } from './NerveSystem.js'
+import { TILE }       from './DungeonGrid.js'
 
 // ── Data-driven ability layer (Thread E) ────────────────────────────────────
 // Combat abilities now live in minionTypes.json under a top-level `abilities`
@@ -597,7 +598,7 @@ export const MinionAbilities = {
     const home = this._roomOf(gameState, wraith.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0
     const floor = ab.nerveFloor ?? 12, panicMs = ab.panicMs ?? 2600
-    const victims = this._liveAdvs(gameState).filter(a => typeof a.nerve === 'number' && this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => typeof a.nerve === 'number' && this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (a.nerve > floor) this._applyFear(a, floor - a.nerve, scene)   // crater, never raise
       // MASS PANIC (nerve rework) — the room freezes in terror IN PLACE (helpless,
@@ -613,7 +614,7 @@ export const MinionAbilities = {
       // the wraith stands in — not a blob centred on the wraith.
       const roomRect = { x: (home.gridX ?? 0) * TS, y: (home.gridY ?? 0) * TS, w: Math.max(1, home.width ?? 6) * TS, h: Math.max(1, home.height ?? 6) * TS }
       const rw = roomRect.w, rh = roomRect.h
-      AbilityVfx.pallOfDreadFx?.(scene, wraith.worldX, wraith.worldY, { rectW: rw, rectH: rh, roomRect, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.pallOfDreadFx?.(scene, wraith.worldX, wraith.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), roomRect, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       if (victims.length) AbilityVfx.floatingText(scene, wraith.worldX, (wraith.worldY ?? 0) - 30, ab.label ?? 'PALL OF DREAD', { color: '#8c9fd0', fontSize: '13px' })
     }
   },
@@ -669,7 +670,7 @@ export const MinionAbilities = {
     const now = scene?.time?.now ?? 0
     const dur = ab.durationMs ?? 3500, want = ab.targets ?? 3
     const heroes = this._liveAdvs(gameState)
-      .filter(a => this._inRoom(a.tileX, a.tileY, home) && this._canControl(a))
+      .filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home) && this._canControl(a))
       .sort((p, q) => Math.hypot(p.tileX - beholder.tileX, p.tileY - beholder.tileY) - Math.hypot(q.tileX - beholder.tileX, q.tileY - beholder.tileY))
       .slice(0, want)
     if (!heroes.length) return
@@ -688,7 +689,7 @@ export const MinionAbilities = {
     const home = this._roomOf(gameState, tyrant.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0
     const petrifyMs = ab.petrifyMs ?? 2200, hexMs = ab.hexMs ?? 5000, hexMul = ab.hexMul ?? 1.6
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home) && this._canControl(a))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home) && this._canControl(a))
     for (const a of victims) {
       a._petrifiedUntil = Math.max(a._petrifiedUntil ?? 0, now + petrifyMs)
       a._hexUntil = Math.max(a._hexUntil ?? 0, now + hexMs)
@@ -697,7 +698,7 @@ export const MinionAbilities = {
     tyrant._gazeFlashUntil = now + 820; tyrant._gazeFlashMs = 820; tyrant._gazeFlashStr = 8   // the Tyrant's eye blazes huge
     if (scene && Number.isFinite(tyrant.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.tyrantGlareFx?.(scene, tyrant.worldX, tyrant.worldY, { rectW: rw, rectH: rh, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.tyrantGlareFx?.(scene, tyrant.worldX, tyrant.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.screenShake?.(scene, { intensity: 0.006, durationMs: 340 })
       if (victims.length) AbilityVfx.floatingText(scene, tyrant.worldX, (tyrant.worldY ?? 0) - 30, ab.label ?? "TYRANT'S GLARE", { color: '#ff77dd', fontSize: '13px' })
     }
@@ -860,7 +861,7 @@ export const MinionAbilities = {
   _thornburst(oak, scene, gameState, ab) {
     const home = this._roomOf(gameState, oak.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0, dmg = ab.dmg ?? 14
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
       const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
@@ -870,7 +871,7 @@ export const MinionAbilities = {
     if (oak.resources) { const max = oak.resources.maxHp ?? 0; oak.resources.hp = Math.min(max, oak.resources.hp + Math.round(max * (ab.healFrac ?? 0.25))) }
     oak._thornsAmpUntil = now + (ab.ampMs ?? 4000); oak._thornsAmpMul = ab.ampMul ?? 1.6
     if (scene && Number.isFinite(oak.worldX)) {
-      AbilityVfx.thornburstFx?.(scene, oak.worldX, oak.worldY, { victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.thornburstFx?.(scene, oak.worldX, oak.worldY, { roomRect: this._roomFloorRectWorld(scene, home), victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.screenShake?.(scene, { intensity: 0.005, durationMs: 300 })
       if (victims.length) AbilityVfx.floatingText(scene, oak.worldX, (oak.worldY ?? 0) - 30, ab.label ?? 'THORNBURST', { color: '#8fd14a', fontSize: '13px' })
     }
@@ -964,7 +965,7 @@ export const MinionAbilities = {
     const home = this._roomOf(gameState, lich.assignedRoomId); if (!home) return
     const souls = lich._souls ?? 0
     const dmg = Math.round((ab.baseDmg ?? 8) + souls * (ab.dmgPerSoul ?? 4))
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
       const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
@@ -974,7 +975,7 @@ export const MinionAbilities = {
     if (ab.spendSouls !== false) lich._souls = 0
     if (scene && Number.isFinite(lich.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.soulStormFx?.(scene, lich.worldX, lich.worldY, { rectW: rw, rectH: rh, souls, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.soulStormFx?.(scene, lich.worldX, lich.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), souls, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.screenShake?.(scene, { intensity: 0.006, durationMs: 320 })
       AbilityVfx.floatingText(scene, lich.worldX, (lich.worldY ?? 0) - 32, ab.label ?? 'SOUL STORM', { color: '#7CFFB2', fontSize: '13px' })
     }
@@ -1082,7 +1083,7 @@ export const MinionAbilities = {
     }
     if (scene && Number.isFinite(captain.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.vanishingWarbandFx?.(scene, captain.worldX, captain.worldY, { rectW: rw, rectH: rh, count: Math.max(4, n) })
+      AbilityVfx.vanishingWarbandFx?.(scene, captain.worldX, captain.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), count: Math.max(4, n) })
       AbilityVfx.floatingText(scene, captain.worldX, (captain.worldY ?? 0) - 30, ab.label ?? 'VANISHING WARBAND', { color: '#7fd98f', fontSize: '13px' })
     }
   },
@@ -1143,7 +1144,7 @@ export const MinionAbilities = {
       const ab = this.blinkAbilityOf(m, scene); if (!ab) continue
       if (now < (m._blinkAt ?? 0)) continue
       const home = this._roomOf(gameState, m.assignedRoomId); if (!home) continue
-      const inRoom = advs.filter(a => this._inRoom(a.tileX, a.tileY, home))
+      const inRoom = advs.filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
       if (!inRoom.length) continue
       const cd = (m._blinkFrenzyUntil && now < m._blinkFrenzyUntil) ? (ab.frenzyCdMs ?? 500) : (ab.cooldownMs ?? 1500)
       const esc = ab.escapeRangeTiles ?? 1.7, kite = ab.kiteRangeTiles ?? 3
@@ -1173,7 +1174,7 @@ export const MinionAbilities = {
   _hellrift(imp, scene, gameState, ab) {
     const home = this._roomOf(gameState, imp.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0, dmg = ab.dmg ?? 12
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
       const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
@@ -1188,7 +1189,7 @@ export const MinionAbilities = {
     }
     if (scene && Number.isFinite(imp.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.hellriftFx?.(scene, imp.worldX, imp.worldY, { rectW: rw, rectH: rh, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.hellriftFx?.(scene, imp.worldX, imp.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.screenShake?.(scene, { intensity: 0.005, durationMs: 280 })
       AbilityVfx.floatingText(scene, imp.worldX, (imp.worldY ?? 0) - 30, ab.label ?? 'HELLRIFT', { color: '#ff7a3a', fontSize: '13px' })
     }
@@ -1211,7 +1212,7 @@ export const MinionAbilities = {
   // pinned while it feeds.
   _stranglethorn(briar, scene, gameState, ab) {
     const home = this._roomOf(gameState, briar.assignedRoomId); if (!home) return
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     const drain = ab.drain ?? 8, heal = ab.healPerHit ?? 6
     let healed = 0
     for (const a of victims) {
@@ -1226,7 +1227,7 @@ export const MinionAbilities = {
     if (healed && briar.resources) { const max = briar.resources.maxHp ?? 0; briar.resources.hp = Math.min(max, briar.resources.hp + healed); briar._briarFedUntil = (scene?.time?.now ?? 0) + 1600 }   // flare the well-fed life-glow (renderer)
     if (scene && Number.isFinite(briar.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.stranglethornFx?.(scene, briar.worldX, briar.worldY, { rectW: rw, rectH: rh, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.stranglethornFx?.(scene, briar.worldX, briar.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.screenShake?.(scene, { intensity: 0.004, durationMs: 260 })
       AbilityVfx.floatingText(scene, briar.worldX, (briar.worldY ?? 0) - 30, ab.label ?? 'STRANGLETHORN', { color: '#9fcf5a', fontSize: '13px' })
     }
@@ -1256,7 +1257,7 @@ export const MinionAbilities = {
     const radius = ab.radiusTiles ?? 2.5
     let hit = 0
     for (const a of this._liveAdvs(gameState)) {
-      if (!this._inRoom(a.tileX, a.tileY, home)) continue
+      if (!this._onFloorInRoom(scene, a.tileX, a.tileY, home)) continue
       if (Math.hypot(a.tileX - mushroom.tileX, a.tileY - mushroom.tileY) > radius + 0.01) continue
       this._applyDaze(a, scene, ab.durationMs ?? 3000, ab.missChance ?? 0.3); hit += 1
     }
@@ -1269,11 +1270,11 @@ export const MinionAbilities = {
   // EVERY hero in the room (they whiff most of their attacks).
   _sporeStorm(stalker, scene, gameState, ab) {
     const home = this._roomOf(gameState, stalker.assignedRoomId); if (!home) return
-    const victims = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) this._applyDaze(a, scene, ab.durationMs ?? 4500, ab.missChance ?? 0.55)
     if (scene && Number.isFinite(stalker.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.sporeStormFx?.(scene, stalker.worldX, stalker.worldY, { rectW: rw, rectH: rh, victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
+      AbilityVfx.sporeStormFx?.(scene, stalker.worldX, stalker.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), victims: victims.map(a => ({ x: a.worldX, y: a.worldY })) })
       AbilityVfx.floatingText(scene, stalker.worldX, (stalker.worldY ?? 0) - 30, ab.label ?? 'SPORE STORM', { color: '#c79fe0', fontSize: '13px' })
     }
   },
@@ -1296,7 +1297,7 @@ export const MinionAbilities = {
     }
     if (scene && Number.isFinite(rat.worldX)) {
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.verminTideFx?.(scene, rat.worldX, rat.worldY, { rectW: rw, rectH: rh, count: Math.max(10, n * 4) })
+      AbilityVfx.verminTideFx?.(scene, rat.worldX, rat.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), count: Math.max(10, n * 4) })
       AbilityVfx.floatingText(scene, rat.worldX, (rat.worldY ?? 0) - 30, ab.label ?? 'VERMIN TIDE', { color: '#c9a14a', fontSize: '13px' })
     }
   },
@@ -1318,7 +1319,7 @@ export const MinionAbilities = {
     const home = this._roomOf(gameState, demon.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0
     const radius = ab.radiusTiles ?? 2.5, maxStacks = ab.maxStacks ?? 5
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     let any = false
     for (const a of advs) {
       if (Math.hypot(a.tileX - demon.tileX, a.tileY - demon.tileY) > radius + 0.01) continue
@@ -1343,7 +1344,7 @@ export const MinionAbilities = {
 
   // A max-Hellfire hero COMBUSTS — a fire blast to nearby heroes, then heat resets.
   _combust(scene, gameState, hero, ab, demon, home) {
-    const advs = this._liveAdvs(gameState).filter(a => a !== hero && this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => a !== hero && this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     const r = ab.combustRadiusTiles ?? 1.5, dmg = ab.combustDmg ?? 8
     for (const a of advs) {
       if (Math.hypot(a.tileX - hero.tileX, a.tileY - hero.tileY) > r + 0.01) continue
@@ -1375,7 +1376,7 @@ export const MinionAbilities = {
   _inferno(demon, scene, gameState, ab) {
     const home = this._roomOf(gameState, demon.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     const dmg = ab.dmg ?? 6
     for (const a of advs) {
       const fl = (a._lightParty || a._shadowMonarch) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
@@ -1510,11 +1511,11 @@ export const MinionAbilities = {
       const z = this._raiseZombie(scene, gameState, { tileX: tx, tileY: ty, worldX: wx, worldY: wy }, crypt.assignedRoomId, { silent: true, dead: true, riseDelayMs: 150 })
       if (z) { g._massRaised = true; raised += 1; risePts.push({ x: wx, y: wy }) }
     }
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of advs) a._rotInfectedUntil = now + (ab.infectMs ?? 9000)
     if (scene && Number.isFinite(crypt.worldX)) {
       const rw = Math.min(360, (home.width ?? 6) * 32), rh = Math.min(240, (home.height ?? 6) * 32)
-      AbilityVfx.massGraveFx?.(scene, crypt.worldX, crypt.worldY, { rectW: rw, rectH: rh, risePts, count: Math.max(5, raised + advs.length) })
+      AbilityVfx.massGraveFx?.(scene, crypt.worldX, crypt.worldY, { rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), risePts, count: Math.max(5, raised + advs.length) })
       AbilityVfx.floatingText(scene, crypt.worldX, (crypt.worldY ?? 0) - 30, ab.label ?? 'MASS GRAVE', { color: '#9bd07a', fontSize: '13px' })
     }
   },
@@ -1623,7 +1624,7 @@ export const MinionAbilities = {
   _bloodFeast(vampire, scene, gameState, ab) {
     const home = this._roomOf(gameState, vampire.assignedRoomId); if (!home) return
     const now = scene?.time?.now ?? 0
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     if (!advs.length) return
     const drain = ab.drainPerAdv ?? 6, maxHp = vampire.resources?.maxHp ?? 0
     let total = 0; const pts = []
@@ -1767,6 +1768,11 @@ export const MinionAbilities = {
       const k = ab.type
       minion._abAccum[k] = (minion._abAccum[k] ?? 0) + delta
       if (minion._abAccum[k] < iv) continue
+      // Anti-spam (best-time gating): an offensive tick only fires when there's
+      // a real target in the room. If not, hold the cooldown CHARGED (clamp at
+      // the interval, don't reset to 0) so it goes off the instant a hero walks
+      // in — instead of blowing the ult into an empty room every interval.
+      if (!this._tickAbilityArmed(minion, scene, gameState, ab)) { minion._abAccum[k] = iv; continue }
       minion._abAccum[k] = 0
       this._applyTickAbility(minion, scene, gameState, dungeonGrid, ab)
     }
@@ -2254,7 +2260,7 @@ export const MinionAbilities = {
     if (!home) return
     const now = scene?.time?.now ?? 0
     const radius = ab.spreadRadiusTiles ?? 3
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     const infected = advs.filter(a => (a._infectUntil ?? 0) > now)
     if (!infected.length) return
     let spreads = 0
@@ -2282,7 +2288,7 @@ export const MinionAbilities = {
     const home = this._roomOf(gameState, slime.assignedRoomId)
     if (!home) return
     const now = scene?.time?.now ?? 0
-    const advs = this._liveAdvs(gameState).filter(a => this._inRoom(a.tileX, a.tileY, home))
+    const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     let n = 0
     for (const adv of advs) {
       // dot* fields — `intervalMs` is the onTick FIRING cadence, not the DoT period.
@@ -2398,11 +2404,18 @@ export const MinionAbilities = {
   // stubs so future per-system hooks can land here without re-wiring
   // MinionAISystem's create/destroy.)
   attach(_scene, _gameState, _dungeonGrid) {
+    // Cache the live scene + grid so the geometry helpers below (floor-tile /
+    // room-containment gating) can resolve tiles without threading the grid
+    // through every handler signature. Refreshed each create().
+    this._scene       = _scene ?? this._scene ?? null
+    this._gameState   = _gameState ?? this._gameState ?? null
+    this._dungeonGrid = _dungeonGrid ?? this._dungeonGrid ?? null
     if (this._attached) return
     this._attached = true
   },
 
   detach() {
+    this._scene = null; this._gameState = null; this._dungeonGrid = null
     if (!this._attached) return
     this._attached = false
   },
@@ -2662,13 +2675,118 @@ export const MinionAbilities = {
       a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
   },
 
+  // ── Floor / room containment helpers ──────────────────────────────────────
+  // `_inRoom` is a pure bounding-box test, and a room's rect INCLUDES its wall
+  // ring + carved door tiles. So an entity standing in a doorway (mid-passage)
+  // or a wall is "in the bbox" but NOT on the room floor. These helpers add the
+  // floor-tile check so AoE abilities can't strike someone transiting a door
+  // and flood VFX can be clamped to the actual floor. Degrade to bbox-only when
+  // no grid is available (headless per-family checks that stub the scene).
+  _grid(scene) {
+    const g = this._dungeonGrid ?? scene?.dungeonGrid ?? this._scene?.dungeonGrid ?? null
+    if (!g || typeof g.getTileType !== 'function') return null
+    // Reject the headless makeScene() Proxy's chainable stub (an unset scene
+    // property resolves to a function that returns a chainable, not a tile id).
+    // A real DungeonGrid returns TILE.VOID (a number) for out-of-bounds coords.
+    try { if (typeof g.getTileType(-1, -1) !== 'number') return null } catch (e) { return null }
+    return g
+  },
+  // Is (x,y) a spot a living entity can be FOUGHT on — i.e. NOT a doorway it's
+  // mid-transit through? Living entities only ever stand on floor or door tiles
+  // (walls/void aren't walkable), so excluding DOOR is the whole job. Narrow on
+  // purpose: a mismatched/headless grid that reports wall/void for these coords
+  // stays permissive rather than wrongly suppressing the hit.
+  _onFloor(scene, x, y) {
+    const g = this._grid(scene)
+    if (!g) return true
+    const t = g.getTileType(Math.floor(x), Math.floor(y))
+    return t !== TILE.DOOR && t !== 'door'
+  },
+  _onFloorInRoom(scene, x, y, room) {
+    return this._inRoom(x, y, room) && this._onFloor(scene, x, y)
+  },
+  // Any live adventurer standing on a FLOOR tile inside `room`? Used to arm
+  // offensive onTick abilities only when there's a real target (anti-spam).
+  _enemyInRoomOnFloor(scene, gameState, room) {
+    if (!room) return false
+    return this._liveAdvs(gameState).some(a => this._onFloorInRoom(scene, a.tileX, a.tileY, room))
+  },
+  // The room's FLOOR bounding rect in WORLD coords (excludes the wall ring +
+  // doors), so flood/ground VFX can be clamped to it. Derives the tight floor
+  // extent from the grid when present; otherwise insets the room rect by the
+  // wall thickness.
+  _roomFloorRectWorld(scene, room) {
+    const TS = 32
+    if (!room) return null
+    const g = this._grid(scene)
+    if (g?.getTileType) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      for (let dy = 0; dy < (room.height ?? 0); dy++) {
+        for (let dx = 0; dx < (room.width ?? 0); dx++) {
+          const tx = room.gridX + dx, ty = room.gridY + dy
+          if (!this._isFloorTile(g.getTileType(tx, ty))) continue
+          if (tx < minX) minX = tx
+          if (ty < minY) minY = ty
+          if (tx > maxX) maxX = tx
+          if (ty > maxY) maxY = ty
+        }
+      }
+      if (minX <= maxX) {
+        return { x: minX * TS, y: minY * TS, w: (maxX - minX + 1) * TS, h: (maxY - minY + 1) * TS }
+      }
+    }
+    const WT = 2   // Balance.WALL_THICKNESS — floor = room rect inset one wall ring per side
+    const fx = (room.gridX ?? 0) + WT, fy = (room.gridY ?? 0) + WT
+    const fw = Math.max(1, (room.width ?? 6) - 2 * WT), fh = Math.max(1, (room.height ?? 6) - 2 * WT)
+    return { x: fx * TS, y: fy * TS, w: fw * TS, h: fh * TS }
+  },
+
+  // Offensive onTick ability types that are pointless / wasteful (and read as
+  // "spam") when no hero is in the room — gated in tickAbilities so they hold
+  // their cooldown charged and fire the instant a hero arrives. Support /
+  // maintenance auras (healAura, reviveAlly, buffAura, regrow, summon,
+  // soulHarvest, mitosis, splitWhenHurt) are NOT listed: their handlers already
+  // no-op when there's nothing to do, and some are useful between fights.
+  NEEDS_ENEMY_TICK: new Set([
+    'pallOfDread', 'dreadAura', 'massHypnosis', 'tyrantGlare', 'bloodFrenzy',
+    'thornburst', 'soulStorm', 'hellrift', 'stranglethorn', 'sporePuff',
+    'sporeStorm', 'burningAura', 'inferno', 'novaBurst', 'acidFlood',
+    'contagion', 'outbreak', 'contagionAura', 'massMark', 'bloodFeast',
+    'verminTide', 'vanishingWarband', 'undyingLegion', 'warCry', 'warpath',
+    'bastion',
+  ]),
+  // Should this onTick ability fire right now? Offensive ticks need a hero in
+  // the room; Mass Grave also fires when there are un-raised corpses to raise.
+  _tickAbilityArmed(minion, scene, gameState, ab) {
+    const type = ab.type
+    if (type === 'massGrave') {
+      const home = this._roomOf(gameState, minion.assignedRoomId)
+      if (!home) return false
+      if (this._enemyInRoomOnFloor(scene, gameState, home)) return true
+      const grave = gameState?.adventurers?.graveyard ?? []
+      return grave.some(g => !g._massRaised && this._inRoom(g.tileX, g.tileY, home))
+    }
+    if (!this.NEEDS_ENEMY_TICK.has(type)) return true
+    // The "vice versa": a caster mid-transit through a doorway doesn't fight —
+    // hold the ability until it has stepped back onto room floor.
+    if (!this._onFloor(scene, minion.tileX, minion.tileY)) return false
+    const home = this._roomOf(gameState, minion.assignedRoomId)
+    return this._enemyInRoomOnFloor(scene, gameState, home)
+  },
+
   // Generalised death AoE (imp Self-Combust + any future on-death blast).
   _aoeOnDeath(scene, minion, gameState, ab) {
     const radius = ab.radiusTiles ?? 1.5
     const dmg    = ab.dmg ?? 8
     const color  = ab.color ?? 0xff6633
+    // Same-room/floor gate — a death blast must not reach through a doorway into
+    // the next room. Use the room the minion actually died in (it may have been
+    // roaming), falling back to its assigned room, then to radius-only headless.
+    const home = this._grid(scene)?.getRoomAtTile?.(Math.floor(minion.tileX), Math.floor(minion.tileY))
+              ?? this._roomOf(gameState, minion.assignedRoomId)
     let hits = 0
     for (const adv of this._liveAdvs(gameState)) {
+      if (home && !this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       if (Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
       const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
       adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
@@ -2685,7 +2803,10 @@ export const MinionAbilities = {
   // Generalised death stagger cloud (mushroom Confusion Spores).
   _staggerCloud(scene, minion, gameState, ab) {
     const radius = ab.radiusTiles ?? SPORE_RADIUS_TILES
+    const home = this._grid(scene)?.getRoomAtTile?.(Math.floor(minion.tileX), Math.floor(minion.tileY))
+              ?? this._roomOf(gameState, minion.assignedRoomId)
     for (const adv of this._liveAdvs(gameState)) {
+      if (home && !this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       if (Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
       this._applyStagger(adv, scene, ab.durationMs ?? SPORE_STAGGER_MS)
       if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 22, ab.label ?? 'CONFUSED', { color: '#cc88ff' })
@@ -2782,7 +2903,7 @@ export const MinionAbilities = {
     const radius = ab.radiusTiles ?? 99   // default = whole room
     let hit = false
     for (const adv of this._liveAdvs(gameState)) {
-      if (!this._inRoom(adv.tileX, adv.tileY, home)) continue
+      if (!this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       if (radius < 99 && Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
       const dmg = ab.dmgPerTick ?? 2
       const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
@@ -2808,10 +2929,11 @@ export const MinionAbilities = {
     const radius = ab.radiusTiles   // undefined → whole room
     const targets = []
     for (const adv of this._liveAdvs(gameState)) {
-      const inRange = (radius != null)
-        ? Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) <= radius + 0.01
-        : (home && this._inRoom(adv.tileX, adv.tileY, home))
-      if (inRange) targets.push(adv)
+      // Always confine to the caster's room + floor (no blasting through a
+      // doorway into the next room); `radius`, when set, narrows it further.
+      if (home && !this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
+      if (radius != null && Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
+      targets.push(adv)
     }
     if (!targets.length) return
     const now = scene?.time?.now ?? 0
@@ -2973,7 +3095,7 @@ export const MinionAbilities = {
       // Room-wide caustic deluge — erupting geysers + flooding sheet, centred on
       // the slime and sized to the room (so it reads on-stage in the lab too).
       const rw = Math.min(380, (home.width ?? 6) * 32), rh = Math.min(260, (home.height ?? 6) * 32)
-      AbilityVfx.acidFloodFx?.(scene, slime.worldX, slime.worldY, { color: 0xaadd33, rectW: rw, rectH: rh, geysers: 8 })
+      AbilityVfx.acidFloodFx?.(scene, slime.worldX, slime.worldY, { color: 0xaadd33, rectW: rw, rectH: rh, roomRect: this._roomFloorRectWorld(scene, home), geysers: 8 })
       AbilityVfx.screenShake?.(scene, { intensity: 0.006, durationMs: 300 })
       if (n > 0) AbilityVfx.floatingText(scene, slime.worldX, (slime.worldY ?? 0) - 30, ab.label ?? 'ACID FLOOD', { color: '#cdef5a', fontSize: '13px' })
     }
@@ -3071,7 +3193,7 @@ export const MinionAbilities = {
     if (!home) return
     let branded = 0
     for (const adv of this._liveAdvs(gameState)) {
-      if (!this._inRoom(adv.tileX, adv.tileY, home)) continue
+      if (!this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       this._applyPlunderMark(scene, king, adv, ab)
       branded++
     }

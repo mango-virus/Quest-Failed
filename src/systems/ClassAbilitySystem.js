@@ -688,11 +688,34 @@ export class ClassAbilitySystem {
     EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'block', message: `${adv.name} braced behind the shield!` })
   }
 
+  // Same-room + on-floor (not a doorway) gate for an adventurer ability
+  // perceiving / targeting a hostile across the grid. Mirrors CombatSystem's
+  // swing gate so class abilities only engage foes in the SAME room — never
+  // across a wall, and never one mid-transit through a doorway. Degrades to
+  // permissive when there's no real grid (headless makeScene proxy stub).
+  _realGrid() {
+    const g = this._scene?.dungeonGrid
+    if (!g || typeof g.getTileType !== 'function' || typeof g.getRoomAtTile !== 'function') return null
+    // Reject the headless proxy's chainable stub (a real grid returns a number).
+    try { if (typeof g.getTileType(-1, -1) !== 'number') return null } catch (e) { return null }
+    return g
+  }
+  _abilityCanReach(caster, target) {
+    const g = this._realGrid()
+    if (!g) return true
+    const tx = Math.floor(target.tileX), ty = Math.floor(target.tileY)
+    const cr = g.getRoomAtTile(Math.floor(caster.tileX), Math.floor(caster.tileY))
+    const tr = g.getRoomAtTile(tx, ty)
+    if (!cr || !tr || cr.instanceId !== tr.instanceId) return false
+    return g.getTileType(tx, ty) !== TILE.DOOR   // not a foe mid-doorway
+  }
+
   _hostileMinionCountWithin(adv, rangeTiles) {
     let n = 0
     if (adv._revivedAdv) {
       for (const e of this._gameState.adventurers?.active ?? []) {
         if (e.aiState === 'dead' || (e.resources?.hp ?? 0) <= 0) continue
+        if (!this._abilityCanReach(adv, e)) continue
         const d = Math.hypot((e.tileX ?? 0) - adv.tileX, (e.tileY ?? 0) - adv.tileY)
         if (d <= rangeTiles + 0.01) n++
       }
@@ -701,6 +724,7 @@ export class ClassAbilitySystem {
     for (const m of this._gameState.minions ?? []) {
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      if (!this._abilityCanReach(adv, m)) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d <= rangeTiles + 0.01) n++
     }
@@ -1368,6 +1392,7 @@ export class ClassAbilitySystem {
       // it scans for are the living adventurers.
       for (const e of this._gameState.adventurers?.active ?? []) {
         if (e.aiState === 'dead' || (e.resources?.hp ?? 0) <= 0) continue
+        if (!this._abilityCanReach(adv, e)) continue
         const d = Math.hypot((e.tileX ?? 0) - adv.tileX, (e.tileY ?? 0) - adv.tileY)
         if (d <= rangeTiles + 0.01) return true
       }
@@ -1377,6 +1402,7 @@ export class ClassAbilitySystem {
     for (const m of minions) {
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
       if (m.faction === 'adventurer') continue // tamed/raised allies don't count
+      if (!this._abilityCanReach(adv, m)) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d <= rangeTiles + 0.01) return true
     }
@@ -1389,6 +1415,7 @@ export class ClassAbilitySystem {
     for (const m of minions) {
       if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
       if (m.faction === 'adventurer') continue
+      if (!this._abilityCanReach(adv, m)) continue
       const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
       if (d > rangeTiles + 0.01) continue
       if (d < bestD) { best = m; bestD = d }
