@@ -630,6 +630,12 @@ export function installDevSandbox(scene) {
   // clean VFX stage. One-shot: the flag is cleared immediately.
   let testStage = false
   try { testStage = localStorage.getItem('qf.dev.testStage') === '1'; if (testStage) localStorage.removeItem('qf.dev.testStage') } catch (e) {}
+  // Session flag read by the welcome intro / act-intro card / tutorial hints so
+  // they suppress themselves on a dev TEST STAGE run (they only slow testing).
+  // Set every mango run (true on test-stage, false otherwise → no leak into a
+  // later normal run in the same page session). DevSandbox installs during
+  // Game.create, before any of those popups fire, so the flag is ready in time.
+  globalThis.__qfDevTestStage = testStage
   if (testStage) {
     const onNight = () => {
       EventBus.off('NIGHT_PHASE_STARTED', onNight)

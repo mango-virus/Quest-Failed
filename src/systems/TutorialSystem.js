@@ -645,6 +645,8 @@ export class TutorialSystem {
   _enqueue(t) {
     const meta = this._gameState?.meta
     if (!meta) return
+    // Dev TEST STAGE — hints off, so they don't pop while testing.
+    if (globalThis.__qfDevTestStage) return
     if (!meta.tutorialEnabled) return
     // NOTE: we deliberately do NOT gate on the global
     // `qf.gameplay.tutorials` localStorage key here. That key can be stale

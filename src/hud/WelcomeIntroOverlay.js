@@ -42,6 +42,9 @@ export class WelcomeIntroOverlay {
   // opened immediately and overlapped the "NIGHT FALLS · THE BUILD"
   // cinematic that fires on Game-scene boot.
   maybeOpen() {
+    // Dev TEST STAGE — skip the welcome intro entirely so testing isn't gated
+    // behind a modal each launch (see DevSandbox.__qfDevTestStage).
+    if (globalThis.__qfDevTestStage) return
     if (this._gameState?.meta?.introSeen) return
     let _opened = false
     const onFinish = ({ phase } = {}) => { if (phase === 'night') tryOpen() }

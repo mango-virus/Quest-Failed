@@ -120,6 +120,10 @@ export class ActIntro {
   }
 
   _onActStarted({ act, def } = {}) {
+    // Dev TEST STAGE — skip the act chapter card (it soft-pauses the scene and
+    // slows testing). Still emit ACT_INTRO_DISMISSED so anything waiting on it
+    // (e.g. the welcome intro's gate) doesn't hang.
+    if (globalThis.__qfDevTestStage) { EventBus.emit('ACT_INTRO_DISMISSED'); return }
     const stage = document.getElementById('hud-stage')
     if (!stage || !def) return
     // Drafted acts (II & III) get the richer "THE KINGDOM RESPONDS" reveal from
