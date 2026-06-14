@@ -1464,6 +1464,9 @@ export class MinionAISystem {
   // ── Movement ──────────────────────────────────────────────────────────────
 
   _moveToward(minion, targetTile, delta) {
+    // Slow status (Mage ice Chill, and any future minion slow) — scales the step.
+    // slowMult is consumed for adventurers in AISystem; this is its minion counterpart.
+    const _slowMul = MinionAbilities.slowMult(minion, this._scene?.time?.now ?? 0)
     // Door pause: if the next waypoint sits on a closed connection-point
     // door, trigger the split-open animation (idempotent) and hold position
     // until it finishes — mirrors the adventurer pattern in
@@ -1510,7 +1513,7 @@ export class MinionAISystem {
       const sdx = cx - minion.worldX
       const sdy = cy - minion.worldY
       const sdist = Math.hypot(sdx, sdy)
-      const sStep = (minion.stats.speed * TS * delta) / 1000
+      const sStep = (minion.stats.speed * _slowMul * TS * delta) / 1000
       if (sStep >= sdist || sdist < 0.5) {
         minion.worldX = cx
         minion.worldY = cy
@@ -1544,7 +1547,7 @@ export class MinionAISystem {
     const dy = targetWY - minion.worldY
     const dist = Math.hypot(dx, dy)
 
-    const stepPx = (minion.stats.speed * TS * delta) / 1000
+    const stepPx = (minion.stats.speed * _slowMul * TS * delta) / 1000
     if (stepPx >= dist || dist < 0.5) {
       minion.worldX = targetWX
       minion.worldY = targetWY

@@ -451,10 +451,29 @@ _(Ability harness 25/25, soak 120/120, live in-engine trace.)_
 - ✅ Out-of-combat decay −1/~2s (live: 2→1→0)
 - ✅ Transient `_crescendo*` fields stripped on load; intel description updated
 
+### 🔮 Mage — Elemental Arcana (LOCKED 2026-06-14, built + verified)
+
+**Problem:** Arcane Burst was a generic AoE button; the rolled element was purely cosmetic after
+vulnerabilities were gutted. **Keep** Arcane Mastery (+30%). The element now has an **intrinsic
+effect** on minions the mage hits — modest per swing, amplified by Arcane Burst (no vuln tables):
+- 🔥 **Fire** — applies/refreshes a **Burn DoT** (~25% of hit/tick × 3); burst = AoE + stronger burn.
+- ❄️ **Ice** — **Chills** (move ×0.6 / ~1.8s); burst = AoE + deeper chill. (Added the missing
+  minion-movement slow reader in `MinionAISystem._moveToward`.)
+- ⚡ **Lightning** — **arcs** to 1 neighbor (~45%, gated ~1.2s); burst = **branching bolt**, up to 3 hops.
+- 💨 **Wind** — **knocks** target back 1 tile (gated ~2.5s); burst = AoE + scatters all hit.
+
+**Systems:** `CombatSystem._applyMageElement` + `_fireArcaneBurst` + `_nearestMinionsTo`/
+`_dealSplash`/`_knockbackMinion`; reuses `_dot` + `_slowUntil/_slowMult`. SaveSystem strips
+`_arcLastAt`/`_gustLastAt`. Intel updated.
+
+#### Acceptance checklist (verified 2026-06-14)
+_(Ability harness 25/25, soak 120/120, `tools/sim/mage-element-check.mjs` 9/9, balance sweep normal.)_
+- ✅ +30% Arcane Mastery kept; element rolled once
+- ✅ Fire burn (refreshes, no stack) · Ice slow (+ minion-move reader) · Lightning chain (gated) · Wind knockback (gated)
+- ✅ Burst lightning = branching bolt (≥2 hops) · burst fire/ice/wind = radial AoE + strong element
+- ✅ Transient gate fields stripped on load; intel description updated
+
 ### Proposed (pending sign-off — NOT locked, NOT built)
-- **🔮 Mage:** make the rolled element MEAN something (intrinsic, not vulnerability-based) —
-  fire=burn DoT, ice=slow, lightning=chain, wind=knockback/scatter; Arcane Burst becomes
-  element-flavored AoE. Keep Arcane Mastery (+30%).
 - **🧘 Monk:** **Riposte** (Focus dodge → instant counter/reflect) + **Stunning Palm** (periodic
   single-target stun). Cut or convert the bland self-regen Inner Peace.
 - **🐺 Beast Master:** keep Tame; replace near-invisible Scout Ahead with **Sic 'Em** (directed

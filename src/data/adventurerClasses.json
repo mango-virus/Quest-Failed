@@ -86,7 +86,7 @@
       "ranged",
       "spellcaster"
     ],
-    "description": "Glass cannon. Big spells, brittle bones.",
+    "description": "Glass cannon. Wields one random element each run: FIRE burns over time, ICE chills (slows), LIGHTNING arcs between minions, WIND scatters them. Arcane Burst amplifies that element into an AoE (or a branching bolt). Big spells, brittle bones.",
     "flavorText": "Fireball solves most problems. Survival is a different one."
   },
   {

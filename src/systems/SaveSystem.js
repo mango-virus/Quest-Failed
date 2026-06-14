@@ -402,6 +402,9 @@ function _rehydrateRunHistory(state) {
     '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
     '_boneArmorUntil', '_invisibilityUntil',
     '_arcaneBurstQueued', '_madnessTargetId', '_wanderingGateCooldownDay',
+    // Mage Elemental Arcana — scene.time gates on the per-hit lightning chain /
+    // wind shove (a saved future value would suppress them until the clock catches up).
+    '_arcLastAt', '_gustLastAt',
     // Knight + Bard buff windows — same scene.time-stamped contract;
     // a saved value lingers as "in the future" after load and keeps
     // the buff active until the new scene's clock catches up.

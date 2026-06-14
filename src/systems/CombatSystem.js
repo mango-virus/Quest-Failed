@@ -13,6 +13,27 @@ import { rgbFloatingText } from '../util/cheaterVfx.js'
 import { MinionAbilities } from './MinionAbilities.js'
 import { Balance }         from '../config/balance.js'
 import { TILE }            from './DungeonGrid.js'
+import { PathfinderSystem } from './PathfinderSystem.js'
+
+// ── Mage Elemental Arcana tuning ───────────────────────────────────────────
+// The rolled element (fire/ice/lightning/wind) gives the mage's hits an
+// intrinsic effect — modest per swing, amplified by Arcane Burst (strong=true).
+const MAGE_BURN_PCT          = 0.25   // burn dmg/tick = this × the hit
+const MAGE_BURN_TICKS        = 3
+const MAGE_BURN_TICKS_STRONG = 4
+const MAGE_BURN_INTERVAL_MS  = 1000
+const MAGE_CHILL_MULT        = 0.60   // ice slow (move-speed ×)
+const MAGE_CHILL_MS          = 1800
+const MAGE_CHILL_MULT_STRONG = 0.45
+const MAGE_CHILL_MS_STRONG   = 2600
+const MAGE_ARC_PCT           = 0.45   // lightning chain damage fraction
+const MAGE_ARC_PCT_STRONG    = 0.60
+const MAGE_ARC_RANGE         = 3      // tiles a bolt can jump
+const MAGE_ARC_CD_MS         = 1200   // per-mage gate on the normal-hit chain
+const MAGE_ARC_CHAINS_STRONG = 3      // burst bolt hops
+const MAGE_GUST_CD_MS        = 2500   // per-mage gate on the normal-hit shove
+const MAGE_BURST_AOE_TILES   = 1.4
+const MAGE_BURST_DMG_PCT     = 0.6
 
 const TS = Balance.TILE_SIZE
 
@@ -493,23 +514,18 @@ export class CombatSystem {
     // Bloodthirst, Petrify Gaze, Earthshake, Pickpocket, Greedy Bite, Snare).
     MinionAbilities.onHit(this._scene, attacker, target, finalDmg, this._gameState)
 
-    // Phase 5c — Mage Arcane Burst: if queued, deal AoE damage to all enemies
-    // within 1 tile of the primary target, then consume the flag.
+    // Mage Elemental Arcana — the rolled element flavors EVERY mage hit (modest;
+    // lightning/wind gated so they don't oppress), then Arcane Burst amplifies it.
+    if ((attacker.classId === 'mage' || attacker._raisedClassId === 'mage') &&
+        target.faction !== 'adventurer' && target.resources?.hp > 0) {
+      this._applyMageElement(attacker, target, finalDmg, false)
+    }
+
+    // Mage Arcane Burst — element-DEFINED amplifier (consumes the queued flag).
+    // fire/ice/wind = radial AoE; lightning = a branching bolt (distinct shape).
     if (attacker.classId === 'mage' && attacker._arcaneBurstQueued) {
       attacker._arcaneBurstQueued = false
-      const aoeColor = (attacker._element === 'fire' ? 0xff6633 : attacker._element === 'ice' ? 0x66ddff : attacker._element === 'lightning' ? 0xffff66 : 0xaaffff)
-      AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: aoeColor, fromR: 12, toR: 64, durationMs: 500, alpha: 0.85 })
-      AbilityVfx.particleBurst(this._scene, target.worldX, target.worldY, { color: aoeColor, count: 14, durationMs: 600, speed: 100 })
-      const aoeDamage = Math.max(1, Math.floor(finalDmg * 0.6))
-      for (const m of this._gameState.minions ?? []) {
-        if (m === target) continue
-        if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
-        if (m.faction === 'adventurer') continue
-        const d = Math.hypot(m.tileX - target.tileX, m.tileY - target.tileY)
-        if (d > 1.01) continue
-        m.resources.hp = Math.max(0, m.resources.hp - aoeDamage)
-        EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: m.instanceId, damage: aoeDamage, damageType, isCritical: false })
-      }
+      this._fireArcaneBurst(attacker, target, finalDmg, damageType)
     }
 
     // Phase 5c — Ranger Volley: every 5th attack fires at 2 extra targets in
@@ -1171,6 +1187,111 @@ export class CombatSystem {
       return Math.max(1, Math.floor(raw * (bard._crescendoAtkMul || 1.15)))
     }
     return raw
+  }
+
+  // ── Mage Elemental Arcana ───────────────────────────────────────────────
+  _mageElement(mage) { return mage._element || 'fire' }
+  _mageElementColor(el) {
+    return el === 'fire' ? 0xff6633 : el === 'ice' ? 0x66ddff : el === 'lightning' ? 0xffff66 : 0xaaffff
+  }
+
+  // Apply the mage's element to one target. strong=true is the Arcane Burst
+  // version (bigger/longer); strong=false is the per-swing version, gated for the
+  // power-adding elements (lightning/wind) so they don't oppress.
+  _applyMageElement(mage, target, dmg, strong) {
+    const now = this._scene?.time?.now ?? 0
+    const el = this._mageElement(mage)
+    if (el === 'fire') {
+      target._dot = target._dot ?? []
+      const dpt = Math.max(2, Math.floor(dmg * MAGE_BURN_PCT))
+      const ticks = strong ? MAGE_BURN_TICKS_STRONG : MAGE_BURN_TICKS
+      const ex = target._dot.find(d => d.type === 'burn' && d.source === mage.instanceId)
+      if (ex) { ex.ticksLeft = Math.max(ex.ticksLeft, ticks); ex.dmgPerTick = Math.max(ex.dmgPerTick, dpt); ex._lastTickAt = now }
+      else target._dot.push({ dmgPerTick: dpt, intervalMs: MAGE_BURN_INTERVAL_MS, ticksLeft: ticks, type: 'burn', source: mage.instanceId, _lastTickAt: now })
+    } else if (el === 'ice') {
+      const next = now + (strong ? MAGE_CHILL_MS_STRONG : MAGE_CHILL_MS)
+      if (!target._slowUntil || target._slowUntil < next) target._slowUntil = next
+      target._slowMult = Math.min(target._slowMult ?? 1, strong ? MAGE_CHILL_MULT_STRONG : MAGE_CHILL_MULT)
+    } else if (el === 'lightning') {
+      if (strong) return                       // the burst chains via targeting, not here
+      if (now - (mage._arcLastAt ?? 0) < MAGE_ARC_CD_MS) return
+      mage._arcLastAt = now
+      const t2 = this._nearestMinionsTo(target, MAGE_ARC_RANGE, 1, new Set([target.instanceId]))[0]
+      if (t2) {
+        this._dealSplash(mage, t2, Math.max(1, Math.floor(dmg * MAGE_ARC_PCT)), 'lightning')
+        AbilityVfx.beamFx?.(this._scene, target.worldX, target.worldY, t2.worldX, t2.worldY, { color: 0xffff66, durationMs: 220 })
+      }
+    } else {                                   // wind
+      if (!strong && now - (mage._gustLastAt ?? 0) < MAGE_GUST_CD_MS) return
+      if (!strong) mage._gustLastAt = now
+      this._knockbackMinion(target, mage.worldX, mage.worldY)
+    }
+  }
+
+  // Arcane Burst — element-defined amplifier. fire/ice/wind = radial AoE that
+  // also applies the STRONG element; lightning = a branching bolt that hops
+  // through several minions (a distinct shape, not a ring).
+  _fireArcaneBurst(mage, target, dmg, damageType) {
+    const el = this._mageElement(mage)
+    const color = this._mageElementColor(el)
+    if (el === 'lightning') {
+      const seen = new Set([target.instanceId])
+      let from = target
+      for (let i = 0; i < MAGE_ARC_CHAINS_STRONG; i++) {
+        const nxt = this._nearestMinionsTo(from, MAGE_ARC_RANGE, 1, seen)[0]
+        if (!nxt) break
+        seen.add(nxt.instanceId)
+        AbilityVfx.beamFx?.(this._scene, from.worldX, from.worldY, nxt.worldX, nxt.worldY, { color, durationMs: 260 })
+        this._dealSplash(mage, nxt, Math.max(1, Math.floor(dmg * MAGE_ARC_PCT_STRONG)), 'lightning')
+        from = nxt
+      }
+      AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 26, 'ARC', { color: '#ffff66', fontSize: '12px' })
+      return
+    }
+    AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color, fromR: 12, toR: 64, durationMs: 500, alpha: 0.85 })
+    AbilityVfx.particleBurst(this._scene, target.worldX, target.worldY, { color, count: 14, durationMs: 600, speed: 100 })
+    const splash = Math.max(1, Math.floor(dmg * MAGE_BURST_DMG_PCT))
+    for (const m of this._nearestMinionsTo(target, MAGE_BURST_AOE_TILES, 99, new Set([target.instanceId]))) {
+      this._dealSplash(mage, m, splash, damageType)
+      this._applyMageElement(mage, m, dmg, true)
+    }
+    this._applyMageElement(mage, target, dmg, true)   // the primary takes the strong element too
+  }
+
+  _nearestMinionsTo(origin, range, limit, exclude) {
+    const out = []
+    for (const m of this._gameState.minions ?? []) {
+      if (exclude?.has(m.instanceId)) continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction === 'adventurer') continue
+      const d = Math.hypot((m.tileX ?? 0) - (origin.tileX ?? 0), (m.tileY ?? 0) - (origin.tileY ?? 0))
+      if (d > range + 0.01) continue
+      out.push({ m, d })
+    }
+    out.sort((a, b) => a.d - b.d)
+    return out.slice(0, limit).map(o => o.m)
+  }
+
+  _dealSplash(mage, m, dmg, damageType) {
+    if (!m || (m.resources?.hp ?? 0) <= 0) return
+    m.resources.hp = Math.max(0, m.resources.hp - dmg)
+    EventBus.emit('COMBAT_HIT', { sourceId: mage.instanceId, targetId: m.instanceId, damage: dmg, damageType, isCritical: false })
+  }
+
+  // Shove a minion 1 tile directly away from (fromX,fromY) if that tile is open.
+  _knockbackMinion(m, fromX, fromY) {
+    const grid = this._scene?.dungeonGrid
+    if (!grid) return
+    const dx = m.worldX - fromX, dy = m.worldY - fromY
+    let kx = m.tileX, ky = m.tileY
+    if (Math.abs(dx) >= Math.abs(dy)) kx += (dx === 0 ? 1 : Math.sign(dx))
+    else ky += (dy === 0 ? 1 : Math.sign(dy))
+    const t = grid.getTileType?.(kx, ky)
+    if (t == null || !PathfinderSystem.isWalkable(t) || t === TILE.DOOR) return
+    const TS = Balance.TILE_SIZE
+    m.tileX = kx; m.tileY = ky
+    m.worldX = kx * TS + TS / 2; m.worldY = ky * TS + TS / 2
+    m._patrolTarget = null; m._chasePath = null
   }
 
   _inferMethod(attacker, damageType) {
