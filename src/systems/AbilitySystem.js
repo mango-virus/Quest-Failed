@@ -12,7 +12,7 @@
 //
 // Each ability definition (passed in `defs` or read off classDef) shapes:
 //   {
-//     id:            'protective_aura',
+//     id:            'bulwark',
 //     cooldownMs:    20000,        // optional. omit for non-CD abilities.
 //     usesPerDay:    null | num,   // optional. null = no per-day cap.
 //     usesPerDayPerLevel: null | { 1: 1, 5: 5 },  // tier table by adv level

@@ -540,9 +540,39 @@ _(Ability harness 27/27, soak 120/120, `tools/sim/ranger-pierce-check.mjs` 4/4.)
 - ✅ Spares minions OFF the line (perp > 0.7) (test)
 - ✅ Volley removed (def `ranger_volley`→`ranger_piercing`; HUD label + intel + comments updated)
 
-### Proposed (pending sign-off — NOT locked, NOT built)
-- **🛡️ Knight:** keep Taunt; tweak the flavorless −25% aura into **Bulwark** (directional
-  shield-wall protecting allies behind him) or **Aegis Reflect** (reflect a slice of soaked dmg).
+### 🛡️ Knight — Bulwark (LOCKED 2026-06-14, built + verified)
+
+**Problem:** Taunt is good (pulls minions off squishies), but Protective Aura was a flavorless flat
+−25% bubble. **Kept Taunt; reworked the aura into a positional shield-wall.**
+
+- **Bulwark** (~20s cd, 6s) — raised when an ally is in danger OR a hostile is near. While up, an
+  ally (or the Knight) within ~2.5 tiles takes **−35%** damage **only when sheltered behind/beside
+  the Knight**: the Knight stands toward the threat from the ally AND is at least as forward (close
+  to the attacker). Attacking from a side the Knight isn't covering **bypasses** it — positional,
+  rewards front-lining. (Internal stance window stays `_auraActiveUntil`.)
+- **Taunt** — unchanged.
+
+**Systems:** `ClassAbilitySystem._considerKnight` (Bulwark trigger) + `CombatSystem._applyBulwark`
+(directional shelter test; consts `KNIGHT_BULWARK_REDUCTION`/`KNIGHT_BULWARK_RANGE`). Def
+`knight_aura`→`knight_bulwark`; HUD label + intel + comment refs updated. No new save fields
+(`_auraActiveUntil` already stripped).
+
+#### Acceptance checklist (verified 2026-06-14)
+_(Ability harness 27/27, soak 120/120, `tools/sim/knight-bulwark-check.mjs` 5/5.)_
+- ✅ Sheltered (Knight between threat and ally) → −35% (test)
+- ✅ Exposed (Knight on the wrong side) → full damage (test)
+- ✅ The Knight always shelters himself (test); out-of-range / stance-down → no shelter (tests)
+- ✅ Taunt unchanged; def/HUD/intel/comment refs updated, no dangling `protective_aura`
+
+---
+
+## ✅ Older-class ability redesign — COMPLETE (mechanics)
+
+All 7 reworked: **Barbarian** (Reckless Charge) · **Bard** (Crescendo) · **Mage** (Elemental
+Arcana) · **Monk** (Riposte + Stunning Palm) · **Beast Master** (Sic 'Em + Pack Tactics) ·
+**Ranger** (Piercing Shot) · **Knight** (Bulwark). Cleric + Necromancer left as-is (already good).
+Each has a headless effect-test under `tools/sim/`. **NEXT PHASE: the bespoke-VFX pass** for the
+whole set (the placeholder rings/floaters were deliberate — VFX was always phase 2).
 
 ---
 

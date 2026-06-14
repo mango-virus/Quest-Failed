@@ -42,6 +42,11 @@ const MONK_RIPOSTE_FRAC      = 0.8
 // are BOTH adjacent to the same target.
 const PACK_TACTICS_PCT       = 0.25
 
+// Knight Bulwark — a directional shield-wall: allies sheltered behind/beside the
+// Knight (toward the threat) take this much less damage, within this range.
+const KNIGHT_BULWARK_REDUCTION = 0.35
+const KNIGHT_BULWARK_RANGE     = 2.5
+
 // Ranger Piercing Shot — every Nth arrow becomes a line shot that pierces every
 // minion along the ranger→target ray (rewards the player for not lining them up).
 const RANGER_PIERCE_EVERY    = 5
@@ -269,9 +274,9 @@ export class CombatSystem {
       return { hit: false, blocked: true }
     }
 
-    // Phase 5c — Knight Protective Aura: party allies (and the Knight himself)
-    // within auraRangeTiles of an aura-active Knight take 25% less damage.
-    finalDmg = this._applyProtectiveAura(target, finalDmg)
+    // Knight Bulwark: a directional shield-wall — allies sheltered behind/beside
+    // an aura-active Knight (toward the threat) take reduced damage.
+    finalDmg = this._applyBulwark(attacker, target, finalDmg)
 
     // Dungeon event: Blood Moon Eclipse — minions deal 2× damage AND take
     // 2× damage. Symmetric so the day is a sharp risk/reward, not pure
@@ -1162,40 +1167,51 @@ export class CombatSystem {
     return neighbors.some(n => n.definitionId === 'armory' && n.isActive !== false)
   }
 
-  // Phase 5c — apply Knight Protective Aura damage reduction.
-  // If `target` is an adventurer AND there's a same-party Knight with an
-  // active aura within `auraRangeTiles` (default 1), reduce damage by 25%.
-  // The Knight himself is also covered (he stands in his own aura).
-  _applyProtectiveAura(target, dmg) {
+  // Knight Bulwark — a DIRECTIONAL shield-wall. While a Knight's stance is up,
+  // an ally (or the Knight himself) within KNIGHT_BULWARK_RANGE takes reduced
+  // damage ONLY when sheltered behind/beside the Knight: the Knight stands toward
+  // the threat from the ally AND is at least as forward (close to the attacker) as
+  // the ally. Attacking from a side the Knight isn't covering bypasses it.
+  _applyBulwark(attacker, target, dmg) {
     if (!target || dmg <= 0) return dmg
     if (target.aiState === undefined) return dmg              // non-combatant target — skip
+    const reduced = () => Math.max(1, Math.floor(dmg * (1 - KNIGHT_BULWARK_REDUCTION)))
+    // Is `target` sheltered by `knight` relative to `attacker`?
+    const sheltered = (knight) => {
+      if (knight === target) return true                      // the Knight IS the wall
+      const atx = (attacker?.tileX ?? target.tileX) - target.tileX
+      const aty = (attacker?.tileY ?? target.tileY) - target.tileY
+      const ktx = knight.tileX - target.tileX
+      const kty = knight.tileY - target.tileY
+      if (atx * ktx + aty * kty <= 0) return false            // Knight not on the threat side of the ally
+      if (attacker) {
+        const dKA = Math.hypot(knight.tileX - attacker.tileX, knight.tileY - attacker.tileY)
+        const dTA = Math.hypot(target.tileX - attacker.tileX, target.tileY - attacker.tileY)
+        if (dKA > dTA + 0.01) return false                    // Knight isn't taking the front
+      }
+      return true
+    }
+    const now = this._scene.time.now
     if (target.classId === undefined) {
-      // The Undying Court — a revived KNIGHT minion's aura shields nearby
+      // The Undying Court — a revived KNIGHT minion's bulwark shields nearby
       // DUNGEON minions (the classId-less defenders).
       if (!(this._gameState._mechanicFlags ?? {}).theUndyingCourt) return dmg
       if (target.faction !== 'dungeon') return dmg
-      const nowA = this._scene.time.now
       for (const m of this._gameState.minions ?? []) {
         if (m._raisedClassId !== 'knight') continue
-        if (!m._auraActiveUntil || nowA >= m._auraActiveUntil) continue
-        const d = Math.hypot((target.tileX ?? 0) - (m.tileX ?? 0), (target.tileY ?? 0) - (m.tileY ?? 0))
-        if (d > 1.01) continue
-        return Math.max(1, Math.floor(dmg * 0.75))
+        if (!m._auraActiveUntil || now >= m._auraActiveUntil) continue
+        if (Math.hypot((target.tileX ?? 0) - (m.tileX ?? 0), (target.tileY ?? 0) - (m.tileY ?? 0)) > KNIGHT_BULWARK_RANGE) continue
+        if (sheltered(m)) return reduced()
       }
       return dmg
     }
     const advs = this._gameState.adventurers?.active ?? []
-    const now  = this._scene.time.now
     for (const knight of advs) {
       if (knight.classId !== 'knight') continue
       if (!knight._auraActiveUntil || now >= knight._auraActiveUntil) continue
-      // Same-party check: solo Knights only protect themselves.
-      if (knight !== target) {
-        if (!knight.partyId || knight.partyId !== target.partyId) continue
-      }
-      const d = Math.hypot(target.tileX - knight.tileX, target.tileY - knight.tileY)
-      if (d > 1.01) continue
-      return Math.max(1, Math.floor(dmg * 0.75))
+      if (knight !== target && (!knight.partyId || knight.partyId !== target.partyId)) continue   // solo Knight shields only himself
+      if (Math.hypot(target.tileX - knight.tileX, target.tileY - knight.tileY) > KNIGHT_BULWARK_RANGE) continue
+      if (sheltered(knight)) return reduced()
     }
     return dmg
   }

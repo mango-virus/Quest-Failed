@@ -53,7 +53,7 @@ function fireOne(classId, key) {
 const TESTS = [
   ['mage', 'mage_arcane_burst'],
   ['cleric', 'cleric_heal'],
-  ['knight', 'knight_aura'],
+  ['knight', 'knight_bulwark'],
   ['knight', 'knight_taunt'],
   ['necromancer', 'necro_summon'],
   ['rogue', 'rogue_invisibility'],

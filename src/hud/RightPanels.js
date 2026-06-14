@@ -183,6 +183,8 @@ const LOG_MAX_COALESCE_CONTEXTS = 3
 const ABILITY_BRIEF = {
   aimhack:        'Aimhack loaded',
   speedhack:      'Speed hack engaged',
+  bulwark:        'Bulwark',
+  taunt:          'Taunt',
   riposte:        'Riposte',
   stunning_palm:  'Stunning Palm',
   reckless_charge:'Reckless Charge',

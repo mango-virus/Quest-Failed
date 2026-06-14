@@ -10,7 +10,7 @@
 // off the dispatch switch as their passes land.
 //
 // Buff fields written on the adventurer entity (transient, prefixed `_`):
-//   _auraActiveUntil      (Knight Protective Aura)
+//   _auraActiveUntil      (Knight Bulwark — directional shield-wall stance window)
 //   _tauntActiveUntil     (Knight Taunt — read by MinionAISystem priority)
 //   _inspireActiveUntil   (Bard Inspire Party — read by CombatSystem)
 //   _songSpeedActiveUntil (Bard Song of Speed — read by AISystem movement)
@@ -30,7 +30,11 @@ import { rgbFloatingText, rgbParticleBurst } from '../util/cheaterVfx.js'
 // Ability defs. Cooldown buckets are: small 5–8s, medium 12–18s, large 30–60s.
 export const ABILITY_DEFS = {
   // Knight
-  knight_aura:  { id: 'protective_aura', cooldownMs: 30000, durationMs: 6000, label: 'Protective Aura', auraRangeTiles: 1, dmgReduction: 0.25 },
+  // Bulwark — a directional shield-wall (replaces the flat Protective Aura): while
+  // up, allies sheltered BEHIND/BESIDE the Knight (toward the threat) take reduced
+  // damage. Positional → rewards front-lining. (CombatSystem._applyBulwark reads
+  // the stance window `_auraActiveUntil` + the reduction/range consts there.)
+  knight_bulwark: { id: 'bulwark', cooldownMs: 20000, durationMs: 6000, label: 'Bulwark', bulwarkRange: 2.5 },
   knight_taunt: { id: 'taunt',           cooldownMs: 12000, durationMs: 4000, label: 'Taunt' },
   // Bard — Crescendo: ONE escalating battle hymn (replaces the old flat Inspire +
   // Song of Speed auras). Builds a stack every few seconds while combat is near,
@@ -462,7 +466,7 @@ export class ClassAbilitySystem {
     if (adv._auraActiveUntil && now >= adv._auraActiveUntil) {
       adv._auraActiveUntil = null
       this._endSustainedFx(adv.instanceId, 'aura')
-      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'protective_aura' })
+      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'bulwark' })
     }
     if (adv._tauntActiveUntil && now >= adv._tauntActiveUntil) {
       adv._tauntActiveUntil = null
@@ -616,20 +620,21 @@ export class ClassAbilitySystem {
   // ── Knight ────────────────────────────────────────────────────────────────
 
   _considerKnight(adv, now) {
-    // Protective Aura — fire when self or any party ally within 1 tile
-    // is below 70% HP. Aura buff lasts 6s and reduces damage by 25% on
-    // the Knight + nearby same-party allies (CombatSystem reads it).
-    const auraDef = ABILITY_DEFS.knight_aura
-    if (this._allyInDangerNearby(adv, auraDef.auraRangeTiles)) {
-      const ready = AbilitySystem.canUse(adv, auraDef, now)
+    // Bulwark — raise the shield-wall when a nearby ally is in danger OR a hostile
+    // is close (so the wall is up before the blows land). While active, allies
+    // sheltered behind/beside the Knight (toward the threat) take reduced damage —
+    // see CombatSystem._applyBulwark. `_auraActiveUntil` is the stance window.
+    const bulwarkDef = ABILITY_DEFS.knight_bulwark
+    if (this._allyInDangerNearby(adv, bulwarkDef.bulwarkRange) || this._hostileMinionWithin(adv, 4)) {
+      const ready = AbilitySystem.canUse(adv, bulwarkDef, now)
       if (ready.ready) {
-        AbilitySystem.markUsed(adv, auraDef, now)
-        adv._auraActiveUntil = now + auraDef.durationMs
-        this._fireAuraVfx(adv, auraDef.durationMs)
+        AbilitySystem.markUsed(adv, bulwarkDef, now)
+        adv._auraActiveUntil = now + bulwarkDef.durationMs
+        this._fireAuraVfx(adv, bulwarkDef.durationMs)
         EventBus.emit('ABILITY_TRIGGERED', {
           adventurer: adv,
-          abilityId: 'protective_aura',
-          message: `${adv.name} raised a Protective Aura.`,
+          abilityId: 'bulwark',
+          message: `${adv.name} raised a Bulwark.`,
         })
       }
     }
