@@ -1272,10 +1272,12 @@ export class CombatSystem {
       const ex = target._dot.find(d => d.type === 'burn' && d.source === mage.instanceId)
       if (ex) { ex.ticksLeft = Math.max(ex.ticksLeft, ticks); ex.dmgPerTick = Math.max(ex.dmgPerTick, dpt); ex._lastTickAt = now }
       else target._dot.push({ dmgPerTick: dpt, intervalMs: MAGE_BURN_INTERVAL_MS, ticksLeft: ticks, type: 'burn', source: mage.instanceId, _lastTickAt: now })
+      AbilityVfx.emberBurnFx?.(this._scene, target.worldX, target.worldY)
     } else if (el === 'ice') {
       const next = now + (strong ? MAGE_CHILL_MS_STRONG : MAGE_CHILL_MS)
       if (!target._slowUntil || target._slowUntil < next) target._slowUntil = next
       target._slowMult = Math.min(target._slowMult ?? 1, strong ? MAGE_CHILL_MULT_STRONG : MAGE_CHILL_MULT)
+      AbilityVfx.frostChillFx?.(this._scene, target.worldX, target.worldY)
     } else if (el === 'lightning') {
       if (strong) return                       // the burst chains via targeting, not here
       if (now - (mage._arcLastAt ?? 0) < MAGE_ARC_CD_MS) return
@@ -1283,12 +1285,13 @@ export class CombatSystem {
       const t2 = this._nearestMinionsTo(target, MAGE_ARC_RANGE, 1, new Set([target.instanceId]))[0]
       if (t2) {
         this._dealSplash(mage, t2, Math.max(1, Math.floor(dmg * MAGE_ARC_PCT)), 'lightning')
-        AbilityVfx.beamFx?.(this._scene, target.worldX, target.worldY, t2.worldX, t2.worldY, { color: 0xffff66, durationMs: 220 })
+        AbilityVfx.arcBoltFx?.(this._scene, target.worldX, target.worldY, t2.worldX, t2.worldY)
       }
     } else {                                   // wind
       if (!strong && now - (mage._gustLastAt ?? 0) < MAGE_GUST_CD_MS) return
       if (!strong) mage._gustLastAt = now
       this._knockbackMinion(target, mage.worldX, mage.worldY)
+      AbilityVfx.gustFx?.(this._scene, target.worldX, target.worldY, { dir: ((target.tileX ?? 0) - (mage.tileX ?? 0)) >= 0 ? 1 : -1 })
     }
   }
 
@@ -1305,15 +1308,14 @@ export class CombatSystem {
         const nxt = this._nearestMinionsTo(from, MAGE_ARC_RANGE, 1, seen)[0]
         if (!nxt) break
         seen.add(nxt.instanceId)
-        AbilityVfx.beamFx?.(this._scene, from.worldX, from.worldY, nxt.worldX, nxt.worldY, { color, durationMs: 260 })
+        AbilityVfx.arcBoltFx?.(this._scene, from.worldX, from.worldY, nxt.worldX, nxt.worldY, { color })
         this._dealSplash(mage, nxt, Math.max(1, Math.floor(dmg * MAGE_ARC_PCT_STRONG)), 'lightning')
         from = nxt
       }
       AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 26, 'ARC', { color: '#ffff66', fontSize: '12px' })
       return
     }
-    AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color, fromR: 12, toR: 64, durationMs: 500, alpha: 0.85 })
-    AbilityVfx.particleBurst(this._scene, target.worldX, target.worldY, { color, count: 14, durationMs: 600, speed: 100 })
+    AbilityVfx.arcaneBurstFx?.(this._scene, target.worldX, target.worldY, { color })
     const splash = Math.max(1, Math.floor(dmg * MAGE_BURST_DMG_PCT))
     for (const m of this._nearestMinionsTo(target, MAGE_BURST_AOE_TILES, 99, new Set([target.instanceId]))) {
       this._dealSplash(mage, m, splash, damageType)

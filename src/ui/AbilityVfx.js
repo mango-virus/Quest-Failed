@@ -4478,4 +4478,132 @@ export const AbilityVfx = {
     scene.tweens.add({ targets: ring, alpha: 0, duration: life * 0.4, delay: life * 0.9, onComplete: () => ring.destroy() })
     return made
   },
+
+  // MAGE · FIRE element — clinging flames lick up the struck minion + rising
+  // embers. Opaque shaded flame silhouettes (via _drawFlame), not a blob.
+  emberBurnFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff6622, accent: 0xffd23f, depth: 14, durationMs: 600, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    for (let i = 0; i < 3; i++) {
+      const fx2 = x + (i - 1) * 6 + (Math.random() - 0.5) * 3
+      const g = scene.add.graphics().setPosition(fx2, y + 2).setDepth(o.depth + i * 0.1).setScale(0.5 + Math.random() * 0.3).setAlpha(0); made.push(g)
+      _drawFlame(g, 13 + Math.random() * 5, 7, (Math.random() - 0.5) * 3)
+      scene.tweens.add({ targets: g, alpha: 1, y: y - 2, duration: life * 0.25, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 0.5, y: g.y - 10, duration: life * 0.6, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -54, max: -18 }, speedX: { min: -18, max: 18 }, scale: { start: 0.18, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color, 0xff3311], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth + 0.5); em.explode(Math.round(8 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MAGE · ICE element — jagged ice crystals grow on the struck minion + frost
+  // vapor curls off. Custom angular crystal shards, not a ring.
+  frostChillFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x66ccff, accent: 0xeaffff, depth: 14, durationMs: 760, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const drawShard = (g, h, col) => {
+      g.fillStyle(col, 0.85); g.beginPath(); g.moveTo(0, 0); g.lineTo(-h * 0.22, -h * 0.5); g.lineTo(0, -h); g.lineTo(h * 0.22, -h * 0.5); g.closePath(); g.fillPath()
+      g.fillStyle(0xffffff, 0.55); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -h); g.lineTo(h * 0.1, -h * 0.5); g.closePath(); g.fillPath()
+    }
+    const slots = [[-6, 4, 0.9], [5, 5, 0.8], [0, 7, 1.1], [-3, -2, 0.7], [4, -1, 0.7]]
+    slots.forEach(([dx, dy, sm], i) => {
+      const g = scene.add.graphics().setPosition(x + dx, y + dy).setDepth(o.depth).setScale(0.2).setAlpha(0).setAngle((Math.random() - 0.5) * 40); made.push(g)
+      drawShard(g, (10 + Math.random() * 5) * sm, i % 2 ? o.accent : o.color); _glow(g, o.color, 1, 5)
+      scene.tweens.add({ targets: g, scale: sm, alpha: 0.9, duration: life * 0.25, delay: i * 30, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.5, delay: life * 0.15, onComplete: () => g.destroy() }) })
+    })
+    if (mult > 0) {
+      const v = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.5, max: life }, speedY: { min: -22, max: -6 }, speedX: { min: -16, max: 16 }, scale: { start: 0.24, end: 0 }, alpha: { start: 0.4, end: 0 }, tint: [0xeaffff, 0x9fd8ff], emitting: false })
+      v.setDepth(o.depth - 0.5); v.explode(Math.round(8 * mult)); made.push(v); scene.time.delayedCall(life, () => { try { v.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MAGE · LIGHTNING element — a real jagged forking BOLT A→B: glow underlayer +
+  // bright zigzag core + a fork branch + a strike spark. (Replaces beamFx for arcs.)
+  arcBoltFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xffff66, accent: 0xffffff, depth: 15, durationMs: 260, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const segs = 6, dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len
+    const pts = []
+    for (let i = 0; i <= segs; i++) { const t = i / segs, j = (i === 0 || i === segs) ? 0 : (Math.random() - 0.5) * 16; pts.push([x1 + dx * t + nx * j, y1 + dy * t + ny * j]) }
+    const stroke = (g, w, col, al) => { g.lineStyle(w, col, al); g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.strokePath() }
+    const g = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g)
+    stroke(g, 5, o.color, 0.45); stroke(g, 2.2, o.accent, 0.95)
+    const [bx, by] = pts[3]; let px = bx, py = by, a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.4
+    g.lineStyle(1.8, o.accent, 0.85); g.beginPath(); g.moveTo(bx, by)
+    for (let s = 0; s < 2; s++) { a += (Math.random() - 0.5) * 0.8; px += Math.cos(a) * 14; py += Math.sin(a) * 14; g.lineTo(px, py) }
+    g.strokePath(); _glow(g, o.color, 4, 10)
+    scene.tweens.add({ targets: g, alpha: 0, duration: life, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    const fl = scene.add.circle(x2, y2, 4, o.accent, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 0.5)  // circle-ok: additive bolt-strike spark core
+    _glow(fl, o.color, 3, 8); made.push(fl)
+    scene.tweens.add({ targets: fl, scale: 2, alpha: 0, duration: life * 1.4, onComplete: () => fl.destroy() })
+    return made
+  },
+
+  // MAGE · WIND element — curved air-slash crescents sweep in the push direction
+  // + swept debris. opts.dir = push dir (+1/-1).
+  gustFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xaaffee, accent: 0xffffff, depth: 14, durationMs: 480, dir: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const dir = o.dir >= 0 ? 1 : -1
+    for (let i = 0; i < 3; i++) {
+      const g = scene.add.graphics().setPosition(x, y - 8 + (i - 1) * 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5 * dir, 0.7); made.push(g)
+      g.lineStyle(2.4 - i * 0.4, o.color, 0.8); g.beginPath(); g.arc(0, 0, 12 + i * 4, -1.0, 1.0, false); g.strokePath(); _glow(g, o.color, 2, 6)
+      scene.tweens.add({ targets: g, x: x + 26 * dir, alpha: 0.9, scaleX: 1.1 * dir, duration: life * 0.4, delay: i * 40, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, x: g.x + 14 * dir, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const d = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedX: { min: 40 * dir, max: 160 * dir }, speedY: { min: -30, max: 30 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xeafff6, 0x9bdcc4, 0xcfc0a0], emitting: false })
+      d.setDepth(o.depth - 0.3); d.explode(Math.round(9 * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MAGE · Arcane Burst CHARGE — the queued empowerment: element-tinted rune
+  // glyphs spiral INWARD to a gathering core (the next hit is loaded).
+  arcaneChargeFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xcc99ff, accent: 0xffffff, depth: 14, durationMs: 600, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const N = 7
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2, r0 = 30 + Math.random() * 10
+      const g = scene.add.graphics().setPosition(x + Math.cos(a) * r0, y - 8 + Math.sin(a) * r0).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      g.lineStyle(2, i % 2 ? o.accent : o.color, 0.9); g.beginPath(); g.moveTo(-3, -3); g.lineTo(3, -3); g.lineTo(0, 3); g.closePath(); g.strokePath(); _glow(g, o.color, 2, 6)
+      scene.tweens.add({ targets: g, x, y: y - 8, alpha: 1, angle: 180, duration: life * 0.55, delay: i * 20, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    const core = scene.add.circle(x, y - 8, 4, o.accent, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 0.5)  // circle-ok: additive spell-charge core, glyphs are the read
+    _glow(core, o.color, 4, 11); made.push(core)
+    scene.tweens.add({ targets: core, alpha: 0.85, scale: 2, duration: life * 0.6, ease: 'Quad.easeIn', onComplete: () => scene.tweens.add({ targets: core, alpha: 0, scale: 0.5, duration: life * 0.3, onComplete: () => core.destroy() }) })
+    return made
+  },
+
+  // MAGE · Arcane Burst DETONATION — element-tinted: bright core + angular rune
+  // glints flung outward (bespoke shrapnel, not round) + element shock motes.
+  arcaneBurstFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xcc99ff, accent: 0xffffff, depth: 15, durationMs: 520, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const core = scene.add.circle(x, y, 7, o.accent, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive arcane-detonation flash core
+    _glow(core, o.color, 5, 13); made.push(core)
+    scene.tweens.add({ targets: core, scale: 3, alpha: 0, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => core.destroy() })
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.random() * 0.3, d = 28 + Math.random() * 18
+      const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g)
+      g.lineStyle(2, i % 2 ? o.accent : o.color, 0.9); g.beginPath(); g.moveTo(-3, 0); g.lineTo(3, 0); g.moveTo(0, -3); g.lineTo(0, 3); g.strokePath()
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, angle: 180, alpha: 0, scale: 0.4, duration: life, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
+    if (mult > 0) {
+      const p = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speed: { min: 50, max: 150 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      p.setDepth(o.depth - 0.3); p.explode(Math.round(14 * mult)); made.push(p); scene.time.delayedCall(life, () => { try { p.destroy() } catch (e) {} })
+    }
+    return made
+  },
 }

@@ -1637,8 +1637,7 @@ export class ClassAbilitySystem {
         AbilitySystem.markUsed(adv, burstDef, now)
         adv._arcaneBurstQueued = true   // CombatSystem consumes this on next hit
         const x = adv.worldX, y = adv.worldY
-        AbilityVfx.pulseRing(this._scene, x, y, { color: this._elementColor(adv._element), fromR: 8, toR: 30, durationMs: 400, alpha: 0.85 })
-        AbilityVfx.particleBurst(this._scene, x, y, { color: this._elementColor(adv._element), count: 12, durationMs: 600, speed: 70 })
+        AbilityVfx.arcaneChargeFx?.(this._scene, x, y, { color: this._elementColor(adv._element) })
         AbilityVfx.floatingText(this._scene, x, y - 28, 'ARCANE BURST', { color: '#cc99ff', fontSize: '12px' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'arcane_burst', message: `${adv.name} charges an Arcane Burst.` })
       }
