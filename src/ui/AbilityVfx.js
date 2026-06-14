@@ -4803,4 +4803,142 @@ export const AbilityVfx = {
       onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: life * 0.5, onComplete: () => g.destroy() }) })
     return made
   },
+
+  // KNIGHT · Bulwark — a directional SHIELD-WALL: a translucent layered shield
+  // barrier with a heraldic cross emblem snaps up on the threat side + steel motes.
+  // opts.dir faces the threat. (The raise tell; the buff itself lasts longer.)
+  bulwarkWallFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9fc8ff, accent: 0xeaf4ff, depth: 13, durationMs: 1100, dir: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const dir = o.dir >= 0 ? 1 : -1, px = x + 16 * dir
+    const wall = scene.add.graphics().setPosition(px, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5, 0.7).setAlpha(0); made.push(wall)
+    const drawShield = (g, w, h, col, al) => { g.fillStyle(col, al); g.beginPath(); g.moveTo(0, -h); g.lineTo(w, -h * 0.6); g.lineTo(w * 0.8, h * 0.4); g.lineTo(0, h); g.lineTo(-w * 0.8, h * 0.4); g.lineTo(-w, -h * 0.6); g.closePath(); g.fillPath() }
+    drawShield(wall, 11, 22, o.color, 0.32); drawShield(wall, 7, 16, o.accent, 0.4)
+    wall.fillStyle(o.accent, 0.7); wall.fillRect(-1.4, -12, 2.8, 22); wall.fillRect(-6, -4, 12, 2.6); _glow(wall, o.color, 3, 10)
+    scene.tweens.add({ targets: wall, scaleX: 1, scaleY: 1, alpha: 1, duration: life * 0.18, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: wall, alpha: 0.55, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut',
+        onComplete: () => scene.tweens.add({ targets: wall, alpha: 0, duration: life * 0.3, onComplete: () => wall.destroy() }) }) })
+    if (mult > 0) {
+      const sp = scene.add.particles(px, y - 8, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.4 }, speedX: { min: -20, max: 20 }, speedY: { min: -30, max: 10 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
+      sp.setDepth(o.depth + 0.3); sp.explode(Math.round(8 * mult)); made.push(sp); scene.time.delayedCall(life, () => { try { sp.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // KNIGHT · Taunt — a defiant SHOUT: broken shout-arc bands radiate (a roar, not a
+  // clean ring) + aggro-pull chevrons yank inward toward the knight.
+  tauntFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff6644, accent: 0xffcc88, depth: 14, durationMs: 620, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    for (let i = 0; i < 3; i++) {
+      const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9).setScale(0.4); made.push(g)
+      const r = 14 + i * 6
+      g.lineStyle(3 - i * 0.6, i ? o.accent : o.color, 0.85)
+      g.beginPath(); g.arc(0, 0, r, -2.3, -0.85, false); g.strokePath()
+      g.beginPath(); g.arc(0, 0, r, 0.85, 2.3, false); g.strokePath(); _glow(g, o.color, 2, 7)
+      scene.tweens.add({ targets: g, scale: 1 + i * 0.25, alpha: 0, duration: life * 0.5 + i * 60, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2, r0 = 40
+      const g = scene.add.graphics().setPosition(x + Math.cos(a) * r0, y - 8 + Math.sin(a) * r0).setDepth(o.depth - 0.2).setBlendMode(Phaser.BlendModes.ADD).setRotation(a + Math.PI).setAlpha(0.9); made.push(g)
+      g.fillStyle(o.accent, 0.85); g.beginPath(); g.moveTo(4, 0); g.lineTo(-3, -3); g.lineTo(-1, 0); g.lineTo(-3, 3); g.closePath(); g.fillPath()
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * 12, y: y - 8 + Math.sin(a) * 12, alpha: 0, duration: life * 0.5, delay: i * 15, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    return made
+  },
+
+  // PEASANT · Strength in Numbers — a rabble FERVOR surge: raised fist/pole
+  // silhouettes thrust up around the peasant + a dust surge. opts.count scales it.
+  mobFervorFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xe8b06a, accent: 0xffd98a, depth: 14, durationMs: 620, count: 3, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const n = Math.min(5, Math.max(2, o.count))
+    for (let i = 0; i < n; i++) {
+      const ox = (i - (n - 1) / 2) * 9, g = scene.add.graphics().setPosition(x + ox, y + 6).setDepth(o.depth).setScale(1, 0.3).setAlpha(0); made.push(g)
+      g.fillStyle(0x6b4f2a, 0.95); g.fillRect(-1.2, -16, 2.4, 16); g.fillStyle(0x4a3820, 0.95); g.fillCircle(0, -16, 2.6)
+      scene.tweens.add({ targets: g, scaleY: 1, alpha: 1, y: y - 2, duration: life * 0.25, delay: i * 30, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, y: g.y - 6, duration: life * 0.45, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const d = scene.add.particles(x, y + 8, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedX: { min: -60, max: 60 }, speedY: { min: -24, max: 2 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xb8a888, 0x9a7a48, 0x6b5a3a], emitting: false })
+      d.setDepth(o.depth - 0.5); d.explode(Math.round((6 + n) * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MINER · Tunnel dig — chunky dirt clods + rocks fling up off a pickaxe SPARK +
+  // a kicked-up dust column. Replaces the generic particleBurst+shockwave.
+  digBurstFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x6b4f2a, accent: 0xffcf6b, depth: 13, durationMs: 520, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const sp = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 6, y - 2).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.95); made.push(sp)
+    sp.fillStyle(o.accent, 0.95); for (let k = 0; k < 3; k++) { const a = Math.random() * Math.PI * 2; sp.fillTriangle(0, 0, Math.cos(a) * 6, Math.sin(a) * 6, Math.cos(a + 0.4) * 3, Math.sin(a + 0.4) * 3) }
+    _glow(sp, o.accent, 2, 7)
+    scene.tweens.add({ targets: sp, alpha: 0, scale: 1.6, duration: life * 0.35, onComplete: () => sp.destroy() })
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.8, d = 14 + Math.random() * 20
+      const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(g)
+      _drawRockShard(g, 2 + Math.random() * 1.8, [0x6b5a3a, 0x4a3820, 0x7a6a4a][i % 3])
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d + 12, angle: (Math.random() - 0.5) * 300, alpha: 0, duration: life * 1.3, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    if (mult > 0) {
+      const dp = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -70, max: -24 }, speedX: { min: -34, max: 34 }, scale: { start: 0.3, end: 0 }, alpha: { start: 0.55, end: 0 }, tint: [0xb8a888, 0x7a6a4a, 0x4a3820], emitting: false })
+      dp.setDepth(o.depth - 0.5); dp.explode(Math.round(12 * mult)); made.push(dp); scene.time.delayedCall(life, () => { try { dp.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // VALKYRIE · Winged Flight — feathered WINGS flare open + a celestial float glow
+  // + drifting feathers (the SOAR over a trap). Custom layered feather fans.
+  wingedFlightFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xfff4d8, accent: 0xffffff, depth: 15, durationMs: 600, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    for (const side of [-1, 1]) {
+      const g = scene.add.graphics().setPosition(x, y - 10).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3).setAlpha(0); made.push(g)
+      g.fillStyle(o.color, 0.85)
+      for (let f = 0; f < 4; f++) { const fa = -0.5 - f * 0.32, len = 18 - f * 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(side * Math.cos(fa) * len, Math.sin(fa) * len - 2); g.lineTo(side * Math.cos(fa + 0.18) * len * 0.8, Math.sin(fa + 0.18) * len * 0.8); g.closePath(); g.fillPath() }
+      _glow(g, o.color, 3, 9)
+      scene.tweens.add({ targets: g, scale: 1, alpha: 1, duration: life * 0.28, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleX: 1.2, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    }
+    const glow = scene.add.circle(x, y - 6, 8, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive celestial float glow, the wings are the read
+    _glow(glow, o.accent, 3, 11); made.push(glow)
+    scene.tweens.add({ targets: glow, alpha: 0.4, scale: 1.6, duration: life * 0.4, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
+    for (let i = 0; i < 4; i++) {
+      const fx2 = x + (Math.random() - 0.5) * 22
+      const g = scene.add.graphics().setPosition(fx2, y - 6).setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9); made.push(g)
+      g.fillStyle(0xfff8e0, 0.9); g.beginPath(); g.moveTo(0, 0); g.lineTo(1.6, -6); g.lineTo(0, -10); g.lineTo(-1.6, -6); g.closePath(); g.fillPath()
+      scene.tweens.add({ targets: g, y: y + 14 + Math.random() * 10, x: fx2 + (Math.random() - 0.5) * 16, angle: (Math.random() - 0.5) * 140, alpha: 0, duration: life, ease: 'Sine.easeInOut', onComplete: () => g.destroy() })
+    }
+    return made
+  },
+
+  // VALKYRIE · Rally the Fallen — great celestial WINGS sweep down over the fallen,
+  // enfold, then lift in a gold holy column + ascending motes. (Used via REVIVE_COSMETIC.)
+  valkyrieRaiseFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe9a8, accent: 0xffffff, depth: 16, durationMs: 1000, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    for (const side of [-1, 1]) {
+      const g = scene.add.graphics().setPosition(x, y - 4).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(g)
+      g.fillStyle(o.color, 0.7)
+      for (let f = 0; f < 5; f++) { const fa = -0.3 - f * 0.28, len = 26 - f * 2.5; g.beginPath(); g.moveTo(0, 0); g.lineTo(side * Math.cos(fa) * len, Math.sin(fa) * len + 4); g.lineTo(side * Math.cos(fa + 0.16) * len * 0.82, Math.sin(fa + 0.16) * len * 0.82 + 4); g.closePath(); g.fillPath() }
+      _glow(g, o.color, 4, 12)
+      scene.tweens.add({ targets: g, scale: 1, alpha: 1, duration: life * 0.3, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 0.6, y: y - 24, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    }
+    const halo = scene.add.circle(x, y + 4, 12, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive holy-lift gather, the wings are the read
+    _glow(halo, o.accent, 4, 12); made.push(halo)
+    scene.tweens.add({ targets: halo, alpha: 0.5, scaleX: 1.5, scaleY: 0.7, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => halo.destroy() })
+    if (mult > 0) {
+      const m = scene.add.particles(x, y + 2, _softDotTexture(scene), { lifespan: { min: life * 0.5, max: life }, speedY: { min: -80, max: -34 }, speedX: { min: -16, max: 16 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.accent, o.color, 0xffe9b0], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth + 0.3); m.explode(Math.round(16 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
 }

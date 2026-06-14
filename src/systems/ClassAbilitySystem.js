@@ -814,7 +814,7 @@ export class ClassAbilitySystem {
     // Join pulse — the moment the mob forms.
     if (inMob && !adv._mobActive) {
       adv._mobActive = true
-      AbilityVfx.pulseRing(this._scene, adv.worldX, adv.worldY, { color: 0xe8a24a, fromR: 6, toR: 26, durationMs: 450, alpha: 0.8 })
+      AbilityVfx.mobFervorFx?.(this._scene, adv.worldX, adv.worldY, { count: allies + 1 })
       AbilityVfx.floatingText(this._scene, adv.worldX, (adv.worldY ?? 0) - 26, 'EMBOLDENED', { color: '#ffcf6b', fontSize: '11px' })
       EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'strength_in_numbers', message: `${adv.name} is emboldened by the mob (+${allies}).` })
     } else if (!inMob && adv._mobActive) {
@@ -1240,7 +1240,7 @@ export class ClassAbilitySystem {
         // Hole A is open — draw it, then drop in.
         const a = miner._tunnelDig
         EventBus.emit('MINER_DIG_HOLE', { x: a.x, y: a.y })
-        AbilityVfx.particleBurst(this._scene, miner.worldX, miner.worldY, { count: 14, color: 0x6b4f2a, speed: 120, durationMs: 520, depth: 9 })
+        AbilityVfx.digBurstFx?.(this._scene, miner.worldX, miner.worldY, { depth: 13 })
         miner._tunnelPhase    = 'underground'
         miner._underground    = true                 // AdventurerRenderer hides him
         miner._tunnelEmergeAt = now + TUNNEL_UNDERGROUND_MS
@@ -1287,7 +1287,7 @@ export class ClassAbilitySystem {
 
     // Draw hole B + climb-out dirt spray.
     EventBus.emit('MINER_DIG_HOLE', { x: exit.x, y: exit.y })
-    AbilityVfx.particleBurst(this._scene, miner.worldX, miner.worldY, { count: 18, color: 0x7a5a30, speed: 150, durationMs: 620, depth: 9 })
+    AbilityVfx.digBurstFx?.(this._scene, miner.worldX, miner.worldY, { depth: 13 })
     AbilityVfx.floatingText(this._scene, miner.worldX, (miner.worldY ?? 0) - 26, 'TUNNEL', { color: '#caa15a', fontSize: '12px' })
     EventBus.emit('MINER_TUNNEL_DUG', { id: portal.id, ax: portal.ax, ay: portal.ay, bx: portal.bx, by: portal.by })
 
@@ -1307,9 +1307,7 @@ export class ClassAbilitySystem {
   // Dirt + rock eruption at the miner's tile while he digs (reuses quake/rubble
   // language — a crater rim, an outward dirt burst, and a small shockwave).
   _fireDigVfx(miner, _now) {
-    const x = miner.worldX, y = miner.worldY
-    AbilityVfx.particleBurst(this._scene, x, y, { count: 9, color: 0x6b4f2a, speed: 90, durationMs: 460, depth: 9 })
-    AbilityVfx.shockwave(this._scene, x, y, { color: 0x8a6a3a, radius: 22, durationMs: 360 })
+    AbilityVfx.digBurstFx?.(this._scene, miner.worldX, miner.worldY, { depth: 13 })
   }
 
   // Tear down an in-flight tunnel (death / flee / can't reach the tile). The
@@ -2281,15 +2279,16 @@ export class ClassAbilitySystem {
   // ── VFX ───────────────────────────────────────────────────────────────────
 
   _fireAuraVfx(adv, durationMs) {
-    this._createGroundHalo(adv, 'aura', 0xffe066, durationMs)
-    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 28, 'AURA', { color: '#ffe066' })
+    // Bulwark — face the nearest hostile so the shield-wall raises toward the threat.
+    const foe = this._nearestHostileMinion(adv, 6)
+    const dir = foe ? ((foe.tileX - adv.tileX) >= 0 ? 1 : -1) : 1
+    AbilityVfx.bulwarkWallFx?.(this._scene, adv.worldX, adv.worldY, { dir })
+    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 28, 'BULWARK', { color: '#9fc8ff' })
   }
 
   _fireTauntVfx(adv) {
-    const x = adv.worldX, y = adv.worldY
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xff4444, fromR: 10, toR: 70, durationMs: 600, alpha: 0.95 })
-    AbilityVfx.pulseRing(this._scene, x, y, { color: 0xffaa66, fromR: 8, toR: 50, durationMs: 800, alpha: 0.7 })
-    AbilityVfx.floatingText(this._scene, x, y - 28, 'TAUNT!', { color: '#ff8866', fontSize: '14px' })
+    AbilityVfx.tauntFx?.(this._scene, adv.worldX, adv.worldY)
+    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 28, 'TAUNT!', { color: '#ff8866', fontSize: '14px' })
   }
 
   // ── Day-start hook ────────────────────────────────────────────────────────

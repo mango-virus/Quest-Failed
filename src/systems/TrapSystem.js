@@ -531,7 +531,7 @@ export class TrapSystem {
     // Phase 6 — Valkyrie Winged Flight: she soars over traps (passive immunity).
     // A wing-flare + "SOAR" sells the fly-over so the no-damage reads as flight.
     if ((this._isAdventurer(entity) && entity.classId === 'valkyrie') || entity._raisedClassId === 'valkyrie') {
-      AbilityVfx.burstRays?.(this._scene, entity.worldX, (entity.worldY ?? 0) - 6, { color: 0xffe6a0, count: 8, length: 46, durationMs: 360 })
+      AbilityVfx.wingedFlightFx?.(this._scene, entity.worldX, entity.worldY)
       AbilityVfx.floatingText?.(this._scene, entity.worldX, (entity.worldY ?? 0) - 18, 'SOAR', { color: '#ffe6a0' })
       EventBus.emit('TRAP_DODGED', { trap, def, adventurer: entity })
       return false

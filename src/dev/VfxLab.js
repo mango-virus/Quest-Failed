@@ -52,6 +52,10 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Necro',     fx: ['necroSummonFx', 'boneArmorFx'] },
   { label: 'Adv·Ranger',    fx: ['piercingArrowFx', 'disarmFx'] },
   { label: 'Adv·BeastMaster', fx: ['tameFx', 'pounceFx', 'packFlankFx'] },
+  { label: 'Adv·Knight',    fx: ['bulwarkWallFx', 'tauntFx'] },
+  { label: 'Adv·Peasant',   fx: ['mobFervorFx'] },
+  { label: 'Adv·Miner',     fx: ['digBurstFx'] },
+  { label: 'Adv·Valkyrie',  fx: ['wingedFlightFx', 'valkyrieRaiseFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
