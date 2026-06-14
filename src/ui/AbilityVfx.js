@@ -4333,4 +4333,149 @@ export const AbilityVfx = {
     }
     return made
   },
+
+  // BARD · Crescendo — the hymn SWELLS. Glowing musical notes (head + stem + flag)
+  // lift off the bard on a warm rose-gold bloom; more + brighter notes per stack.
+  // opts.stacks 1..4 scales count/brightness. The hero read is the rising notes.
+  crescendoFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff8ad6, accent: 0xffe0a0, depth: 14, durationMs: 900, stacks: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const n = Math.min(4, Math.max(1, o.stacks))
+    for (let i = 0; i < n; i++) {
+      const sx = x + (i - (n - 1) / 2) * 9 + (Math.random() - 0.5) * 4
+      const g = scene.add.graphics().setPosition(sx, y - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.6); made.push(g)
+      const col = i % 2 ? o.accent : o.color
+      g.fillStyle(col, 0.95); g.fillEllipse(0, 0, 5.2, 3.6)        // note head
+      g.fillRect(1.9, -8.4, 1.1, 8.4)                              // stem
+      g.beginPath(); g.moveTo(3.0, -8.4); g.lineTo(6.0, -6.0); g.lineTo(3.0, -4.6); g.closePath(); g.fillPath()  // flag
+      _glow(g, o.color, 2, 7)
+      const sway = (Math.random() - 0.5) * 14
+      scene.tweens.add({ targets: g, y: y - 42 - i * 6, x: sx + sway, alpha: 1, scale: 1, angle: sway, duration: life * 0.5, delay: i * 70, ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, y: g.y - 16, alpha: 0, duration: life * 0.45, onComplete: () => g.destroy() }) })
+    }
+    const bloom = scene.add.circle(x, y - 8, 5 + n * 1.5, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive sound-bloom glow, secondary to the rising notes
+    _glow(bloom, o.accent, 3, 9); made.push(bloom)
+    scene.tweens.add({ targets: bloom, alpha: 0.4 + n * 0.08, scale: 1.5, duration: life * 0.35, yoyo: true, ease: 'Sine.easeOut', onComplete: () => bloom.destroy() })
+    return made
+  },
+
+  // BARD · Crescendo SHATTER — a solid hit breaks the song: a note CRACKS in two
+  // along a jagged split + grey dissonance shards scatter. Cold grey, the inverse
+  // of the warm swell.
+  discordShatterFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9aa7b4, depth: 14, durationMs: 520, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    for (const side of [-1, 1]) {
+      const g = scene.add.graphics().setPosition(x, y - 18).setDepth(o.depth).setAlpha(0.95); made.push(g)
+      g.fillStyle(0xb9c2cc, 0.95); g.beginPath()
+      g.moveTo(0, -4 * side); g.lineTo(side * 5, -5); g.lineTo(side * 6, 2); g.lineTo(side * 1.5, 5); g.lineTo(0, 1); g.closePath(); g.fillPath()
+      g.fillRect(side * 2, -16, 1.6, 12)
+      scene.tweens.add({ targets: g, x: x + side * (10 + Math.random() * 10), y: y - 6 + Math.random() * 8, angle: side * (60 + Math.random() * 60), alpha: 0, duration: life, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    if (mult > 0) {
+      const sh = scene.add.particles(x, y - 14, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speed: { min: 40, max: 110 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [0xb9c2cc, 0x7a828c, 0x555c66], emitting: false })
+      sh.setDepth(o.depth - 0.4); sh.explode(Math.round(9 * mult)); made.push(sh); scene.time.delayedCall(life, () => { try { sh.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // BARD · Encore (death finale) — a last grand CHORD: golden-rose notes spiral
+  // outward on a sound-bloom + radiant motes lift as the party is healed.
+  encoreFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff66bb, accent: 0xffe0a0, depth: 15, durationMs: 1100, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const bloom = scene.add.circle(x, y - 10, 8, o.accent, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: additive finale-chord bloom, notes are the hero read
+    _glow(bloom, o.color, 5, 14); made.push(bloom)
+    scene.tweens.add({ targets: bloom, alpha: 0.6, scale: 3.4, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: bloom, alpha: 0, duration: life * 0.4, onComplete: () => bloom.destroy() }) })
+    const N = 8
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2, dist = 40 + Math.random() * 22
+      const g = scene.add.graphics().setPosition(x, y - 10).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5); made.push(g)
+      const col = i % 2 ? o.accent : o.color
+      g.fillStyle(col, 0.95); g.fillEllipse(0, 0, 5, 3.4); g.fillRect(1.8, -8, 1, 8); _glow(g, o.color, 2, 7)
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * dist, y: y - 10 + Math.sin(a) * dist * 0.7 - 6, alpha: 1, scale: 1, angle: (Math.random() - 0.5) * 90, duration: life * 0.5, delay: i * 18, ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, y: g.y - 12, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const m = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedY: { min: -50, max: -16 }, speedX: { min: -30, max: 30 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [o.accent, o.color, 0xffffff], blendMode: 'ADD', emitting: false })
+      m.setDepth(o.depth - 0.3); m.explode(Math.round(14 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MONK · Focus / Riposte STANCE — a swift martial READY: a crescent guard-sweep
+  // (blade-of-hand arc) + a calm chi glow settling. opts.dir faces the threat.
+  focusStanceFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xcfe9ff, depth: 13, durationMs: 520, dir: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const dir = o.dir >= 0 ? 1 : -1
+    const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.5, 1); made.push(g)
+    g.lineStyle(3, o.color, 0.9); g.beginPath(); g.arc(0, 0, 16, -1.1 * dir, 1.1 * dir, dir < 0); g.strokePath()
+    g.lineStyle(1.4, 0xffffff, 0.85); g.beginPath(); g.arc(0, 0, 16, -1.0 * dir, 1.0 * dir, dir < 0); g.strokePath()
+    _glow(g, o.color, 3, 9)
+    scene.tweens.add({ targets: g, scaleX: 1.1 * dir, alpha: 1, angle: 12 * dir, duration: life * 0.32, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    const chi = scene.add.circle(x, y - 6, 6, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: gentle additive chi-focus glow, the crescent sweep is the read
+    _glow(chi, o.color, 2, 8); made.push(chi)
+    scene.tweens.add({ targets: chi, alpha: 0.4, scale: 1.5, duration: life * 0.5, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => chi.destroy() })
+    return made
+  },
+
+  // MONK · Riposte COUNTER — the dodge is an opening: a bright crescent PARRY arc
+  // deflects the blow, then a tapered counter-slash snaps toward the attacker with
+  // a chi-spark spray. opts.dir = toward attacker (+1/-1).
+  riposteFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xcfe9ff, accent: 0xffffff, depth: 15, durationMs: 380, dir: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const dir = o.dir >= 0 ? 1 : -1
+    const p = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.95); made.push(p)
+    p.lineStyle(3, o.color, 0.95); p.beginPath(); p.arc(0, 0, 14, -1.2 * dir, 0.5 * dir, dir < 0); p.strokePath(); _glow(p, o.color, 3, 8)
+    scene.tweens.add({ targets: p, alpha: 0, scaleX: 1.3, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => p.destroy() })
+    const sx = x + 6 * dir, ex = x + 30 * dir
+    const s = scene.add.graphics().setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(s)
+    s.fillStyle(o.accent, 0.95); s.beginPath(); s.moveTo(sx, y - 12); s.lineTo(ex, y - 7); s.lineTo(ex, y - 5); s.lineTo(sx, y - 4); s.closePath(); s.fillPath(); _glow(s, o.color, 3, 8)
+    scene.tweens.add({ targets: s, alpha: 1, duration: life * 0.2, delay: life * 0.15, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: s, alpha: 0, duration: life * 0.4, onComplete: () => s.destroy() }) })
+    if (mult > 0) {
+      const sp = scene.add.particles(x + 16 * dir, y - 8, _softDotTexture(scene), { lifespan: { min: life * 0.2, max: life * 0.5 }, speedX: { min: 20 * dir, max: 120 * dir }, speedY: { min: -40, max: 40 }, scale: { start: 0.14, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [0xffffff, o.color], blendMode: 'ADD', emitting: false })
+      sp.setDepth(o.depth + 0.3); sp.explode(Math.round(7 * mult)); made.push(sp); scene.time.delayedCall(life, () => { try { sp.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MONK · Stunning Palm — a focused concussive strike: a bright open-PALM force
+  // print punches into the target + radial force lines, and dazed stars wheel
+  // above its head (the STUN read). Bespoke, on the unit.
+  stunningPalmFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe9a8, accent: 0xfff6d8, depth: 15, durationMs: 720, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const palm = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(palm)
+    palm.fillStyle(o.accent, 0.9); palm.fillEllipse(0, 2, 11, 13)
+    for (let f = 0; f < 4; f++) { palm.fillEllipse((f - 1.5) * 4.2, -8, 2.6, 6) }
+    palm.fillEllipse(-7, 1, 3, 6); _glow(palm, o.color, 4, 10)
+    scene.tweens.add({ targets: palm, scale: 1.2, alpha: 1, duration: life * 0.18, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: palm, alpha: 0, scale: 1.5, duration: life * 0.3, onComplete: () => palm.destroy() }) })
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2, g = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth - 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9); made.push(g)
+      g.lineStyle(2, o.color, 0.8); g.beginPath(); g.moveTo(Math.cos(a) * 8, Math.sin(a) * 8); g.lineTo(Math.cos(a) * 20, Math.sin(a) * 20); g.strokePath()
+      scene.tweens.add({ targets: g, alpha: 0, scaleX: 1.5, scaleY: 1.5, duration: life * 0.35, ease: 'Quad.easeOut', onComplete: () => g.destroy() })
+    }
+    const ring = scene.add.container(x, y - 24).setDepth(o.depth + 0.5).setAlpha(0); made.push(ring)
+    for (let i = 0; i < 3; i++) {
+      const st = scene.add.graphics(), col = [0xffe9a8, 0xfff6d8, 0xffd36b][i]
+      st.fillStyle(col, 0.95); st.beginPath()
+      const pts = [[0, -3.5], [1, -1], [3.5, 0], [1, 1], [0, 3.5], [-1, 1], [-3.5, 0], [-1, -1]]
+      pts.forEach((p, k) => k === 0 ? st.moveTo(p[0], p[1]) : st.lineTo(p[0], p[1])); st.closePath(); st.fillPath()
+      const a0 = (i / 3) * Math.PI * 2; st.setPosition(Math.cos(a0) * 11, Math.sin(a0) * 4); ring.add(st)
+    }
+    scene.tweens.add({ targets: ring, alpha: 1, duration: life * 0.2 })
+    scene.tweens.add({ targets: ring, angle: 360, duration: life * 1.4, ease: 'Linear' })
+    scene.tweens.add({ targets: ring, alpha: 0, duration: life * 0.4, delay: life * 0.9, onComplete: () => ring.destroy() })
+    return made
+  },
 }

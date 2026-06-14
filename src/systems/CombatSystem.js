@@ -256,6 +256,8 @@ export class CombatSystem {
       if (attacker && (attacker.resources?.hp ?? 0) > 0) {
         const counter = Math.max(1, Math.floor((target.stats?.attack ?? 0) * MONK_RIPOSTE_FRAC) - (attacker.stats?.defense ?? 0))
         attacker.resources.hp = Math.max(0, attacker.resources.hp - counter)
+        const rdir = ((attacker.tileX ?? 0) - (target.tileX ?? 0)) >= 0 ? 1 : -1
+        AbilityVfx.riposteFx?.(this._scene, target.worldX, target.worldY, { dir: rdir })
         AbilityVfx.floatingText(this._scene, attacker.worldX ?? 0, (attacker.worldY ?? 0) - 18, `RIPOSTE -${counter}`, { color: '#cfe9ff', fontSize: '11px' })
         EventBus.emit('COMBAT_HIT', { sourceId: target.instanceId, targetId: attacker.instanceId, damage: counter, damageType: 'physical', isCritical: false })
       }

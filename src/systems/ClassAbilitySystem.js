@@ -334,13 +334,13 @@ export class ClassAbilitySystem {
       const restored = adv.resources.hp - before
       if (restored > 0) {
         healedCount++
-        AbilityVfx.pulseRing(this._scene, adv.worldX, adv.worldY, { color: 0xff66bb, fromR: 8, toR: 22, durationMs: 450, alpha: 0.75 })
+        AbilityVfx.crescendoFx?.(this._scene, adv.worldX, adv.worldY, { stacks: 1 })
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, `+${restored}`, { color: '#ff99cc', fontSize: '12px' })
         EventBus.emit('ALLY_HEALED', { sourceId: bard.instanceId, targetId: adv.instanceId, amount: restored })
       }
     }
     if (healedCount > 0) {
-      AbilityVfx.pulseRing(this._scene, bard.worldX, bard.worldY, { color: 0xff66bb, fromR: 8, toR: 64, durationMs: 700, alpha: 0.85 })
+      AbilityVfx.encoreFx?.(this._scene, bard.worldX, bard.worldY)
       AbilityVfx.floatingText(this._scene, bard.worldX, bard.worldY - 28, 'ENCORE', { color: '#ff99cc', fontSize: '14px' })
     }
     EventBus.emit('ABILITY_TRIGGERED', {
@@ -1389,6 +1389,7 @@ export class ClassAbilitySystem {
         } else {
           EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'crescendo', message: `${adv.name}'s hymn swells (×${stacks}).` })
         }
+        AbilityVfx.crescendoFx?.(this._scene, adv.worldX, adv.worldY, { stacks })
         AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 26, stacks >= CRESCENDO_MAX ? '♪ CRESCENDO!' : `♪ ×${stacks}`, { color: '#ff8ad6', fontSize: stacks >= CRESCENDO_MAX ? '13px' : '11px' })
       }
       adv._crescendoDecayAt = now + CRESCENDO_DECAY_MS
@@ -1414,6 +1415,7 @@ export class ClassAbilitySystem {
   // Shatter the song: stacks → 0, brief silence so it can't immediately rebuild.
   _shatterCrescendo(adv, now) {
     if ((adv._crescendoStacks ?? 0) > 0) {
+      AbilityVfx.discordShatterFx?.(this._scene, adv.worldX, adv.worldY)
       AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, 'SILENCED', { color: '#9aa7b4', fontSize: '11px' })
       EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'crescendo' })
     }
@@ -1529,7 +1531,7 @@ export class ClassAbilitySystem {
         const dmg = Math.max(1, Math.floor(adv.stats?.attack ?? 0) - (target.stats?.defense ?? 0))
         target.resources.hp = Math.max(0, (target.resources?.hp ?? 0) - dmg)
         EventBus.emit('COMBAT_HIT', { sourceId: adv.instanceId, targetId: target.instanceId, damage: dmg, damageType: 'physical', isCritical: false })
-        AbilityVfx.pulseRing(this._scene, target.worldX, target.worldY, { color: 0xffe9a8, fromR: 6, toR: 22, durationMs: 320, alpha: 0.8 })
+        AbilityVfx.stunningPalmFx?.(this._scene, target.worldX, target.worldY)
         AbilityVfx.floatingText(this._scene, target.worldX, (target.worldY ?? 0) - 22, 'STUNNED', { color: '#ffe9a8', fontSize: '11px' })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'stunning_palm', message: `${adv.name} landed a Stunning Palm.` })
       }
@@ -1537,7 +1539,10 @@ export class ClassAbilitySystem {
   }
 
   _fireFocusVfx(adv, durationMs) {
-    this._createGroundHalo(adv, 'focus', 0xeeeeff, durationMs)
+    // Face the nearest hostile so the guard-sweep reads toward the threat.
+    const foe = this._nearestHostileMinion(adv, 6)
+    const dir = foe ? ((foe.tileX - adv.tileX) >= 0 ? 1 : -1) : 1
+    AbilityVfx.focusStanceFx?.(this._scene, adv.worldX, adv.worldY, { dir })
   }
 
   // ── Cleric ────────────────────────────────────────────────────────────────

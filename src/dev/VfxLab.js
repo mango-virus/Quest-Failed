@@ -45,6 +45,8 @@ const RAW_VFX_GROUPS = [
   { label: 'Mushroom',  fx: ['dazeFx', 'sporePuffFx', 'sporeStormFx'] },
   // ── Adventurer ability VFX (bespoke per class) ──
   { label: 'Adv·Barbarian', fx: ['chargeWindupFx', 'recklessChargeFx', 'staggerHitFx'] },
+  { label: 'Adv·Bard',      fx: ['crescendoFx', 'discordShatterFx', 'encoreFx'] },
+  { label: 'Adv·Monk',      fx: ['focusStanceFx', 'riposteFx', 'stunningPalmFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
