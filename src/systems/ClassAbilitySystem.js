@@ -59,6 +59,10 @@ export const ABILITY_DEFS = {
   bm_scout_ahead:        { id: 'scout_ahead',    usesPerDay: 1,                        label: 'Scout Ahead' },
   // Barbarian
   barb_break_door:       { id: 'break_door',     cooldownMs: 6000,                     label: 'Break Door' }, // dormant — needs locked doors to land
+  // Reckless Charge — barrel in a straight line into the densest nearby minion
+  // cluster, knocking back + staggering everything in the path (no path damage),
+  // ending with a full swing on the target. Telegraphed wind-up = counterplay.
+  barb_charge:           { id: 'reckless_charge', cooldownMs: 12000, label: 'Reckless Charge', scanTiles: 6, clusterMin: 2 },
   // Barbarian Unstoppable + Rage Scaling are passives (no cooldown).
   // Rogue
   rogue_invisibility:    { id: 'invisibility',   cooldownMs: 30000, durationMs: 5000,  label: 'Invisibility' },
@@ -150,6 +154,15 @@ const REVIVE_COSMETIC = {
     move: 'moves to reach a fallen ally', kneel: 'kneels and channels a Resurrection',
     interrupt: 'Resurrection was interrupted' },
 }
+
+// Barbarian Reckless Charge timing/tuning.
+const CHARGE_WINDUP_MS   = 400    // telegraphed crouch before the dash — the counterplay window
+const CHARGE_STAGGER_MS  = 1000   // how long path minions are stunned (skip their AI turn)
+const CHARGE_PATH_RADIUS = 0.9    // tile distance from the charge line that counts as "in the path"
+const CHARGE_IMPACT_RADIUS = 1.5  // minions this close to the target cluster centre are caught too
+const CHARGE_MS_PER_TILE = 70     // dash pace (~3× a normal walk); total dash time = dist × this, clamped
+const CHARGE_DASH_MIN_MS = 200
+const CHARGE_DASH_MAX_MS = 700
 
 // Tunnel sequence timing (the "few seconds" from the spec).
 const TUNNEL_DIG_MS        = 2600   // time spent attacking the tile to open it
@@ -262,6 +275,9 @@ export class ClassAbilitySystem {
     // Miner — a dying/fleeing miner mid-dig drops the tunnel (the day's use is
     // already spent). Clears _underground so the renderer doesn't keep him hidden.
     if (adventurer._tunnelPhase) this._abortTunnel(adventurer)
+    // Barbarian — a dying/fleeing barbarian mid-charge drops the dash + frees the
+    // AISystem freeze so he isn't left stuck mid-lerp.
+    if (adventurer._chargePhase) this._endCharge(adventurer, this._scene?.time?.now ?? 0)
     if (adventurer._invisible) this._endInvisibility(adventurer)
     // Clean up any sustained VFX (e.g. the Knight's aura ring or Bard rings).
     const map = this._sustainedFx.get(adventurer.instanceId)
@@ -513,6 +529,8 @@ export class ClassAbilitySystem {
         adv._tunnelPhase = null; adv._tunnelDig = null
         adv._underground = false; adv._castingUntil = 0
       }
+      // Barbarian caught mid-charge at the phase flip — drop the dash state.
+      if (adv._chargePhase) this._endCharge(adv, this._scene?.time?.now ?? 0)
       // Any channeled-revive caster (Valkyrie Rally OR Cleric Resurrection)
       // caught mid-approach/channel at the phase flip — tear it down.
       if (adv._rallyChannelUntil || adv._rallyApproachId != null) {
@@ -1834,8 +1852,8 @@ export class ClassAbilitySystem {
   // ── Barbarian ────────────────────────────────────────────────────────────
 
   _considerBarbarian(adv, now) {
-    // Break Door — dormant until locked doors land. Until then, no trigger.
-    // (Code path will live here when we wire up locked_door tile types.)
+    // A charge in progress drives itself through its wind-up → dash phases.
+    if (adv._chargePhase) { this._tickCharge(adv, now); return }
 
     // Rage Scaling VFX — when below 50% HP, kick on a faint red ground halo
     // so the player can read "this barbarian is enraged." The halo is
@@ -1848,6 +1866,177 @@ export class ClassAbilitySystem {
     } else if (frac >= 0.5 && this._sustainedFx.get(adv.instanceId)?.rage) {
       this._endSustainedFx(adv.instanceId, 'rage')
     }
+
+    // Reckless Charge — barrel into the densest nearby minion cluster. Skip while
+    // already mid-cast (some other freeze owns him) or fighting the boss directly.
+    if ((adv._castingUntil ?? 0) > now) return
+    if (adv.goal?.type === 'AT_BOSS') return
+    const def = ABILITY_DEFS.barb_charge
+    if (!AbilitySystem.canUse(adv, def, now).ready) return
+    const cluster = this._pickChargeCluster(adv, def.scanTiles ?? 6, def.clusterMin ?? 2)
+    if (!cluster) return
+    AbilitySystem.markUsed(adv, def, now)
+    this._beginCharge(adv, now, cluster)
+  }
+
+  // Find the densest reachable hostile-minion cluster within `scanTiles`. Each
+  // candidate minion is scored by how many other hostiles sit within 1 tile of
+  // it; the best center wins if it gathers at least `minCount` minions. Returns
+  // the center's tile/world position + count (the charge aims here).
+  _pickChargeCluster(adv, scanTiles, minCount) {
+    const hostiles = []
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction === 'adventurer') continue          // tamed/raised allies don't count
+      if (!this._abilityCanReach(adv, m)) continue        // same room/floor — keeps the line sane
+      const d = Math.hypot((m.tileX ?? 0) - adv.tileX, (m.tileY ?? 0) - adv.tileY)
+      if (d > scanTiles + 0.01) continue
+      hostiles.push(m)
+    }
+    if (hostiles.length < minCount) return null
+    let best = null, bestCount = 0
+    for (const c of hostiles) {
+      let count = 0
+      for (const o of hostiles) {
+        if (Math.hypot(o.tileX - c.tileX, o.tileY - c.tileY) <= 1.01) count++
+      }
+      if (count > bestCount) { bestCount = count; best = c }
+    }
+    if (!best || bestCount < minCount) return null
+    const TS = Balance.TILE_SIZE
+    return { tileX: best.tileX, tileY: best.tileY, worldX: best.tileX * TS + TS / 2, worldY: best.tileY * TS + TS / 2, count: bestCount }
+  }
+
+  // PHASE 0 — telegraphed wind-up. He plants his feet (AISystem yields on
+  // `_castingUntil`) for a beat so the player can read the charge coming, then
+  // the dash kicks off in _tickCharge.
+  _beginCharge(barb, now, cluster) {
+    barb._chargePhase       = 'windup'
+    barb._chargeTarget      = { x: cluster.tileX, y: cluster.tileY }
+    barb._chargeFrom        = { x: barb.tileX, y: barb.tileY }
+    barb._chargeWindupUntil = now + CHARGE_WINDUP_MS
+    barb._castingUntil      = now + CHARGE_WINDUP_MS
+    barb.path = null; barb.pathIndex = 0; barb.pathTarget = null
+    // Placeholder telegraph VFX (the bespoke pass comes later) — a dust kick + shout.
+    AbilityVfx.particleBurst(this._scene, barb.worldX, barb.worldY, { color: 0x9a7a4a, count: 8, durationMs: 360, speed: 50, depth: 9 })
+    AbilityVfx.floatingText(this._scene, barb.worldX, barb.worldY - 28, 'CHARGE!', { color: '#ff7a3a', fontSize: '13px' })
+    EventBus.emit('ABILITY_TRIGGERED', { adventurer: barb, abilityId: 'reckless_charge', message: `${barb.name} lowered a shoulder and charged.` })
+  }
+
+  // Per-tick charge state machine: windup → dashing → (done). Position is driven
+  // directly here (AISystem is frozen via `_castingUntil`), mirroring the Miner's
+  // custom mover.
+  _tickCharge(barb, now) {
+    const TS = Balance.TILE_SIZE
+    switch (barb._chargePhase) {
+      case 'windup': {
+        if (now < (barb._chargeWindupUntil ?? 0)) { barb._castingUntil = barb._chargeWindupUntil; return }
+        // Resolve the actual landing tile: one step short of the target along the
+        // charge direction (so he ends ADJACENT, swinging — not on top of it),
+        // falling back to the target tile if that step isn't walkable.
+        const from = barb._chargeFrom, tgt = barb._chargeTarget
+        const dx = tgt.x - from.x, dy = tgt.y - from.y
+        const len = Math.hypot(dx, dy) || 1
+        const ux = dx / len, uy = dy / len
+        const grid = this._scene.dungeonGrid
+        const landX = Math.round(tgt.x - ux), landY = Math.round(tgt.y - uy)
+        let endX = tgt.x, endY = tgt.y
+        if (grid && this._tileWalkable(grid, landX, landY)) { endX = landX; endY = landY }
+        // Apply the path knockback + stagger ONCE, up front (no per-frame collision).
+        // Sweep to the TARGET tile (the cluster centre), not the shortened landing —
+        // else the cluster he's charging INTO sits just past the segment end.
+        this._applyChargePathEffects(barb, from, tgt, ux, uy, now)
+        // Set up the dash lerp.
+        const distTiles = Math.hypot(endX - from.x, endY - from.y)
+        const dashMs = Math.max(CHARGE_DASH_MIN_MS, Math.min(CHARGE_DASH_MAX_MS, distTiles * CHARGE_MS_PER_TILE))
+        barb._chargePhase     = 'dashing'
+        barb._chargeDashStart = now
+        barb._chargeDashUntil = now + dashMs
+        barb._chargeDashFrom  = { x: barb.worldX, y: barb.worldY }
+        barb._chargeDashTo    = { x: endX * TS + TS / 2, y: endY * TS + TS / 2 }
+        barb._chargeEndTile   = { x: endX, y: endY }
+        barb._castingUntil    = now + dashMs + 120
+        // Placeholder dash VFX — motion streak from start to landing.
+        AbilityVfx.streakDash?.(this._scene, barb._chargeDashFrom.x, barb._chargeDashFrom.y, barb._chargeDashTo.x, barb._chargeDashTo.y, { color: 0xffa24a, depth: 9 })
+        return
+      }
+      case 'dashing': {
+        const start = barb._chargeDashStart ?? now
+        const total = Math.max(1, (barb._chargeDashUntil ?? now) - start)
+        let t = (now - start) / total
+        if (t >= 1) {
+          // Land.
+          const e = barb._chargeEndTile
+          barb.tileX = e.x; barb.tileY = e.y
+          barb.worldX = barb._chargeDashTo.x; barb.worldY = barb._chargeDashTo.y
+          this._endCharge(barb, now)
+          // Placeholder impact VFX — a ground crack + dust where he plants.
+          AbilityVfx.groundCrack?.(this._scene, barb.worldX, barb.worldY, { color: 0x8a6a3a, depth: 9 })
+          AbilityVfx.particleBurst(this._scene, barb.worldX, barb.worldY, { color: 0x9a7a4a, count: 12, durationMs: 420, speed: 100, depth: 9 })
+          return
+        }
+        t = t < 0 ? 0 : t
+        const e = 1 - (1 - t) * (1 - t)   // Quadratic ease-out — fast off the mark, settles on landing
+        const f = barb._chargeDashFrom, d = barb._chargeDashTo
+        barb.worldX = f.x + (d.x - f.x) * e
+        barb.worldY = f.y + (d.y - f.y) * e
+        barb.tileX = Math.floor(barb.worldX / TS)
+        barb.tileY = Math.floor(barb.worldY / TS)
+        barb._castingUntil = Math.max(barb._castingUntil ?? 0, barb._chargeDashUntil ?? now)
+        return
+      }
+      default:
+        this._endCharge(barb, now)
+    }
+  }
+
+  _endCharge(barb, now) {
+    barb._chargePhase = null
+    barb._chargeTarget = null; barb._chargeFrom = null
+    barb._chargeWindupUntil = 0; barb._chargeDashStart = 0; barb._chargeDashUntil = 0
+    barb._chargeDashFrom = null; barb._chargeDashTo = null; barb._chargeEndTile = null
+    barb._castingUntil = now            // release AISystem control immediately
+    barb.path = null; barb.pathIndex = 0; barb.pathTarget = null
+  }
+
+  // Knock back + stagger every hostile minion the charge line sweeps through.
+  // LOCKED design: no path damage — pure disruption. Knockback is one tile along
+  // the charge direction (clamped to walkable); stagger skips the minion's turn.
+  _applyChargePathEffects(barb, from, to, ux, uy, now) {
+    const grid = this._scene.dungeonGrid
+    const segLen = Math.hypot(to.x - from.x, to.y - from.y) || 1
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction === 'adventurer') continue
+      // A minion is "in the path" if it's near the charge LINE (a straggler the
+      // dash clips) OR within the impact radius of the target cluster centre
+      // (so the whole cluster he's barrelling into gets bowled, not just the
+      // one dead-on the centre line).
+      const relx = m.tileX - from.x, rely = m.tileY - from.y
+      const along = relx * ux + rely * uy
+      const perp = Math.abs(relx * uy - rely * ux)
+      const onLine = along >= -0.5 && along <= segLen + 0.5 && perp <= CHARGE_PATH_RADIUS
+      const inCluster = Math.hypot(m.tileX - to.x, m.tileY - to.y) <= CHARGE_IMPACT_RADIUS
+      if (!onLine && !inCluster) continue
+      // Stagger (skip its AI turn for the duration).
+      const next = now + CHARGE_STAGGER_MS
+      if ((m._staggeredUntil ?? 0) < next) m._staggeredUntil = next
+      // Knockback one tile along the charge direction, if the destination is open.
+      const kx = Math.round(m.tileX + ux), ky = Math.round(m.tileY + uy)
+      if (grid && (kx !== m.tileX || ky !== m.tileY) && this._tileWalkable(grid, kx, ky)) {
+        const TS = Balance.TILE_SIZE
+        m.tileX = kx; m.tileY = ky
+        m.worldX = kx * TS + TS / 2; m.worldY = ky * TS + TS / 2
+        m._patrolTarget = null; m._chasePath = null
+      }
+      // Placeholder hit feedback (bespoke VFX later).
+      AbilityVfx.floatingText(this._scene, m.worldX, m.worldY - 18, 'STAGGER', { color: '#ffce6b', fontSize: '10px' })
+    }
+  }
+
+  _tileWalkable(grid, x, y) {
+    const t = grid.getTileType?.(x, y)
+    return t != null && PathfinderSystem.isWalkable(t) && t !== TILE.DOOR
   }
 
   // ── Rogue ────────────────────────────────────────────────────────────────

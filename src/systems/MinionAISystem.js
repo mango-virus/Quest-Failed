@@ -458,6 +458,14 @@ export class MinionAISystem {
       return
     }
 
+    // Stagger gate (Barbarian Reckless Charge knockback, and any future minion
+    // CC) — a staggered minion skips its WHOLE turn: no behavior, no wander, no
+    // attack. The status-tick above (tickEntity) clears _staggeredUntil once it
+    // expires. The adventurer-side reader lives in AISystem; this is its missing
+    // minion counterpart (the isStaggered/isRooted API already existed, unused).
+    const _nowMs = this._scene?.time?.now ?? 0
+    if (MinionAbilities.isStaggered(minion, _nowMs) || MinionAbilities.isRooted(minion, _nowMs)) return
+
     // Lich Heal Undead aura is now data-driven (healAura onTick in
     // minionTypes.json) so ALL lich tiers heal — see MinionAbilities.tickAbilities
     // below. (The old lich1-only _tickLichHealAura call lived here.)

@@ -371,6 +371,75 @@ _(Code-verified 2026-06-03: every box below ticked against the actual implementa
 
 ---
 
+## Older-class ability redesign (2026-06-14)
+
+The 9 "older" adventurer classes (Knight, Bard, Monk, Cleric, Mage, Necromancer, Ranger,
+Beast Master, Barbarian) predate the more interesting newer kits (Gladiator/Valkyrie/Gambler/
+Miner/Peasant). User directive (2026-06-14): *"go through them and let me know what you think.
+some might be fine as is, some may need minor tweaks, some may need major overhauls."* Bar to
+clear: each ability should create a **distinct strategy or player counterplay**, not a flat stat
+buff/damage reskin. Verdicts: **Cleric + Necromancer = fine, leave them.** The other 7 get
+proposals below. Build order: **Barbarian first**, then Bard/Mage/Monk, then Beast Master/Ranger/
+Knight. VFX is a SEPARATE second phase (build mechanics first, then the bespoke-VFX pass).
+
+### 🪓 Barbarian — Reckless Charge (LOCKED 2026-06-14, building now)
+
+**Problem:** today the Barbarian is all-passive (Rage Scaling + Unstoppable) with a dormant
+Break Door — nothing the player ever sees fire. Add one real active.
+
+- **Passives (unchanged):** Rage Scaling (`dmg × (1 + (1 − hpFrac))`, up to 2× at 1 HP) ·
+  Unstoppable (immune to ALL flee triggers).
+- **Reckless Charge (new active):**
+  - **Trigger:** a hostile-minion cluster of **2+** within **~6 tiles**, off cooldown. Targets
+    the **densest** cluster (most minions within 1 tile of a candidate), not just the nearest.
+  - **Telegraph:** ~0.4s wind-up (stands still, `_castingUntil`) so the player can read it — the
+    counterplay window.
+  - **Charge:** dashes in a **straight line** to the target tile at ~3× speed, AISystem yielding
+    via `_castingUntil` (ClassAbilitySystem drives position directly). Stops early at a wall.
+  - **Path effect (LOCKED: knockback + stagger ONLY, no path damage):** every minion the line
+    passes through is knocked back **1 tile** (along the charge dir, clamped to walkable) and
+    **staggered ~1s** (`_staggeredUntil` → skips its AI turn). Full damage hits ONLY the end target.
+  - **Impact:** ends adjacent to the densest point and swings normally (Rage Scaling applies).
+  - **Cooldown:** ~12s.
+  - **Counterplay (the point):** he overcommits deep, away from party support; Unstoppable means
+    he won't retreat — bait the charge and surround him in a kill-box.
+- **Systems:** `ClassAbilitySystem` (`_considerBarbarian` + `_tickCharge` mover + knockback
+  helper) · `AISystem` (already yields on `_castingUntil`) · `MinionAISystem` (ADD the missing
+  minion-side `isStaggered` reader — API exists in MinionAbilities, only the adv reader was wired)
+  · `SaveSystem` (strip new `_charge*` fields; `_staggeredUntil` already stripped).
+
+#### Acceptance checklist (tick against CODE before "done")
+_(Code-built + verified 2026-06-14: headless ability harness 25/25, soak 120/120 clean, and a
+live deterministic dash trace in-engine — placeholder VFX; the bespoke-VFX pass is phase 2.)_
+- ✅ Rage Scaling + Unstoppable unchanged (CombatSystem / AISystem passives untouched)
+- ✅ Charge triggers only on a 2+ cluster within ~6 tiles, off ~12s cooldown (`_pickChargeCluster`)
+- ✅ Targets the densest cluster, not merely nearest (live: chose (24,24), the 3-cluster centre)
+- ✅ ~0.4s telegraph wind-up before the dash (`_chargePhase:'windup'` + `_castingUntil`)
+- ✅ Straight-line dash, AISystem yields via `_castingUntil`, lands one tile short / stops at walls (live: (24,28)→(24,25))
+- ✅ Path minions: knocked back 1 tile (walkable-clamped) + staggered ~1s, NO path damage (live: all 3 → y24→y23, staggered, full HP). Whole cluster caught via line + impact radius.
+- ✅ Minion stagger skips the minion's turn (new `isStaggered` reader in MinionAISystem.updateMinion)
+- ✅ End target takes a full swing (lands adjacent; normal CombatSystem swing, Rage Scaling applies)
+- ✅ Transient `_charge*` fields stripped on load; soak 120/120 no save/freeze regression
+- ✅ Verified live in-engine + `sim:soak` (balance unaffected — charge deals no extra damage)
+
+### Proposed (pending sign-off — NOT locked, NOT built)
+- **🎵 Bard:** replace the 3 flat auras with **Crescendo** — a continuous anthem that escalates
+  party atk/spd in steps the longer it plays uninterrupted; taking a solid hit/stun resets it
+  (counterplay = pressure the bard). Keep **Encore** (death-crescendo party heal).
+- **🔮 Mage:** make the rolled element MEAN something (intrinsic, not vulnerability-based) —
+  fire=burn DoT, ice=slow, lightning=chain, wind=knockback/scatter; Arcane Burst becomes
+  element-flavored AoE. Keep Arcane Mastery (+30%).
+- **🧘 Monk:** **Riposte** (Focus dodge → instant counter/reflect) + **Stunning Palm** (periodic
+  single-target stun). Cut or convert the bland self-regen Inner Peace.
+- **🐺 Beast Master:** keep Tame; replace near-invisible Scout Ahead with **Sic 'Em** (directed
+  companion maul) + **Pack Tactics** (BM+beast flanking bonus on a shared target).
+- **🏹 Ranger:** keep Trap Expert; rework Volley → **Piercing Shot** (line shot piercing every
+  minion in a row).
+- **🛡️ Knight:** keep Taunt; tweak the flavorless −25% aura into **Bulwark** (directional
+  shield-wall protecting allies behind him) or **Aegis Reflect** (reflect a slice of soaked dmg).
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

@@ -521,6 +521,11 @@ function _rehydrateRunHistory(state) {
     //   Miner — Tunnel startup gate + the multi-phase dig/underground sequence
     '_tunnelGateUntil', '_tunnelPhase', '_tunnelDig', '_underground',
     '_tunnelDigUntil', '_tunnelEmergeAt', '_tunnelDeadline', '_tunnelNextFx',
+    //   Barbarian — Reckless Charge wind-up/dash sequence (scene.time stamps +
+    //   one-shot phase state; a saved value would freeze him mid-charge on load).
+    '_chargePhase', '_chargeTarget', '_chargeFrom', '_chargeWindupUntil',
+    '_chargeDashStart', '_chargeDashUntil', '_chargeDashFrom', '_chargeDashTo',
+    '_chargeEndTile',
     //   AI overhaul — nerve morale-break accumulator + room-appraisal threshold
     //   beat + party confer huddle (scene.time-stamped freeze/creep/cooldown gates;
     //   a saved future value would freeze/slow the adv until the new clock catches
@@ -580,6 +585,11 @@ function _rehydrateRunHistory(state) {
     // Per-target VFX throttle stamps (CombatFeedback / HitSparkSystem) —
     // see ADV_TRANSIENT_KEYS for the same rationale.
     '_fbAt', '_sparkAt',
+    // Generic CC stamps — minions can now be staggered/rooted/slowed (Barbarian
+    // Reckless Charge knockback + future CC). Scene.time-stamped; a saved future
+    // value would freeze a minion on load until the clock catches up. (Dawn reset
+    // also clears these, but strip on mid-day save/load for correctness.)
+    '_staggeredUntil', '_rootedUntil', '_slowUntil', '_slowMult',
   ]
   for (const m of (state.minions ?? [])) {
     for (const k of MIN_TRANSIENT_KEYS) if (k in m) delete m[k]

@@ -65,6 +65,32 @@ for (const [cls, key] of TESTS) {
   check(`${cls} → ${key} fires (ABILITY_TRIGGERED=${r.expectedId})`, r.firedId === r.expectedId, `got '${r.firedId}', dispatch=${r.ok}`)
 }
 
+// Barbarian Reckless Charge — needs a 2+ minion cluster; assert it fires AND
+// staggers the clustered minions (the path knockback/stagger effect).
+;(function barbCharge() {
+  const m1 = hostileMinion(); m1.tileX = 5; m1.tileY = 6
+  const m2 = hostileMinion(); m2.tileX = 5; m2.tileY = 5
+  const gs = {
+    adventurers: { active: [] }, minions: [m1, m2],
+    dungeon: { rooms: [room()] }, player: { gold: 0 }, _mechanicFlags: {},
+  }
+  const hero = adv('barbarian', { tileX: 6, tileY: 8 })
+  gs.adventurers.active.push(hero)
+  const cas = new ClassAbilitySystem(scene, gs)
+  let firedId = null
+  const onTrig = (p) => { if (p?.abilityId === 'reckless_charge') firedId = p.abilityId }
+  EventBus.on('ABILITY_TRIGGERED', onTrig)
+  cas.devFireAbility(hero, 'barb_charge', 1000)
+  // devFire runs one consider tick (begins charge → windup). Advance through the
+  // wind-up so the dash fires and applies the path stagger.
+  scene.time.now = 1000 + 500
+  cas._considerBarbarian(hero, scene.time.now)
+  EventBus.off('ABILITY_TRIGGERED', onTrig)
+  check('barbarian → barb_charge fires (ABILITY_TRIGGERED=reckless_charge)', firedId === 'reckless_charge', `got '${firedId}'`)
+  const staggered = (m1._staggeredUntil ?? 0) > 1000 || (m2._staggeredUntil ?? 0) > 1000
+  check('barbarian charge staggers a path minion', staggered, `m1=${m1._staggeredUntil} m2=${m2._staggeredUntil}`)
+})()
+
 // Coverage: every class with a _consider method should have ≥1 ability listed.
 const considerClasses = ['knight', 'bard', 'monk', 'cleric', 'mage', 'necromancer', 'ranger', 'beast_master', 'barbarian', 'rogue', 'cheater', 'gladiator', 'peasant', 'valkyrie', 'miner']
 for (const c of considerClasses) check(`${c} has abilities listed`, (CLASS_ABILITIES[c] ?? []).length > 0, `${(CLASS_ABILITIES[c] ?? []).length}`)
