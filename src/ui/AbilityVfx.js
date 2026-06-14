@@ -4472,9 +4472,17 @@ export const AbilityVfx = {
     const o = { color: 0xffe9a8, accent: 0xfff6d8, depth: 15, durationMs: 720, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
     const palm = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(palm)
-    palm.fillStyle(o.accent, 0.9); palm.fillEllipse(0, 2, 11, 13)
-    for (let f = 0; f < 4; f++) { palm.fillEllipse((f - 1.5) * 4.2, -8, 2.6, 6) }
-    palm.fillEllipse(-7, 1, 3, 6); _glow(palm, o.color, 4, 10)
+    // a clear OPEN HAND, palm-out: a rounded palm pad + 4 fanned tapered fingers + a thumb
+    const hs = 13, col = o.accent
+    palm.fillStyle(col, 0.92); palm.fillRoundedRect(-hs * 0.5, -hs * 0.12, hs, hs * 0.7, hs * 0.24)   // palm pad
+    const fxs = [-0.36, -0.12, 0.12, 0.36], fls = [0.95, 1.12, 1.06, 0.85]
+    for (let k = 0; k < 4; k++) { const bx = fxs[k] * hs, a = -Math.PI / 2 + fxs[k] * 0.6, len = hs * 0.55 * fls[k]
+      palm.lineStyle(hs * 0.2, col, 0.92); palm.beginPath(); palm.moveTo(bx, -hs * 0.1); palm.lineTo(bx + Math.cos(a) * len, -hs * 0.1 + Math.sin(a) * len); palm.strokePath()
+      palm.fillStyle(col, 0.92); palm.fillCircle(bx + Math.cos(a) * len, -hs * 0.1 + Math.sin(a) * len, hs * 0.1) }
+    palm.lineStyle(hs * 0.22, col, 0.92); palm.beginPath(); palm.moveTo(-hs * 0.5, hs * 0.22); palm.lineTo(-hs * 0.8, -hs * 0.04); palm.strokePath()   // thumb
+    palm.fillStyle(col, 0.92); palm.fillCircle(-hs * 0.8, -hs * 0.04, hs * 0.11)
+    palm.fillStyle(0xffcf6b, 0.3); palm.fillEllipse(0, hs * 0.22, hs * 0.5, hs * 0.22)               // palm-crease shade
+    _glow(palm, o.color, 4, 10)
     scene.tweens.add({ targets: palm, scale: 1.2, alpha: 1, duration: life * 0.18, ease: 'Back.easeOut',
       onComplete: () => scene.tweens.add({ targets: palm, alpha: 0, scale: 1.5, duration: life * 0.3, onComplete: () => palm.destroy() }) })
     for (let i = 0; i < 6; i++) {
@@ -4504,29 +4512,33 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { color: 0xff6622, accent: 0xffd23f, depth: 14, durationMs: 700, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // bright IGNITE flash at the base — the moment it catches fire
+    const ig = scene.add.circle(x, y + 2, 8, 0xffd23f, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 0.8)  // circle-ok: additive ignite flash core, the flames are the read
+    _glow(ig, 0xff5511, 4, 12); made.push(ig)
+    scene.tweens.add({ targets: ig, scale: 2.2, alpha: 0, duration: life * 0.35, ease: 'Quad.easeOut', onComplete: () => ig.destroy() })
     // breathing heat-glow pooled at the feet (irregular, additive — not a flat oval)
-    const gv = 11, gn = Array.from({ length: gv }, () => 0.7 + Math.random() * 0.5)
-    const glow = scene.add.graphics().setPosition(x, y + 5).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0); made.push(glow)
-    glow.fillStyle(0xff5511, 0.18); glow.beginPath()
-    for (let i = 0; i <= gv; i++) { const a = i / gv * Math.PI * 2, rr = 16 * gn[i % gv]; const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.5; if (i === 0) glow.moveTo(px, py); else glow.lineTo(px, py) }
+    const gv = 12, gn = Array.from({ length: gv }, () => 0.7 + Math.random() * 0.5)
+    const glow = scene.add.graphics().setPosition(x, y + 6).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0); made.push(glow)
+    glow.fillStyle(0xff5511, 0.22); glow.beginPath()
+    for (let i = 0; i <= gv; i++) { const a = i / gv * Math.PI * 2, rr = 22 * gn[i % gv]; const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.5; if (i === 0) glow.moveTo(px, py); else glow.lineTo(px, py) }
     glow.closePath(); glow.fillPath()
-    scene.tweens.add({ targets: glow, scale: 1.1, alpha: 0.5, duration: life * 0.3, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
-    // 4 animated flickering flame tongues across the body, centre tallest
-    const flames = 4
+    scene.tweens.add({ targets: glow, scale: 1.15, alpha: 0.6, duration: life * 0.3, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
+    // 5 big animated flickering flame tongues engulfing the body, centre tallest
+    const flames = 5
     for (let i = 0; i < flames; i++) {
       const off = i - (flames - 1) / 2
-      const fx2 = x + off * 5 + (Math.random() - 0.5) * 3, fy2 = y + 5
+      const fx2 = x + off * 6 + (Math.random() - 0.5) * 3, fy2 = y + 6
       const m = this.flameLickFx(scene, fx2, fy2, {
-        depth: o.depth + (fy2 > y ? 0.2 : 0) + i * 0.05,
-        durationMs: o.durationMs * (0.7 + Math.random() * 0.4),
-        h: 17 + Math.random() * 6 - Math.abs(off) * 2.4, w: 5 + Math.random() * 1.8,
+        depth: o.depth + 0.2 + i * 0.05,
+        durationMs: o.durationMs * (0.75 + Math.random() * 0.4),
+        h: 26 + Math.random() * 8 - Math.abs(off) * 3, w: 6 + Math.random() * 2.2,
         embers: false, slow: o.slow,
       })
       if (m) made.push(...m)
     }
     if (mult > 0) {
-      const em = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speedY: { min: -56, max: -20 }, speedX: { min: -16, max: 16 }, x: { min: -8, max: 8 }, scale: { start: 0.16, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.accent, o.color, 0xff3311], blendMode: 'ADD', emitting: false })
-      em.setDepth(o.depth + 0.6); em.explode(Math.round(9 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+      const em = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.95 }, speedY: { min: -72, max: -26 }, speedX: { min: -18, max: 18 }, x: { min: -10, max: 10 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.accent, o.color, 0xff3311], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth + 0.6); em.explode(Math.round(14 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
     }
     return made
   },
@@ -4698,16 +4710,33 @@ export const AbilityVfx = {
     for (let i = 0; i <= pv; i++) { const a = i / pv * Math.PI * 2, r = 16 * pn[i % pv]; const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.5; if (i === 0) pool.moveTo(px, py); else pool.lineTo(px, py) }
     pool.closePath(); pool.fillPath(); _glow(pool, o.color, 3, 10)
     scene.tweens.add({ targets: pool, alpha: 0.5, scaleX: 1.4, scaleY: 1, duration: life * 0.4, yoyo: true, ease: 'Sine.easeOut', onComplete: () => pool.destroy() })
+    // a clawing SKELETAL HAND: bony palm + 4 fingers of 2 phalanges each (knuckle
+    // joints), curling inward like a claw, + a thumb. Rises out of the ground.
+    const drawHand = (g, s) => {
+      const bone = 0xe8e2d0, joint = 0xc8c0a8
+      g.fillStyle(bone, 0.96); g.fillEllipse(0, s * 0.18, s * 0.52, s * 0.34)   // bony palm/wrist
+      const fingers = [-0.52, -0.18, 0.18, 0.52]
+      for (const fa of fingers) {
+        const bx = fa * s * 0.42, a1 = -Math.PI / 2 + fa * 0.55
+        const j1x = bx + Math.cos(a1) * s * 0.46, j1y = s * 0.05 + Math.sin(a1) * s * 0.46
+        g.lineStyle(s * 0.14, bone, 1); g.beginPath(); g.moveTo(bx, s * 0.05); g.lineTo(j1x, j1y); g.strokePath()
+        g.fillStyle(joint, 1); g.fillCircle(j1x, j1y, s * 0.1)                  // knuckle
+        const a2 = a1 + 0.6, tx = j1x + Math.cos(a2) * s * 0.32, tyy = j1y + Math.sin(a2) * s * 0.32
+        g.lineStyle(s * 0.11, bone, 1); g.beginPath(); g.moveTo(j1x, j1y); g.lineTo(tx, tyy); g.strokePath()
+        g.fillStyle(bone, 1); g.fillCircle(tx, tyy, s * 0.06)                   // clawed tip
+      }
+      // thumb (off to one side, also clawed)
+      const ta = -Math.PI / 2 + 1.1, tj = { x: -s * 0.34 + Math.cos(ta) * s * 0.36, y: s * 0.1 + Math.sin(ta) * s * 0.36 }
+      g.lineStyle(s * 0.14, bone, 1); g.beginPath(); g.moveTo(-s * 0.34, s * 0.12); g.lineTo(tj.x, tj.y); g.strokePath()
+      g.fillStyle(joint, 1); g.fillCircle(tj.x, tj.y, s * 0.09)
+    }
     const hands = 2 + Math.round(Math.random())
     for (let i = 0; i < hands; i++) {
-      const hx = x + (i - (hands - 1) / 2) * 12 + (Math.random() - 0.5) * 6
-      const g = scene.add.graphics().setPosition(hx, y + 10).setDepth(o.depth + i * 0.1).setScale(0.8).setAlpha(0); made.push(g)
-      const s = 11 + Math.random() * 3
-      g.fillStyle(0xe8e2d0, 0.95)
-      for (let f = 0; f < 3; f++) { const fxo = (f - 1) * s * 0.5; g.fillRect(fxo - s * 0.08, -s, s * 0.16, s); g.fillCircle(fxo, -s, s * 0.1) }
-      g.fillRect(-s * 0.35, 0, s * 0.7, s * 0.35)
-      scene.tweens.add({ targets: g, y: y - 2, alpha: 1, duration: life * 0.3, delay: i * 70, ease: 'Back.easeOut',
-        onComplete: () => scene.tweens.add({ targets: g, y: g.y - 6, alpha: 0, duration: life * 0.45, delay: life * 0.1, onComplete: () => g.destroy() }) })
+      const hx = x + (i - (hands - 1) / 2) * 13 + (Math.random() - 0.5) * 6
+      const g = scene.add.graphics().setPosition(hx, y + 12).setDepth(o.depth + i * 0.1).setScale(0.8).setAlpha(0).setAngle((Math.random() - 0.5) * 24); made.push(g)
+      drawHand(g, 14 + Math.random() * 3)
+      scene.tweens.add({ targets: g, y: y - 4, alpha: 1, duration: life * 0.32, delay: i * 80, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, y: g.y - 6, alpha: 0, duration: life * 0.45, delay: life * 0.12, onComplete: () => g.destroy() }) })
     }
     if (mult > 0) {
       const m = scene.add.particles(x, y + 6, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speedY: { min: -70, max: -20 }, speedX: { min: -40, max: 40 }, scale: { start: 0.22, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [0x4a3820, 0x66dd55, 0x335522], emitting: false })
@@ -4716,25 +4745,44 @@ export const AbilityVfx = {
     return made
   },
 
-  // NECROMANCER · Bone Armor — curved RIB-PLATES fly inward and clamp around the
-  // necromancer's torso (anatomical, not a ring) + a bone-white assembly flash.
+  // NECROMANCER · Bone Armor — a RIBCAGE assembles around the torso: a central
+  // spine bone (with vertebra knobs) + curved rib bones (filled, tapered, knobby
+  // ends) swing in from the sides and clamp on. Reads as real bone, not arc-rings.
   boneArmorFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { color: 0xddccaa, accent: 0xfff4d8, depth: 14, durationMs: 900, ...opts }
+    const o = { color: 0xe8e2d0, shade: 0xb8ad95, depth: 14, durationMs: 950, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
-    const slots = [[-9, -8, 0], [9, -8, Math.PI], [-9, 2, 0], [9, 2, Math.PI], [0, -14, -Math.PI / 2]]
-    slots.forEach(([dx, dy, rot], i) => {
-      const sa = Math.random() * Math.PI * 2, sd = 30 + Math.random() * 14
-      const g = scene.add.graphics().setPosition(x + Math.cos(sa) * sd, y - 6 + Math.sin(sa) * sd).setDepth(o.depth).setRotation(rot).setScale(0.4).setAlpha(0); made.push(g)
-      const w = 9 + Math.random() * 3
-      g.lineStyle(2.6, o.color, 0.95); g.beginPath(); g.arc(0, 0, w, -0.7, 0.7, false); g.strokePath()
-      g.lineStyle(1.2, o.accent, 0.7); g.beginPath(); g.arc(0, 0, w, -0.6, 0.6, false); g.strokePath()
-      scene.tweens.add({ targets: g, x: x + dx, y: y - 6 + dy, scale: 1, alpha: 1, duration: life * 0.32, delay: i * 45, ease: 'Back.easeOut',
-        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, delay: life * 0.25, onComplete: () => g.destroy() }) })
+    const cy = y - 6
+    // one curved rib bone (filled tapered band around radius R, arc a0→a1) + outer knob
+    const drawRib = (g, R, a0, a1, hw) => {
+      const n = 7; g.fillStyle(o.color, 1); g.beginPath()
+      for (let i = 0; i <= n; i++) { const t = i / n, a = a0 + (a1 - a0) * t, w = hw * (1 - 0.35 * t), r = R + w; const px = Math.cos(a) * r, py = Math.sin(a) * r; i === 0 ? g.moveTo(px, py) : g.lineTo(px, py) }
+      for (let i = n; i >= 0; i--) { const t = i / n, a = a0 + (a1 - a0) * t, w = hw * (1 - 0.35 * t), r = R - w; g.lineTo(Math.cos(a) * r, Math.sin(a) * r) }
+      g.closePath(); g.fillPath()
+      g.fillStyle(o.shade, 0.7); g.fillCircle(Math.cos(a1) * R, Math.sin(a1) * R, hw * 0.9)   // outer knob
+      g.fillStyle(o.color, 1); g.fillCircle(Math.cos(a0) * R, Math.sin(a0) * R, hw * 0.7)      // inner attach
+    }
+    // central SPINE bone (drawn local, vertical) + 3 vertebra knobs
+    const spine = scene.add.graphics().setPosition(x, cy).setDepth(o.depth + 0.2).setScale(0.5, 0.3).setAlpha(0); made.push(spine)
+    spine.fillStyle(o.color, 1); spine.fillRoundedRect(-2, -15, 4, 30, 2)
+    spine.fillStyle(o.shade, 0.8); for (let k = -2; k <= 2; k++) spine.fillCircle(0, k * 6, 3.2)
+    scene.tweens.add({ targets: spine, scaleX: 1, scaleY: 1, alpha: 1, duration: life * 0.22, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: spine, alpha: 0, duration: life * 0.4, delay: life * 0.3, onComplete: () => spine.destroy() }) })
+    // ribs: 3 per side, curving forward around the torso, flying in from out wide
+    const ribs = [[-1, -8], [-1, 0], [-1, 8], [1, -8], [1, 0], [1, 8]]
+    ribs.forEach(([sideSign, ry], i) => {
+      const g = scene.add.graphics().setDepth(o.depth).setAlpha(0); made.push(g)
+      // local rib arc: from spine (near 0/PI) sweeping down-and-out
+      const base = sideSign < 0 ? Math.PI : 0
+      const a0 = base, a1 = base + sideSign * 0.95
+      drawRib(g, 11, a0, a1, 2.4)
+      g.setPosition(x + sideSign * (34 + Math.random() * 14), cy + ry * 0.4)
+      scene.tweens.add({ targets: g, x: x, y: cy + ry, alpha: 1, duration: life * 0.3, delay: 120 + i * 40, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, delay: life * 0.22, onComplete: () => g.destroy() }) })
     })
-    const fl = scene.add.circle(x, y - 6, 7, o.accent, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.4)  // circle-ok: additive armour-set flash, the rib-plates are the read
-    _glow(fl, o.color, 3, 10); made.push(fl)
-    scene.tweens.add({ targets: fl, alpha: 0.5, scale: 2, duration: life * 0.4, delay: life * 0.2, yoyo: true, ease: 'Sine.easeOut', onComplete: () => fl.destroy() })
+    const fl = scene.add.circle(x, cy, 7, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.4)  // circle-ok: additive armour-set flash, the ribcage is the read
+    _glow(fl, 0xfff4d8, 3, 10); made.push(fl)
+    scene.tweens.add({ targets: fl, alpha: 0.45, scale: 2, duration: life * 0.4, delay: life * 0.4, yoyo: true, ease: 'Sine.easeOut', onComplete: () => fl.destroy() })
     return made
   },
 
@@ -4881,23 +4929,40 @@ export const AbilityVfx = {
     return made
   },
 
-  // PEASANT · Strength in Numbers — a rabble FERVOR surge: raised fist/pole
-  // silhouettes thrust up around the peasant + a dust surge. opts.count scales it.
+  // PEASANT · Strength in Numbers — an angry MOB brandishes raised PITCHFORKS and
+  // lit TORCHES thrust up around the peasant + torchlight glow + a dust surge + an
+  // angry "!" shout. opts.count scales how many tools go up.
   mobFervorFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
-    const o = { color: 0xe8b06a, accent: 0xffd98a, depth: 14, durationMs: 620, count: 3, ...opts }
+    const o = { color: 0xe8b06a, accent: 0xffd98a, depth: 14, durationMs: 720, count: 3, ...opts }
     const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
     const n = Math.min(5, Math.max(2, o.count))
     for (let i = 0; i < n; i++) {
-      const ox = (i - (n - 1) / 2) * 9, g = scene.add.graphics().setPosition(x + ox, y + 6).setDepth(o.depth).setScale(1, 0.3).setAlpha(0); made.push(g)
-      g.fillStyle(0x6b4f2a, 0.95); g.fillRect(-1.2, -16, 2.4, 16); g.fillStyle(0x4a3820, 0.95); g.fillCircle(0, -16, 2.6)
-      scene.tweens.add({ targets: g, scaleY: 1, alpha: 1, y: y - 2, duration: life * 0.25, delay: i * 30, ease: 'Back.easeOut',
-        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, y: g.y - 6, duration: life * 0.45, onComplete: () => g.destroy() }) })
+      const ox = (i - (n - 1) / 2) * 10 + (Math.random() - 0.5) * 3, torch = i % 2 === 1
+      const g = scene.add.graphics().setPosition(x + ox, y + 6).setDepth(o.depth + (torch ? 0.2 : 0)).setScale(1, 0.2).setAlpha(0); made.push(g)
+      g.fillStyle(0x6b4f2a, 1); g.fillRect(-1.3, -18, 2.6, 18)                                  // wooden pole
+      if (torch) {
+        g.fillStyle(0x3a2a18, 1); g.fillRect(-2.4, -22, 4.8, 5)                                 // wrapped head
+        g.fillStyle(0xff8a33, 0.95); g.beginPath(); g.moveTo(0, -31); g.lineTo(3, -22); g.lineTo(0, -20); g.lineTo(-3, -22); g.closePath(); g.fillPath()
+        g.fillStyle(0xffe066, 0.95); g.beginPath(); g.moveTo(0, -28); g.lineTo(1.5, -22); g.lineTo(-1.5, -22); g.closePath(); g.fillPath()  // hot core
+      } else {
+        g.fillStyle(0xb8b0a0, 1); for (const txx of [-3, 0, 3]) g.fillRect(txx - 0.7, -27, 1.4, 9)  // 3 tines
+        g.fillStyle(0x8a8270, 1); g.fillRect(-4, -19, 8, 2)                                     // crossbar
+      }
+      scene.tweens.add({ targets: g, scaleY: 1, alpha: 1, y: y - 2, duration: life * 0.25, delay: i * 35, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, y: g.y - 5, duration: life * 0.45, onComplete: () => g.destroy() }) })
     }
+    const glow = scene.add.circle(x, y - 8, 6, 0xffaa44, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: warm torchlight glow, the raised tools are the read
+    _glow(glow, 0xffd98a, 2, 9); made.push(glow)
+    scene.tweens.add({ targets: glow, alpha: 0.4, scale: 1.7, duration: life * 0.4, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => glow.destroy() })
     if (mult > 0) {
-      const d = scene.add.particles(x, y + 8, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedX: { min: -60, max: 60 }, speedY: { min: -24, max: 2 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xb8a888, 0x9a7a48, 0x6b5a3a], emitting: false })
-      d.setDepth(o.depth - 0.5); d.explode(Math.round((6 + n) * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
+      const d = scene.add.particles(x, y + 8, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.8 }, speedX: { min: -60, max: 60 }, speedY: { min: -22, max: 2 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xb8a888, 0x9a7a48, 0x6b5a3a], emitting: false })
+      d.setDepth(o.depth - 0.6); d.explode(Math.round((6 + n) * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
     }
+    const sh = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 16, y - 26).setDepth(o.depth + 0.5).setScale(0.4).setAlpha(0); made.push(sh)
+    sh.fillStyle(0xffd98a, 0.95); sh.fillRect(-1.4, -7, 2.8, 9); sh.fillCircle(0, 4, 1.6)         // angry "!"
+    scene.tweens.add({ targets: sh, scale: 1, alpha: 1, y: sh.y - 6, duration: life * 0.3, delay: life * 0.1, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: sh, alpha: 0, duration: life * 0.4, onComplete: () => sh.destroy() }) })
     return made
   },
 

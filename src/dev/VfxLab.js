@@ -325,7 +325,10 @@ export class VfxLab {
     }
     return (CLASS_ABILITIES[entity.classId] ?? []).map(key => ({
       label: ABILITY_DEFS[key]?.label ?? key,
-      fire: () => this._scene.classAbilitySystem?.devFireAbility(this._entity, key),
+      // devDemoVfx = a deterministic VFX-only demo (fires the real bespoke effect
+      // on the entity + a target every press, incl. combat-proc effects the
+      // _consider tick can't reach). Falls back to devFireAbility for unmapped ids.
+      fire: () => this._scene.classAbilitySystem?.devDemoVfx(this._entity, key),
     }))
   }
 

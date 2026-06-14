@@ -383,6 +383,72 @@ export class ClassAbilitySystem {
     return false
   }
 
+  // VFX LAB — deterministic per-ability VFX demo. Fires the ability's REAL bespoke
+  // effect(s) directly on the lab entity + a resolved target, bypassing cooldowns /
+  // conditions so every ability button shows its full visual on EVERY press —
+  // including the combat-proc effects (mage elements, ranger pierce, monk riposte,
+  // gladiator roar) that the _consider tick can't trigger. Visual only, no mechanics.
+  devDemoVfx(adv, key) {
+    const V = AbilityVfx, sc = this._scene
+    if (!adv || !sc) return false
+    const id = ABILITY_DEFS[key]?.id ?? key
+    const ax = adv.worldX ?? 0, ay = adv.worldY ?? 0
+    const foe = this._nearestHostileMinion(adv, 8)
+    const tx = foe?.worldX ?? (ax + 72), ty = foe?.worldY ?? ay
+    const dead = (this._gameState.adventurers?.active ?? []).find(a => a !== adv && (a.aiState === 'dead' || (a.resources?.hp ?? 1) <= 0))
+    const fxp = dead?.worldX ?? (ax + 56), fyp = dead?.worldY ?? ay
+    const dir = tx >= ax ? 1 : -1
+    const D = (ms, f) => sc.time?.delayedCall?.(ms, f)
+    switch (id) {
+      case 'bulwark':       V.bulwarkWallFx?.(sc, ax, ay, { dir }); break
+      case 'taunt':         V.tauntFx?.(sc, ax, ay); break
+      case 'crescendo':     V.crescendoFx?.(sc, ax, ay, { stacks: 4 }); break
+      case 'riposte':       V.focusStanceFx?.(sc, ax, ay, { dir }); D(280, () => V.riposteFx?.(sc, ax, ay, { dir })); break
+      case 'stunning_palm': V.stunningPalmFx?.(sc, tx, ty); break
+      case 'cleric_heal':   V.healLightFx?.(sc, foe ? ax : fxp, foe ? ay : fyp); break
+      case 'resurrection':  V.resurrectionFx?.(sc, fxp, fyp); break
+      case 'arcane_burst': {
+        // cycle the element each press so all four are testable from one button
+        const ELS = ['fire', 'ice', 'lightning', 'wind']
+        adv._demoElIdx = ((adv._demoElIdx ?? -1) + 1) % 4
+        adv._element = ELS[adv._demoElIdx]
+        V.arcaneChargeFx?.(sc, ax, ay, { color: this._elementColor(adv._element) })
+        D(380, () => {
+          const el = adv._element
+          if (el === 'fire') V.emberBurnFx?.(sc, tx, ty)
+          else if (el === 'ice') V.frostChillFx?.(sc, tx, ty)
+          else if (el === 'lightning') V.arcBoltFx?.(sc, ax, ay - 8, tx, ty - 8)
+          else V.gustFx?.(sc, tx, ty, { dir })
+          V.arcaneBurstFx?.(sc, tx, ty, { color: this._elementColor(el) })
+          V.floatingText?.(sc, tx, ty - 30, el.toUpperCase(), { color: '#cc99ff', fontSize: '10px' })
+        })
+        break
+      }
+      case 'summon_undead': V.necroSummonFx?.(sc, ax, ay); break
+      case 'bone_armor':    V.boneArmorFx?.(sc, ax, ay); break
+      case 'piercing_shot': V.piercingArrowFx?.(sc, ax, ay - 8, ax + dir * 150, ay - 8); break
+      case 'trap_expert':   V.disarmFx?.(sc, tx, ty, { fail: Math.random() < 0.4 }); break
+      case 'tame_beast':    V.tameFx?.(sc, tx, ty); break
+      case 'sic_em':        V.pounceFx?.(sc, ax, ay, tx, ty); break
+      case 'reckless_charge': V.chargeWindupFx?.(sc, ax, ay, { dir }); D(420, () => { V.recklessChargeFx?.(sc, ax, ay, tx, ty); V.staggerHitFx?.(sc, tx, ty) }); break
+      case 'invisibility':  V.vanishSmokeFx?.(sc, ax, ay); D(900, () => V.vanishSmokeFx?.(sc, ax, ay, { reveal: true })); break
+      case 'block':         V.gladiatorBlockFx?.(sc, ax, ay); break
+      case 'crowd_roar':    V.crowdRoarFx?.(sc, ax, ay, { stacks: 4 }); break
+      case 'strength_in_numbers': V.mobFervorFx?.(sc, ax, ay, { count: 4 }); break
+      case 'winged_flight': V.wingedFlightFx?.(sc, ax, ay); break
+      case 'rally_the_fallen': V.valkyrieRaiseFx?.(sc, fxp, fyp); break
+      case 'tunnel':        V.digBurstFx?.(sc, ax, ay, { depth: 13 }); break
+      case 'roll_the_dice': V.diceRoll?.(sc, ax, ay - 32, 1 + Math.floor(Math.random() * 6)); break
+      case 'double_or_nothing': V.coinFlip?.(sc, ax, ay - 24, Math.random() < 0.5); break
+      case 'break_door': case 'lockpick':
+        V.floatingText?.(sc, ax, ay - 24, '(needs a locked door)', { color: '#999999', fontSize: '10px' }); break
+      default:
+        // Cheater hacks + anything unmapped: fall back to the real consider tick.
+        return this.devFireAbility(adv, key)
+    }
+    return true
+  }
+
   update(_delta) {
     const now = this._scene.time.now
     const antiMagicRoomIds = this._gameState._antiMagicRoomIds ?? null
