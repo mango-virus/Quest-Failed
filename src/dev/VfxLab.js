@@ -43,6 +43,8 @@ const RAW_VFX_GROUPS = [
   { label: 'Imp',       fx: ['blinkFx', 'hellriftFx'] },
   { label: 'Plant',     fx: ['entangleFx', 'stranglethornFx'] },
   { label: 'Mushroom',  fx: ['dazeFx', 'sporePuffFx', 'sporeStormFx'] },
+  // ── Adventurer ability VFX (bespoke per class) ──
+  { label: 'Adv·Barbarian', fx: ['chargeWindupFx', 'recklessChargeFx', 'staggerHitFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -479,6 +481,7 @@ export class VfxLab {
     const fn = () => {
       switch (name) {
         case 'beamFx':       AbilityVfx.beamFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
+        case 'recklessChargeFx': AbilityVfx.recklessChargeFx(s, e.worldX - 70, e.worldY, e.worldX + 40, e.worldY, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
         case 'pulseRing':    AbilityVfx.pulseRing(s, e.worldX, e.worldY, { color: pal.color, fromR: 6, toR: 40, alpha: 0.85, durationMs: 500 }); break
         case 'juice':        AbilityVfx.juice(s, e.worldX, e.worldY, opts); break

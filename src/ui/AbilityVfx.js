@@ -4210,4 +4210,127 @@ export const AbilityVfx = {
     })
     return cont
   },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ADVENTURER ABILITY VFX — one bespoke visual language per class. Built to the
+  // anti-generic bar (custom shaded silhouettes + composed sub-elements + motion,
+  // never a bare ring/burst). Lab-testable via RAW_VFX_GROUPS in VfxLab.js.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // BARBARIAN · Reckless Charge — TELEGRAPH. The brute coils: grit kicked back
+  // under braced feet + a low forward-lean dust skid + a hot rage ember swelling
+  // at the shoulder. Reads "about to bull-rush" with NO ring. opts.dir = +1/-1.
+  chargeWindupFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff5a2a, depth: 12, durationMs: 420, dir: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const dir = o.dir >= 0 ? 1 : -1
+    if (mult > 0) {
+      const g = scene.add.particles(x - 6 * dir, y + 9, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.85 }, speedX: { min: -80 * dir, max: -22 * dir }, speedY: { min: -34, max: -4 }, scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xb8a888, 0x7a6a4a, 0x4a3820], emitting: false })
+      g.setDepth(o.depth - 0.5); g.explode(Math.round(11 * mult)); made.push(g); scene.time.delayedCall(life, () => { try { g.destroy() } catch (e) {} })
+    }
+    // shoulder rage ember — a hot core that swells then snaps (the coil release tell)
+    const em = scene.add.circle(x + 4 * dir, y - 8, 4, o.color, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: small additive charge-ember core
+    _glow(em, o.color, 4, 11); made.push(em)
+    scene.tweens.add({ targets: em, alpha: 0.9, scale: 1.9, duration: life * 0.62, yoyo: true, ease: 'Sine.easeIn', onComplete: () => em.destroy() })
+    // forward-lean dust skid building under his feet (asymmetric wedge, not a ring)
+    const g2 = scene.add.graphics().setPosition(x, y + 10).setDepth(o.depth - 0.6).setScale(0.4, 1).setAlpha(0); made.push(g2)
+    g2.fillStyle(0x6b5a3a, 0.36); g2.beginPath()
+    g2.moveTo(-10 * dir, 2); g2.lineTo(17 * dir, -3); g2.lineTo(23 * dir, 2); g2.lineTo(15 * dir, 5); g2.closePath(); g2.fillPath()
+    scene.tweens.add({ targets: g2, scaleX: 1.15, alpha: 0.5, duration: life * 0.52, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g2, alpha: 0, duration: life * 0.4, onComplete: () => g2.destroy() }) })
+    return made
+  },
+
+  // BARBARIAN · Reckless Charge — DASH + IMPACT. A bull-rush from (x1,y1)→(x2,y2):
+  // tapered grit speed-streaks rake the path, a churning dust trail chases him, and
+  // the landing detonates a FORWARD cracked-earth fan (asymmetric, opens in the
+  // charge dir) + flung rock shards + a low dust pall. Not a ring anywhere.
+  recklessChargeFx(scene, x1, y1, x2, y2, opts = {}) {
+    if (!_validXY(x1, y1) || !_validXY(x2, y2)) return null
+    const o = { color: 0xff5a2a, depth: 13, durationMs: 360, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len
+    const nx = -uy, ny = ux   // perpendicular
+    // grit speed-streaks — tapered dirt slashes raking along the dash line
+    for (let i = 0; i < 5; i++) {
+      const off = (i - 2) * 5, sx = x1 + nx * off, sy = y1 + ny * off
+      const ex = x2 + nx * off * 0.5, ey = y2 + ny * off * 0.5
+      const g = scene.add.graphics().setDepth(o.depth).setAlpha(0); made.push(g)
+      const w = 2.4 + Math.random() * 1.6, tone = [0xb8a888, 0x8a6a3a, 0xcfc0a0][i % 3]
+      g.fillStyle(tone, 0.7); g.beginPath()
+      g.moveTo(sx - nx * w, sy - ny * w); g.lineTo(sx + nx * w, sy + ny * w)
+      g.lineTo(ex + nx * 0.4, ey + ny * 0.4); g.lineTo(ex - nx * 0.4, ey - ny * 0.4); g.closePath(); g.fillPath()
+      scene.tweens.add({ targets: g, alpha: 0.75, duration: life * 0.22, delay: i * 12, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    // churning dust trail along the path
+    if (mult > 0) {
+      const steps = 4
+      for (let i = 1; i <= steps; i++) {
+        const t = i / (steps + 1), px = x1 + dx * t, py = y1 + dy * t
+        scene.time.delayedCall(life * 0.1 * i, () => {
+          if (!_validXY(px, py)) return
+          const d = scene.add.particles(px, py + 4, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speedX: { min: -34, max: 34 }, speedY: { min: -26, max: 2 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.42, end: 0 }, tint: [0xb8a888, 0x7a6a4a], emitting: false })
+          d.setDepth(o.depth - 0.6); d.explode(Math.round(5 * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
+        })
+      }
+    }
+    // IMPACT — bright ram flash + forward cracked-earth fan + shards + dust pall
+    const flash = scene.add.circle(x2, y2 - 4, 6, 0xffe2b0, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive ram-impact flash core
+    _glow(flash, o.color, 5, 12); made.push(flash)
+    scene.tweens.add({ targets: flash, scale: 2.6, alpha: 0, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => flash.destroy() })
+    // forward cracked-earth fan (3 jagged fissures opening in the charge dir)
+    const baseAng = Math.atan2(uy, ux)
+    for (let c = 0; c < 3; c++) {
+      const ca = baseAng + (c - 1) * 0.5, fl = 20 + Math.random() * 14
+      const g = scene.add.graphics().setPosition(x2, y2 + 2).setDepth(o.depth - 0.3).setAlpha(0); made.push(g)
+      g.lineStyle(2.6, 0x2a1d10, 0.9); g.beginPath(); g.moveTo(0, 0)
+      let px = 0, py = 0, a = ca
+      for (let s = 0; s < 3; s++) { a += (Math.random() - 0.5) * 0.7; const sl = fl / 3; px += Math.cos(a) * sl; py += Math.sin(a) * sl * 0.6; g.lineTo(px, py) }
+      g.strokePath()
+      g.lineStyle(1.4, 0xff6a2a, 0.6); g.strokePath()   // hot seam in the crack
+      scene.tweens.add({ targets: g, alpha: 1, duration: life * 0.2, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 1.6, onComplete: () => g.destroy() }) })
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = baseAng + (Math.random() - 0.5) * 1.6, d = 16 + Math.random() * 22
+      const g = scene.add.graphics().setPosition(x2, y2 - 2).setDepth(o.depth + 0.2); made.push(g)
+      _drawRockShard(g, 2.4 + Math.random() * 1.8, 0x6b5a3a)
+      scene.tweens.add({ targets: g, x: x2 + Math.cos(a) * d, y: y2 - 2 + Math.sin(a) * d - 8, angle: (Math.random() - 0.5) * 300, alpha: 0, duration: life * 1.1, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    if (mult > 0) {
+      const pall = scene.add.particles(x2, y2 + 5, _softDotTexture(scene), { lifespan: { min: life * 0.5, max: life }, speedX: { min: -70, max: 70 }, speedY: { min: -22, max: 2 }, x: { min: -10, max: 10 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xc4bca8, 0x8a8270, 0x5e5848], emitting: false })
+      pall.setDepth(o.depth - 0.7); pall.explode(Math.round(16 * mult)); made.push(pall); scene.time.delayedCall(life * 2, () => { try { pall.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // BARBARIAN · per-minion KNOCKBACK — a quick "WHUMP": a 4-point impact star
+  // punches in + a dirt puff + two spinning grit chips + a dazed wobble. Fired on
+  // each minion the charge bowls through. Bespoke, on the unit (no ring).
+  staggerHitFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffce6b, depth: 14, durationMs: 360, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // 4-point impact star (custom path), punches outward then fades
+    const star = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3).setAlpha(0); made.push(star)
+    star.fillStyle(0xfff0c8, 0.95); star.beginPath()
+    const sp = [[0, -9], [2.4, -2.4], [9, 0], [2.4, 2.4], [0, 9], [-2.4, 2.4], [-9, 0], [-2.4, -2.4]]
+    sp.forEach((p, i) => { i === 0 ? star.moveTo(p[0], p[1]) : star.lineTo(p[0], p[1]) }); star.closePath(); star.fillPath()
+    _glow(star, o.color, 3, 8)
+    scene.tweens.add({ targets: star, scale: 1.25, alpha: 1, angle: 40, duration: life * 0.3, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: star, alpha: 0, scale: 1.6, duration: life * 0.5, onComplete: () => star.destroy() }) })
+    if (mult > 0) {
+      const d = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speed: { min: 30, max: 90 }, scale: { start: 0.2, end: 0 }, alpha: { start: 0.55, end: 0 }, tint: [0xb8a888, 0x7a6a4a], emitting: false })
+      d.setDepth(o.depth - 0.5); d.explode(Math.round(6 * mult)); made.push(d); scene.time.delayedCall(life, () => { try { d.destroy() } catch (e) {} })
+    }
+    for (let i = 0; i < 2; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2, dist = 10 + Math.random() * 12
+      const g = scene.add.graphics().setPosition(x, y - 4).setDepth(o.depth - 0.2); made.push(g)
+      _drawRockShard(g, 1.8 + Math.random(), 0x6b5a3a)
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * dist, y: y - 4 + Math.sin(a) * dist + 8, angle: (Math.random() - 0.5) * 260, alpha: 0, duration: life, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    return made
+  },
 }

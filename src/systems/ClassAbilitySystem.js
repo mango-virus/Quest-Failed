@@ -1970,8 +1970,9 @@ export class ClassAbilitySystem {
     barb._chargeWindupUntil = now + CHARGE_WINDUP_MS
     barb._castingUntil      = now + CHARGE_WINDUP_MS
     barb.path = null; barb.pathIndex = 0; barb.pathTarget = null
-    // Placeholder telegraph VFX (the bespoke pass comes later) — a dust kick + shout.
-    AbilityVfx.particleBurst(this._scene, barb.worldX, barb.worldY, { color: 0x9a7a4a, count: 8, durationMs: 360, speed: 50, depth: 9 })
+    // Telegraph: braced-feet grit + swelling rage ember + forward dust skid.
+    const cdir = (cluster.tileX - barb.tileX) >= 0 ? 1 : -1
+    AbilityVfx.chargeWindupFx?.(this._scene, barb.worldX, barb.worldY, { dir: cdir, depth: 13 })
     AbilityVfx.floatingText(this._scene, barb.worldX, barb.worldY - 28, 'CHARGE!', { color: '#ff7a3a', fontSize: '13px' })
     EventBus.emit('ABILITY_TRIGGERED', { adventurer: barb, abilityId: 'reckless_charge', message: `${barb.name} lowered a shoulder and charged.` })
   }
@@ -2009,8 +2010,8 @@ export class ClassAbilitySystem {
         barb._chargeDashTo    = { x: endX * TS + TS / 2, y: endY * TS + TS / 2 }
         barb._chargeEndTile   = { x: endX, y: endY }
         barb._castingUntil    = now + dashMs + 120
-        // Placeholder dash VFX — motion streak from start to landing.
-        AbilityVfx.streakDash?.(this._scene, barb._chargeDashFrom.x, barb._chargeDashFrom.y, barb._chargeDashTo.x, barb._chargeDashTo.y, { color: 0xffa24a, depth: 9 })
+        // The dash+impact VFX fires on LANDING (below) so the cracked-earth fan
+        // syncs to arrival; the grit streaks retroactively rake the path.
         return
       }
       case 'dashing': {
@@ -2023,9 +2024,9 @@ export class ClassAbilitySystem {
           barb.tileX = e.x; barb.tileY = e.y
           barb.worldX = barb._chargeDashTo.x; barb.worldY = barb._chargeDashTo.y
           this._endCharge(barb, now)
-          // Placeholder impact VFX — a ground crack + dust where he plants.
-          AbilityVfx.groundCrack?.(this._scene, barb.worldX, barb.worldY, { color: 0x8a6a3a, depth: 9 })
-          AbilityVfx.particleBurst(this._scene, barb.worldX, barb.worldY, { color: 0x9a7a4a, count: 12, durationMs: 420, speed: 100, depth: 9 })
+          // Bull-rush dash streaks rake the path + a forward cracked-earth fan,
+          // flung rock shards, and a low dust pall detonate on arrival.
+          AbilityVfx.recklessChargeFx?.(this._scene, barb._chargeDashFrom.x, barb._chargeDashFrom.y, barb.worldX, barb.worldY, { depth: 13 })
           return
         }
         t = t < 0 ? 0 : t
@@ -2082,8 +2083,8 @@ export class ClassAbilitySystem {
         m.worldX = kx * TS + TS / 2; m.worldY = ky * TS + TS / 2
         m._patrolTarget = null; m._chasePath = null
       }
-      // Placeholder hit feedback (bespoke VFX later).
-      AbilityVfx.floatingText(this._scene, m.worldX, m.worldY - 18, 'STAGGER', { color: '#ffce6b', fontSize: '10px' })
+      // WHUMP — impact star + dirt puff + spinning grit chips on the bowled minion.
+      AbilityVfx.staggerHitFx?.(this._scene, m.worldX, m.worldY, { depth: 14 })
     }
   }
 
