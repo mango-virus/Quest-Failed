@@ -414,6 +414,8 @@ export class BossOverviewOverlay {
       this._renderSoulGauge(),
       // Mass / Horde readout (Slime King — Mitosis)
       this._renderSlimeMass(),
+      // Eyes-Open readout (Beholder — Eye Tyrant)
+      this._renderEyesOpen(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -640,6 +642,32 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${gooplings} goopling${gooplings === 1 ? '' : 's'} roaming · Mass swells the King's body, aura, and the horde it splits into.`),
+    ])
+  }
+
+  _renderEyesOpen() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'beholder') return null
+    const tier = currentAct(this._gameState)
+    // Fight rays open this act (mirrors _fireEyeBarrage's tier gating).
+    const rays = ['Petrify', 'Drain']
+    if (tier >= 2) rays.push('Hex')
+    if (tier >= 4) rays.push('Disintegrate')
+    const beams = tier >= 3 ? 2 : 1
+    const gazeUses = this._gameState.boss?._beholderGaze?.usesLeft ?? 0
+    const C = '#c9a6ff'
+    const pct = Math.max(0, Math.min(100, (rays.length / 4) * 100))
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'EYES OPEN'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, `${rays.length} rays`),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#160e26', border: '1px solid #3a2a5a', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#5a2a8a,#c9a6ff)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: C, marginTop: '6px', fontWeight: 'bold' } }, rays.join(' · ')),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '4px' } },
+        `${beams} beam${beams === 1 ? '' : 's'}/beat in the throne · Tyrant's Gaze ×${gazeUses} today. More eyes open each act.`),
     ])
   }
 

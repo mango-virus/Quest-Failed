@@ -64,6 +64,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx'] },
   { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },
   { label: 'Boss·Slime (Mitosis)', fx: ['slimeSplitFx', 'slimeMergeFx', 'acidPuddleFx', 'slimeSurgeFx', 'slimeEngulfFx'] },
+  { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -370,6 +371,24 @@ export class VfxLab {
           { label: 'Engulf', fire: () => AbilityVfx.slimeEngulfFx(this._scene, tX(), tY() - 16, { tier: this._orcTier() }) },
         ]
       }
+      if (entity.archId === 'beholder') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x3a2a6a, hi: 0xc9a6ff, durationMs: 3600 })
+        const ray = (kind) => () => AbilityVfx.beholderRayFx(this._scene, e.worldX, e.worldY - 8, { toX: tX(), toY: tY(), kind, tier: this._orcTier() })
+        return [
+          { label: 'Aura: T1 (dim)',  fire: aura(0.25) },
+          { label: 'Aura: T2 (mid)',  fire: aura(0.5) },
+          { label: 'Aura: T3 (high)', fire: aura(0.75) },
+          { label: 'Aura: T4 (max)',  fire: aura(1) },
+          { label: 'Eye Charge (tell)', fire: () => AbilityVfx.beholderEyeChargeFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier() }) },
+          { label: 'Ray: Petrify', fire: ray('petrify') },
+          { label: 'Ray: Drain',   fire: ray('drain') },
+          { label: 'Ray: Hex',     fire: ray('hex') },
+          { label: 'Ray: Disintegrate', fire: ray('disintegrate') },
+          { label: 'Ray: Silence (day)', fire: ray('silence') },
+          { label: 'Ray: Slow (day)',    fire: ray('slow') },
+          { label: "Tyrant's Gaze sweep", fire: () => AbilityVfx.tyrantGazeSweepFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
+        ]
+      }
       if (entity.archId !== 'orc') return []
       return [
         { label: 'Claim Trophy', fire: () => AbilityVfx.trophyClaimFx(this._scene, tX(), tY(), { color: 0xd0d4dc, toX: e.worldX, toY: e.worldY - 20, isNew: true }) },
@@ -610,6 +629,15 @@ export class VfxLab {
         case 'acidPuddleFx':  AbilityVfx.acidPuddleFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
         case 'slimeSurgeFx':  AbilityVfx.slimeSurgeFx(s, e.worldX, e.worldY, { count: 6 }); break
         case 'slimeEngulfFx': AbilityVfx.slimeEngulfFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
+        // Boss · Beholder (Eye Tyrant) — tier cycles 1→4.
+        case 'beholderEyeChargeFx': AbilityVfx.beholderEyeChargeFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier() }); break
+        case 'beholderRayFx_petrify':      AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'petrify', tier: this._orcTier() }); break
+        case 'beholderRayFx_drain':        AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'drain', tier: this._orcTier() }); break
+        case 'beholderRayFx_hex':          AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'hex', tier: this._orcTier() }); break
+        case 'beholderRayFx_disintegrate': AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'disintegrate', tier: this._orcTier() }); break
+        case 'beholderRayFx_silence':      AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'silence', tier: this._orcTier() }); break
+        case 'beholderRayFx_slow':         AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'slow', tier: this._orcTier() }); break
+        case 'tyrantGazeSweepFx': AbilityVfx.tyrantGazeSweepFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

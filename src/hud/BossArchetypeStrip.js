@@ -71,6 +71,11 @@ export class BossArchetypeStrip {
         ref: el => { this._slimeBtn = el },
         on: { click: () => this._onSlimeClick() },
       }, 'MITOSIS SURGE'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-gaze',
+        ref: el => { this._beholderBtn = el },
+        on: { click: () => this._onBeholderClick() },
+      }, "TYRANT'S GAZE"),
     ])
   }
 
@@ -96,6 +101,10 @@ export class BossArchetypeStrip {
     sub('SLIME_SURGE_ARMED',    () => { this._slimeArmed = true;  this._refresh() })
     sub('SLIME_SURGE_DISARMED', () => { this._slimeArmed = false; this._refresh() })
     sub('SLIME_SURGE_FIRED',    () => { this._slimeArmed = false; this._refresh() })
+    // Beholder Tyrant's Gaze.
+    sub('BEHOLDER_GAZE_ARMED',    () => { this._beholderArmed = true;  this._refresh() })
+    sub('BEHOLDER_GAZE_DISARMED', () => { this._beholderArmed = false; this._refresh() })
+    sub('BEHOLDER_GAZE_FIRED',    () => { this._beholderArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -122,6 +131,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._slimeArmed ? 'SLIME_SURGE_DISARM' : 'SLIME_SURGE_ARM')
   }
 
+  _onBeholderClick() {
+    if (this._beholderBtn?.disabled) return
+    EventBus.emit(this._beholderArmed ? 'BEHOLDER_GAZE_DISARM' : 'BEHOLDER_GAZE_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -131,12 +145,14 @@ export class BossArchetypeStrip {
     const isDemon  = archId === 'demon'
     const isLich   = archId === 'lich'
     const isSlime  = archId === 'slime'
+    const isBeholder = archId === 'beholder'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
     const slimeActive = isSlime && isDay
+    const beholderActive = isBeholder && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -171,6 +187,13 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._slimeSurge?.usesLeft ?? 0
       this._slimeBtn.textContent = this._slimeArmed ? 'PICK A ROOM' : 'MITOSIS SURGE'
       this._slimeBtn.disabled = !(uses > 0)
+    }
+    if (this._beholderBtn) {
+      this._beholderBtn.style.display = beholderActive ? '' : 'none'
+      this._beholderBtn.classList.toggle('armed', !!this._beholderArmed)
+      const uses = this._gs?.boss?._beholderGaze?.usesLeft ?? 0
+      this._beholderBtn.textContent = this._beholderArmed ? 'PICK A ROOM' : `TYRANT'S GAZE · ${uses}`
+      this._beholderBtn.disabled = !(uses > 0)
     }
   }
 

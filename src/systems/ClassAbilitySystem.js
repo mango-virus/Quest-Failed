@@ -458,8 +458,14 @@ export class ClassAbilitySystem {
       // Phase 1b.3 — Beholder Anti-Magic Aura. While the active boss is the
       // beholder, advs standing in a marked room can't fire ANY class
       // abilities. Existing buff timers still tick out via _tickActiveBuffs.
-      const silenced = antiMagicRoomIds && antiMagicRoomIds.length > 0 &&
+      const silenced = (
+        antiMagicRoomIds && antiMagicRoomIds.length > 0 &&
         _advInAntiMagicRoom(adv, this._gameState, antiMagicRoomIds)
+      ) || (
+        // Beholder TYRANT'S GAZE — per-adv silence ray (day active). Blocks all
+        // class-ability casts for the window; buff timers still tick out.
+        (adv._silencedUntil ?? 0) > now
+      )
       if (silenced) {
         // Throttle a "SILENCED" pulse to ~once per 2 s per adv so the
         // player sees feedback when their cast was suppressed without

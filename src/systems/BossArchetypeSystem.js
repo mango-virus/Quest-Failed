@@ -202,6 +202,16 @@ export class BossArchetypeSystem {
       const uses = (Balance.SLIME_SURGE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.SLIME_SURGE_USES_PER_BOSS_LV ?? 0.25))
       if (this._gameState?.boss) this._gameState.boss._slimeSurge ??= { usesLeft: uses }
     }
+    // Beholder TYRANT'S GAZE (active day ability)
+    this._gazeArmed = false
+    EventBus.on('BEHOLDER_GAZE_ARM',    this._armGaze,    this)
+    EventBus.on('BEHOLDER_GAZE_DISARM', this._disarmGaze, this)
+    EventBus.on('BEHOLDER_GAZE_TARGET', this._fireGaze,   this)
+    if (this._archId() === 'beholder') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.BEHOLDER_GAZE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.BEHOLDER_GAZE_USES_PER_BOSS_LV ?? 0.25))
+      if (this._gameState?.boss) this._gameState.boss._beholderGaze ??= { usesLeft: uses }
+    }
 
     // Backfill Living Architecture for the rooms already placed at scene
     // boot (boss chamber, plus any rooms restored from a save).
@@ -266,6 +276,9 @@ export class BossArchetypeSystem {
     EventBus.off('SLIME_SURGE_ARM',    this._armSurge,    this)
     EventBus.off('SLIME_SURGE_DISARM', this._disarmSurge, this)
     EventBus.off('SLIME_SURGE_TARGET', this._fireSurge,   this)
+    EventBus.off('BEHOLDER_GAZE_ARM',    this._armGaze,    this)
+    EventBus.off('BEHOLDER_GAZE_DISARM', this._disarmGaze, this)
+    EventBus.off('BEHOLDER_GAZE_TARGET', this._fireGaze,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -823,6 +836,79 @@ export class BossArchetypeSystem {
     EventBus.emit('SLIME_SURGE_FIRED', { roomId: room.instanceId, count: spawned, room })
   }
 
+  // ── TYRANT'S GAZE (active day ability) — arm → click a room → lock it down ──
+  // Fixes a great eye on a room and curses every occupant (per-adv, at fire),
+  // tier-gated: Silence (T1) → +Slow (T2) → +Petrify (T3) → +Disintegrate
+  // damage (T4). Room-wide, so it scales with however many heroes are inside.
+  _gazeUsesLeft() { return this._gameState?.boss?._beholderGaze?.usesLeft ?? 0 }
+  _gazeAvailable() {
+    return this._archId() === 'beholder' && (this._gameState?.meta?.phase ?? '') === 'day' && this._gazeUsesLeft() > 0
+  }
+  _armGaze() { if (!this._gazeAvailable()) return; this._gazeArmed = true; EventBus.emit('BEHOLDER_GAZE_ARMED', {}) }
+  _disarmGaze() { this._gazeArmed = false; EventBus.emit('BEHOLDER_GAZE_DISARMED', {}) }
+
+  _fireGaze(payload) {
+    if (!this._gazeArmed) return
+    if (!this._gazeAvailable()) { this._disarmGaze(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState)
+    const now  = this._scene?.time?.now ?? 0
+    const atk  = boss.attack ?? 0
+    const TS   = Balance.TILE_SIZE
+
+    const advsIn = (this._gameState.adventurers?.active ?? [])
+      .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+
+    let victims = 0
+    for (const a of advsIn) {
+      // T1 — Silence: ability casts blocked (ClassAbilitySystem reads _silencedUntil).
+      a._silencedUntil = Math.max(a._silencedUntil ?? 0, now + Balance.BEHOLDER_GAZE_SILENCE_MS)
+      EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'SILENCED' })
+      // T2 — Slow.
+      if (tier >= 2) {
+        const next = now + Balance.BEHOLDER_GAZE_SLOW_MS
+        if (!a._slowUntil || a._slowUntil < next) a._slowUntil = next
+        a._slowMult = Math.min(a._slowMult ?? 1, Balance.BEHOLDER_GAZE_SLOW_MULT)
+      }
+      // T3 — Petrify.
+      if (tier >= 3) {
+        a._petrifiedUntil = Math.max(a._petrifiedUntil ?? 0, now + Balance.BEHOLDER_GAZE_PETRIFY_MS)
+      }
+      // T4 — Disintegrate damage.
+      if (tier >= 4) {
+        const dmg = Math.max(1, Math.floor(atk * Balance.BEHOLDER_GAZE_DMG_FRAC))
+        const before = a.resources.hp
+        a.resources.hp = Math.max(0, before - dmg)
+        const dealt = before - a.resources.hp
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dealt, damageType: 'arcane' })
+        if (a.resources.hp <= 0) {
+          EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Eye Tyrant', roomId: room.instanceId, damageType: 'arcane' })
+        }
+      }
+      // Per-adv ray VFX — the dominant ray for this tier hits each occupant.
+      const kind = tier >= 4 ? 'disintegrate' : tier >= 3 ? 'petrify' : tier >= 2 ? 'slow' : 'silence'
+      if (this._scene && Number.isFinite(a.worldX)) {
+        AbilityVfx?.beholderRayFx?.(this._scene, boss.worldX ?? a.worldX, (boss.worldY ?? a.worldY) - 8, {
+          toX: a.worldX, toY: (a.worldY ?? 0) - 16, kind, tier,
+        })
+      }
+      victims++
+    }
+
+    // Room-sweep eye VFX over the targeted room.
+    const cx = (room.gridX + room.width  / 2) * TS
+    const cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.tyrantGazeSweepFx?.(this._scene, cx, cy, {
+      tier, rectW: room.width * TS, rectH: room.height * TS,
+    })
+
+    if (boss._beholderGaze) boss._beholderGaze.usesLeft = Math.max(0, (boss._beholderGaze.usesLeft ?? 0) - 1)
+    this._gazeArmed = false
+    EventBus.emit('BEHOLDER_GAZE_FIRED', { roomId: room.instanceId, room, tier, victims })
+  }
+
   // ── ORC: Warband (live cluster recompute) ──────────────────────────────
 
   // Manhattan room-membership lookup for every alive orc, tallied per
@@ -1280,6 +1366,14 @@ export class BossArchetypeSystem {
       this._gameState.boss._slimeSurge = { usesLeft: uses }
     }
     this._disarmSurge()
+    // Beholder: refill Tyrant's Gaze uses + disarm so the button resets.
+    if (this._archId() === 'beholder') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.BEHOLDER_GAZE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.BEHOLDER_GAZE_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss ??= {}
+      this._gameState.boss._beholderGaze = { usesLeft: uses }
+    }
+    this._disarmGaze()
     // Beholder: clear yesterday's anti-magic markings the moment night begins
     // (the new selection happens on DAY_PHASE_BEGAN).
     this._clearAntiMagicMarks()
@@ -1430,7 +1524,7 @@ export class BossArchetypeSystem {
     this._petrifyTimer = this._scene?.time?.addEvent?.({
       delay:    Balance.BEHOLDER_PETRIFY_INTERVAL_MS,
       loop:     true,
-      callback: () => this._firePetrifyGaze(),
+      callback: () => this._fireEyeBarrage(),
     })
   }
 
@@ -1451,7 +1545,20 @@ export class BossArchetypeSystem {
     this._petrifyTimer = null
   }
 
-  _firePetrifyGaze() {
+  // The throne-fight Eye Barrage. Fired by the fight timer every
+  // BEHOLDER_PETRIFY_INTERVAL_MS. A tier-gated rotation of curse-rays — each
+  // eye-stalk fires a different ray. Effects mutate the SHARED adv/boss
+  // objects (fightStates hold references to the same adventurers), so the
+  // BossSystem fight loop reads the changes naturally: petrify gates a target
+  // out of the attacker pool, drain heals the boss, hex amplifies the boss's
+  // melee (BossSystem reads gazeHexMul), disintegrate's HP cut is picked up by
+  // the round's defender death-scan. VFX are graphics-based (safe mid-fight
+  // from the dungeon scene; particle VFX here drops sprites to invisible).
+  //   T1  Petrify + Drain (1 beam)
+  //   T2  + Hex available in the rotation
+  //   T3  2 beams per beat
+  //   T4  + a guaranteed Disintegrate death-ray on the highest-aggro hero
+  _fireEyeBarrage() {
     const boss = this._gameState?.boss
     if (!boss) return
     const now = this._scene?.time?.now ?? 0
@@ -1459,79 +1566,102 @@ export class BossArchetypeSystem {
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
 
-    // Boss-level scaling: longer freeze + more distinct targets per fire.
-    // duration += 300ms per boss-lv beyond 1; targets = 1 + floor((lv-1)/3)
-    // (lv4=2, lv7=3, lv10=4). Pick distinct advs; if fewer advs available,
-    // freeze what's there.
-    const bossLv = this._gameState?.boss?.level ?? 1
-    const durationMs = Balance.BEHOLDER_PETRIFY_DURATION_MS
+    const tier   = currentAct(this._gameState)
+    const bossLv = boss.level ?? 1
+    const atk    = boss.attack ?? 0
+    const petrifyMs = Balance.BEHOLDER_PETRIFY_DURATION_MS
       + Math.max(0, bossLv - 1) * Balance.BEHOLDER_PETRIFY_DURATION_PER_BOSS_LV_MS
-    const maxTargets = Balance.BEHOLDER_PETRIFY_TARGETS_BASE
-      + Math.floor(Math.max(0, bossLv - 1) / Balance.BEHOLDER_PETRIFY_LEVELS_PER_TARGET)
 
-    // Eligible advs: alive and currently inside the boss chamber (the active fighters).
-    const eligible = []
-    for (const a of advs) {
-      if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
-      if (!_advInsideRoom(a, bossRoom)) continue
-      eligible.push(a)
-    }
+    // Eligible advs: alive and currently inside the boss chamber.
+    const eligible = advs.filter(a =>
+      a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
     if (eligible.length === 0) return
 
-    // Fisher-Yates partial shuffle to pick `maxTargets` distinct advs uniformly.
-    const pool = eligible.slice()
-    const pickN = Math.min(maxTargets, pool.length)
-    for (let i = 0; i < pickN; i++) {
-      const j = i + Math.floor(Math.random() * (pool.length - i))
-      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+    // Ray pool by tier. Drain + Petrify from the start; Hex joins at T2.
+    const pool = ['petrify', 'drain']
+    if (tier >= 2) pool.push('hex')
+    const beams = tier >= 3 ? 2 : 1            // 2 beams/beat from T3
+
+    // Shuffle the eligible advs so distinct beams hit distinct heroes.
+    const shuffled = eligible.slice()
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp
     }
-    const targets = pool.slice(0, pickN)
-    for (const a of targets) {
-      a._petrifiedUntil = now + durationMs
-      // Status-text float (DungeonFx renders 'PETRIFIED' above the adv).
-      EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'PETRIFIED' })
+
+    const fired = []   // { target, kind } for VFX
+    let ti = 0
+    const nextTarget = () => shuffled[(ti++) % shuffled.length]
+
+    for (let b = 0; b < beams; b++) {
+      const kind = pool[Math.floor(Math.random() * pool.length)]
+      const a = nextTarget()
+      if (!a) break
+      this._applyEyeRay(boss, a, kind, { now, petrifyMs, atk })
+      fired.push({ target: a, kind })
+    }
+
+    // T4 — guaranteed Disintegrate death-ray on the highest-aggro hero
+    // (highest attack = biggest threat). Layered on top of the beams above.
+    if (tier >= 4) {
+      let prime = eligible[0]
+      for (const a of eligible) {
+        if ((a.stats?.attack ?? 0) > (prime.stats?.attack ?? 0)) prime = a
+      }
+      this._applyEyeRay(boss, prime, 'disintegrate', { now, petrifyMs, atk })
+      fired.push({ target: prime, kind: 'disintegrate' })
     }
 
     EventBus.emit('BEHOLDER_PETRIFY_FIRED', {
-      targetIds:  targets.map(t => t.instanceId),
-      durationMs,
+      targetIds:  fired.map(f => f.target.instanceId),
+      durationMs: petrifyMs,
     })
-    this._renderPetrifyVfx(boss, targets, durationMs)
+    this._renderBarrageVfx(boss, fired, petrifyMs)
   }
 
-  // Eye-beams from the boss to each target + a stone-crackle ring at the
-  // target. Lives on a dedicated graphics layer that's redrawn each fire.
-  _renderPetrifyVfx(boss, targets, durationMs) {
+  // Apply a single eye-ray's effect to one adventurer. Mutations land on the
+  // shared adv/boss objects; the BossSystem fight loop honours them.
+  _applyEyeRay(boss, a, kind, { now, petrifyMs, atk }) {
+    const s = this._scene
+    switch (kind) {
+      case 'petrify':
+        a._petrifiedUntil = Math.max(a._petrifiedUntil ?? 0, now + petrifyMs)
+        EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'PETRIFIED' })
+        break
+      case 'hex':
+        a._hexUntil   = Math.max(a._hexUntil ?? 0, now + Balance.BEHOLDER_HEX_MS)
+        a._hexVulnMul = Math.max(a._hexVulnMul ?? 1, Balance.BEHOLDER_HEX_MULT)
+        EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'HEXED' })
+        break
+      case 'drain': {
+        const dmg = Math.max(1, Math.floor(atk * Balance.BEHOLDER_DRAIN_DMG_FRAC))
+        a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+        const heal = Math.floor(dmg * Balance.BEHOLDER_DRAIN_HEAL_FRAC)
+        if (heal > 0) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
+        if (s) AbilityVfx?.floatingText?.(s, a.worldX, (a.worldY ?? 0) - 16, `-${dmg}`, { color: '#ff5577', fontSize: '12px' })
+        break
+      }
+      case 'disintegrate': {
+        const dmg = Math.max(1, Math.floor(atk * Balance.BEHOLDER_DISINTEGRATE_DMG_FRAC))
+        a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+        EventBus.emit('STATUS_APPLIED', { targetId: a.instanceId, label: 'DISINTEGRATE' })
+        if (s) AbilityVfx?.floatingText?.(s, a.worldX, (a.worldY ?? 0) - 16, `-${dmg}`, { color: '#ffffff', fontSize: '13px' })
+        break
+      }
+    }
+  }
+
+  // Draw each fired ray as a bespoke geometric eye-beam (graphics-based, safe
+  // to spawn mid-fight from the dungeon scene). Per-ray colour + on-hit motif.
+  _renderBarrageVfx(boss, fired, durationMs) {
     const s = this._scene
     if (!s?.add?.graphics) return
-    if (!this._petrifyFxGraphics) {
-      this._petrifyFxGraphics = s.add.graphics().setDepth(8)
+    for (const { target, kind } of fired) {
+      AbilityVfx?.beholderRayFx?.(s, boss.worldX ?? 0, (boss.worldY ?? 0) - 8, {
+        toX: target.worldX, toY: (target.worldY ?? 0) - 16, kind,
+        tier: currentAct(this._gameState), holdMs: kind === 'petrify' ? durationMs : 0,
+      })
     }
-    const g = this._petrifyFxGraphics
-    g.clear()
-    // Each beam: bright purple core + soft outer halo.
-    for (const t of targets) {
-      g.lineStyle(4, 0x88ddff, 0.95)
-      g.lineBetween(boss.worldX ?? 0, boss.worldY ?? 0, t.worldX, t.worldY)
-      g.lineStyle(1, 0xffffff, 0.7)
-      g.lineBetween(boss.worldX ?? 0, boss.worldY ?? 0, t.worldX, t.worldY)
-      // Stone-crackle ring on each target.
-      g.lineStyle(2, 0xc4a484, 0.85)
-      g.strokeCircle(t.worldX, t.worldY, 14)
-      g.lineStyle(1, 0x6a4a30, 0.7)
-      g.strokeCircle(t.worldX, t.worldY, 18)
-    }
-    // Fade the whole layer over the freeze window. Kill any prior fade so
-    // back-to-back fires don't end up with stacked tweens.
-    s.tweens?.killTweensOf?.(g)
-    g.alpha = 1
-    s.tweens.add({
-      targets: g,
-      alpha:   0,
-      duration: durationMs,
-      ease:    'Cubic.easeOut',
-      onComplete: () => g.clear(),
-    })
   }
 
   // ── BEHOLDER: Anti-Magic Aura ───────────────────────────────────────────

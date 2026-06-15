@@ -29,6 +29,7 @@ import { TILE }     from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { currentAct } from '../config/acts.js'
 import { TROPHY_BY_ID } from '../config/orcTrophies.js'
+import { MinionAbilities } from './MinionAbilities.js'
 
 // Orc Veteran — Trophy Hunter throne-fight attack actions (boss state-machine
 // action ids). These replace the generic slam/lunge for the orc archetype.
@@ -639,7 +640,9 @@ export class BossSystem {
             // AOE damage + hit-flash on each victim — fleeing adventurers
             // still take the hit while they're in range.
             const def   = fs.adv.stats?.defense ?? 0
-            const taken = Math.max(1, Math.floor(this._bossAtkScaled(boss) * SLAM_DMG_FRAC - def))
+            // Beholder Hex amplifies AOE slam damage too.
+            const hexMul = MinionAbilities.gazeHexMul?.(fs.adv, this._scene?.time?.now ?? 0) ?? 1
+            const taken = Math.max(1, Math.floor(this._bossAtkScaled(boss) * SLAM_DMG_FRAC * hexMul - def))
             fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - taken)
             this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: fs.adv.worldY })
             if (this._roundLog) {
@@ -5577,7 +5580,11 @@ export class BossSystem {
             bossAtk *= Balance.MECHANIC_DOPPELGANGERS_BOSS_DMG_MULT
           }
           const def   = target.adv.stats?.defense ?? 0
-          const taken = Math.max(1, Math.floor(bossAtk * (0.85 + Math.random() * 0.3) - def))
+          // Beholder Eye Tyrant — a Hex-marked hero takes amplified boss damage
+          // (the fight Hex ray cashes out here; reuses MinionAbilities.gazeHexMul
+          // reading _hexUntil/_hexVulnMul).
+          const hexMul = MinionAbilities.gazeHexMul?.(target.adv, now) ?? 1
+          const taken = Math.max(1, Math.floor(bossAtk * (0.85 + Math.random() * 0.3) * hexMul - def))
           target.adv.resources.hp = Math.max(0, target.adv.resources.hp - taken)
           this._roundLog.push({ side: 'boss', damage: taken, targetId: target.adv.instanceId })
           this._emitFx({ kind: 'strike', x: target.adv.worldX, y: target.adv.worldY, color: 0xff5544 })

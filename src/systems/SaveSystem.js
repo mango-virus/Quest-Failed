@@ -442,8 +442,9 @@ function _rehydrateRunHistory(state) {
     // Boss-archetype timed effects
     '_petrifiedUntil', '_fearAttackUntil', '_charmedAt',
     // Beholder GAZE — `_possessedUntil` (charm→attack-allies) + `_hexUntil`/`_hexVulnMul`
-    // (gaze hex vuln) are scene-time stamped; drop on load.
-    '_possessedUntil', '_hexUntil', '_hexVulnMul',
+    // (gaze hex vuln) + `_silencedUntil` (Tyrant's Gaze silence ray) are scene-time
+    // stamped; drop on load.
+    '_possessedUntil', '_hexUntil', '_hexVulnMul', '_silencedUntil',
     // Plant ENTANGLE / generic CC — scene-time root/slow/stagger stamps; a saved
     // future value would freeze or slow an adventurer on load until wall-clock catches up.
     '_rootedUntil', '_staggeredUntil', '_slowUntil', '_slowMult',

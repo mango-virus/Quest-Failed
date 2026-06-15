@@ -9904,6 +9904,16 @@ body {
   color: #d6ffc6;
 }
 .qf-archstrip-surge.armed { color: #d6ffc6; border-color: #9aff8a; background: #0e1e12; }
+.qf-archstrip-gaze {
+  border-color: #8a5fd0;
+  color: #d0b8ff;
+}
+.qf-archstrip-gaze:hover:not(:disabled) {
+  background: #160e26;
+  border-color: #c9a6ff;
+  color: #ecdfff;
+}
+.qf-archstrip-gaze.armed { color: #ecdfff; border-color: #c9a6ff; background: #160e26; }
 @keyframes archstrip-pulse {
   0%, 100% { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 0 rgba(255, 200, 100, 0); }
   50%      { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 22px rgba(255, 200, 100, 0.5); }

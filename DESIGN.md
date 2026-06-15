@@ -713,6 +713,47 @@ Surge flood. Tier-escalating.
 - ☐ Bespoke slime VFX (split/merge/acid/engulf/surge); lint-vfx clean; lab-wired.
 - ☐ Headless harness green; soak clean; bossArchetypes.json slime text updated; live preview verified.
 
+### Boss #4 — Beholder Tyrant → **EYE TYRANT** (a barrage of rays) (LOCKED 2026-06-14)
+
+**Core — the Eyes.** Each eye-stalk fires a different curse-ray. NO banked resource (deliberate
+variety); power = how many eyes are open, which grows with the act. A control/debuff boss: strips the
+party's tools + locks them down; you read the eyes and react. Reframes the existing **Petrify Gaze**
+(fight) + **Anti-Magic Aura** (day) as two of its rays.
+
+**Throne fight — the Eye Barrage** (elevates `_firePetrifyGaze` → a tier-gated ray rotation fired by
+the existing fight timer). Combat-impactful rays (all wired to direct HP / freeze / vuln):
+- **Petrify** — freeze a target *(existing)*. · **Drain** — beam: damage + heal the boss. ·
+  **Hex** — mark targets to take +X% damage (reuses `_hexUntil`/`_hexVulnMul`/`MinionAbilities.hexMult`). ·
+  **Disintegrate** — heavy telegraphed single-target death-ray (T4).
+- Tier: **T1** Petrify+Drain (1 beam) · **T2** +Hex · **T3** 2 beams/beat · **T4** +Disintegrate death-ray on the highest-aggro hero.
+
+**Day-phase active — TYRANT'S GAZE** (arm → click a room → fire; uses/day scale w/ boss level): fixes
+an eye on a room and locks down everyone inside (per-adv, at fire) — **Silence** (T1, `_silencedUntil`,
+new ClassAbilitySystem read) → **+Slow** (T2, `_slowUntil`/`_slowMult`, AISystem already honors) →
+**+Petrify** (T3, `_petrifiedUntil`) → **+Disintegrate damage** (T4). Room-wide → scales with crowd.
+The daily auto Anti-Magic room marks stay as the T1 baseline.
+
+**Tells:** eyes-open count = danger read (more rays each tier; an eye charges/glows before firing);
+standard pulsing violet **Glow-outline aura** with intensity scaling by TIER; an "EYES OPEN · N rays"
+panel readout.
+
+**VFX (violet geometric eye-beams, bespoke, lab-testable):** distinct beam + on-hit per ray — Petrify
+(stone crackle, existing) · Silence (null-rune) · Slow (blue tar-web) · Drain (red siphon thread to
+the boss) · Disintegrate (searing white-violet lance + disintegration burst) — plus the central eye
+blink/charge + the Tyrant's Gaze room-sweep. Tier-escalating.
+
+**Build note (within the spec's "final list confirmed at build" latitude):** Slow lives in the DAY
+gaze (movement matters in exploration, not the pooled auto-fight); the FIGHT uses Hex in its place
+(combat-impactful). All rays map to already-respected flags + one new `_silencedUntil` read.
+
+**Acceptance checklist (Eye Tyrant):**
+- ☑ Fight Eye Barrage: tier-gated ray rotation (Petrify/Drain/Hex; +Disintegrate death-ray T4 on highest-aggro; 2 beams/beat T3), beams + on-hit, scales w/ party+tier; Hex multiplies the boss's fight damage via `MinionAbilities.gazeHexMul` (applied in BossSystem `_runOneRound` melee + slam). Drain heals the boss. (Build-note: Slow→day, Hex→fight.)
+- ☑ Day TYRANT'S GAZE: arm→room→fire, per-adv silence/slow/petrify/damage by tier; DOM button (`qf-archstrip-gaze`) + Phaser room-pick + ARM/DISARM/TARGET/ARMED/DISARMED/FIRED events; uses/day reset on night.
+- ☑ `_silencedUntil` honored in ClassAbilitySystem (folded into the anti-magic `silenced` gate); stripped on save.
+- ☑ Tells: tier-scaled violet glow-outline aura (BossRenderer `_updateBeholderAura`); Eyes-Open panel readout (BossOverviewOverlay `_renderEyesOpen`).
+- ☑ Bespoke ray VFX (`beholderRayFx` per-kind beam+impact, `beholderEyeChargeFx`, `tyrantGazeSweepFx`); lint-vfx clean; lab-wired (group + stand-in abilities + `_fireRaw`).
+- ☑ Headless harness green (`tools/sim/beholder-eyetyrant-check.mjs`); soak clean (120 games, 0 issues); bossArchetypes.json beholder text updated; live preview verified in VFX Lab (Disintegrate lance+burst, Hex beam+sigil, T4 violet glow-outline aura, Tyrant's Gaze eye+ray-fan sweep all render; no console errors).
+
 ---
 
 ## Personality combos

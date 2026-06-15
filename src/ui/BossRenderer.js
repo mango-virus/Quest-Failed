@@ -158,6 +158,9 @@ export class BossRenderer {
     this._updateSoulAura()
     // Slime King — body grows with Mass + a gooey pulsing Glow-outline aura.
     this._updateSlimeAura()
+    // Beholder Eye Tyrant — pulsing violet Glow-outline aura; intensity reads
+    // the act tier (more eyes open = more danger).
+    this._updateBeholderAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -568,6 +571,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._slimeGlow) } catch (e) {}
     }
     this._slimeGlow = null
+  }
+
+  _updateBeholderAura() {
+    const isBeholder = this._gameState?.player?.bossArchetypeId === 'beholder'
+    if (!isBeholder || !this._container || !this._sprite) { this._clearBeholderAura(); return }
+    // Tier-scaled saturation: T1 ≈ 0.25 → T4 = 1 (more eyes open each act).
+    const sat = Math.max(0, Math.min(1, currentAct(this._gameState) / 4))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      // violet aura: dim indigo at low tier → bright amethyst at T4.
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x3a2a6a, 0xc9a6ff)
+      if (!this._beholderGlow) { try { this._beholderGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._beholderGlow = true } }
+      else if (this._beholderGlow !== true) { try { this._beholderGlow.color = p.color; this._beholderGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearBeholderAura() {
+    if (this._beholderGlow && this._beholderGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._beholderGlow) } catch (e) {}
+    }
+    this._beholderGlow = null
   }
 
   _build(boss) {

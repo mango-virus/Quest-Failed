@@ -149,6 +149,23 @@ export const Balance = {
   BEHOLDER_ANTIMAGIC_BASE_ROOMS:   2,     // 2 random rooms/day at boss lvl 1
   BEHOLDER_ANTIMAGIC_PER_BOSS_LV:  1,     // +1 marked room per boss level above 1
 
+  // --- Beholder EYE TYRANT (2026-06-14 overhaul) — barrage of rays ---
+  // Throne-fight Eye Barrage (per-ray dmg = bossAtkScaled × frac; hex multiplies it)
+  BEHOLDER_BEAM_TARGETS_BASE:      99,    // beams hit all in-room (kept high like petrify)
+  BEHOLDER_DRAIN_DMG_FRAC:         0.55,  // Drain ray dmg
+  BEHOLDER_DRAIN_HEAL_FRAC:        0.7,   // heals boss this × drain dmg
+  BEHOLDER_HEX_MULT:               1.35,  // Hex: hexed targets take ×this from rays
+  BEHOLDER_HEX_MS:                 5000,
+  BEHOLDER_DISINTEGRATE_DMG_FRAC:  1.8,   // T4 death-ray (single target, telegraphed)
+  // Day active — TYRANT'S GAZE (arm → room → fire)
+  BEHOLDER_GAZE_USES_PER_DAY:      1,
+  BEHOLDER_GAZE_USES_PER_BOSS_LV:  0.25,  // +1 use per 4 boss levels
+  BEHOLDER_GAZE_SILENCE_MS:        6000,  // T1 silence window on room occupants
+  BEHOLDER_GAZE_SLOW_MS:           5000,  // T2 slow window
+  BEHOLDER_GAZE_SLOW_MULT:         0.5,   // movement ×this while slowed
+  BEHOLDER_GAZE_PETRIFY_MS:        2200,  // T3 petrify window
+  BEHOLDER_GAZE_DMG_FRAC:          0.6,   // T4 disintegrate damage to room occupants
+
   // --- Phase 1b.4: Elder Lich ---
   LICH_PHYLACTERY_UNLOCK_LEVEL:    1,    // available from day 1; toast fires once on first save load
   LICH_PHYLACTERY_HUNT_CHANCE:     0.15, // per-adv roll on dungeon entry

@@ -821,6 +821,237 @@ function _pal(opts = {}) {
   return opts
 }
 
+// Beholder Eye Tyrant — the on-hit motif drawn at a ray's target. Each ray
+// kind gets a distinct geometric silhouette (stone crackle / siphon chevrons /
+// hex sigil / disintegration burst / null-rune / tar-web). Graphics-only.
+function _drawRayImpact(g, kind, p, tier) {
+  switch (kind) {
+    case 'petrify': {
+      g.lineStyle(2, p.hit, 0.9);  g.strokeCircle(0, 0, 12)
+      g.lineStyle(1, _lerpColor(p.hit, 0x000000, 0.4), 0.8); g.strokeCircle(0, 0, 16)
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; g.lineStyle(1.4, p.core, 0.7); g.beginPath(); g.moveTo(Math.cos(a) * 5, Math.sin(a) * 5); g.lineTo(Math.cos(a) * 14, Math.sin(a) * 14); g.strokePath() }
+      break
+    }
+    case 'drain': {
+      for (let i = 0; i < 4; i++) { const r = 6 + i * 5; g.lineStyle(2, p.core, 0.85 - i * 0.15); g.beginPath(); g.moveTo(-r, -r * 0.7); g.lineTo(0, 0); g.lineTo(-r, r * 0.7); g.strokePath() }
+      g.fillStyle(p.hit, 0.5); g.fillCircle(0, 0, 5)
+      break
+    }
+    case 'hex': {
+      const tri = (rad, rot, col, a) => { g.lineStyle(2, col, a); g.beginPath(); for (let i = 0; i < 3; i++) { const an = rot + i * (Math.PI * 2 / 3), px = Math.cos(an) * rad, py = Math.sin(an) * rad; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.closePath(); g.strokePath() }
+      tri(15, -Math.PI / 2, p.core, 0.9); tri(15, Math.PI / 2, p.hit, 0.7)
+      g.fillStyle(p.core, 0.6); g.fillCircle(0, 0, 3)
+      break
+    }
+    case 'disintegrate': {
+      g.fillStyle(0xffffff, 0.9); g.fillCircle(0, 0, 6)
+      g.lineStyle(1.5, p.edge, 0.85)
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, r1 = 18 + tier * 2; g.beginPath(); g.moveTo(Math.cos(a) * 8, Math.sin(a) * 8); g.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); g.strokePath() }
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2, d = 6 + i * 1.7; g.fillStyle(p.hit, 0.7); g.fillRect(Math.cos(a) * d - 1.5, Math.sin(a) * d - 1.5, 3, 3) }
+      break
+    }
+    case 'silence': {
+      g.lineStyle(2, p.core, 0.9); g.strokeCircle(0, 0, 11)
+      g.lineStyle(2.4, p.hit, 0.95); g.beginPath(); g.moveTo(-8, -8); g.lineTo(8, 8); g.strokePath()
+      break
+    }
+    case 'slow': {
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; g.lineStyle(1.4, p.core, 0.7); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 15, Math.sin(a) * 15); g.strokePath() }
+      g.lineStyle(1.2, p.hit, 0.6)
+      for (let ring = 1; ring <= 2; ring++) { g.beginPath(); for (let i = 0; i <= 6; i++) { const a = (i / 6) * Math.PI * 2, r = ring * 6, px = Math.cos(a) * r, py = Math.sin(a) * r; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.strokePath() }
+      break
+    }
+  }
+}
+
+// Beholder ray palette — bright core / dark edge / on-hit accent, per ray kind.
+const _BEHOLDER_RAY_PAL = {
+  petrify:      { core: 0xe8dcc0, edge: 0xb98a5a, hit: 0xc4a484 },
+  drain:        { core: 0xff6a7a, edge: 0x8a1020, hit: 0xff3a55 },
+  hex:          { core: 0xc9a6ff, edge: 0x5a2a8a, hit: 0x9a6cff },
+  disintegrate: { core: 0xffffff, edge: 0x9a6cff, hit: 0xe8d0ff },
+  silence:      { core: 0xbfc6e8, edge: 0x33406a, hit: 0x8a96c8 },
+  slow:         { core: 0x9adcff, edge: 0x1a4a7a, hit: 0x5ab0e0 },
+}
+
+// ── Beholder per-ray BEAM BODIES — each ray gets a distinct silhouette, motion,
+// and impact (not a recoloured lance). All drawn at the eye, rotated to target.
+// Particle-driven + continuously animated; each returns made[] + owns its tweens.
+
+// Petrify — a jagged STONE bolt crystallizes from the eye toward the target,
+// kicking up rock-dust, then bursts into a crackle-ring + flying shards. Opaque.
+function _beamPetrify(scene, x, y, ang, len, p, tier, depth, holdMs) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang), w = 4 + tier
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth); made.push(g)
+  const n = Math.max(5, Math.round(len / 18))
+  const drawTo = (frac) => {
+    g.clear(); const lim = len * frac
+    for (let i = 0; i < n; i++) {
+      const fx = (len * i) / n; if (fx > lim) break
+      const nx = Math.min(lim, (len * (i + 1)) / n), jit = (i * 7) % 5 - 2, hw = w * (0.7 + ((i * 13) % 7) / 10)
+      g.fillStyle(_lerpColor(p.edge, 0x000000, 0.32), 0.96); g.beginPath(); g.moveTo(fx, -hw + jit); g.lineTo(nx, -hw * 0.6); g.lineTo(nx, hw * 0.6); g.lineTo(fx, hw + jit); g.closePath(); g.fillPath()
+      g.fillStyle(_lerpColor(p.core, 0xffffff, 0.28), 0.9); g.beginPath(); g.moveTo(fx, -hw + jit); g.lineTo(nx, -hw * 0.6); g.lineTo((fx + nx) / 2, -hw * 0.1); g.closePath(); g.fillPath()
+    }
+  }
+  const head = scene.add.graphics().setDepth(depth + 1); made.push(head)
+  head.fillStyle(_lerpColor(p.core, 0xffffff, 0.45), 1); head.fillCircle(0, 0, w)
+  let dust = null
+  if (mult > 0) { dust = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 240, max: 460 }, speed: { min: 18, max: 70 }, scale: { start: 0.36, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [p.hit, _lerpColor(p.edge, 0x000000, 0.3)] }); dust.setDepth(depth + 0.5); made.push(dust) }
+  scene.tweens.addCounter({ from: 0, to: 1, duration: 150, ease: 'Quad.easeOut',
+    onUpdate: (tw) => { const f = tw.getValue(); drawTo(f); const hx = x + cos * len * f, hy = y + sin * len * f; head.setPosition(hx, hy); if (dust) dust.setPosition(hx, hy) },
+    onComplete: () => {
+      if (dust) dust.stop(); head.destroy()
+      const tx = x + cos * len, ty = y + sin * len
+      const burst = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1); made.push(burst)
+      _drawRayImpact(burst, 'petrify', p, tier); burst.setScale(0.4)
+      const holdHit = (holdMs ?? 0) > 0
+      scene.tweens.add({ targets: burst, scale: 1, duration: 130, ease: 'Back.easeOut', onComplete: () => scene.tweens.add({ targets: burst, alpha: 0, duration: holdHit ? Math.min(holdMs, 2600) : 380, delay: 160, onComplete: () => burst.destroy() }) })
+      for (let k = 0; k < 5 + tier; k++) { const a = Math.random() * Math.PI * 2, d = 8 + Math.random() * 22, sh = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1); made.push(sh); sh.fillStyle(_lerpColor(p.edge, 0x000000, 0.18), 0.95); sh.fillRect(-2, -2, 4, 4); scene.tweens.add({ targets: sh, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d, alpha: 0, angle: 80 + Math.random() * 120, duration: 320 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => sh.destroy() }) }
+      scene.tweens.add({ targets: g, alpha: 0, duration: 420, delay: 240, onComplete: () => g.destroy() })
+      if (dust) scene.time.delayedCall(520, () => { try { dust.destroy() } catch (e) {} })
+    } })
+  return made
+}
+
+// Drain — a SIPHON: a pulsing wavy crimson thread with blood-globule particles
+// streaming from the target back INTO the eye, which brightens as it feeds.
+function _beamDrain(scene, x, y, ang, len, p, tier, depth) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang)
+  const ex = x + cos * len, ey = y + sin * len, amp = 3 + tier
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g); _glow(g, p.core, 3, 9)
+  let ph = 0
+  const draw = () => {
+    g.clear()
+    g.lineStyle(2.6, p.edge, 0.5); g.beginPath(); for (let i = 0; i <= 24; i++) { const t = i / 24, px = t * len, py = Math.sin(t * 9 + ph) * amp * (0.3 + t * 0.7); if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.strokePath()
+    g.lineStyle(1.3, p.core, 0.95); g.beginPath(); for (let i = 0; i <= 24; i++) { const t = i / 24, px = t * len, py = Math.sin(t * 9 + ph) * amp * (0.3 + t * 0.7); if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.strokePath()
+  }
+  draw()
+  let em = null
+  if (mult > 0) { em = scene.add.particles(ex, ey, _softDotTexture(scene), { lifespan: 360, frequency: 32, quantity: 1, x: { min: -3, max: 3 }, y: { min: -amp, max: amp }, tint: [p.hit, 0xffffff], scale: { start: 0.5, end: 0.14 }, alpha: { start: 0.95, end: 0 }, blendMode: 'ADD', moveToX: x, moveToY: y }); em.setDepth(depth + 1); made.push(em) }
+  const feed = scene.add.graphics().setPosition(x, y).setDepth(depth + 0.5).setBlendMode(Phaser.BlendModes.ADD); made.push(feed)
+  feed.fillStyle(p.core, 0.85); feed.fillCircle(0, 0, 4); _glow(feed, p.core, 4, 10)
+  scene.tweens.add({ targets: feed, scale: 2, duration: 200, yoyo: true, repeat: 1 })
+  const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 480, onUpdate: () => { ph += 0.6; draw() } })
+  scene.tweens.add({ targets: [g, feed], alpha: 0, duration: 180, delay: 420, onComplete: () => { tw.stop?.(); g.destroy(); feed.destroy(); if (em) { em.stop(); scene.time.delayedCall(400, () => { try { em.destroy() } catch (e) {} }) } } })
+  return made
+}
+
+// Hex — a writhing CURSE RIBBON unfurls toward the target (undulating, glyph
+// ticks), blooming into a spinning sigil + a puff of rune-motes.
+function _beamHex(scene, x, y, ang, len, p, tier, depth) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang)
+  const amp = 6 + tier * 1.6, w = 3 + tier
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g); _glow(g, p.core, 4, 11)
+  const draw = (ph, frac) => {
+    g.clear(); const lim = 24 * frac
+    g.fillStyle(p.edge, 0.5); g.beginPath()
+    for (let i = 0; i <= lim; i++) { const t = i / 24, px = t * len, py = Math.sin(t * 8 + ph) * amp - w * 0.5; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) }
+    for (let i = Math.floor(lim); i >= 0; i--) { const t = i / 24, px = t * len, py = Math.sin(t * 8 + ph) * amp + w * 0.5; g.lineTo(px, py) }
+    g.closePath(); g.fillPath()
+    g.lineStyle(1.5, p.core, 0.95); g.beginPath()
+    for (let i = 0; i <= lim; i++) { const t = i / 24, px = t * len, py = Math.sin(t * 8 + ph) * amp; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.strokePath()
+    for (let i = 3; i < lim; i += 4) { const t = i / 24, px = t * len, py = Math.sin(t * 8 + ph) * amp; g.lineStyle(1.5, p.core, 0.85); g.beginPath(); g.moveTo(px, py - 4); g.lineTo(px, py + 4); g.strokePath() }
+  }
+  let ph = 0
+  scene.tweens.addCounter({ from: 0, to: 1, duration: 300, ease: 'Quad.easeOut', onUpdate: (t) => { ph += 0.5; draw(ph, t.getValue()) },
+    onComplete: () => {
+      const tx = x + cos * len, ty = y + sin * len
+      const sig = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(sig)
+      _drawRayImpact(sig, 'hex', p, tier); sig.setScale(0.4)
+      scene.tweens.add({ targets: sig, scale: 1, duration: 150, ease: 'Back.easeOut' })
+      scene.tweens.add({ targets: sig, rotation: Math.PI * 1.5, duration: 720, ease: 'Linear' })
+      scene.tweens.add({ targets: sig, alpha: 0, duration: 380, delay: 320, onComplete: () => sig.destroy() })
+      if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 300, max: 600 }, speed: { min: 20, max: 70 }, scale: { start: 0.42, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [p.core, p.hit], blendMode: 'ADD', emitting: false }); em.setDepth(depth + 1); em.explode(Math.round((8 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+      let ph2 = ph; const tw2 = scene.tweens.addCounter({ from: 0, to: 1, duration: 280, onUpdate: () => { ph2 += 0.5; draw(ph2, 1) } })
+      scene.tweens.add({ targets: g, alpha: 0, duration: 220, delay: 200, onComplete: () => { tw2.stop?.(); g.destroy() } })
+    } })
+  return made
+}
+
+// Disintegrate — a DEATH-RAY: a thick searing-white beam snaps on, jagged edges
+// re-flickering every frame, ending in a white blast + particle spray + shake.
+function _beamDisintegrate(scene, x, y, ang, len, p, tier, depth) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang)
+  const tx = x + cos * len, ty = y + sin * len, w = 6 + tier * 1.6
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g); _glow(g, 0xffffff, 7 + tier, 18)
+  const draw = () => {
+    g.clear()
+    g.fillStyle(p.edge, 0.35); g.fillRect(0, -w * 1.5, len, w * 3)
+    g.fillStyle(_lerpColor(p.hit, 0xffffff, 0.5), 0.6); g.fillRect(0, -w * 0.9, len, w * 1.8)
+    g.fillStyle(0xffffff, 0.95); g.fillRect(0, -w * 0.42, len, w * 0.84)
+    g.lineStyle(1.6, p.core, 0.9); for (const s of [-1, 1]) { g.beginPath(); g.moveTo(0, s * w * 0.7); for (let i = 1; i <= 14; i++) { const px = (len * i) / 14, py = s * (w * 0.7 + Math.random() * w * 1.1); g.lineTo(px, py) } g.strokePath() }
+  }
+  draw()
+  const blast = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(blast)
+  blast.fillStyle(0xffffff, 0.9); blast.fillCircle(0, 0, 7); _glow(blast, p.hit, 6, 14)
+  scene.tweens.add({ targets: blast, scale: 3, alpha: 0, duration: 320, ease: 'Expo.easeOut', onComplete: () => blast.destroy() })
+  if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 200, max: 500 }, speed: { min: 60, max: 200 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.95, end: 0 }, tint: [0xffffff, p.edge], blendMode: 'ADD', emitting: false }); em.setDepth(depth + 1); em.explode(Math.round((14 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(600, () => { try { em.destroy() } catch (e) {} }) }
+  const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 240, onUpdate: () => { if (Math.random() < 0.6) draw() } })
+  scene.tweens.add({ targets: g, alpha: 0, duration: 160, delay: 200, onComplete: () => { tw.stop?.(); g.destroy() } })
+  scene.cameras?.main?.shake?.(140, 0.005)
+  return made
+}
+
+// Silence — a NULL TUBE zips shut from eye to target (hollow muted-indigo rails +
+// dashed crossbars appear progressively), then a crossed null-rune snaps in with
+// faint static. Quiet by design (anti-magic).
+function _beamSilence(scene, x, y, ang, len, p, tier, depth) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang)
+  const tx = x + cos * len, ty = y + sin * len, w = 3 + tier
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth); made.push(g)
+  const draw = (frac) => {
+    g.clear(); const lim = len * frac
+    g.lineStyle(1.6, p.core, 0.55); g.beginPath(); g.moveTo(0, -w); g.lineTo(lim, -w); g.moveTo(0, w); g.lineTo(lim, w); g.strokePath()
+    g.lineStyle(1.2, p.hit, 0.5); for (let fx = 6; fx < lim; fx += 10) { g.beginPath(); g.moveTo(fx, -w); g.lineTo(fx, w); g.strokePath() }
+  }
+  scene.tweens.addCounter({ from: 0, to: 1, duration: 150, ease: 'Quad.easeOut', onUpdate: (t) => draw(t.getValue()),
+    onComplete: () => {
+      const rune = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1); made.push(rune)
+      _drawRayImpact(rune, 'silence', p, tier); rune.setScale(0.4)
+      scene.tweens.add({ targets: rune, scale: 1, duration: 120, ease: 'Back.easeOut', onComplete: () => scene.tweens.add({ targets: rune, alpha: 0, duration: 300, delay: 160, onComplete: () => rune.destroy() }) })
+      if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 200, max: 400 }, speed: { min: 10, max: 40 }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [p.core, p.hit] }); em.setDepth(depth + 1); em.explode(Math.round(6 * mult)); made.push(em); scene.time.delayedCall(420, () => { try { em.destroy() } catch (e) {} }) }
+      scene.tweens.add({ targets: g, alpha: 0, duration: 220, delay: 200, onComplete: () => g.destroy() })
+    } })
+  return made
+}
+
+// Slow — a TAR GLOB lurches slowly from the eye to the target, wobbling and
+// dripping a viscous trail, then splats into a tar-web. Heavy, low glow.
+function _beamSlow(scene, x, y, ang, len, p, tier, depth) {
+  const made = [], mult = _particlesMult(), cos = Math.cos(ang), sin = Math.sin(ang)
+  const tx = x + cos * len, ty = y + sin * len, w = 4 + tier
+  const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(depth); made.push(g)
+  const drawTrail = (frac) => {
+    g.clear(); const lim = len * frac, n = Math.max(4, Math.round(lim / 18))
+    for (let i = 0; i <= n; i++) { const fx = (lim * i) / n, bulge = w * (0.6 + 0.45 * Math.abs(Math.sin(i * 1.3))); g.fillStyle(_lerpColor(p.edge, 0x000000, 0.18), 0.55); g.fillEllipse(fx, 0, bulge * 2.2, bulge * 1.8) }
+    g.fillStyle(p.core, 0.45); g.fillRect(0, -w * 0.4, lim, w * 0.8)
+  }
+  const head = scene.add.graphics().setDepth(depth + 1); made.push(head); _glow(head, p.hit, 2, 8)
+  const drawHead = (s) => { head.clear(); head.fillStyle(_lerpColor(p.edge, 0x000000, 0.15), 0.85); head.fillEllipse(0, 0, (w + 3) * 2 * s, (w + 2) * 2 * s); head.fillStyle(_lerpColor(p.core, 0xffffff, 0.2), 0.6); head.fillCircle(-w * 0.3, -w * 0.3, w * 0.5 * s) }
+  drawHead(1)
+  let dripT = 0
+  scene.tweens.addCounter({ from: 0, to: 1, duration: 360, ease: 'Sine.easeIn',
+    onUpdate: (t) => {
+      const f = t.getValue(); drawTrail(f); const hx = x + cos * len * f, hy = y + sin * len * f
+      head.setPosition(hx, hy + Math.sin(f * 30) * 2); drawHead(0.8 + 0.2 * Math.sin(f * 20))
+      if ((dripT++ % 6) === 0) { const dp = scene.add.graphics().setPosition(hx, hy).setDepth(depth + 0.5); dp.fillStyle(_lerpColor(p.edge, 0x000000, 0.15), 0.7); dp.fillCircle(0, 0, w * 0.4); made.push(dp); scene.tweens.add({ targets: dp, y: hy + 18 + Math.random() * 14, alpha: 0, scaleX: 0.6, scaleY: 1.4, duration: 420, ease: 'Quad.easeIn', onComplete: () => dp.destroy() }) }
+    },
+    onComplete: () => {
+      head.destroy()
+      const web = scene.add.graphics().setPosition(tx, ty).setDepth(depth + 1); made.push(web)
+      _drawRayImpact(web, 'slow', p, tier); web.setScale(0.4)
+      scene.tweens.add({ targets: web, scale: 1, duration: 160, ease: 'Back.easeOut', onComplete: () => scene.tweens.add({ targets: web, alpha: 0, duration: 420, delay: 260, onComplete: () => web.destroy() }) })
+      if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 300, max: 600 }, speedX: { min: -50, max: 50 }, speedY: { min: -30, max: 60 }, gravityY: 120, scale: { start: 0.4, end: 0.1 }, alpha: { start: 0.8, end: 0 }, tint: [p.core, p.hit] }); em.setDepth(depth + 1); em.explode(Math.round((8 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+      scene.tweens.add({ targets: g, alpha: 0, duration: 380, delay: 300, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    } })
+  return made
+}
+
+const _BEHOLDER_BEAM_BUILDERS = {
+  petrify: _beamPetrify, drain: _beamDrain, hex: _beamHex,
+  disintegrate: _beamDisintegrate, silence: _beamSilence, slow: _beamSlow,
+}
+
 export const AbilityVfx = {
   // ── POC (2026-06-05): the same "burst" as particleBurst() but rebuilt on
   // Phaser 3.60's GPU particle emitter + additive blend + a Glow post-FX, vs the
@@ -6054,6 +6285,98 @@ export const AbilityVfx = {
     _glow(g, o.color, 2, 8)
     scene.tweens.add({ targets: g, alpha: 0.85, scale: 1, duration: life * 0.3, ease: 'Back.easeOut',
       onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 1.3, y: g.y + 6, duration: life * 0.5, ease: 'Quad.easeIn', onComplete: () => g.destroy() }) })
+    return made
+  },
+
+  // ── BEHOLDER · Eye Tyrant — curse-rays ───────────────────────────────────
+  // One bespoke ray per kind, each with its OWN silhouette + motion + impact
+  // (built by _BEHOLDER_BEAM_BUILDERS): petrify=crystallizing stone bolt +
+  // crackle, drain=siphon thread + globule particles flowing into the eye,
+  // hex=unfurling curse-ribbon + spinning sigil, disintegrate=flickering white
+  // death-ray + blast, silence=zipping null-tube + rune, slow=lurching tar glob
+  // + drips + web. Particle-driven; tier scales width/brightness/count.
+  beholderRayFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { kind: 'petrify', tier: 1, depth: 15, holdMs: 0, ...opts }
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 80
+    const ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const tier = Math.max(1, Math.min(4, o.tier)), made = []
+    const p = _BEHOLDER_RAY_PAL[o.kind] ?? _BEHOLDER_RAY_PAL.petrify
+    const ang = Math.atan2(ty - y, tx - x), len = Math.max(1, Math.hypot(tx - x, ty - y))
+
+    // Pupil flash at the eye — a vertical lens blinks open as the ray fires.
+    const eye = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(o.depth + 0.5).setBlendMode(Phaser.BlendModes.ADD); made.push(eye)
+    eye.fillStyle(p.core, 0.95); eye.fillEllipse(0, 0, 8 + tier, 14 + tier * 1.5)
+    eye.fillStyle(p.edge, 1);    eye.fillCircle(0, 0, 2.6)
+    eye.setScale(0.3, 1); _glow(eye, p.core, 4, 10)
+    scene.tweens.add({ targets: eye, scaleX: 1.4, alpha: 0, duration: 280, ease: 'Quad.easeOut', onComplete: () => eye.destroy() })
+
+    // The ray BODY + impact — distinct silhouette/motion/impact per kind.
+    const build = _BEHOLDER_BEAM_BUILDERS[o.kind] ?? _beamPetrify
+    made.push(...(build(scene, x, y, ang, len, p, tier, o.depth, o.holdMs) ?? []))
+    return made
+  },
+
+  // The central eye charging before a fire — converging arcs tighten into a
+  // white-hot pupil. A pre-fire tell. Graphics-only (fight-safe).
+  beholderEyeChargeFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 15, durationMs: 520, color: 0x9a6cff, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), made = []
+    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g)
+    const prog = { r: 24 + tier * 4 }
+    const draw = () => {
+      g.clear(); const r = prog.r
+      g.lineStyle(2, o.color, 0.8)
+      for (let i = 0; i < 5; i++) { const a0 = (i / 5) * Math.PI * 2; g.beginPath(); g.arc(0, 0, r, a0, a0 + 0.7, false); g.strokePath() }
+      g.fillStyle(0xffffff, Math.max(0, Math.min(1, (28 - r) / 20))); g.fillCircle(0, 0, Math.max(1, 8 - r * 0.2))
+    }
+    draw()
+    scene.tweens.add({ targets: prog, r: 4, duration: o.durationMs, ease: 'Quad.easeIn', onUpdate: draw,
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 1.6, duration: 160, onComplete: () => g.destroy() }) })
+    scene.tweens.add({ targets: g, rotation: Math.PI, duration: o.durationMs, ease: 'Linear' })
+    _glow(g, o.color, 3 + tier, 12)
+    return made
+  },
+
+  // TYRANT'S GAZE day room-sweep — a great violet eye blinks open over the
+  // room and sweeps a ray-fan across it, with drifting motes. Day-phase only
+  // (uses particles); not for mid-fight.
+  tyrantGazeSweepFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 16, rectW: 240, rectH: 180, durationMs: 1100, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const col = 0x9a6cff, pale = 0xc9a6ff
+    const eye = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(eye)
+    eye.fillStyle(pale, 0.85);  eye.fillEllipse(0, 0, 46 + tier * 6, 26 + tier * 3)
+    eye.fillStyle(0x2a0a4a, 0.95); eye.fillCircle(0, 0, 11 + tier)
+    eye.fillStyle(col, 1);      eye.fillCircle(0, 0, 6 + tier * 0.6)
+    eye.fillStyle(0xffffff, 0.9); eye.fillCircle(-2, -2, 2.4)
+    _glow(eye, col, 5 + tier, 16)
+    eye.setScale(1, 0.05)
+    scene.tweens.add({ targets: eye, scaleY: 1, duration: 220, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: eye, alpha: 0, scaleY: 0.05, duration: 300, delay: Math.max(0, o.durationMs - 300), ease: 'Quad.easeIn', onComplete: () => eye.destroy() })
+
+    const fan = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD); made.push(fan)
+    const reach = Math.max(o.rectW, o.rectH) * 0.7
+    const prog = { a: -0.8 }
+    scene.tweens.add({ targets: prog, a: 0.8, duration: o.durationMs * 0.7, ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        fan.clear(); const ang = prog.a
+        fan.fillStyle(col, 0.18); fan.beginPath(); fan.moveTo(0, 0)
+        fan.lineTo(Math.cos(ang - 0.12) * reach, Math.sin(ang - 0.12) * reach + 30)
+        fan.lineTo(Math.cos(ang + 0.12) * reach, Math.sin(ang + 0.12) * reach + 30)
+        fan.closePath(); fan.fillPath()
+        fan.lineStyle(2, pale, 0.7); fan.beginPath(); fan.moveTo(0, 0); fan.lineTo(Math.cos(ang) * reach, Math.sin(ang) * reach + 30); fan.strokePath()
+      },
+      onComplete: () => scene.tweens.add({ targets: fan, alpha: 0, duration: 200, onComplete: () => fan.destroy() }) })
+
+    if (mult > 0) {
+      const em = scene.add.particles(x, y + 10, _softDotTexture(scene), { lifespan: { min: 500, max: 1000 }, speedX: { min: -60, max: 60 }, speedY: { min: -30, max: 30 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [col, pale], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth); made.push(em); em.explode(Math.round((16 + tier * 4) * mult))
+      scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} })
+    }
     return made
   },
 }

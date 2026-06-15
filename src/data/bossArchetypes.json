@@ -10,13 +10,17 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Petrify Gaze",
-      "summary": "In the boss fight, a stone-eye beam periodically locks adventurers in place.",
+      "name": "Eye Tyrant — the Eye Barrage",
+      "summary": "Each eye-stalk fires a different curse-ray. In the throne fight a tier-gated barrage rotates Petrify, Drain (damage + self-heal), Hex (amplifies your blows) and, at the final act, a Disintegrate death-ray. More eyes open each act.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Anti-Magic Aura — each day, marks rooms that silence all class abilities inside.",
+        "text": "Tyrant's Gaze (day active) — arm, click a room, and lock down everyone inside: Silence (T1) → +Slow (T2) → +Petrify (T3) → +Disintegrate damage (T4). Uses scale with boss level; room-wide, so it scales with the crowd.",
+        "implemented": true
+      },
+      {
+        "text": "Anti-Magic Aura — each day, marks rooms that silence all class abilities inside (the gaze's standing T1 baseline).",
         "implemented": true
       }
     ],
