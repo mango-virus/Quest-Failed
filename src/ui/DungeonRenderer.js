@@ -552,7 +552,7 @@ export class DungeonRenderer {
     // skin's transparent base — the apron row).
     this._doorSkinFootprint = new Set()
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
-      if (!room.doorSkin && !room.doorSkinByBoss) continue
+      if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
         // Per-room doors: a room's skin only covers ITS OWN wall. The paired
@@ -609,10 +609,20 @@ export class DungeonRenderer {
   }
 
   // ── Single-image door skins ───────────────────────────────────────────────────
-  // Resolve a door's skin texture key for a state (per-boss override → default).
-  _doorSkinKeyFor(room, state) {
+  // A cp is the MAIN ENTRANCE (the external door adventurers enter through) when
+  // it's external / styled 'entrance'; otherwise it's a CONNECTING door. The two
+  // get independent skin sets + sizes (doorSkinEntrance / doorSkinSizeEntrance vs
+  // doorSkin / doorSkinSize), with the entrance falling back to the connecting set.
+  _cpIsEntrance(cp) { return cp?.external === true || cp?.style === 'entrance' }
+  // Resolve a door's skin texture key for a state. Entrance cps prefer the
+  // entrance set (→ fall back to the connecting set); connecting cps use the
+  // connecting set (per-boss override → default). `cp` is optional — when omitted
+  // (paired-room lookups), the connecting set is used.
+  _doorSkinKeyFor(room, state, cp = null) {
     const boss = this._gameState?.player?.bossArchetypeId
-    let id = (boss && room.doorSkinByBoss?.[boss]?.[state]) || room.doorSkin?.[state] || null
+    let id = null
+    if (this._cpIsEntrance(cp)) id = room.doorSkinEntrance?.[state] || null
+    if (!id) id = (boss && room.doorSkinByBoss?.[boss]?.[state]) || room.doorSkin?.[state] || null
     if (!id) return null
     const key = doorSkinTextureKey(id)
     return this._scene.textures.exists(key) ? key : null
@@ -620,7 +630,20 @@ export class DungeonRenderer {
   // True when this cp's door has a skin for its current state — used to
   // suppress the sliced / procedural door so the single image stands alone.
   _cpHasDoorSkin(room, cp) {
-    return !!this._doorSkinKeyFor(room, this._doorStateFor(cp))
+    return !!this._doorSkinKeyFor(room, this._doorStateFor(cp), cp)
+  }
+  // Per-room door-skin footprint, in TILES. Defaults to the canonical
+  // 4-wide (along the wall) × 3-deep (outer/inner/apron) box every door uses.
+  // A room can override it (e.g. the grand entrance) via `room.doorSkinSize`
+  // (connecting doors) or `room.doorSkinSizeEntrance` (the entrance cp):
+  //   { w, h, nudge } — w = tiles along the wall, h = tiles deep into the room,
+  //   nudge = extra tiles to shift the whole image further into the room.
+  // The OUTER (wall) edge stays anchored; extra depth grows toward the floor.
+  // `cp` optional — entrance cps read the entrance size (→ fall back to the
+  // connecting size → default); omitting cp uses the connecting size.
+  _doorSkinSizeTiles(room, cp = null) {
+    const s = (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null) ?? room?.doorSkinSize
+    return { w: s?.w ?? 4, h: s?.h ?? 3, nudge: s?.nudge ?? 0 }
   }
   // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =
   // jambs+door, rows = outer/inner/apron), so one image can be drawn over it.
@@ -644,31 +667,36 @@ export class DungeonRenderer {
     // flip those (E/W already read correctly).
     const baseRot = this._doorPaintedRotDeg(dir)
     const rot = (baseRot + ((dir === 'N' || dir === 'S') ? 180 : 0)) % 360
+    // Oversized skins (e.g. the grand entrance) anchor their OUTER (wall) edge
+    // and grow the extra depth into the room, so a tall gate's base reaches the
+    // floor instead of floating in the wall. Default (h=3) → grow 0 → unchanged.
+    const { h: hTiles, nudge } = this._doorSkinSizeTiles(room, cp)
+    const grow = (hTiles - 3) / 2 + (nudge || 0)
     return {
-      cx: (minX + maxX + 1) / 2 * TS,
-      cy: (minY + maxY + 1) / 2 * TS,
+      cx: (minX + maxX + 1) / 2 * TS + (norm ? norm.dx * grow * TS : 0),
+      cy: (minY + maxY + 1) / 2 * TS + (norm ? norm.dy * grow * TS : 0),
       rot,
     }
   }
   // Every dungeon cell the door-skin IMAGE is stretched over — the filled
-  // bounding rectangle of the canonical 4×3 region (jambs + door cols × outer/
-  // inner/apron rows), i.e. exactly the cells the image in _drawDoorSkins paints
-  // across. Used to suppress procedural wall/door art under the standalone skin
-  // (see _doorSkinFootprint in redraw). Mirrors the bbox math in _doorSkinRect.
+  // bounding rectangle of the drawn region (canonical 4×3, or the room's
+  // `doorSkinSize` override). Used to suppress procedural wall/door art under
+  // the standalone skin (see _doorSkinFootprint in redraw). Derived from the
+  // SAME center + size that _drawDoorSkins / _doorSkinRect use, so it always
+  // matches what's actually painted (incl. the grown-into-room offset).
   _doorSkinFootprintCells(room, cp) {
     const block = this._doorBlockCells(room, cp)
-    if (!block) return []
-    const dir = cp.direction
-    const norm = { S: { dx: 0, dy: -1 }, N: { dx: 0, dy: 1 }, E: { dx: -1, dy: 0 }, W: { dx: 1, dy: 0 } }[dir]
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-    const add = (c) => { if (!c) return; minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); minY = Math.min(minY, c.y); maxY = Math.max(maxY, c.y) }
-    for (let col = 0; col < 4; col++) {
-      add(this._doorPaintedToDungeon(block, dir, col, 0))   // outer
-      const inner = this._doorPaintedToDungeon(block, dir, col, 1)
-      add(inner)                                            // inner
-      if (inner && norm) add({ x: inner.x + norm.dx, y: inner.y + norm.dy })   // apron
-    }
-    if (!isFinite(minX)) return []
+    const rect = this._doorSkinRect(room, cp)
+    if (!block || !rect) return []
+    const { w, h } = this._doorSkinSizeTiles(room, cp)
+    // Rotation maps w → along-wall and h → depth; for an h-axis door (top/bottom
+    // wall) along-wall is X, for a v-axis door (left/right wall) along-wall is Y.
+    const horiz = block.axis === 'h'
+    const xExt = horiz ? w : h
+    const yExt = horiz ? h : w
+    const cxT = rect.cx / TS, cyT = rect.cy / TS
+    const minX = Math.floor(cxT - xExt / 2), maxX = Math.ceil(cxT + xExt / 2) - 1
+    const minY = Math.floor(cyT - yExt / 2), maxY = Math.ceil(cyT + yExt / 2) - 1
     const cells = []
     for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) cells.push(`${x},${y}`)
     return cells
@@ -684,9 +712,10 @@ export class DungeonRenderer {
       if (!rect) return
       // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
       // apron). setAngle rotates it into the dungeon's door orientation.
+      const { w: wTiles, h: hTiles } = this._doorSkinSizeTiles(forRoom, forCp)
       const make = (container) => {
         const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
-        img.setDisplaySize(4 * TS, 3 * TS)
+        img.setDisplaySize(wTiles * TS, hTiles * TS)
         if (rect.rot) img.setAngle(rect.rot)
         this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
         container.add(img)
@@ -695,9 +724,9 @@ export class DungeonRenderer {
       make(this._cDoorSkinsHigh)   // high — masked to outer cells, over entities
     }
     for (const room of rooms) {
-      if (!room.doorSkin && !room.doorSkinByBoss) continue
+      if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
-        const key = this._doorSkinKeyFor(room, this._doorStateFor(cp))
+        const key = this._doorSkinKeyFor(room, this._doorStateFor(cp), cp)
         if (!key) continue
         // Per-room doors: a room's skin shows ONLY on its own wall. The paired
         // room renders its own door (skin / theme / default) on its side.

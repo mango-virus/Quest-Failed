@@ -1002,9 +1002,18 @@ export class RoomEditorOverlay {
     const roomName = st.activeRoom?.name || '(no room)'
     const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
     const doorState = this.scene.uiDoorState?.() || 'closed'
+    // The room's own background art (used as the preview's floor) + its dims.
+    const bgId = this.scene.uiCurrentRoomSkin?.()
+    const bgThumb = bgId ? (this.scene.uiListRoomSkins?.() || []).find((s) => s.id === bgId)?.thumb : null
+    const roomW = st.activeRoom?.width || 14
+    const roomH = st.activeRoom?.height || 10
     const targets = this.scene.uiSkinTargets?.()
     const curTarget = this.scene.uiSkinTarget?.() || 'default'
     const curTargetLabel = targets?.find((t) => t.key === curTarget)?.label || ''
+    // Door role axis (Connecting doors vs Main entrance) — only for rooms with
+    // an external/entrance cp (e.g. the Entry Hall).
+    const roles = this.scene.uiDoorRoles?.()
+    const curRole = this.scene.uiDoorRole?.() || 'interior'
 
     const dropzone = (() => {
       const zone = h('div', {
@@ -1029,6 +1038,11 @@ export class RoomEditorOverlay {
         h('div', { className: 'qf-themes__title' }, '🚪 DOOR SKINS'),
         h('div', { className: 'qf-themes__theme-ctl' }, [
           h('span', { className: 'qf-skins__roomnote' }, `Room: ${roomName}`),
+          roles ? h('span', { className: 'qf-skins__roomnote' }, '·  Door:') : null,
+          roles ? h('select', {
+            className: 'qf-themes__theme-sel',
+            on: { change: (e) => { this.scene.uiSetDoorRole?.(e.target.value); this._renderDoorSkins() } },
+          }, roles.map((r) => h('option', { value: r.key, selected: r.key === curRole }, r.label))) : null,
           h('span', { className: 'qf-skins__roomnote' }, '·  State:'),
           h('select', {
             className: 'qf-themes__theme-sel',
@@ -1062,8 +1076,11 @@ export class RoomEditorOverlay {
             h('div', { className: 'qf-skins__hint' },
               'One image is drawn over the whole doorway and auto-rotates per door direction in-game. Applies to the selected state (closed / open / locked).'),
           ]),
+          current ? this._doorSkinSizeControls() : null,
         ]),
-        h('div', { className: 'qf-themes__right' }, [
+        h('div', { className: 'qf-themes__right', style: { overflowY: 'auto' } }, [
+          current ? h('div', { className: 'qf-themes__subhead' }, 'PREVIEW · in-room (top-wall door)') : null,
+          current ? this._doorSkinPreviewBox(curThumb, bgThumb, roomW, roomH) : null,
           h('div', { className: 'qf-themes__subhead' }, ['DOOR SKIN LIBRARY', h('span', { className: 'qf-themes__count' }, String(skins.length))]),
           skins.length === 0
             ? h('div', { className: 'qf-themes__empty' }, 'No door skins yet — drop a door image to add one.')
@@ -1077,6 +1094,104 @@ export class RoomEditorOverlay {
         h('button', { className: 'btn', on: { click: () => this._saveSkins() } }, '⤓ Save skins + assignments'),
       ]),
     ])
+  }
+
+  // Per-room door-skin SIZE controls (footprint override) + a LIVE room-context
+  // preview, so the gate can be sized without leaving the editor. Sliders mirror
+  // the Colors-tab pattern: the value label + preview update in the `input`
+  // handler and the modal is NOT re-rendered mid-drag (would yank slider focus).
+  _doorSkinSizeControls() {
+    const FIELDS = [
+      { field: 'w',     label: 'Width (along wall)', min: 2,  max: 16, step: 0.5 },
+      { field: 'h',     label: 'Depth (into room)',  min: 2,  max: 12, step: 0.5 },
+      { field: 'nudge', label: 'Nudge (deeper)',     min: -4, max: 8,  step: 0.5 },
+    ]
+    return h('div', { className: 'qf-redit__color-group' }, [
+      h('div', { className: 'qf-redit__color-head' }, [
+        h('span', { className: 'qf-redit__color-name' }, 'DOOR SKIN SIZE'),
+        h('button', {
+          className: 'qf-redit__link-btn',
+          on: { click: () => { this.scene.uiResetDoorSkinSize?.(); this._renderDoorSkins() } },
+        }, 'Reset'),
+      ]),
+      ...FIELDS.map((f) => {
+        const v = (this.scene.uiGetDoorSkinSize?.() || {})[f.field] ?? (f.field === 'nudge' ? 0 : f.field === 'w' ? 4 : 3)
+        let valEl
+        return h('div', { className: 'qf-redit__slider-row' }, [
+          h('span', { className: 'qf-redit__slider-label' }, f.label),
+          h('input', {
+            className: 'qf-redit__slider', type: 'range',
+            min: f.min, max: f.max, step: f.step, value: v,
+            on: {
+              pointerdown: () => this.scene.uiBeginDoorSizeEdit?.(),
+              input: (e) => {
+                const nv = +e.target.value
+                this.scene.uiSetDoorSkinSize?.(f.field, nv)
+                if (valEl) valEl.textContent = String(nv)
+                this._syncDoorPreview()
+              },
+            },
+          }),
+          h('span', { className: 'qf-redit__slider-val nonzero', ref: (e) => (valEl = e) }, String(v)),
+        ])
+      }),
+      h('div', { className: 'qf-skins__hint' },
+        'Preview shows the gate over this room’s floor art, on the top wall. Width = tiles along the wall; Depth = tiles into the room (how far the base reaches the floor); Nudge shifts the whole gate deeper. Auto-rotates per door direction in-game.'),
+    ])
+  }
+
+  // A live mini-render of the door skin placed over the room's floor art, at the
+  // exact size/position the in-game renderer uses (top-wall door, anchored at the
+  // wall edge, growing into the room). The box fills its column width (measured
+  // after mount, so it's as big as fits + survives a panel resize); refs are kept
+  // so _syncDoorPreview can move the gate during a slider drag without a rebuild.
+  _doorSkinPreviewBox(curThumb, bgThumb, roomW, roomH) {
+    this._doorPrevRoom = { roomW, roomH }
+    const doorImg = h('img', {
+      src: curThumb || '',
+      ref: (e) => (this._refs.doorPrevImg = e),
+      style: { position: 'absolute', imageRendering: 'pixelated', objectFit: 'fill', left: '0px', top: '0px', width: '0px', height: '0px' },
+    })
+    const floorLine = h('div', {
+      ref: (e) => (this._refs.doorPrevFloorLine = e),
+      style: { position: 'absolute', left: 0, right: 0, top: '0px', height: '1px', background: 'rgba(255,255,255,0.12)' },
+    })
+    return h('div', {
+      ref: (e) => { this._refs.doorPrevBox = e; if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this._layoutDoorPreview()) },
+      style: {
+        position: 'relative', flex: '0 0 auto', width: '100%', maxWidth: '460px', minHeight: '120px',
+        margin: '4px auto 12px', borderRadius: '3px', overflow: 'hidden',
+        border: '1px solid #000', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        background: bgThumb ? `#15110f center/cover no-repeat url(${bgThumb})` : '#2b2b2b',
+      },
+    }, [
+      floorLine,
+      curThumb ? doorImg : h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px' } }, 'no skin'),
+    ])
+  }
+
+  // Measure the mounted preview box, size it to the room aspect, and place the
+  // gate + floor line. Called after mount and on any modal re-render.
+  _layoutDoorPreview() {
+    const box = this._refs.doorPrevBox, room = this._doorPrevRoom
+    if (!box || !room) return
+    const w = box.clientWidth || 400
+    const tile = w / room.roomW
+    box.style.height = `${tile * room.roomH}px`
+    this._doorPrevGeom = { tile, roomW: room.roomW, roomH: room.roomH }
+    if (this._refs.doorPrevFloorLine) this._refs.doorPrevFloorLine.style.top = `${2 * tile}px`
+    this._syncDoorPreview()
+  }
+
+  // Live-move the preview gate to the current size (called during slider drag).
+  _syncDoorPreview() {
+    const img = this._refs.doorPrevImg, g = this._doorPrevGeom
+    if (!img || !g) return
+    const sz = this.scene.uiGetDoorSkinSize?.() || { w: 4, h: 3, nudge: 0 }
+    img.style.width = `${sz.w * g.tile}px`
+    img.style.height = `${sz.h * g.tile}px`
+    img.style.left = `${(g.roomW / 2 - sz.w / 2) * g.tile}px`
+    img.style.top = `${sz.nudge * g.tile}px`
   }
 
   _doorSkinItem(s, current) {

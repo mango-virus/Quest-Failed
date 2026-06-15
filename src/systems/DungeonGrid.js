@@ -305,6 +305,16 @@ export class DungeonGrid {
                       ? definition.doorSkin : null,
       doorSkinByBoss: (definition.doorSkinByBoss && typeof definition.doorSkinByBoss === 'object')
                       ? definition.doorSkinByBoss : null,
+      // Optional per-room door-skin footprint override { w, h, nudge } in tiles
+      // (e.g. the grand entrance renders a bigger gate than a normal door).
+      doorSkinSize:   (definition.doorSkinSize && typeof definition.doorSkinSize === 'object')
+                      ? definition.doorSkinSize : null,
+      // Separate skin set + size for the MAIN ENTRANCE (external/entrance cp),
+      // distinct from the connecting-door skin above. Falls back to doorSkin.
+      doorSkinEntrance:     (definition.doorSkinEntrance && typeof definition.doorSkinEntrance === 'object')
+                      ? definition.doorSkinEntrance : null,
+      doorSkinSizeEntrance: (definition.doorSkinSizeEntrance && typeof definition.doorSkinSizeEntrance === 'object')
+                      ? definition.doorSkinSizeEntrance : null,
       decorations:  Array.isArray(definition.decorations) ? definition.decorations : [],
       colorAdjust:  (definition.colorAdjust && typeof definition.colorAdjust === 'object')
                       ? definition.colorAdjust : null,

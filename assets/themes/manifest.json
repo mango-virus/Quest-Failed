@@ -380,6 +380,9 @@
     },
     "basic_boss_room": {
       "file": "assets/themes/roomskins/basic_boss_room.png"
+    },
+    "entry_skin": {
+      "file": "assets/themes/roomskins/entry_skin.png"
     }
   },
   "doorSkins": {
@@ -430,6 +433,12 @@
     },
     "gnoll_open_v2": {
       "file": "assets/themes/doorskins/gnoll_open_v2.png"
+    },
+    "entry_closed_1": {
+      "file": "assets/themes/doorskins/entry_closed_1.png"
+    },
+    "entry_open_1": {
+      "file": "assets/themes/doorskins/entry_open_1.png"
     }
   },
   "active": "Basic"

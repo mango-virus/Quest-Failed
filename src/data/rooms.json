@@ -878,10 +878,21 @@
         "theme": null,
         "doorTheme": null,
         "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+            "open": "beholder_opened",
+            "locked": "basic_locked",
+            "closed": "beholder_closed"
+        },
+        "doorSkinEntrance": {
+            "open": "entry_open_1",
+            "locked": "basic_locked",
+            "closed": "entry_closed_1"
+        },
+        "doorSkinSizeEntrance": {
+            "w": 5,
+            "h": 4,
+            "nudge": 0
+        },
+        "backgroundImage": "entry_skin"
     },
     {
         "id": "starter_corridor",

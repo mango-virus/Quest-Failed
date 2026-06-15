@@ -345,6 +345,7 @@ export class RoomTileEditor extends Phaser.Scene {
     if (id === this._activeRoomId) return
     this._clearHeld()
     this._skinTarget = 'default'
+    this._doorRole = 'interior'
     this._activeRoomId = id
     this._refreshAll()
   }
@@ -398,6 +399,9 @@ export class RoomTileEditor extends Phaser.Scene {
       doorApronByBoss: room.doorApronByBoss ? structuredClone(room.doorApronByBoss) : null,
       doorSkin:        room.doorSkin ? structuredClone(room.doorSkin) : null,
       doorSkinByBoss:  room.doorSkinByBoss ? structuredClone(room.doorSkinByBoss) : null,
+      doorSkinSize:    room.doorSkinSize ? structuredClone(room.doorSkinSize) : null,
+      doorSkinEntrance:     room.doorSkinEntrance ? structuredClone(room.doorSkinEntrance) : null,
+      doorSkinSizeEntrance: room.doorSkinSizeEntrance ? structuredClone(room.doorSkinSizeEntrance) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
       connectionPoints: structuredClone(room.connectionPoints ?? []),
       theme:           room.theme ?? null,
@@ -434,6 +438,9 @@ export class RoomTileEditor extends Phaser.Scene {
       room.doorApronByBoss = snap.doorApronByBoss
       room.doorSkin        = snap.doorSkin
       room.doorSkinByBoss  = snap.doorSkinByBoss
+      room.doorSkinSize    = snap.doorSkinSize
+      room.doorSkinEntrance     = snap.doorSkinEntrance
+      room.doorSkinSizeEntrance = snap.doorSkinSizeEntrance
       room.colorAdjust     = snap.colorAdjust
       room.connectionPoints = snap.connectionPoints
       room.theme           = snap.theme
@@ -470,6 +477,24 @@ export class RoomTileEditor extends Phaser.Scene {
   }
   uiSkinTarget() { return this._skinTarget || 'default' }
   uiSetSkinTarget(target) { this._skinTarget = target || 'default'; this._refreshAll() }
+
+  // Door ROLE axis: a room with an external/entrance cp can skin its MAIN
+  // ENTRANCE separately from its CONNECTING doors. The active role scopes the
+  // door-skin Apply/Clear, the size sliders, and the preview. Rooms without an
+  // entrance cp only have the 'interior' (connecting) role → no selector shown.
+  _roomHasEntrance(room) {
+    return !!(room?.connectionPoints || []).some(cp => cp.external === true || cp.style === 'entrance')
+  }
+  uiDoorRoles() {
+    if (!this._roomHasEntrance(this._activeRoom())) return null
+    return [
+      { key: 'interior', label: 'Connecting doors' },
+      { key: 'entrance', label: 'Main entrance' },
+    ]
+  }
+  uiDoorRole() { return this._doorRole === 'entrance' ? 'entrance' : 'interior' }
+  uiSetDoorRole(role) { this._doorRole = role === 'entrance' ? 'entrance' : 'interior'; this._refreshAll() }
+  _doorRoleEntrance() { return this.uiDoorRole() === 'entrance' && this._roomHasEntrance(this._activeRoom()) }
 
   // Skin id assigned to the active room for a given target.
   _skinIdForTarget(room, target) {
@@ -803,6 +828,9 @@ export class RoomTileEditor extends Phaser.Scene {
   // The applied door-skin id for the active room / target / current state
   // (boss target falls back to the default, like room skins).
   _editorDoorSkinId(room, state) {
+    if (this._doorRoleEntrance()) {
+      return room?.doorSkinEntrance?.[state] || null
+    }
     if (this._doorTargetActive(room)) {
       return room.doorSkinByBoss?.[this._skinTarget]?.[state] || room.doorSkin?.[state] || null
     }
@@ -813,6 +841,12 @@ export class RoomTileEditor extends Phaser.Scene {
     return room ? this._editorDoorSkinId(room, this._curDoorState()) : null
   }
   _setDoorSkinId(room, state, id) {
+    if (this._doorRoleEntrance()) {
+      room.doorSkinEntrance = room.doorSkinEntrance || {}
+      if (id) room.doorSkinEntrance[state] = id
+      else delete room.doorSkinEntrance[state]
+      return
+    }
     if (this._doorTargetActive(room)) {
       room.doorSkinByBoss = room.doorSkinByBoss || {}
       room.doorSkinByBoss[this._skinTarget] = room.doorSkinByBoss[this._skinTarget] || {}
@@ -878,6 +912,44 @@ export class RoomTileEditor extends Phaser.Scene {
     this._setDoorSkinId(room, state, null)
     this._setDoorTiles(room, state, [[null, null, null, null], [null, null, null, null]])
     this._setDoorApron(room, state, [null, null, null, null])
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
+  // ── Door-skin SIZE (per-room footprint override) ──────────────────────────
+  // The skin renders at a default 4-wide × 3-deep box in-game; a room can grow
+  // it (e.g. the grand entrance) via room.doorSkinSize { w, h, nudge } in tiles.
+  // w = along the wall, h = depth into the room (controls how far the base
+  // reaches toward the floor), nudge = shift the whole gate deeper.
+  static DOOR_SKIN_SIZE_DEFAULT = { w: 4, h: 3, nudge: 0 }
+  static DOOR_SKIN_SIZE_RANGE = {
+    w:     { min: 2, max: 16, step: 0.5 },
+    h:     { min: 2, max: 12, step: 0.5 },
+    nudge: { min: -4, max: 8, step: 0.5 },
+  }
+  // The size field this room/role writes to: the entrance role uses
+  // doorSkinSizeEntrance, everything else doorSkinSize.
+  _doorSizeKey() { return this._doorRoleEntrance() ? 'doorSkinSizeEntrance' : 'doorSkinSize' }
+  uiGetDoorSkinSize() {
+    const s = this._activeRoom()?.[this._doorSizeKey()]
+    const d = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
+    return { w: s?.w ?? d.w, h: s?.h ?? d.h, nudge: s?.nudge ?? d.nudge }
+  }
+  uiBeginDoorSizeEdit() { if (this._activeRoom()) this._pushUndo() }
+  uiSetDoorSkinSize(field, value) {
+    const room = this._activeRoom()
+    const rng = RoomTileEditor.DOOR_SKIN_SIZE_RANGE[field]
+    if (!room || !rng) return
+    const v = Math.max(rng.min, Math.min(rng.max, Number(value) || 0))
+    const cur = this.uiGetDoorSkinSize()
+    room[this._doorSizeKey()] = { ...cur, [field]: v }
+    this._populatePaintCanvas()
+    this._notifyDom()
+  }
+  uiResetDoorSkinSize() {
+    const room = this._activeRoom()
+    if (!room) return
+    this._pushUndo()
+    delete room[this._doorSizeKey()]
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1791,7 +1863,13 @@ export class RoomTileEditor extends Phaser.Scene {
         .setOrigin(0, 0).setStrokeStyle(1, COL_BORDER, 1)
       this._paintContainer.add(bd)
       const img = this.add.image(ox + totalW / 2, oy + totalH / 2, skinKey).setOrigin(0.5)
-      img.setDisplaySize(totalW, totalH)
+      // Reflect the room's door-skin SIZE aspect (w along wall : h deep) so the
+      // gate's shape preview matches what renders in-game; fit inside the swatch.
+      const dsz = this.uiGetDoorSkinSize()
+      const aspect = (dsz.w || 4) / (dsz.h || 3)
+      let dw = totalW, dh = totalW / aspect
+      if (dh > totalH) { dh = totalH; dw = totalH * aspect }
+      img.setDisplaySize(dw, dh)
       _applyColorAdj(img, room.colorAdjust?.walls)
       this._paintContainer.add(img)
       this._paintContainer.add(_text(this, ox + totalW / 2, oy + totalH + 10,
@@ -2446,8 +2524,14 @@ export class RoomTileEditor extends Phaser.Scene {
         if (dtb) cleaned.doorTilesByBoss = dtb; else delete cleaned.doorTilesByBoss
         const dab = pruneByBoss(r.doorApronByBoss)
         if (dab) cleaned.doorApronByBoss = dab; else delete cleaned.doorApronByBoss
-        // Single-image door skins: drop empty objects.
+        // Single-image door skins: drop empty objects (connecting + entrance).
         if (!r.doorSkin || Object.keys(r.doorSkin).length === 0) delete cleaned.doorSkin
+        if (!r.doorSkinEntrance || Object.keys(r.doorSkinEntrance).length === 0) delete cleaned.doorSkinEntrance
+        // Door-skin sizes: drop when absent or equal to the 4×3×0 default.
+        const dDef = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
+        const isDefaultSize = (s) => !s || ((s.w ?? dDef.w) === dDef.w && (s.h ?? dDef.h) === dDef.h && (s.nudge ?? dDef.nudge) === dDef.nudge)
+        if (isDefaultSize(r.doorSkinSize)) delete cleaned.doorSkinSize
+        if (isDefaultSize(r.doorSkinSizeEntrance)) delete cleaned.doorSkinSizeEntrance
         const pruneSkinByBoss = (map) => {
           if (!map || typeof map !== 'object') return null
           const out = {}

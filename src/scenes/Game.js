@@ -756,6 +756,9 @@ export class Game extends Phaser.Scene {
     room.doorApronByBoss = (def.doorApronByBoss && typeof def.doorApronByBoss === 'object') ? def.doorApronByBoss : null
     room.doorSkin        = (def.doorSkin && typeof def.doorSkin === 'object') ? def.doorSkin : null
     room.doorSkinByBoss  = (def.doorSkinByBoss && typeof def.doorSkinByBoss === 'object') ? def.doorSkinByBoss : null
+    room.doorSkinSize    = (def.doorSkinSize && typeof def.doorSkinSize === 'object') ? def.doorSkinSize : null
+    room.doorSkinEntrance     = (def.doorSkinEntrance && typeof def.doorSkinEntrance === 'object') ? def.doorSkinEntrance : null
+    room.doorSkinSizeEntrance = (def.doorSkinSizeEntrance && typeof def.doorSkinSizeEntrance === 'object') ? def.doorSkinSizeEntrance : null
     // These fields are STRIPPED from the saved def when empty (decorations,
     // colorAdjust, backgroundImage). An absent field therefore means "cleared"
     // — apply unconditionally so e.g. resetting a room's colour or removing its
