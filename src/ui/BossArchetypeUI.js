@@ -357,6 +357,13 @@ export class BossArchetypeUI {
     })
     this._on('LIZARD_SPIT_DISARMED', () => this._removeSpitRoomPick())
     this._on('LIZARD_SPIT_FIRED', () => this._removeSpitRoomPick())
+    // Vampire BLOOD RITE room-targeting.
+    this._on('VAMPIRE_RITE_ARMED', () => {
+      this._installRiteRoomPick()
+      showToast(this._scene, 'BLOOD RITE armed — click a room to bleed', { type: 'info', duration: 3000 })
+    })
+    this._on('VAMPIRE_RITE_DISARMED', () => this._removeRiteRoomPick())
+    this._on('VAMPIRE_RITE_FIRED', () => this._removeRiteRoomPick())
 
     // Beholder: "SILENCED" floater above an adv whose class ability was
     // suppressed by an Anti-Magic room. Throttled by ClassAbilitySystem.
@@ -834,6 +841,28 @@ export class BossArchetypeUI {
     this._spitPickGame    = null
   }
 
+  // Vampire BLOOD RITE room-pick.
+  _installRiteRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._ritePickHandler) return
+    this._ritePickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('VAMPIRE_RITE_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('VAMPIRE_RITE_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._ritePickHandler)
+    this._ritePickGame = game
+  }
+
+  _removeRiteRoomPick() {
+    if (!this._ritePickHandler || !this._ritePickGame) return
+    this._ritePickGame.input.off('pointerdown', this._ritePickHandler)
+    this._ritePickHandler = null
+    this._ritePickGame    = null
+  }
+
   // Demon INFERNAL PACT room-pick.
   _installPactRoomPick() {
     const game = this._scene.scene.get('Game')
@@ -913,6 +942,7 @@ export class BossArchetypeUI {
     this._removeSeedRoomPick()
     this._removePactRoomPick()
     this._removeSpitRoomPick()
+    this._removeRiteRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

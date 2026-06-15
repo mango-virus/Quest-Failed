@@ -172,6 +172,8 @@ export class BossRenderer {
     this._updateFortressAura()
     // Lizardman — sickly-green plague Glow-outline aura reading Virulence.
     this._updatePlagueAura()
+    // Vampire — crimson Glow-outline aura reading banked BLOOD.
+    this._updateBloodAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -691,6 +693,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._plagueGlow) } catch (e) {}
     }
     this._plagueGlow = null
+  }
+
+  _updateBloodAura() {
+    const isVamp = this._gameState?.player?.bossArchetypeId === 'vampire'
+    if (!isVamp || !this._container || !this._sprite) { this._clearBloodAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.VAMPIRE_BLOOD_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.VAMPIRE_BLOOD_CAP_PER_ACT ?? 50)
+    const sat = Math.max(0, Math.min(1, (boss?.blood ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x4a0a1a, 0xff2a52)
+      if (!this._bloodGlow) { try { this._bloodGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._bloodGlow = true } }
+      else if (this._bloodGlow !== true) { try { this._bloodGlow.color = p.color; this._bloodGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearBloodAura() {
+    if (this._bloodGlow && this._bloodGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._bloodGlow) } catch (e) {}
+    }
+    this._bloodGlow = null
   }
 
   _build(boss) {

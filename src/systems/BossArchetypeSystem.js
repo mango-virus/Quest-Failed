@@ -245,6 +245,20 @@ export class BossArchetypeSystem {
       this._gameState.boss.virulence  ??= 0
       this._gameState.boss._lizSpit   ??= { usesLeft: uses }
     }
+    // Vampire THE BLOOD SOVEREIGN — banked BLOOD economy + BLOOD RITE (day active)
+    this._riteArmed   = false
+    this._vampFightTimer = null
+    this._riteZones   = []          // [{ roomId, until, lastTickAt, tier }] — Sanguine Pools
+    this._bondChainToday = 0        // T4 Blood Bond chain-charm counter (anti-snowball)
+    EventBus.on('VAMPIRE_RITE_ARM',    this._armRite,    this)
+    EventBus.on('VAMPIRE_RITE_DISARM', this._disarmRite, this)
+    EventBus.on('VAMPIRE_RITE_TARGET', this._fireRite,   this)
+    if (this._archId() === 'vampire' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.VAMPIRE_RITE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.VAMPIRE_RITE_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.blood   ??= 0
+      this._gameState.boss._vampRite ??= { usesLeft: uses }
+    }
     if (this._archId() === 'myconid' && this._gameState?.boss) {
       const bLv = this._gameState.boss.level ?? 1
       const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
@@ -328,6 +342,9 @@ export class BossArchetypeSystem {
     EventBus.off('LIZARD_SPIT_ARM',    this._armSpit,    this)
     EventBus.off('LIZARD_SPIT_DISARM', this._disarmSpit, this)
     EventBus.off('LIZARD_SPIT_TARGET', this._fireSpit,   this)
+    EventBus.off('VAMPIRE_RITE_ARM',    this._armRite,    this)
+    EventBus.off('VAMPIRE_RITE_DISARM', this._disarmRite, this)
+    EventBus.off('VAMPIRE_RITE_TARGET', this._fireRite,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -337,6 +354,7 @@ export class BossArchetypeSystem {
     this._stopBrimstoneFightTimer()
     this._stopFortressFightTimer()
     this._stopPlagueFightTimer()
+    this._stopBloodFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -387,6 +405,14 @@ export class BossArchetypeSystem {
     // (the strain proves itself) + (T4 Pandemic) bursts to infect nearby heroes.
     if (this._archId() === 'lizardman') {
       this._onPlaguedDeath(payload?.adventurer)
+    }
+    // VAMPIRE: THE BLOOD SOVEREIGN — every hero death anywhere feeds the BLOOD pool
+    // (level-scaled). Charm-conversions emit ADVENTURER_DIED too, so turning a hero
+    // into a thrall also feeds the bank.
+    if (this._archId() === 'vampire') {
+      const dead = payload?.adventurer
+      if (dead) this._bankBlood((Balance.VAMPIRE_BLOOD_PER_KILL ?? 8)
+        + (dead.level ?? 1) * (Balance.VAMPIRE_BLOOD_PER_KILL_PER_LV ?? 0.6), dead.worldX, dead.worldY)
     }
     // WRAITH: Fear bump for any adv who watched a same-party member die,
     // plus Haunting ghost spawn at the death tile.
@@ -512,6 +538,13 @@ export class BossArchetypeSystem {
     // in hellfire on its slayer. (Sacrifice-burned imps don't explode.)
     if (this._archId() === 'demon') {
       this._onDemonMinionDied(m, payload?.killerId)
+    }
+
+    // VAMPIRE: Blood Bond (T4) — a slain thrall ERUPTS in a blood nova (%maxHP
+    // to nearby heroes, banked) and charms one of them into a new thrall, so the
+    // Court replenishes itself. Capped per day to stop a runaway chain.
+    if (this._archId() === 'vampire' && m._isVampireThrall) {
+      this._onThrallDied(m)
     }
 
     if (!Array.isArray(m.tags) || !m.tags.includes(MINION_TAG_ORC)) return
@@ -1583,6 +1616,16 @@ export class BossArchetypeSystem {
       this._gameState.boss._lizSpit = { usesLeft: uses }
     }
     this._disarmSpit()
+    // Vampire: refill Blood Rite uses + disarm; reset the daily Blood Bond chain
+    // counter; clear Sanguine Pools. BLOOD persists overnight (the run-long bank).
+    if (this._archId() === 'vampire' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.VAMPIRE_RITE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.VAMPIRE_RITE_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss._vampRite = { usesLeft: uses }
+      this._bondChainToday = 0
+      this._riteZones = []
+    }
+    this._disarmRite()
     // Demon: reset daily Sacrifice uses; top the Hellgate roster up to
     // N=bossLevel imps. Killed or sacrificed imps from prior days do NOT
     // revive (enforced by the dead-imp filter in MinionAISystem.respawnAll);
@@ -1988,6 +2031,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickPlagueFight(),
       })
     }
+    if (this._archId() === 'vampire') {
+      this._stopBloodFightTimer()
+      this._bloodMoonFinaleDone = false
+      this._vampFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickBloodFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -2005,6 +2057,7 @@ export class BossArchetypeSystem {
     if (this._archId() === 'demon') this._stopBrimstoneFightTimer()
     if (this._archId() === 'golem') this._stopFortressFightTimer()
     if (this._archId() === 'lizardman') this._stopPlagueFightTimer()
+    if (this._archId() === 'vampire') this._stopBloodFightTimer()
   }
 
   _stopFortressFightTimer() {
@@ -2560,10 +2613,13 @@ export class BossArchetypeSystem {
 
     // VAMPIRE: charm N random advs per spawning batch (one per day baseline,
     // +0.25 per boss-lv → 1 extra every 4 lv; lv10 = 1 + floor(10*0.25) = 3).
+    // THE BLOOD SOVEREIGN — the Court grows with the acts: +CHARM_PER_ACT per act,
+    // so by the late game whole parties get pulled into the Court each dawn.
     if (this._archId() === 'vampire') {
       const bossLv = this._gameState?.boss?.level ?? 1
       const charmCount = Balance.VAMPIRE_CHARM_USES_PER_DAY_BASE
         + Math.floor(bossLv * Balance.VAMPIRE_CHARM_USES_PER_BOSS_LV)
+        + (currentAct(this._gameState) - 1) * (Balance.VAMPIRE_COURT_CHARM_PER_ACT ?? 1)
       // Sung Jinwoo can't be charmed — the vampire can't turn the Shadow
       // Monarch into a thrall (that would "kill"/remove him; only the boss
       // duel can take him down).
@@ -2976,25 +3032,32 @@ export class BossArchetypeSystem {
       }
     }
 
-    // VAMPIRE — Blood Tax. Any dungeon-faction minion's damage on an adv
-    // heals the boss for the same amount.
+    // VAMPIRE — THE BLOOD SOVEREIGN. Every point of damage the dungeon deals to a
+    // hero feeds the banked BLOOD pool (the economy). Minion damage also heals the
+    // boss outright (canon Blood Tax); T3 Sanguine Vigor extends that lifesteal to
+    // the boss's own (non-minion) damage while BLOOD is high.
     if (this._archId() === 'vampire') {
-      const m = this._findMinion(payload?.sourceId)
-      if (m && m.faction !== 'adventurer') {
-        const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.targetId)
-        if (adv) {
-          const boss = this._gameState?.boss
-          if (boss) {
-            const before = boss.hp ?? 0
-            boss.hp = Math.min(boss.maxHp ?? before, before + dmg)
-            const healed = boss.hp - before
-            if (healed >= Balance.VAMPIRE_BLOOD_TAX_VFX_MIN_DMG) {
-              EventBus.emit('VAMPIRE_BLOOD_TAX_TICK', {
-                fromX: adv.worldX, fromY: adv.worldY,
-                toX:   boss.worldX, toY: boss.worldY,
-                amount: healed,
-              })
-            }
+      const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.targetId)
+      if (adv) {
+        const boss = this._gameState?.boss
+        // Bank a cut of ALL dungeon damage dealt to heroes.
+        this._bankBlood(dmg * (Balance.VAMPIRE_BLOOD_PER_DMG_FRAC ?? 0.3), adv.worldX, adv.worldY)
+        const m = this._findMinion(payload?.sourceId)
+        const fromMinion = !!(m && m.faction !== 'adventurer')
+        let healFrac = 0
+        if (fromMinion) healFrac = 1                                   // canon Blood Tax
+        else if (currentAct(this._gameState) >= 3 && this._bloodSat() >= (Balance.VAMPIRE_BLOOD_VIGOR_SAT ?? 0.5))
+          healFrac = (Balance.VAMPIRE_BLOOD_VIGOR_LIFESTEAL ?? 0.25)   // T3 Sanguine Vigor
+        if (boss && healFrac > 0) {
+          const before = boss.hp ?? 0
+          boss.hp = Math.min(boss.maxHp ?? before, before + dmg * healFrac)
+          const healed = boss.hp - before
+          if (healed >= (Balance.VAMPIRE_BLOOD_TAX_VFX_MIN_DMG ?? 1)) {
+            EventBus.emit('VAMPIRE_BLOOD_TAX_TICK', {
+              fromX: adv.worldX, fromY: adv.worldY,
+              toX:   boss.worldX, toY: boss.worldY,
+              amount: healed,
+            })
           }
         }
       }
@@ -3571,6 +3634,199 @@ export class BossArchetypeSystem {
     if (this._archId() !== 'vampire') return
     this._tickCharmConversion(now)
     this._tickThrallRoaming(now)
+    this._tickBloodRegen(now)
+    this._tickRiteZones(now)
+  }
+
+  // ── VAMPIRE: THE BLOOD SOVEREIGN — banked BLOOD economy ────────────────────
+  _bloodCap() { return (Balance.VAMPIRE_BLOOD_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.VAMPIRE_BLOOD_CAP_PER_ACT ?? 50) }
+  _bloodSat() { return Math.max(0, Math.min(1, (this._gameState?.boss?.blood ?? 0) / Math.max(1, this._bloodCap()))) }
+
+  // Bank BLOOD (capped) + optionally emit a feed-streak from the bleeding hero.
+  _bankBlood(amount, fromX, fromY) {
+    const boss = this._gameState?.boss
+    if (!boss || !(amount > 0)) return
+    const before = boss.blood ?? 0
+    boss.blood = Math.min(this._bloodCap(), before + amount)
+    const gained = boss.blood - before
+    if (gained > 0) EventBus.emit('VAMPIRE_BLOOD_BANKED', { amount: gained, total: boss.blood, fromX, fromY })
+  }
+
+  // Passive self-regen while BLOOD is held (the run-long lifeline). Scaled to the
+  // current pool so a fat bank visibly keeps the Sovereign topped up.
+  _tickBloodRegen(now) {
+    const boss = this._gameState?.boss
+    if (!boss || (boss.hp ?? 0) <= 0) return
+    this._bloodRegenAt ??= 0
+    if (now - this._bloodRegenAt < 1000) return
+    this._bloodRegenAt = now
+    const heal = (boss.blood ?? 0) * (Balance.VAMPIRE_BLOOD_REGEN_FRAC ?? 0.012)
+    if (heal > 0) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
+  }
+
+  // T3 Sanguine Pool — drain heroes standing in a lingering blood pool each tick.
+  _tickRiteZones(now) {
+    if (!this._riteZones || this._riteZones.length === 0) return
+    const TS = Balance.TILE_SIZE
+    for (let i = this._riteZones.length - 1; i >= 0; i--) {
+      const z = this._riteZones[i]
+      if (now >= z.until) { this._riteZones.splice(i, 1); continue }
+      if (now - (z.lastTickAt ?? 0) < (Balance.VAMPIRE_RITE_POOL_TICK_MS ?? 1000)) continue
+      z.lastTickAt = now
+      const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === z.roomId)
+      if (!room) { this._riteZones.splice(i, 1); continue }
+      const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+      let drained = 0
+      for (const a of (this._gameState?.adventurers?.active ?? [])) {
+        if (!a || (a.resources?.hp ?? 0) <= 0 || !_advInsideRoom(a, room)) continue
+        const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.VAMPIRE_RITE_POOL_PCT ?? 0.02)))
+        a.resources.hp = Math.max(0, a.resources.hp - dmg)
+        this._bankBlood(dmg * (Balance.VAMPIRE_BLOOD_PER_DMG_FRAC ?? 0.3), a.worldX, a.worldY)
+        drained += dmg
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'unholy' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Sanguine Pool', roomId: room.instanceId, damageType: 'unholy' })
+      }
+      if (drained > 0) {
+        const boss = this._gameState?.boss
+        if (boss) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + drained * (Balance.VAMPIRE_FIGHT_LIFESTEAL ?? 0.6))
+        AbilityVfx?.sanguinePoolFx?.(this._scene, cx, cy, { tier: z.tier ?? 3, rectW: room.width * TS, rectH: room.height * TS, refresh: true })
+      }
+    }
+  }
+
+  // ── BLOOD RITE (day active) ────────────────────────────────────────────────
+  _riteUsesLeft() { return this._gameState?.boss?._vampRite?.usesLeft ?? 0 }
+  _riteAvailable() { return this._archId() === 'vampire' && (this._gameState?.meta?.phase ?? '') === 'day' && this._riteUsesLeft() > 0 }
+  _armRite() { if (!this._riteAvailable()) return; this._riteArmed = true; EventBus.emit('VAMPIRE_RITE_ARMED', {}) }
+  _disarmRite() { this._riteArmed = false; EventBus.emit('VAMPIRE_RITE_DISARMED', {}) }
+  _fireRite(payload) {
+    if (!this._riteArmed) return
+    if (!this._riteAvailable()) { this._disarmRite(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState), TS = Balance.TILE_SIZE
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    const pct = (Balance.VAMPIRE_RITE_DRAIN_PCT ?? 0.06) + (tier - 1) * (Balance.VAMPIRE_RITE_DRAIN_PCT_PER_ACT ?? 0.025)
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    let drained = 0
+    let lowest = null
+    for (const a of advsIn) {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      drained += dmg
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'unholy' })
+      this._bankBlood(dmg * (Balance.VAMPIRE_BLOOD_PER_DMG_FRAC ?? 0.3), a.worldX, a.worldY)
+      if (a.resources.hp <= 0) { EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Blood Rite', roomId: room.instanceId, damageType: 'unholy' }); continue }
+      if (!lowest || (a.resources.hp / (a.resources.maxHp ?? 1)) < (lowest.resources.hp / (lowest.resources.maxHp ?? 1))) lowest = a
+      // T4 Crimson Rite — any hero left below the conversion threshold is charmed.
+      if (tier >= 4 && (a.resources.hp / (a.resources.maxHp ?? 1)) <= (Balance.VAMPIRE_RITE_CONVERT_PCT ?? 0.25)) this._charmHero(a)
+    }
+    // T2 Court Levy — drag the lowest-HP survivor into the Court.
+    if (tier >= 2 && tier < 4 && lowest) this._charmHero(lowest)
+    // Heal the Sovereign off the rite + bank already handled per-hit.
+    if (drained > 0) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + drained * (Balance.VAMPIRE_FIGHT_LIFESTEAL ?? 0.6))
+    // T3 Sanguine Pool — lingering tax zone on the room floor.
+    if (tier >= 3) {
+      this._riteZones = (this._riteZones ?? []).filter(z => z.roomId !== room.instanceId)
+      const poolMs = Balance.VAMPIRE_RITE_POOL_MS ?? 5000
+      this._riteZones.push({ roomId: room.instanceId, until: (this._scene?.time?.now ?? 0) + poolMs, lastTickAt: 0, tier })
+      AbilityVfx?.sanguinePoolFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS, lifeMs: poolMs })
+    }
+    AbilityVfx?.bloodRiteFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy), { toX: cx, toY: cy, tier, rectW: room.width * TS, rectH: room.height * TS, victims: advsIn.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+    if (boss._vampRite) boss._vampRite.usesLeft = Math.max(0, (boss._vampRite.usesLeft ?? 0) - 1)
+    this._riteArmed = false
+    EventBus.emit('VAMPIRE_RITE_FIRED', { roomId: room.instanceId, room, tier, victims: advsIn.length, drained })
+  }
+
+  // Mark a hero as charmed (joins the Court → walks to the boss → converts in
+  // _tickCharmConversion). No-op for the duel-bound / Light Party specials.
+  _charmHero(adv) {
+    if (!adv || adv._charmed || adv._shadowMonarch || adv._lightParty) return
+    if ((adv.resources?.hp ?? 0) <= 0) return
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return
+    adv._charmed = true
+    adv._charmedFormerPartyId = adv.partyId ?? null
+    adv.partyId = null
+    adv.goal = { type: 'CHARM_WALK', roomId: bossRoom.instanceId }
+    adv.path = null
+    EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'CHARMED' })
+    EventBus.emit('VAMPIRE_CHARM_MARKED', { advId: adv.instanceId })
+    if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.charmBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, {})
+  }
+
+  // T4 Blood Bond — a slain thrall erupts (blood AoE → BLOOD) + chain-charms a
+  // nearby hero (capped per day).
+  _onThrallDied(thrall) {
+    if (currentAct(this._gameState) < 4) return
+    if (!Number.isFinite(thrall?.worldX)) return
+    const TS = Balance.TILE_SIZE, R = (Balance.VAMPIRE_BOND_RADIUS_TS ?? 2.5) * TS
+    AbilityVfx?.bloodEruptFx?.(this._scene, thrall.worldX, (thrall.worldY ?? 0) - 8, { tier: 4 })
+    let nearest = null, nd = Infinity
+    for (const a of (this._gameState?.adventurers?.active ?? [])) {
+      if (!a || (a.resources?.hp ?? 0) <= 0 || a._charmed) continue
+      const d = Math.hypot((a.worldX ?? 0) - thrall.worldX, (a.worldY ?? 0) - thrall.worldY)
+      if (d > R) continue
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.VAMPIRE_BOND_ERUPT_PCT ?? 0.05)))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      this._bankBlood(dmg * (Balance.VAMPIRE_BLOOD_PER_DMG_FRAC ?? 0.3), a.worldX, a.worldY)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'unholy' })
+      if (a.resources.hp <= 0) { EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Blood Bond', roomId: null, damageType: 'unholy' }); continue }
+      if (d < nd) { nd = d; nearest = a }
+    }
+    // Chain-charm the nearest survivor (anti-snowball: capped per day).
+    if (nearest && (this._bondChainToday ?? 0) < (Balance.VAMPIRE_BOND_CHAIN_PER_DAY ?? 3)) {
+      this._bondChainToday = (this._bondChainToday ?? 0) + 1
+      this._charmHero(nearest)
+    }
+  }
+
+  _stopBloodFightTimer() { this._vampFightTimer?.remove?.(false); this._vampFightTimer = null }
+
+  // Throne fight — Crimson Lance → Sanguine Embrace → Blood Tempest → Blood Moon
+  // finale. A lifedrain duelist: every special heals the Sovereign.
+  _tickBloodFight() {
+    const boss = this._gameState?.boss; if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber'); if (!bossRoom) return
+    const TS = Balance.TILE_SIZE
+    const fighters = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const heal = (amt) => { boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + amt * (Balance.VAMPIRE_FIGHT_LIFESTEAL ?? 0.6)) }
+    const hit = (a, pct, type) => {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      this._bankBlood(dmg * (Balance.VAMPIRE_BLOOD_PER_DMG_FRAC ?? 0.3), a.worldX, a.worldY)
+      heal(dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: type })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Vampire', roomId: bossRoom.instanceId, damageType: type })
+      return dmg
+    }
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+
+    // T4 Blood Moon finale (<30% HP) — repeated mass exsanguinate, Blood-scaled.
+    if (tier >= 4 && !this._bloodMoonFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._bloodMoonFinaleDone = true
+      AbilityVfx?.bloodMoonFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      const pct = (Balance.VAMPIRE_FIGHT_MOON_PCT ?? 0.07) + (boss.blood ?? 0) * (Balance.VAMPIRE_FIGHT_MOON_BLOOD_SCALE ?? 0.0008)
+      for (const a of fighters) hit(a, pct, 'unholy')
+      return
+    }
+    if (tier >= 3) {
+      AbilityVfx?.bloodTempestFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) hit(a, Balance.VAMPIRE_FIGHT_TEMPEST_PCT ?? 0.05, 'unholy')
+    } else if (tier >= 2) {
+      // Sanguine Embrace — seize the top-HP hero, big drain.
+      const t = fighters.slice().sort((a, b) => (b.resources?.hp ?? 0) - (a.resources?.hp ?? 0))[0]
+      if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.sanguineEmbraceFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, { toX: t.worldX, toY: (t.worldY ?? 0) - 16, tier })
+      hit(t, Balance.VAMPIRE_FIGHT_EMBRACE_PCT ?? 0.10, 'unholy')
+    } else {
+      // Crimson Lance — blood-bolt at the top-aggro (first) hero.
+      const t = fighters[0]
+      if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.crimsonLanceFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, { toX: t.worldX, toY: (t.worldY ?? 0) - 16, tier })
+      hit(t, Balance.VAMPIRE_FIGHT_LANCE_PCT ?? 0.05, 'unholy')
+    }
   }
 
   // ── SUCCUBUS: Shapeshifter + Seductress ─────────────────────────────────

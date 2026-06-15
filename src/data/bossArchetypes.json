@@ -377,13 +377,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Charm",
-      "summary": "Each dawn, one adventurer is charmed and rises as a Thrall hunting their former party.",
+      "name": "The Blood Sovereign",
+      "summary": "Runs the dungeon as a blood economy: every wound feeds a banked BLOOD pool spent on Blood Rites and a growing charmed Court.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Blood Tax — damage your minions deal heals the boss.",
+        "text": "BLOOD — a cut of all damage dealt to heroes (and each kill) banks BLOOD; it heals the Sovereign and powers his abilities.",
+        "implemented": true
+      },
+      {
+        "text": "Blood Rite (day) — drain %maxHP from everyone in a room; by act it charms the lowest survivor, leaves a Sanguine Pool, then mass-converts the dying.",
+        "implemented": true
+      },
+      {
+        "text": "The Court — charm heroes into roaming Thralls; T4 a slain thrall erupts and charms a neighbor.",
         "implemented": true
       }
     ],

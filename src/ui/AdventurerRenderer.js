@@ -864,6 +864,26 @@ export class AdventurerRenderer {
         }
       }
 
+      // Vampire THE BLOOD SOVEREIGN — a CHARMED hero (joining the Court) glows
+      // crimson with a slow pulse + drifting heart-motes, so you can watch the
+      // Court form before each thrall conversion.
+      {
+        const cImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const charmed = !!adv._charmed
+        if (cImg && cImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (charmed) {
+            const str = 2.2 + 0.8 * Math.sin(now / 220)
+            if (!s._vampCharmFx) { try { s._vampCharmFx = cImg.postFX.addGlow(0xff2a52, str, 0, false, 0.06, 8) } catch (e) { s._vampCharmFx = null } }
+            else if (s._vampCharmFx !== true) { try { s._vampCharmFx.outerStrength = str } catch (e) {} }
+          } else if (s._vampCharmFx) { try { if (s._vampCharmFx !== true) cImg.postFX.remove(s._vampCharmFx) } catch (e) {} s._vampCharmFx = null }
+        }
+        if (charmed && Number.isFinite(adv.worldX) && now - (s._vampCharmMoteAt ?? 0) >= 900) {
+          s._vampCharmMoteAt = now
+          AbilityVfx.charmBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { mote: true })
+        }
+      }
+
       // Zombie ROT — while rot-infected (`_rotInfectedUntil`), the hero is a walking
       // CORPSE-in-waiting (it rises as YOUR zombie if it dies). Distinct from the
       // slime's bright-green glow: an ASHEN necrotic pallor (partial desaturate + dim

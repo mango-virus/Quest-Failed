@@ -185,6 +185,60 @@ function _drawBloodDroplet(g, s) {
   g.fillStyle(0xe2606a, 0.85); g.fillCircle(-s * 0.28, -s * 0.32, s * 0.38) // wet shine
 }
 
+// A small valentine HEART (centred, points down) — two lobes + a triangular base
+// + a glossy highlight. Used by the Sovereign's charm-bind VFX. `s` ≈ half-width.
+function _drawHeart(g, s, color = 0xff3a6a) {
+  const dark = _lerpColor(color, 0x3a0410, 0.5), lite = _lerpColor(color, 0xffd0dc, 0.6)
+  g.fillStyle(color, 1)
+  g.fillCircle(-s * 0.5, -s * 0.32, s * 0.55)                  // left lobe
+  g.fillCircle(s * 0.5, -s * 0.32, s * 0.55)                   // right lobe
+  g.fillTriangle(-s * 0.96, -s * 0.08, s * 0.96, -s * 0.08, 0, s * 0.95)  // base point
+  g.fillStyle(dark, 0.5); g.fillTriangle(-s * 0.5, s * 0.18, s * 0.5, s * 0.18, 0, s * 0.9)  // shaded tip
+  g.fillStyle(lite, 0.8); g.fillCircle(-s * 0.5, -s * 0.42, s * 0.2)      // shine
+}
+
+// A gory, splattered BLOOD POOL (shaded, viewed at a low angle) — an irregular
+// spill with flung spatter fingers + detached droplets, a deep pooled centre, a
+// glossy wet meniscus rim, and bright surface reflections. Deliberately NOT a
+// clean ellipse — every instance varies. Used by the Sanguine Pool / Rite / Moon.
+function _drawBloodPool(g, r, color = 0x9e0b18) {
+  const dark = _lerpColor(color, 0x140104, 0.55)   // near-black pooled depth
+  const deep = _lerpColor(color, 0x3a0408, 0.4)    // shaded body
+  const lite = _lerpColor(color, 0xff6b7e, 0.6)     // wet sheen
+  // soft cast shadow under the spill
+  g.fillStyle(0x000000, 0.2); g.fillEllipse(1.5, r * 0.26, r * 2.55, r * 1.12)
+  // flung spatter — fingers radiating out + a few detached droplets beyond them.
+  // Drawn first so the body overlaps their roots into one organic mass.
+  const fingers = 7 + Math.floor(Math.random() * 3)
+  for (let i = 0; i < fingers; i++) {
+    const a = (i / fingers) * Math.PI * 2 + (Math.random() - 0.5) * 0.6
+    const reach = r * (1.0 + Math.random() * 0.7)
+    const fx = Math.cos(a) * reach, fy = Math.sin(a) * reach * 0.6
+    g.fillStyle(deep, 0.9); g.fillCircle(fx, fy, r * (0.1 + Math.random() * 0.14))
+    if (Math.random() < 0.65) {                       // a small detached splat further out
+      const ex = Math.cos(a) * reach * (1.25 + Math.random() * 0.3)
+      const ey = Math.sin(a) * reach * 0.6 * (1.25 + Math.random() * 0.3)
+      g.fillStyle(dark, 0.85); g.fillCircle(ex, ey, r * (0.04 + Math.random() * 0.06))
+    }
+  }
+  // irregular main body — overlapping lobes around the centre, never a clean ellipse
+  g.fillStyle(deep, 0.92)
+  const lobes = 6
+  for (let i = 0; i < lobes; i++) {
+    const a = (i / lobes) * Math.PI * 2 + (Math.random() - 0.5) * 0.4
+    const off = r * (0.32 + Math.random() * 0.22)
+    g.fillCircle(Math.cos(a) * off, Math.sin(a) * off * 0.6, r * (0.5 + Math.random() * 0.32))
+  }
+  g.fillCircle(0, 0, r * 0.92)
+  // glossy crimson surface + deep pooled underside (where it's thickest/darkest)
+  g.fillStyle(color, 0.96); g.fillEllipse(-r * 0.04, -r * 0.05, r * 1.5, r * 0.92)
+  g.fillStyle(dark, 0.5); g.fillEllipse(r * 0.12, r * 0.2, r * 1.05, r * 0.55)
+  // wet meniscus highlight along the upper rim + a long reflection streak + hot spec
+  g.fillStyle(lite, 0.4); g.fillEllipse(-r * 0.26, -r * 0.3, r * 0.86, r * 0.28)
+  g.fillStyle(lite, 0.5); g.fillEllipse(r * 0.18, -r * 0.16, r * 0.4, r * 0.1)
+  g.fillStyle(0xffd6dd, 0.6); g.fillCircle(-r * 0.32, -r * 0.34, r * 0.12)
+}
+
 // Draw a wet gooey SLIME BLOB into a Graphics (centred 0,0, radius r): ground
 // shadow + a bumpy translucent body + a pooled dark underside + a glossy highlight.
 // `color` is the slime's base hue (0xRRGGBB).
@@ -6904,6 +6958,268 @@ export const AbilityVfx = {
       })
     }
     if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 600, max: 1300 }, speedX: { min: -70, max: 70 }, speedY: { min: -30, max: 20 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [GREEN, 0xd9a6ff], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((16 + tier * 4) * mult * scl)); made.push(em); scene.time.delayedCall(1300, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // ── VAMPIRE · THE BLOOD SOVEREIGN — crimson blood VFX ──────────────────────
+  // Palette: BLOOD 0x9e0b18 · bright 0xff3a52 · pale 0xff9ab4 · dark 0x5a0710.
+
+  // BLOOD RITE: blood is torn out of every hero in the room — splatters at each
+  // victim, droplets + a GPU stream arc back to the Sovereign, a pool blooms on
+  // the floor, and the Sovereign flushes crimson as it feasts.
+  bloodRiteFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 15, rectW: 200, rectH: 150, victims: [], ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const BLOOD = 0x9e0b18, BRIGHT = 0xff3a52, PALE = 0xff9ab4
+    const tx = Number.isFinite(o.toX) ? o.toX : x, ty = Number.isFinite(o.toY) ? o.toY : y
+    // Pool blooming under the room centre.
+    const pool = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth - 1).setScale(0.3).setAlpha(0); made.push(pool)
+    _drawBloodPool(pool, 26 + tier * 4, BLOOD)
+    scene.tweens.add({ targets: pool, scale: 1, alpha: 0.7, duration: 280, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: pool, alpha: 0, duration: 700, delay: 200, onComplete: () => pool.destroy() }) })
+    const victims = (o.victims && o.victims.length) ? o.victims : [{ x: tx, y: ty }]
+    for (const v of victims) {
+      if (!_validXY(v.x, v.y)) continue
+      // splatter burst at the victim
+      const fl = scene.add.graphics().setPosition(v.x, v.y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+      fl.fillStyle(BRIGHT, 0.9); fl.fillCircle(0, 0, 5); _glow(fl, BLOOD, 4, 10)
+      scene.tweens.add({ targets: fl, scale: 2.4, alpha: 0, duration: 280, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+      // 2–3 droplets arc victim → Sovereign (the blood is taxed away)
+      for (let i = 0; i < 2 + tier; i++) {
+        const dp = scene.add.graphics().setPosition(v.x + (Math.random() - 0.5) * 12, v.y + (Math.random() - 0.5) * 12).setDepth(o.depth + 1); made.push(dp)
+        _drawBloodDroplet(dp, 2 + Math.random() * 2)
+        const mx = (v.x + x) / 2 + (Math.random() - 0.5) * 30, my = Math.min(v.y, y) - 24 - Math.random() * 20
+        scene.tweens.add({ targets: dp, x: mx, y: my, duration: 150 + Math.random() * 60, ease: 'Sine.easeOut',
+          onComplete: () => scene.tweens.add({ targets: dp, x, y, alpha: 0, scale: 0.4, duration: 150 + Math.random() * 70, ease: 'Sine.easeIn', onComplete: () => dp.destroy() }) })
+      }
+      if (mult > 0) {
+        const em = scene.add.particles(v.x, v.y, _softDotTexture(scene), { lifespan: 460, quantity: 1, frequency: 40, tint: [BLOOD, BRIGHT, PALE], scale: { start: 0.4, end: 0 }, alpha: { start: 0.8, end: 0 }, moveToX: x, moveToY: y }); em.setDepth(o.depth); made.push(em)
+        scene.time.delayedCall(360, () => { try { em.stop() } catch (e) {} }); scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} })
+      }
+    }
+    // Sovereign flushes with stolen blood.
+    const feast = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(feast)
+    feast.fillStyle(BRIGHT, 0.8); feast.fillCircle(0, 0, 8); _glow(feast, BLOOD, 6, 13)
+    scene.tweens.add({ targets: feast, scale: 2.2, alpha: 0, duration: 520, delay: 280, ease: 'Cubic.easeOut', onComplete: () => feast.destroy() })
+    return made
+  },
+
+  // SANGUINE POOL (T3): a glossy blood pool taxing the room floor. `refresh:true`
+  // just ripples an existing pool (called each drain tick).
+  sanguinePoolFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 3, depth: 6, rectW: 180, rectH: 130, refresh: false, ...opts }
+    const made = [], BLOOD = 0x9e0b18, PALE = 0xff9ab4
+    const rad = Math.max(28, Math.min(o.rectW, o.rectH) * 0.42)
+    if (o.refresh) {
+      // a ripple ring + a couple of rising motes on each tax tick
+      const rip = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD); made.push(rip)
+      rip.lineStyle(2, PALE, 0.7); rip.strokeEllipse(0, 0, rad * 0.7, rad * 0.4)
+      scene.tweens.add({ targets: rip, scaleX: 1.7, scaleY: 1.7, alpha: 0, duration: 520, ease: 'Quad.easeOut', onComplete: () => rip.destroy() })
+      return made
+    }
+    const pool = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.4).setAlpha(0); made.push(pool)
+    _drawBloodPool(pool, rad, BLOOD)
+    scene.tweens.add({ targets: pool, scale: 1, alpha: 0.78, duration: 320, ease: 'Quad.easeOut' })
+    // slow surface churn for the pool's lifetime
+    let ph = 0
+    const churn = scene.tweens.addCounter({ from: 0, to: 1, duration: (o.lifeMs ?? 5000), onUpdate: () => { ph += 0.05; if (pool.active) pool.setScale(1 + 0.04 * Math.sin(ph), 1 + 0.05 * Math.cos(ph * 0.8)) },
+      onComplete: () => scene.tweens.add({ targets: pool, alpha: 0, duration: 500, onComplete: () => pool.destroy() }) })
+    made.push(churn)
+    return made
+  },
+
+  // CHARM BIND: a hero is drawn into the Court — crimson hearts spiral in + a mist
+  // ring + a conversion flash. `mote:true` = the small drifting-heart upkeep cue.
+  charmBindFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 46, mote: false, ...opts }
+    const made = [], BRIGHT = 0xff3a6a, PALE = 0xff9ab4
+    if (o.mote) {
+      const ht = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 14, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 3.4, BRIGHT); _glow(ht, BRIGHT, 2, 6); ht.setScale(0.5)
+      scene.tweens.add({ targets: ht, y: y - 22 - Math.random() * 10, scale: 0.9, alpha: 0, angle: (Math.random() - 0.5) * 30, duration: 760, ease: 'Sine.easeOut', onComplete: () => ht.destroy() })
+      return made
+    }
+    // mist ring
+    const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+    ring.lineStyle(3, BRIGHT, 0.7); ring.strokeCircle(0, 0, 22); _glow(ring, BRIGHT, 3, 9)
+    scene.tweens.add({ targets: ring, scale: 0.2, alpha: 0, duration: 460, ease: 'Quad.easeIn', onComplete: () => ring.destroy() })
+    // hearts spiral inward
+    for (let i = 0; i < 6; i++) {
+      const a0 = (i / 6) * Math.PI * 2, R = 30
+      const ht = scene.add.graphics().setPosition(x + Math.cos(a0) * R, y + Math.sin(a0) * R).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 4 + Math.random() * 1.5, i % 2 ? PALE : BRIGHT); _glow(ht, BRIGHT, 2, 6)
+      scene.tweens.add({ targets: ht, x, y: y - 4, scale: 0.3, alpha: 0, angle: 180, duration: 460 + i * 18, ease: 'Back.easeIn', onComplete: () => ht.destroy() })
+    }
+    // conversion flash
+    const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+    fl.fillStyle(0xffd0dc, 0.9); fl.fillCircle(0, 0, 7); _glow(fl, BRIGHT, 5, 12)
+    scene.tweens.add({ targets: fl, scale: 2.6, alpha: 0, duration: 360, delay: 420, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+    return made
+  },
+
+  // BLOOD ERUPT (T4 Blood Bond): a slain thrall bursts — a blood shockwave, flung
+  // clots, and a crimson nova that splashes nearby heroes.
+  bloodEruptFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 16, ...opts }
+    const mult = _particlesMult(), made = [], BLOOD = 0x9e0b18, BRIGHT = 0xff3a52, PALE = 0xff9ab4
+    const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+    ring.lineStyle(4, BRIGHT, 0.85); ring.strokeCircle(0, 0, 8); _glow(ring, BLOOD, 4, 11)
+    scene.tweens.add({ targets: ring, scale: 4.2, alpha: 0, duration: 460, ease: 'Expo.easeOut', onComplete: () => ring.destroy() })
+    const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+    fl.fillStyle(PALE, 0.9); fl.fillCircle(0, 0, 7); _glow(fl, BRIGHT, 6, 13)
+    scene.tweens.add({ targets: fl, scale: 3, alpha: 0, duration: 320, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2, d = 18 + Math.random() * 30
+      const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(cl)
+      _drawBloodClot(cl, 2 + Math.random() * 2.5, BLOOD)
+      scene.tweens.add({ targets: cl, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8 + 8, alpha: 0, scale: 0.4, rotation: (Math.random() - 0.5) * 5, duration: 420 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => cl.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 650 }, speed: { min: 50, max: 170 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [BLOOD, BRIGHT, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round(14 * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(120, 0.004)
+    return made
+  },
+
+  // CRIMSON LANCE (fight T1): a tapered blood bolt spears boss → hero with a wet
+  // travel-head + trail, splatters on impact, then a thin lifesteal thread returns.
+  crimsonLanceFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 17, ...opts }
+    const made = [], BLOOD = 0x9e0b18, BRIGHT = 0xff3a52, PALE = 0xff9ab4, mult = _particlesMult()
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 90, ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const ang = Math.atan2(ty - y, tx - x)
+    // the lance body — a thin tapered crimson spear that reveals toward the target
+    const lance = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(lance); _glow(lance, BLOOD, 2, 7)
+    const head = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(head)
+    _drawBloodDroplet(head, 4); _glow(head, BRIGHT, 3, 8)
+    let trail = null
+    if (mult > 0) { trail = scene.add.particles(0, 0, _softDotTexture(scene), { follow: head, lifespan: 220, frequency: 16, quantity: 1, tint: [BLOOD, PALE], scale: { start: 0.4, end: 0 }, alpha: { start: 0.8, end: 0 } }); trail.setDepth(o.depth); made.push(trail) }
+    scene.tweens.addCounter({ from: 0, to: 1, duration: 200, ease: 'Quad.easeIn', onUpdate: (tw) => {
+      const f = tw.getValue(), hx = x + (tx - x) * f, hy = y + (ty - y) * f
+      head.setPosition(hx, hy)
+      lance.clear(); lance.fillStyle(BLOOD, 0.85)
+      const wob = 4
+      lance.beginPath(); lance.moveTo(x + Math.cos(ang + Math.PI / 2) * 1.2, y + Math.sin(ang + Math.PI / 2) * 1.2)
+      lance.lineTo(hx + Math.cos(ang + Math.PI / 2) * wob, hy + Math.sin(ang + Math.PI / 2) * wob)
+      lance.lineTo(hx + Math.cos(ang - Math.PI / 2) * wob, hy + Math.sin(ang - Math.PI / 2) * wob)
+      lance.lineTo(x + Math.cos(ang - Math.PI / 2) * 1.2, y + Math.sin(ang - Math.PI / 2) * 1.2)
+      lance.closePath(); lance.fillPath()
+    }, onComplete: () => {
+      head.destroy(); if (trail) { try { trail.stop() } catch (e) {} scene.time.delayedCall(240, () => { try { trail.destroy() } catch (e) {} }) }
+      scene.tweens.add({ targets: lance, alpha: 0, duration: 160, onComplete: () => lance.destroy() })
+      // impact splatter
+      const sp = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD)
+      sp.fillStyle(BRIGHT, 0.9); sp.fillCircle(0, 0, 6); _glow(sp, BLOOD, 4, 10)
+      scene.tweens.add({ targets: sp, scale: 2.4, alpha: 0, duration: 320, ease: 'Expo.easeOut', onComplete: () => sp.destroy() })
+      for (let i = 0; i < 5 + o.tier; i++) { const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 18, cl = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 1); _drawBloodDroplet(cl, 1.5 + Math.random() * 1.5); scene.tweens.add({ targets: cl, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d + 6, alpha: 0, duration: 360, ease: 'Quad.easeIn', onComplete: () => cl.destroy() }) }
+      // lifesteal thread back to the boss
+      if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: 360, quantity: 1, frequency: 26, tint: [BRIGHT, PALE], scale: { start: 0.35, end: 0 }, alpha: { start: 0.85, end: 0 }, moveToX: x, moveToY: y }); em.setDepth(o.depth); scene.time.delayedCall(300, () => { try { em.stop() } catch (e) {} }); scene.time.delayedCall(800, () => { try { em.destroy() } catch (e) {} }) }
+    } })
+    return made
+  },
+
+  // SANGUINE EMBRACE (fight T2): a thick pulsing blood tether seizes a hero and
+  // drags globules back into the Sovereign (a heavy drain).
+  sanguineEmbraceFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 2, depth: 17, ...opts }
+    const made = [], BLOOD = 0x9e0b18, BRIGHT = 0xff3a52, PALE = 0xff9ab4, mult = _particlesMult()
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 90, ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const perp = Math.atan2(ty - y, tx - x) + Math.PI / 2
+    const tether = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(tether); _glow(tether, BLOOD, 2, 8)
+    let ph = 0
+    const drawT = () => {
+      tether.clear()
+      const stroke = (col, w, al) => { tether.lineStyle(w, col, al); tether.beginPath(); for (let i = 0; i <= 14; i++) { const t = i / 14, bx = x + (tx - x) * t, by = y + (ty - y) * t, wob = Math.sin(t * 6 + ph) * 7 * Math.sin(t * Math.PI); const px = bx + Math.cos(perp) * wob, py = by + Math.sin(perp) * wob; if (i === 0) tether.moveTo(px, py); else tether.lineTo(px, py) } tether.strokePath() }
+      stroke(BLOOD, 5, 0.7); stroke(BRIGHT, 2.4, 0.85); stroke(PALE, 1, 0.9)
+    }
+    const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 1400, onUpdate: () => { ph += 0.5; drawT() }, onComplete: () => scene.tweens.add({ targets: tether, alpha: 0, duration: 220, onComplete: () => tether.destroy() }) })
+    made.push(tw)
+    // seize-flash on the hero
+    const grab = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(grab)
+    grab.lineStyle(3, BRIGHT, 0.8); grab.strokeCircle(0, 0, 16); _glow(grab, BLOOD, 3, 9)
+    scene.tweens.add({ targets: grab, scale: 0.5, alpha: 0, duration: 420, ease: 'Quad.easeIn', onComplete: () => grab.destroy() })
+    // globules stream hero → Sovereign for the channel's length
+    if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: 520, quantity: 1, frequency: 60, tint: [BLOOD, BRIGHT, PALE], scale: { start: 0.5, end: 0 }, alpha: { start: 0.9, end: 0 }, moveToX: x, moveToY: y }); em.setDepth(o.depth); made.push(em); scene.time.delayedCall(1300, () => { try { em.stop() } catch (e) {} }); scene.time.delayedCall(1900, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // BLOOD TEMPEST (fight T3): a swirling vortex of blood ribbons + clots + crimson
+  // haze sweeps the whole room.
+  bloodTempestFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 3, depth: 16, rectW: 180, rectH: 140, ...opts }
+    const made = [], BLOOD = 0x9e0b18, BRIGHT = 0xff3a52, PALE = 0xff9ab4, mult = _particlesMult()
+    const R = Math.max(40, Math.min(o.rectW, o.rectH) * 0.5)
+    // crimson haze
+    const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(haze)
+    haze.fillStyle(BLOOD, 0.2); haze.fillEllipse(0, 0, o.rectW, o.rectH * 0.8)
+    scene.tweens.add({ targets: haze, alpha: 1, duration: 280, yoyo: true, hold: 560, onComplete: () => haze.destroy() })
+    // spiralling ribbons of blood
+    for (let i = 0; i < 5; i++) {
+      const rib = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(rib); _glow(rib, BLOOD, 2, 6)
+      const base = (i / 5) * Math.PI * 2
+      let ph = 0
+      const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 1100, onUpdate: (t) => {
+        ph += 0.16; rib.clear(); rib.lineStyle(2.6, i % 2 ? BRIGHT : BLOOD, 0.8)
+        rib.beginPath()
+        for (let k = 0; k <= 16; k++) { const tt = k / 16, ang = base + ph + tt * 3.2, rr = R * tt; const px = x + Math.cos(ang) * rr, py = y + Math.sin(ang) * rr * 0.62; if (k === 0) rib.moveTo(px, py); else rib.lineTo(px, py) }
+        rib.strokePath()
+      }, onComplete: () => scene.tweens.add({ targets: rib, alpha: 0, duration: 220, onComplete: () => rib.destroy() }) })
+      made.push(tw)
+    }
+    // flung clots riding the vortex
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2, d = R * (0.3 + Math.random() * 0.7)
+      const cl = scene.add.graphics().setPosition(x + Math.cos(a) * d * 0.3, y + Math.sin(a) * d * 0.2).setDepth(o.depth + 1); made.push(cl)
+      _drawBloodClot(cl, 2 + Math.random() * 2, BLOOD)
+      scene.tweens.add({ targets: cl, x: x + Math.cos(a + 2) * d, y: y + Math.sin(a + 2) * d * 0.62, alpha: 0, scale: 0.4, rotation: (Math.random() - 0.5) * 6, duration: 700 + Math.random() * 300, ease: 'Sine.easeOut', onComplete: () => cl.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1000 }, speed: { min: 30, max: 120 }, angle: { min: 0, max: 360 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [BLOOD, BRIGHT, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth); em.explode(Math.round(20 * mult)); made.push(em); scene.time.delayedCall(1000, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // BLOOD MOON (fight T4 finale): a swollen blood moon rises and the arena floods
+  // — pools spread, a rain of droplets falls, the screen pulses crimson.
+  bloodMoonFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 18, rectW: 220, rectH: 170, ...opts }
+    const made = [], BLOOD = 0x9e0b18, BRIGHT = 0xff2a42, PALE = 0xff9ab4, mult = _particlesMult()
+    const moonY = y - o.rectH * 0.5
+    // the blood moon — a dark-red disc with a heavy crimson glow, rising
+    const moon = scene.add.graphics().setPosition(x, moonY + 40).setDepth(o.depth).setAlpha(0)  // circle-ok: the literal blood MOON disc (a celestial body, not an effect ring)
+    moon.fillStyle(0x6e0a16, 1); moon.fillCircle(0, 0, 34)
+    moon.fillStyle(0x9e0b18, 0.6); moon.fillCircle(-8, -6, 24)
+    moon.fillStyle(0xc41028, 0.4); moon.fillCircle(10, 8, 16)
+    _glow(moon, BRIGHT, 5, 16); made.push(moon)
+    scene.tweens.add({ targets: moon, y: moonY, alpha: 1, duration: 600, ease: 'Sine.easeOut', onComplete: () => scene.tweens.add({ targets: moon, alpha: 0, duration: 900, delay: 700, onComplete: () => moon.destroy() }) })
+    // arena floods — several pools spread across the floor
+    for (let i = 0; i < 5; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.42, py = y + (Math.random() * 2 - 1) * o.rectH * 0.3
+      scene.time.delayedCall(i * 80, () => {
+        if (!_validXY(px, py)) return
+        const pool = scene.add.graphics().setPosition(px, py).setDepth(o.depth - 2).setScale(0.3).setAlpha(0); made.push(pool)
+        _drawBloodPool(pool, 18 + Math.random() * 12, BLOOD)
+        scene.tweens.add({ targets: pool, scale: 1.2, alpha: 0.7, duration: 320, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: pool, alpha: 0, duration: 800, delay: 300, onComplete: () => pool.destroy() }) })
+      })
+    }
+    // rain of droplets from above
+    for (let i = 0; i < 16; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.5, py0 = y - o.rectH * 0.5 - Math.random() * 30
+      const dp = scene.add.graphics().setPosition(px, py0).setDepth(o.depth + 1); made.push(dp)
+      _drawBloodDroplet(dp, 2 + Math.random() * 2)
+      scene.tweens.add({ targets: dp, y: y + o.rectH * 0.3, alpha: 0, duration: 520 + Math.random() * 260, delay: Math.random() * 300, ease: 'Quad.easeIn', onComplete: () => dp.destroy() })
+    }
+    // crimson screen pulse
+    const flash = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(flash)
+    flash.fillStyle(BRIGHT, 0.5); flash.fillEllipse(0, 0, o.rectW * 1.6, o.rectH * 1.4)
+    scene.tweens.add({ targets: flash, alpha: 0, duration: 700, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() })
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 600, max: 1200 }, speedY: { min: 20, max: 80 }, speedX: { min: -50, max: 50 }, x: { min: -o.rectW * 0.5, max: o.rectW * 0.5 }, y: { min: -o.rectH * 0.5, max: -o.rectH * 0.2 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [BLOOD, BRIGHT, PALE], emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round(26 * mult)); made.push(em); scene.time.delayedCall(1200, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(220, 0.005)
     return made
   },
 }

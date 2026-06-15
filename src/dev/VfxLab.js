@@ -69,6 +69,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Demon (Brimstone)', fx: ['infernalPactFx', 'brimstoneMeteorFx', 'pactFinaleFx', 'combustFx', 'infernoFx'] },
   { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'golemBulwarkFx', 'collapseFx'] },
   { label: 'Boss·Lizardman (Plague)', fx: ['plagueSpitFx', 'contagionFx', 'outbreakFx', 'miasmaSpewFx'] },
+  { label: 'Boss·Vampire (Blood Court)', fx: ['bloodRiteFx', 'sanguinePoolFx', 'charmBindFx', 'bloodEruptFx', 'crimsonLanceFx', 'sanguineEmbraceFx', 'bloodTempestFx', 'bloodMoonFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -421,6 +422,22 @@ export class VfxLab {
           { label: 'Miasma Spew (T3)', fire: () => AbilityVfx.miasmaSpewFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
         ]
       }
+      if (entity.archId === 'vampire') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a0a1a, hi: 0xff2a52, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Blood',  fire: aura(0.3) },
+          { label: 'Aura: Mid Blood',  fire: aura(0.65) },
+          { label: 'Aura: High Blood', fire: aura(1) },
+          { label: 'Blood Rite (room)', fire: () => AbilityVfx.bloodRiteFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), toX: tX(), toY: tY(), rectW: 200, rectH: 150, victims: [{ x: tX(), y: tY() }] }) },
+          { label: 'Sanguine Pool', fire: () => AbilityVfx.sanguinePoolFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 180, rectH: 130 }) },
+          { label: 'Charm Bind', fire: () => AbilityVfx.charmBindFx(this._scene, tX(), tY(), {}) },
+          { label: 'Blood Erupt (T4)', fire: () => AbilityVfx.bloodEruptFx(this._scene, tX(), tY(), { tier: 4 }) },
+          { label: 'Crimson Lance', fire: () => AbilityVfx.crimsonLanceFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: tX(), toY: tY() }) },
+          { label: 'Sanguine Embrace', fire: () => AbilityVfx.sanguineEmbraceFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: tX(), toY: tY() }) },
+          { label: 'Blood Tempest (T3)', fire: () => AbilityVfx.bloodTempestFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
+          { label: 'Blood Moon (T4)', fire: () => AbilityVfx.bloodMoonFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }) },
+        ]
+      }
       if (entity.archId === 'golem') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
         return [
@@ -718,6 +735,15 @@ export class VfxLab {
         case 'contagionFx':   AbilityVfx.contagionFx(s, e.worldX, e.worldY, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 60), toY: (d?.worldY ?? e.worldY) - 16 }); break
         case 'outbreakFx':    AbilityVfx.outbreakFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
         case 'miasmaSpewFx':  AbilityVfx.miasmaSpewFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
+        // Boss · Vampire (The Blood Sovereign) — tier cycles 1→4.
+        case 'bloodRiteFx':      AbilityVfx.bloodRiteFx(s, e.worldX, e.worldY, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 60), toY: (d?.worldY ?? e.worldY), rectW: 200, rectH: 150, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
+        case 'sanguinePoolFx':   AbilityVfx.sanguinePoolFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 180, rectH: 130 }); break
+        case 'charmBindFx':      AbilityVfx.charmBindFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, {}); break
+        case 'bloodEruptFx':     AbilityVfx.bloodEruptFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 8, { tier: 4 }); break
+        case 'crimsonLanceFx':   AbilityVfx.crimsonLanceFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 90), toY: (d?.worldY ?? e.worldY) - 16 }); break
+        case 'sanguineEmbraceFx': AbilityVfx.sanguineEmbraceFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 90), toY: (d?.worldY ?? e.worldY) - 16 }); break
+        case 'bloodTempestFx':   AbilityVfx.bloodTempestFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
+        case 'bloodMoonFx':      AbilityVfx.bloodMoonFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

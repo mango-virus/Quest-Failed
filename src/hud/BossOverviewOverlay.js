@@ -424,6 +424,8 @@ export class BossOverviewOverlay {
       this._renderBedrockStatus(),
       // Virulence readout (Lizardman — The Plague-Bearer)
       this._renderVirulenceStatus(),
+      // Blood readout (Vampire — The Blood Sovereign)
+      this._renderBloodStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -771,6 +773,30 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${infected} infected · phase: ${phase}. The plague spreads body-to-body and ticks harder as Virulence (banked per infected kill) climbs.`),
+    ])
+  }
+
+  _renderBloodStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'vampire') return null
+    const boss = this._gameState.boss ?? {}
+    const blood = Math.floor(boss.blood ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.VAMPIRE_BLOOD_CAP_BASE ?? 60) + tier * (Balance.VAMPIRE_BLOOD_CAP_PER_ACT ?? 50)
+    const thralls = (this._gameState.minions ?? []).filter(m => m._isVampireThrall && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
+    const C = '#ff3a6a'
+    const pct = Math.max(0, Math.min(100, (blood / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'Blood Moon' : tier >= 3 ? 'Sanguine Vigor' : tier >= 2 ? 'Growing Court' : 'Blood Tax'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'BLOOD'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(blood)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#220810', border: '1px solid #3a141c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#7a0f24,#ff3a6a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${thralls} thrall${thralls === 1 ? '' : 's'} in the Court · phase: ${phase}. BLOOD banks from every wound the dungeon deals + each kill; spend it on Blood Rites and feast in the throne fight.`),
     ])
   }
 

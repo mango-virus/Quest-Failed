@@ -397,6 +397,40 @@ export const Balance = {
   VAMPIRE_CHARM_USES_PER_DAY_BASE: 1,
   VAMPIRE_CHARM_USES_PER_BOSS_LV:  0.25, // +0.25 uses per boss-lv (1 extra every 4 lv)
 
+  // --- Boss overhaul #9: THE BLOOD SOVEREIGN — banked BLOOD economy ---
+  VAMPIRE_BLOOD_PER_DMG_FRAC:     0.30,  // BLOOD banked = 30% of dungeon damage dealt to heroes
+  VAMPIRE_BLOOD_PER_KILL:         8,     // gulp per hero death
+  VAMPIRE_BLOOD_PER_KILL_PER_LV:  0.6,   // +per victim level
+  VAMPIRE_BLOOD_CAP_BASE:         60,    // cap = BASE + act*PER_ACT
+  VAMPIRE_BLOOD_CAP_PER_ACT:      50,
+  VAMPIRE_BLOOD_REGEN_FRAC:       0.012, // boss self-heal/sec = 1.2% of current BLOOD (passive trickle)
+  VAMPIRE_BLOOD_VIGOR_SAT:        0.5,   // T3 Sanguine Vigor lifesteal kicks in above this BLOOD saturation
+  VAMPIRE_BLOOD_VIGOR_LIFESTEAL:  0.25,  // 25% of vigor-buffed dungeon damage also heals the boss
+
+  // BLOOD RITE (day active) — crowd %maxHP drain, escalates by act.
+  VAMPIRE_RITE_USES_PER_DAY:      1,
+  VAMPIRE_RITE_USES_PER_BOSS_LV:  0.25,
+  VAMPIRE_RITE_DRAIN_PCT:         0.06,  // T1 Tithe: drain 6% maxHP from everyone in the room
+  VAMPIRE_RITE_DRAIN_PCT_PER_ACT: 0.025, // +2.5%/act (T4 = 13.5%)
+  VAMPIRE_RITE_POOL_MS:           5000,  // T3 Sanguine Pool lingers this long
+  VAMPIRE_RITE_POOL_TICK_MS:      1000,  // pool taxes standing heroes each second
+  VAMPIRE_RITE_POOL_PCT:          0.02,  // pool drain = 2% maxHP/tick
+  VAMPIRE_RITE_CONVERT_PCT:       0.25,  // T4 Crimson Rite: heroes left below 25% maxHP are charmed
+
+  // The Court — charm scaling + Blood Bond chain (T4).
+  VAMPIRE_COURT_CHARM_PER_ACT:    1,     // +1 daily charm per act beyond the level-based baseline
+  VAMPIRE_BOND_ERUPT_PCT:         0.05,  // T4 charmed-death blood AoE = 5% maxHP to nearby heroes
+  VAMPIRE_BOND_RADIUS_TS:         2.5,
+  VAMPIRE_BOND_CHAIN_PER_DAY:     3,     // cap on bond chain-charms per day (anti-snowball)
+
+  // Throne fight — tier-gated lifedrain rotation (all %maxHP).
+  VAMPIRE_FIGHT_LANCE_PCT:        0.05,  // T1 Crimson Lance: 5% maxHP to top-aggro hero, lifesteal
+  VAMPIRE_FIGHT_EMBRACE_PCT:      0.10,  // T2 Sanguine Embrace: 10% maxHP drain channel
+  VAMPIRE_FIGHT_TEMPEST_PCT:      0.05,  // T3 Blood Tempest: 5% maxHP to all heroes, heal per hit
+  VAMPIRE_FIGHT_MOON_PCT:         0.07,  // T4 Blood Moon: 7% maxHP repeated mass exsanguinate
+  VAMPIRE_FIGHT_MOON_BLOOD_SCALE: 0.0008,// + per banked BLOOD (snowball into the finale)
+  VAMPIRE_FIGHT_LIFESTEAL:        0.6,   // fraction of fight damage that heals the boss
+
   // --- Phase 1b.11: Gnoll Alpha ---
   GNOLL_HUNTERS_PACK_MAX:           5,    // max free gnolls in boss room (lvl 5+ caps here) — base
   GNOLL_HUNTERS_PACK_MAX_PER_BOSS_LV: 0.5, // +0.5 pack-max per boss-lv (floor)

@@ -979,6 +979,61 @@ writhing green miasma TENDRIL leaps carrier→carrier w/ a traveling mote + puff
 
 ---
 
+## Boss overhaul #9 — Vampire Sovereign → THE BLOOD SOVEREIGN (locked 2026-06-15)
+
+**Fantasy:** an aristocrat who runs the dungeon as a blood economy. Everything that bleeds feeds him; he
+spends that blood on lavish Rites and a growing charmed Court, and personally feasts in the throne fight.
+
+**BLOOD — banked resource (`boss.blood`, persists):** banks from a dungeon-wide blood tax (a % cut of ALL
+damage dealt to heroes by dungeon sources — minions, thralls, traps, his own Rites — reframes the canon
+"Blood Tax" into a pool, still heals him as it banks) + a big gulp on every hero death (level-scaled). Caps
+by act (`BASE + act×PER_ACT`). Passive trickle of self-regen scaled to current Blood; saturation drives the
+aura. NO heal-block anywhere in the kit.
+
+**Day active — BLOOD RITE** (arm → pick room → fire; uses/day scale w/ level, refill nightly; crowd-wide,
+%maxHP, escalates by act): T1 **Tithe** (drain %maxHP from everyone in the room → bank + heal) → T2 **Court
+Levy** (bigger drain; the lowest-HP hero in the room is charmed into a thrall) → T3 **Sanguine Pool** (leaves
+a blood pool on the floor that keeps taxing heroes standing in it, banks Blood) → T4 **Crimson Rite** (heavy
+room-wide exsanguinate; any hero dropped below a threshold is instantly charmed → mass conversion; huge Blood
+spike).
+
+**Dungeon kit by act — the Court + economy (`_tickVampire`):** T1 **Blood Tax + Charm** (tax banks/heals;
+charm 1 hero/day → roaming thrall, canon kept) → T2 **Growing Court** (charm count + thrall strength scale,
+Blood-scaled) → T3 **Sanguine Vigor** (while Blood is high, Sovereign + thralls gain lifesteal on hits —
+a flourish, not the identity) → T4 **Blood Bond** (a charmed hero who dies erupts in a %maxHP blood AoE to
+nearby heroes, banked, AND charms a neighbor — chain, capped).
+
+**Throne fight — the Sovereign** (tier-gated fight-timer hazard layer, reuses canon names): T1 **Crimson
+Lance** (blood-bolt at top-aggro hero, %maxHP, lifesteal heal) → T2 **Sanguine Embrace** (seize + drain-channel
+one hero %maxHP, big self-heal + Blood) → T3 **Blood Tempest** (swirling blood storm, %maxHP to all heroes,
+heals per hero hit — crowd lifesteal) → T4 **Blood Moon** finale (<30% HP: floods the arena, repeated mass
+exsanguinate scaling with banked Blood → near-unkillable burst).
+
+**Tells:** crimson pulsing glow-outline aura reading Blood saturation (maroon → crimson → searing red); body
+unchanged. Charmed heroes get a crimson charm tint + heart-mote so you can see the Court forming. BLOOD gauge
++ thrall count + phase in the boss panel.
+
+**VFX (bespoke, animated; new `blood*`/`vampire*`-prefixed — won't touch existing `bloodThread`/`bloodShield`/
+`bloodShieldHit`/`bloodFeast`):** `bloodRiteFx` (room exsanguinate → tendrils + droplets stream into the
+Sovereign), `sanguinePoolFx` (rippling shaded blood pool zone), `charmBindFx` (hypnotic crimson hearts/mist +
+conversion flash), `bloodEruptFx` (thrall death nova + chain-charm tendril), `crimsonLanceFx`,
+`sanguineEmbraceFx` (blood tether drain), `bloodTempestFx` (swirling storm), `bloodMoonFx` (rising blood moon
++ arena flood). Shaded helpers `_drawBloodDrop`/`_drawBloodPool`/`_drawBloodTendril`.
+
+**Always-useful:** Rite + tax + tempest + bond are all crowd-wide/%maxHP; Blood snowballs; charm scales the
+Court with the crowd. No single-target fixed-magnitude, no heal-block.
+
+**Acceptance checklist (Blood Sovereign):**
+- ☐ BLOOD (`boss.blood`) banks from dungeon damage-to-heroes + per-kill gulp; persists; caps/act; passive regen; gauge + readout.
+- ☐ Day BLOOD RITE: arm→room, tier-gated Tithe/Court Levy/Sanguine Pool/Crimson Rite; DOM button + Phaser room-pick + events; uses/day reset on night; crowd %maxHP.
+- ☐ Dungeon kit: T1 Blood Tax + daily charm→thrall; T2 Court scaling; T3 Sanguine Vigor lifesteal; T4 Blood Bond charmed-death erupt + chain-charm (capped).
+- ☐ Throne fight tier-gated: Crimson Lance / Sanguine Embrace / Blood Tempest / Blood Moon finale (Blood-scaled).
+- ☐ Tells: crimson glow-outline aura (BossRenderer) reading Blood; charmed crimson tint + heart-mote (AdventurerRenderer); BLOOD + thrall panel readout.
+- ☐ Bespoke animated blood VFX (bloodRite/sanguinePool/charmBind/bloodErupt/crimsonLance/sanguineEmbrace/bloodTempest/bloodMoon), lab-wired; lint-vfx clean (incl. dup-key guard); meets detail bar; live-verified.
+- ☐ SaveSystem persists blood, strips scene-time zone/timer fields; node --check; new vampire-bloodcourt-check.mjs green; soak clean; bossArchetypes.json text; live preview verified.
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:
