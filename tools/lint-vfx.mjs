@@ -61,4 +61,39 @@ if (violations.length) {
   process.exit(1)
 }
 console.log('  ✓ All round/ring shapes are justified (tagged or inside a ring primitive).\n')
+
+// ── Duplicate-key guard ──────────────────────────────────────────────────────
+// A method defined twice in the AbilityVfx object literal silently CLOBBERS the
+// earlier one (last-wins) — this is how a new boss VFX once overwrote a minion's
+// (the `bulwarkFx` incident). Catch any AbilityVfx method or module helper
+// declared more than once.
+{
+  const KW = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'else', 'do'])
+  const dupViol = []
+  for (const f of FILES) {
+    let src
+    try { src = readFileSync(f, 'utf8') } catch { continue }
+    const lines = src.split('\n')
+    const objStart = lines.findIndex(l => /^export const AbilityVfx = \{/.test(l))
+    const methods = {}   // 2-space-indented `name(` after the object opens
+    for (let i = (objStart < 0 ? 0 : objStart); i < lines.length; i++) {
+      const m = lines[i].match(/^ {2}([A-Za-z_$][\w$]*)\s*\(/)
+      if (m && !KW.has(m[1])) (methods[m[1]] = methods[m[1]] || []).push(i + 1)
+    }
+    const helpers = {}   // module-level helper functions
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^function ([A-Za-z_$][\w$]*)\s*\(/)
+      if (m) (helpers[m[1]] = helpers[m[1]] || []).push(i + 1)
+    }
+    for (const [k, at] of Object.entries(methods)) if (at.length > 1) dupViol.push({ f, k, at, kind: 'method' })
+    for (const [k, at] of Object.entries(helpers)) if (at.length > 1) dupViol.push({ f, k, at, kind: 'helper' })
+  }
+  if (dupViol.length) {
+    console.log('VFX duplicate-key guard — a name declared twice silently clobbers the earlier one\n')
+    for (const v of dupViol) console.log(`  ✗ ${v.f}: ${v.kind} "${v.k}" defined ${v.at.length}× @ lines ${v.at.join(', ')}`)
+    console.log('\n  Rename one (prefix boss-specific VFX, e.g. golemBulwarkFx) so it stops overwriting the other.\n')
+    process.exit(1)
+  }
+  console.log('  ✓ No duplicate AbilityVfx method / helper names.\n')
+}
 process.exit(0)
