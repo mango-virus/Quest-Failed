@@ -230,7 +230,7 @@ export class TrapSystem {
 
     // Cooldown is spent whether or not the shot jams, so a jam costs a
     // full reload rather than retrying on the very next frame.
-    trap.cooldownUntil = now + (def.cooldownMs ?? 2000)
+    trap.cooldownUntil = now + (def.cooldownMs ?? 2000) * this._rechargeMult()
     if (this._jammed(trap, target)) return
 
     const dmg    = this._modifiedDamage(trap, def)
@@ -366,7 +366,7 @@ export class TrapSystem {
     const victims = this._targets(def).filter(inRange)
     if (!victims.length) return
 
-    trap.cooldownUntil = now + (def.cooldownMs ?? 1000)
+    trap.cooldownUntil = now + (def.cooldownMs ?? 1000) * this._rechargeMult()
     if (this._jammed(trap, victims[0])) return
 
     const dmg    = this._modifiedDamage(trap, def)
@@ -387,7 +387,7 @@ export class TrapSystem {
     const now = this._scene.time.now
     const fp  = trap.footprint ?? { w: 1, h: 1 }
     trap.state.hitAt ??= {}
-    const reHit = def.cooldownMs ?? 600
+    const reHit = (def.cooldownMs ?? 600) * this._rechargeMult()
 
     for (const e of this._targets(def)) {
       const onPit = e.tileX >= trap.tileX && e.tileX < trap.tileX + fp.w &&
@@ -429,7 +429,7 @@ export class TrapSystem {
     const sx = horiz ? trap.tileX + i : trap.tileX
     const sy = horiz ? trap.tileY     : trap.tileY + i
 
-    const reHit = def.cooldownMs ?? 1000
+    const reHit = (def.cooldownMs ?? 1000) * this._rechargeMult()
     st.hitAt ??= {}
     for (const e of this._targets(def)) {
       if (e.tileX !== sx || e.tileY !== sy) continue
@@ -596,6 +596,15 @@ export class TrapSystem {
 
   // Base damage with pact / mechanic / Engineer modifiers folded in. Computed
   // once per fire so a 5× Brand bless is consumed by exactly one volley.
+  // Orc Veteran ARCANE Mastery aura (T3+) — traps recharge faster. Returns the
+  // multiplier applied to every trap's cooldownMs (1 = no aura). Read off the
+  // live boss state that BossArchetypeSystem publishes.
+  _rechargeMult() {
+    return this._gameState?.boss?._orcMastery?.type === 'arcane'
+      ? (Balance.ORC_MASTERY_TRAP_RECHARGE_MULT ?? 1)
+      : 1
+  }
+
   _modifiedDamage(trap, def) {
     let dmg = def.baseDamage ?? 0
     if (dmg <= 0) return 0

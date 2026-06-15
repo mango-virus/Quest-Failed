@@ -23,6 +23,7 @@
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { isActsEnabled, currentAct } from '../config/acts.js'
+import { AbilityVfx } from './AbilityVfx.js'
 
 // Sprites render at their native frame size × BOSS_SPRITE_SCALE. 64-frame
 // sheets show at 64×SCALE, 128-frame sheets at 128×SCALE. NEAREST filtering
@@ -152,6 +153,9 @@ export class BossRenderer {
     // for T4, so a persistent dark-power aura is what makes the final form read
     // as distinct in-world (the succubus, with one sheet, wears it from act II).
     this._updateAscensionAura()
+    // Elder Lich — persistent soul aura whose colour/intensity reads his soul
+    // saturation (essence ÷ a scaling capacity); overflow → "Oversouled".
+    this._updateSoulAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -315,6 +319,7 @@ export class BossRenderer {
     this._slimeHurtUntil.clear()
     this._slimeLastHp.clear()
     this._ascAura = null   // destroyed with the container below
+    this._soulGlow = null  // postFX on the sprite; destroyed with the container below
     this._container?.destroy()
     this._container = null
     this._sprite    = null
@@ -473,6 +478,64 @@ export class BossRenderer {
       targets: g, scaleX: 1.14, scaleY: 1.14, alpha: 0.7,
       duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     })
+  }
+
+  // ── Elder Lich — SOUL AURA (the in-world soul tell) ──────────────────────
+  // A pulsing Glow OUTLINE tracing the boss silhouette (same technique as the
+  // demon's burning wreath), whose colour + strength read soul SATURATION
+  // (essence ÷ a capacity that grows with act + level, so it stays a 0–100%
+  // read all run). Spending Channel Souls drops essence → the outline visibly
+  // dims. Past capacity → "Oversouled" overflow: searing colour, harder pulse,
+  // and souls visibly leaking off him. Plus rising-wisp ambiance.
+  _soulCapacity() {
+    const lvl = this._gameState?.boss?.level ?? 1
+    return (Balance.LICH_AURA_CAP_BASE ?? 60)
+      + currentAct(this._gameState) * (Balance.LICH_AURA_CAP_PER_ACT ?? 55)
+      + lvl * (Balance.LICH_AURA_CAP_PER_LEVEL ?? 7)
+  }
+
+  _updateSoulAura() {
+    const isLich = this._gameState?.player?.bossArchetypeId === 'lich'
+    if (!isLich || !this._container || !this._sprite) { this._clearSoulAura(); return }
+    const boss = this._gameState.boss
+    const ess  = boss?.soulEssence ?? 0
+    const cap  = this._soulCapacity()
+    const sat  = Math.max(0, Math.min(1, ess / cap))
+    const overK = ess > cap ? Math.max(0, Math.min(1, (ess - cap) / cap)) : 0
+    const col  = AbilityVfx.soulAuraColor(sat, overK)
+    const now  = this._scene?.time?.now ?? 0
+    const dsz  = this._sprite.displayHeight || 96
+
+    // THE AURA — a pulsing Glow outline on the boss sprite (WebGL only).
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.soulGlowParams(sat, overK, now)
+      if (!this._soulGlow) { try { this._soulGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 12) } catch (e) { this._soulGlow = true } }
+      else if (this._soulGlow !== true) { try { this._soulGlow.color = p.color; this._soulGlow.outerStrength = p.strength } catch (e) {} }
+    }
+
+    // rising soul-fire wisps — spawn rate scales with saturation (the "alive" layer).
+    const interval = 700 - 560 * sat
+    if (sat > 0.04 && now - (this._soulWispAt ?? 0) >= interval) {
+      this._soulWispAt = now
+      AbilityVfx.spawnSoulWisp(this._scene, boss.worldX, boss.worldY, dsz, col, (7 + boss.worldY * 0.0005) + 0.5)
+    }
+
+    // Oversouled overflow — periodically a whole soul peels off and dissipates.
+    if (overK > 0 && now - (this._soulLeakAt ?? 0) >= 760) {
+      this._soulLeakAt = now
+      const ang = now * 0.0007
+      const sp = AbilityVfx?.makeSoulSprite?.(this._scene, boss.worldX + Math.cos(ang) * 18, boss.worldY - dsz * 0.2, { color: col, scale: 0.3, depth: (7 + boss.worldY * 0.0005) + 0.6, alpha: 0.85 })
+      if (sp) {
+        this._scene.tweens.add({ targets: sp, x: sp.x + Math.cos(ang) * 36, y: sp.y - 40 - Math.random() * 20, alpha: 0, scale: 0.18, duration: 900, ease: 'Sine.easeOut', onComplete: () => sp.destroy() })
+      }
+    }
+  }
+
+  _clearSoulAura() {
+    if (this._soulGlow && this._soulGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._soulGlow) } catch (e) {}
+    }
+    this._soulGlow = null
   }
 
   _build(boss) {

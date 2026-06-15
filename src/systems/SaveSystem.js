@@ -541,6 +541,10 @@ function _rehydrateRunHistory(state) {
     //   up). NOTE: nerve/mood/_nerveSeeded are intentionally NOT stripped — morale
     //   persists across Continue.
     '_breakingMs', '_appraisingUntil', '_creepUntil', '_conferUntil', '_lastConferAt',
+    // Elder Lich THE WITHERING — Channel Souls DoTs (scene-time stamped). A saved
+    // future value would phantom-rot / keep a hero caged after load. (_noHealUntil
+    // + _petrifiedUntil are already stripped above.)
+    '_witherUntil', '_witherTickAt', '_soulCagedUntil', '_soulCageTickAt',
   ]
   for (const a of (state.adventurers.active ?? [])) {
     for (const k of ADV_TRANSIENT_KEYS) if (k in a) delete a[k]
@@ -626,6 +630,12 @@ function _rehydrateRunHistory(state) {
     if ('_reanimFadeFrom' in m) m._reanimFadeFrom = null
     if ('_reassembleRapidUntil' in m) m._reassembleRapidUntil = 0  // scene-time stamp (Undying Legion window)
     if ('_boneShellUntil' in m)       m._boneShellUntil       = 0  // scene-time stamp (bone-armor shell)
+    // Orc Veteran TROPHY HUNTER — Mastery aura. The buffed stats are persisted;
+    // restore the captured baselines + clear them so the aura re-applies fresh
+    // on the next tick (mirrors the Warband / Bloodlust baseline contract).
+    if (m._masteryBaseAtk != null)   { if (m.stats) m.stats.attack  = m._masteryBaseAtk;  m._masteryBaseAtk  = null }
+    if (m._masteryBaseDef != null)   { if (m.stats) m.stats.defense = m._masteryBaseDef;  m._masteryBaseDef  = null }
+    if (m._masteryBaseRange != null) { m.attackRange = m._masteryBaseRange; m._masteryBaseRange = null }
     // Orc Warpath — restore base speed + clear the scene-time rampage window.
     if (m._rampageBaseSpeed != null && m.stats) m.stats.speed = m._rampageBaseSpeed
     if ('_rampageUntil' in m)     m._rampageUntil     = 0
@@ -719,6 +729,11 @@ function _rehydrateRunHistory(state) {
     '_doppelReadyAt', '_doppelActiveUntil',
     '_petrifyReadyAt', '_petrifyBackfireUntil',
     '_avengerDazeUntil', '_avengerBuffUntil',
+    // Orc Veteran TROPHY HUNTER — Mastery aura snapshot + throne-fight buffs.
+    // `trophies` (the claimed arsenal) is PERMANENT and intentionally kept; only
+    // these recomputed/transient fields are dropped. `_orcMastery` re-derives on
+    // the next BossArchetypeSystem tick; `_lastStand`/`_braceUntil` are per-fight.
+    '_orcMastery', '_orcMasteryActive', '_lastStand', '_braceUntil',
   ]
   if (state.boss) {
     for (const k of BOSS_TRANSIENT_KEYS) if (k in state.boss) delete state.boss[k]

@@ -576,6 +576,104 @@ whole set (the placeholder rings/floaters were deliberate — VFX was always pha
 
 ---
 
+## Boss ability + VFX overhaul (2026-06-14) — per-tier kit + throne fight + VFX
+
+The big pass: overhaul ALL 12 player bosses so their abilities feel boss-tier mechanically AND
+visually, elevated above minion/adventurer. Locked decisions (verbatim): tier model = **"Full
+per-tier phase redesign"** (redesign each boss's whole kit around 4 tier phases from scratch);
+fight scope = **"Yes — fight + kit + VFX"** (rework each archetype's throne fight to be unique +
+tier-escalating, plus dungeon kit + VFX); tier driver = **"Acts (T1–T4)"** = `currentAct(gameState)`.
+Cadence: I give **multiple options per boss → user picks one → build it out** (Loot-the-Fallen-style
+"not boss-level" mechanics are rejected). Animations for boss abilities/attacks must be very
+well done where they'd improve the read (user note, applies to all bosses).
+
+### Boss #1 — Orc Veteran → **TROPHY HUNTER** (LOCKED 2026-06-14)
+
+**Core loop:** the Veteran claims a **trophy** from every hero class the dungeon kills. First kill
+of a class **claims** its trophy type (arms that attack); repeat kills of the same type **empower**
+it (stacks → more damage/range). Kill history builds his arsenal for the throne fight. (Replaces
+"Loot the Fallen.")
+
+**The 5 trophy types** (mapped from class tags → throne attack):
+- **⚔ Blade** — melee dps/rage/evade (barbarian, monk, samurai, pirate, gambler, miner, peasant, rogue, knight, cosplay) → **Cleave** (frontal crescent + knockback). Blade is also his innate basic.
+- **🛡 Heavy** — tanks/bruisers (gladiator, paladin, templar) → **Shield Bash** (gap-close charge, then guards / DR for a beat).
+- **🔮 Arcane** — spellcasters (mage, necromancer, black_mage) → **Hexbolt** (chained stolen-magic orb hurled at highest-aggro hero).
+- **🏹 Hunter** — ranged/pets (ranger, bard, beast_master) → **Volley** (fan of spinning thrown weapons).
+- **✚ Faith** — healers (cleric, white_mage, valkyrie) → **Reaver's Smite** (overhead strike that heals him for damage dealt).
+- Event/non-combatant classes (invaders, loot goblin, cartographer, cheater, nemeses) DON'T grant trophies.
+
+**Tier escalation (Acts I→IV):**
+- **T1** — claims trophies; throne fight wields his **2 strongest** claimed attacks (+ basic swings).
+- **T2** — wields **3**; repeat-kill **stacks scale** each attack's damage/range.
+- **T3** — wields **all** claimed attacks and **chains two back-to-back**; gains the **Mastery aura**.
+- **T4** — **Veteran's Armory** ult: below ~30% HP he unleashes a sequence firing *every* claimed trophy attack, plus a Last Stand speed/ATK surge.
+
+**Dungeon-phase payoff:** a **Trophy Wall** on the boss inspect panel (claimed types + stack counts).
+**Mastery aura (T3+):** most-claimed type → dungeon-wide passive — Blade→minions +ATK, Heavy→minions
++DEF, Arcane→traps recharge faster, Hunter→minion attack range, Faith→boss heals over time.
+
+**VFX language:** iron/bronze brutality + the stolen class's color. Claim = fallen's emblem streaks
+to a growing throne rack. Cleave = iron crescent w/ class-color edge; Shield Bash = sparking charge +
+brace flash; Hexbolt = crude orb bound in rattling iron chains; Volley = fan of trailing axes;
+Reaver's Smite = overhead strike with a light-thread siphoning back; Armory = every weapon orbits
+then fires outward in sequence. All bespoke `AbilityVfx` primitives, lab-testable.
+
+**Acceptance checklist (Trophy Hunter):**
+- ☐ Class→trophy-type classifier covers the full roster (tag-driven, Blade default); event/non-combatant excluded.
+- ☐ First kill of a type CLAIMS; repeat kills EMPOWER (stacks) — stored JSON-serializable on `boss.trophies`, save-safe.
+- ☐ Throne fight: Cleave / Shield Bash / Hexbolt / Volley / Reaver's Smite implemented as tier-gated boss actions, each with windup→strike→damage like the slam.
+- ☐ Reaver's Smite heals the boss for a fraction of damage dealt.
+- ☐ Tier gating: T1 = 2 strongest, T2 = 3 + stack-scaling, T3 = all + 2-chain combo, T4 = Armory ult <30% HP + Last Stand surge.
+- ☐ Mastery aura (T3+): top type → its dungeon-wide passive; baseline-captured + reversible like Warband/Bloodlust.
+- ☐ Trophy Wall in InspectPopup boss content.
+- ☐ Bespoke VFX for each attack + claim + Armory, evolving feel by tier; all in the VFX Lab; lint-vfx clean.
+- ☐ Headless harness green; soak clean; bossArchetypes.json headline/mechanics text updated.
+
+### Boss #2 — Elder Lich → **THE WITHERING** (LOCKED 2026-06-14)
+
+**Core resource — Soul Essence.** Every adventurer who dies anywhere in the dungeon banks **Soul
+Essence** on the boss (`boss.soulEssence`, persists all run, visible gauge). Essence is the Lich's
+**lifeline** (the folded Phylactery — it regenerates HP while holding essence), the **ammo** for the
+day-phase active ability, and the **reserve** it carries into the throne fight. **Necromancy is CUT**
+(no raised undead). **Phylactery Heart is retired** (folded into Soul Essence; the `phylactery_heart`
+build item is removed from the menu).
+
+**Design mandates honored:** every effect SCALES (room-wide / per-victim / with banked essence) so it
+never falls off late game ([[feedback_ability_scaling_early_late]]); the day kit is PLAYER-ACTIVE
+([[feedback_boss_day_phase_agency]]).
+
+**Day phase — active player ability: CHANNEL SOULS** (button → arm → click a target room → fire;
+spends essence; mirrors Golem Earthquake's arm/target/fire). ONE button that ESCALATES by tier
+(act), all room-wide so it scales with the crowd:
+- **T1 · Soul Bolt** — blast every adventurer in the room; damage scales with essence spent.
+- **T2 · +Soul Siphon** — also drains the room over a few seconds → heals the boss + banks bonus essence per victim.
+- **T3 · +Wither** — also curses the room: reduced healing + stacking soul-rot DoT for the day.
+- **T4 · Soul Cage** — cages everyone in the room (trapped + drained); late game = jail a whole swarm.
+*(Passive underneath: Soul Harvest banks essence on every death; the Lich regenerates HP while holding essence.)*
+Player choice each day: HOARD essence (regen + bigger final fight) or SPEND it now (kill pressure) and WHERE.
+
+**Throne fight — lifedrain death-caster** (enters with banked essence as a reserve; all multi-target so big parties don't trivialize it):
+- **T1 · Death Coil** — soul-bolt damages a hero + heals the Lich (chains to more targets at higher tiers).
+- **T2 · Soul Siphon** — sustained beam tethering 2–3 heroes, draining HP to the Lich each tick.
+- **T3 · Soul Nova** — AoE burst damaging all + big self-heal + applies Wither (reduced healing) on hit.
+- **T4 · Soul Cage (ult)** — cages the highest-threat cluster (removed + drained) while the Lich feasts for a massive heal.
+
+**VFX language:** sickly soul-fire (green↔violet), wispy/ghostly — distinct from the Orc's iron/bronze.
+Harvest wisps streaking to the Lich; drain threads pulling stolen life back; wailing-face Soul Nova;
+soul-bar Cage; grey Wither aura. All bespoke `AbilityVfx` primitives, tier-escalating, lab-testable.
+
+**Acceptance checklist (The Withering):**
+- ☐ Necromancy raise CUT (no pendingRaises enqueued for lich); Phylactery `phylactery_heart` item removed from build menu.
+- ☐ Soul Essence banks on every dungeon death (`boss.soulEssence`), persists; passive HP regen while holding essence.
+- ☐ Day ability CHANNEL SOULS: arm→click room→fire, spends essence, DOM button (BossArchetypeStrip) + Phaser room-pick + arm/disarm/fired events; disabled when no essence / not day.
+- ☐ Channel effect escalates by act-tier (bolt → +siphon/heal → +wither → cage) and is room-wide (scales with crowd) + scales with essence spent.
+- ☐ Throne fight: Death Coil / Soul Siphon / Soul Nova / Soul Cage as tier-gated boss actions, all multi-target, lifedrain heals the boss.
+- ☐ Soul Essence gauge shown on the boss overview panel.
+- ☐ Bespoke soul-fire VFX for harvest + each attack; tier-escalating; all in the VFX Lab; lint-vfx clean.
+- ☐ Headless harness green; soak clean; bossArchetypes.json lich headline/mechanics updated; live preview positions verified.
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

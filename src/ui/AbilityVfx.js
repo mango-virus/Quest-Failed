@@ -519,6 +519,120 @@ function _drawDreadSpirit(g, s, color) {
   g.fillStyle(0xffffff, 0.78); g.fillCircle(-s * 0.08, -s * 0.27, s * 0.13)     // spec glint
 }
 
+// A detailed SOUL / departed spirit (centred near 0,0, head up): a cold halo,
+// THREE frayed soul-tails trailing down, a flowing robed veil, and a ghost head
+// with HOLLOW eyes + an open WAILING mouth — the unmistakable "this is a soul"
+// read. Tinted any soul hue (green/violet); drawn additive so it glows.
+function _drawSoul(g, s, color) {
+  const cold = color
+  const pale = _lerpColor(color, 0xffffff, 0.62)
+  const dark = _lerpColor(color, 0x05060f, 0.80)
+  // soft cold halo bleeding out behind everything
+  for (let i = 5; i >= 1; i--) { g.fillStyle(cold, 0.05); g.fillCircle(0, -s * 0.1, i * s * 0.32) }
+  // 3 frayed, wavy soul-tails tapering to points (flowing spectral light)
+  const ribbon = (kx, len, baseW, ph, col, al, wmul) => {
+    g.fillStyle(col, al); g.beginPath()
+    const segs = 9
+    for (let i = 0; i <= segs; i++) { const t = i / segs, y = s * 0.3 + t * len, w = baseW * wmul * (1 - t) * (0.66 + 0.34 * Math.sin(t * 7 + ph)), cx = kx + Math.sin(t * 4 + ph) * s * 0.22 * t; const px = cx - w; if (i === 0) g.moveTo(px, y); else g.lineTo(px, y) }
+    for (let i = segs; i >= 0; i--) { const t = i / segs, y = s * 0.3 + t * len, w = baseW * wmul * (1 - t) * (0.66 + 0.34 * Math.sin(t * 7 + ph + 1)), cx = kx + Math.sin(t * 4 + ph) * s * 0.22 * t; g.lineTo(cx + w, y) }
+    g.closePath(); g.fillPath()
+  }
+  const tail = (kx, len, baseW, ph) => { ribbon(kx, len, baseW, ph, cold, 0.4, 1); ribbon(kx, len * 0.85, baseW, ph, pale, 0.34, 0.4) }
+  tail(-s * 0.34, s * 1.7, s * 0.18, 0.5)
+  tail(s * 0.0, s * 2.1, s * 0.22, 2.1)
+  tail(s * 0.34, s * 1.55, s * 0.16, 3.5)
+  // flowing robed veil flaring under the head (frayed lower hem)
+  g.fillStyle(cold, 0.5); g.beginPath()
+  g.moveTo(-s * 0.34, -s * 0.2); g.lineTo(s * 0.34, -s * 0.2)
+  g.lineTo(s * 0.8, s * 0.55); g.lineTo(s * 0.3, s * 0.42); g.lineTo(0, s * 0.62); g.lineTo(-s * 0.3, s * 0.42); g.lineTo(-s * 0.8, s * 0.55)
+  g.closePath(); g.fillPath()
+  // ghost head — rounded, slightly pointed at the crown
+  g.fillStyle(cold, 0.64); g.beginPath()
+  const N = 16
+  for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, top = Math.cos(a) > 0, ry = top ? 1.12 : 0.86, wob = 0.85 + 0.18 * Math.sin(a * 3 + 0.7); const px = Math.sin(a) * s * 0.66 * wob, py = -Math.cos(a) * s * ry * wob - s * 0.5; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) }
+  g.closePath(); g.fillPath()
+  g.fillStyle(pale, 0.3); g.fillCircle(0, -s * 0.62, s * 0.4)                  // inner cold glow
+  // FACE — hollow eye voids + an open wailing mouth
+  g.fillStyle(dark, 0.94)
+  g.fillEllipse(-s * 0.24, -s * 0.72, s * 0.2, s * 0.34)
+  g.fillEllipse(s * 0.24, -s * 0.72, s * 0.2, s * 0.34)
+  g.fillEllipse(0, -s * 0.3, s * 0.18, s * 0.32)
+  g.fillStyle(pale, 0.7); g.fillCircle(0, -s * 0.55, s * 0.15)                 // hot core
+  g.fillStyle(0xffffff, 0.8); g.fillCircle(-s * 0.18, -s * 0.84, s * 0.12)     // spec glint
+}
+
+// A "soul" rendered from the actual T1 GHOST minion sprite (animated idle frames
+// → reads as a living ghostly creature, not a static blob), RECOLORED via tint so
+// it doesn't match the in-game ghost minion, with a spectral glow. Falls back to
+// the drawn _drawSoul if the ghost sheet isn't loaded. Default faces the viewer
+// ('down'); pass dir for directional travel. Caller owns position/alpha tweens.
+function _makeSoulSprite(scene, x, y, opts = {}) {
+  if (!scene || typeof scene.add?.sprite !== 'function') return null   // headless-safe
+  const o = { color: 0x9affc0, depth: 15, scale: 0.55, dir: 'down', alpha: 0.95, flipX: false, ...opts }
+  if (scene.textures && scene.textures.exists('minion-ghost1-idle')) {
+    const sp = scene.add.sprite(x, y, 'minion-ghost1-idle').setDepth(o.depth).setScale(o.scale).setAlpha(o.alpha)
+    sp.setTint(o.color)
+    if (o.flipX) sp.setFlipX(true)
+    const anim = `minion-ghost1-idle-${o.dir}`
+    try { if (scene.anims.exists(anim)) sp.play(anim) } catch (e) {}
+    try { sp.postFX.addGlow(o.color, 2.5, 0, false, 0.1, 8) } catch (e) {}
+    return sp
+  }
+  const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(o.scale * 1.8).setAlpha(o.alpha)
+  _drawSoul(g, 9, o.color); _glow(g, o.color, 3, 10)
+  return g
+}
+
+// Pick the ghost idle facing for a travel vector (so a soul faces where it goes).
+function _soulDir(dx, dy) {
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'left' : 'right'
+  return dy < 0 ? 'up' : 'down'
+}
+
+// Depth + perspective cue for an element ORBITING a sprite on a tilted ellipse
+// (y = cy + sin(ang)·Ry). BEHIND at the top of the ring (sin<0 → depth below the
+// sprite so it's occluded) and IN FRONT at the bottom (sin>0 → above), with a
+// smooth size+brightness falloff toward the back. `baseDepth` = the orbited
+// sprite's render depth. The standard for any orbiting aura element.
+function _orbitCue(ang, baseDepth, baseScale = 1, baseAlpha = 1, spread = 0.7) {
+  const sa = Math.sin(ang), front = (sa + 1) / 2
+  return { depth: baseDepth + sa * spread, scale: baseScale * (0.72 + 0.42 * front), alpha: baseAlpha * (0.5 + 0.5 * front) }
+}
+
+// ── Shared SOUL-AURA pieces (used by BossRenderer's live aura AND the lab
+// preview primitive, so they can never visually drift) ───────────────────────
+// Saturation → aura colour: cold teal → green → violet → bright violet, then
+// lerped toward searing white-violet through the overflow band.
+function _soulAuraColor(sat, overK) {
+  let col
+  if (sat < 0.4)       col = _lerpColor(0x3aa0a0, 0x66dd88, sat / 0.4)
+  else if (sat < 0.75) col = _lerpColor(0x66dd88, 0x9a6cff, (sat - 0.4) / 0.35)
+  else                 col = _lerpColor(0x9a6cff, 0xc0a0ff, (sat - 0.75) / 0.25)
+  if (overK > 0) col = _lerpColor(col, 0xf0e6ff, overK * 0.8)
+  return col
+}
+// The "real aura" parameters — a Glow postFX that traces the sprite silhouette
+// (same technique as the demon's burning wreath). Returns { color, strength } for
+// `sprite.postFX.addGlow(color, strength, …)`; strength pulses + scales with
+// saturation/overflow so the outline breathes and brightens with the hoard.
+function _soulGlowParams(sat, overK, now) {
+  const col   = _soulAuraColor(sat, overK)
+  const pulse = 0.78 + 0.22 * Math.sin((now || 0) * 0.005) + overK * 0.25 * Math.sin((now || 0) * 0.013)
+  const base  = 0.6 + 3.4 * sat + overK * 1.8
+  return { color: col, strength: Math.max(0.4, base * pulse) }
+}
+// A small ghostly wisp that rises off a point and fades (world-space, self-cleaning).
+function _spawnSoulWispGfx(scene, x, y, dsz, col, depth) {
+  if (typeof scene.add?.graphics !== 'function') return null
+  const ox = (Math.random() - 0.5) * dsz * 0.5
+  const w = scene.add.graphics().setPosition(x + ox, y - dsz * 0.1).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
+  w.fillStyle(col, 0.55); w.fillEllipse(0, 0, 5, 8)
+  w.fillStyle(0xffffff, 0.4); w.fillCircle(0, -1, 1.6)
+  scene.tweens.add({ targets: w, y: w.y - 22 - Math.random() * 14, x: w.x + (Math.random() - 0.5) * 12, alpha: 0.8, duration: 320, ease: 'Sine.easeOut',
+    onComplete: () => scene.tweens.add({ targets: w, y: w.y - 16, alpha: 0, duration: 360, onComplete: () => w.destroy() }) })
+  return w
+}
+
 // A cracked PHYLACTERY soul-gem — a faceted diamond-cut gem with a jagged crack
 // and an inner soul-glow. The Lich's death/rebirth vessel.
 function _drawPhylactery(g, s, color) {
@@ -583,6 +697,77 @@ function _drawSporeCap(g, s, color) {
   g.fillStyle(dark, 0.85); g.fillEllipse(0, -s * 0.02, s * 1.7, s * 0.5)              // cap rim (underside)
   g.fillStyle(color, 0.95); g.fillEllipse(0, -s * 0.26, s * 1.55, s * 0.92)           // domed cap
   g.fillStyle(lite, 0.6); g.fillCircle(-s * 0.3, -s * 0.42, s * 0.16); g.fillCircle(s * 0.28, -s * 0.32, s * 0.12)   // spots
+}
+
+// ── Orc Veteran (Trophy Hunter) weapon silhouettes ──────────────────────────
+// Drawn into a Graphics centred at 0,0, pointing +X (blade/head to the right) so
+// callers can rotate the whole graphics to any direction. Shaded iron with a
+// drop shadow + bright edge so they read as forged metal, not flat shapes.
+
+// A heavy double-bitted WAR AXE (haft along X, head at +X). `s` ≈ head size.
+function _drawWarAxe(g, s, iron = 0xc7ccd6) {
+  const dark = _lerpColor(iron, 0x000000, 0.45), lite = _lerpColor(iron, 0xffffff, 0.5)
+  g.fillStyle(0x3a2a18, 1); g.fillRect(-s * 1.6, -s * 0.12, s * 2.3, s * 0.24)        // wooden haft
+  g.fillStyle(0x5a4326, 1); g.fillRect(-s * 1.6, -s * 0.12, s * 2.3, s * 0.10)        // haft highlight
+  // axe head — two crescent bits around the haft top
+  const bit = (dir) => {
+    g.fillStyle(dark, 1); g.beginPath()
+    g.moveTo(s * 0.5, 0)
+    g.lineTo(s * 0.62, dir * s * 0.95)
+    g.lineTo(s * 1.18, dir * s * 0.62)
+    g.lineTo(s * 1.05, 0)
+    g.closePath(); g.fillPath()
+    g.fillStyle(iron, 1); g.beginPath()
+    g.moveTo(s * 0.5, 0); g.lineTo(s * 0.58, dir * s * 0.82)
+    g.lineTo(s * 1.08, dir * s * 0.55); g.lineTo(s * 0.98, 0); g.closePath(); g.fillPath()
+    g.lineStyle(1.2, lite, 0.9); g.beginPath(); g.moveTo(s * 0.58, dir * s * 0.82); g.lineTo(s * 1.08, dir * s * 0.55); g.strokePath()  // edge glint
+  }
+  bit(-1); bit(1)
+  g.fillStyle(0x2a2f38, 1); g.fillRect(s * 0.38, -s * 0.3, s * 0.22, s * 0.6)         // iron collar
+}
+
+// A KITE SHIELD (boss faces +X). `s` ≈ shield height. `color` tints the boss.
+function _drawKiteShield(g, s, color = 0xc9a23f) {
+  const dark = _lerpColor(color, 0x000000, 0.5), lite = _lerpColor(color, 0xffffff, 0.5)
+  g.fillStyle(0x111316, 0.5); g.fillEllipse(2, 2, s * 0.9, s * 1.15)                  // shadow
+  g.fillStyle(0x6a6f78, 1); g.beginPath()                                            // iron body
+  g.moveTo(0, -s * 0.6); g.lineTo(s * 0.42, -s * 0.36); g.lineTo(s * 0.42, s * 0.12)
+  g.lineTo(0, s * 0.62); g.lineTo(-s * 0.42, s * 0.12); g.lineTo(-s * 0.42, -s * 0.36)
+  g.closePath(); g.fillPath()
+  g.fillStyle(0x868c96, 1); g.beginPath()                                            // lit left face
+  g.moveTo(0, -s * 0.6); g.lineTo(0, s * 0.62); g.lineTo(-s * 0.42, s * 0.12); g.lineTo(-s * 0.42, -s * 0.36); g.closePath(); g.fillPath()
+  g.fillStyle(color, 0.9); g.fillCircle(0, -s * 0.05, s * 0.2)                        // boss emblem
+  g.fillStyle(lite, 0.8); g.fillCircle(-s * 0.05, -s * 0.1, s * 0.08)
+  g.lineStyle(2, 0x3a3e44, 1); g.beginPath()                                          // rim
+  g.moveTo(0, -s * 0.6); g.lineTo(s * 0.42, -s * 0.36); g.lineTo(s * 0.42, s * 0.12)
+  g.lineTo(0, s * 0.62); g.lineTo(-s * 0.42, s * 0.12); g.lineTo(-s * 0.42, -s * 0.36); g.closePath(); g.strokePath()
+}
+
+// A CHAINED ORB of stolen magic (centred 0,0): glowing core + 4 crude iron chain
+// links rattling around it. `s` ≈ orb radius. `color` is the arcane hue.
+function _drawChainedOrb(g, s, color = 0x9a6cff) {
+  const lite = _lerpColor(color, 0xffffff, 0.6)
+  g.fillStyle(0x4a3a6a, 1)                                                            // 4 iron links around the orb
+  for (let i = 0; i < 4; i++) {
+    const a = (Math.PI / 2) * i + 0.4, lx = Math.cos(a) * s * 1.25, ly = Math.sin(a) * s * 1.25
+    g.fillRoundedRect(lx - s * 0.36, ly - s * 0.22, s * 0.72, s * 0.44, s * 0.2)
+    g.fillStyle(0x2a2030, 1); g.fillRoundedRect(lx - s * 0.2, ly - s * 0.1, s * 0.4, s * 0.2, s * 0.08)
+    g.fillStyle(0x4a3a6a, 1)
+  }
+  g.fillStyle(color, 0.95); g.fillCircle(0, 0, s)                                     // arcane core
+  g.fillStyle(lite, 0.9); g.fillCircle(-s * 0.28, -s * 0.3, s * 0.4)                  // hot inner
+  g.fillStyle(0xffffff, 0.85); g.fillCircle(-s * 0.34, -s * 0.36, s * 0.16)           // glint
+}
+
+// A crescent CLEAVE arc band centred on 0,0, spanning ±half around +X, between
+// radius rIn..rOut. Iron body + bright class-color edge. The hero shape of Cleave.
+function _drawCrescentBand(g, rOut, rIn, half, iron, edge) {
+  g.fillStyle(iron, 0.92); g.beginPath()
+  g.arc(0, 0, rOut, -half, half, false)
+  g.arc(0, 0, rIn, half, -half, true)
+  g.closePath(); g.fillPath()
+  g.lineStyle(2.6, edge, 0.95); g.beginPath(); g.arc(0, 0, rOut, -half, half, false); g.strokePath()        // leading edge glint
+  g.lineStyle(1.2, _lerpColor(iron, 0xffffff, 0.4), 0.6); g.beginPath(); g.arc(0, 0, rIn, -half, half, false); g.strokePath()
 }
 
 // Linear-interpolate two 0xRRGGBB colours (t in 0..1). For stack-scaled tints.
@@ -5234,6 +5419,499 @@ export const AbilityVfx = {
     if (mult > 0) {
       const m = scene.add.particles(x, y + 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.85 }, speedY: { min: -50, max: -16 }, speedX: { min: -18, max: 18 }, x: { min: -16, max: 16 }, scale: { start: 0.18, end: 0 }, alpha: { start: 0.75, end: 0 }, tint: [o.accent, o.color], blendMode: 'ADD', emitting: false })
       m.setDepth(o.depth); m.explode(Math.round(12 * mult)); made.push(m); scene.time.delayedCall(life, () => { try { m.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // ══ BOSS ABILITY VFX — ORC VETERAN · TROPHY HUNTER ══════════════════════════
+  // Elevated above adventurer/minion VFX: bigger silhouettes, forged-iron
+  // shading, tier-escalating composition. opts.tier (1..4) drives the escalation;
+  // opts.color carries the "stolen class" accent for that trophy.
+
+  // CLAIM — the fallen hero's emblem flashes bronze, a pennant token in the
+  // trophy colour lifts off the corpse and streaks to the throne rack.
+  trophyClaimFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffffff, depth: 16, durationMs: 760, isNew: false, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const tx = Number.isFinite(o.toX) ? o.toX : x, ty = Number.isFinite(o.toY) ? o.toY : y - 60
+    const flash = scene.add.circle(x, y - 6, 7, 0xffd9a0, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)  // circle-ok: additive claim spark, the rising token is the read
+    _glow(flash, o.color, 4, 12); made.push(flash)
+    scene.tweens.add({ targets: flash, scale: 2.2, alpha: 0, duration: life * 0.35, ease: 'Quad.easeOut', onComplete: () => flash.destroy() })
+    const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth + 1).setAlpha(0).setScale(0.5); made.push(g)
+    g.fillStyle(0x3a2a18, 1); g.fillRect(-1.2, -10, 2.4, 20)                                    // pole
+    g.fillStyle(o.color, 0.95); g.beginPath(); g.moveTo(1.2, -10); g.lineTo(13, -6); g.lineTo(1.2, -2); g.closePath(); g.fillPath()  // pennant flag
+    g.fillStyle(_lerpColor(o.color, 0xffffff, 0.5), 0.9); g.fillCircle(5, -6, 1.6)              // emblem
+    _glow(g, o.color, 3, 9)
+    scene.tweens.add({ targets: g, y: y - 30, alpha: 1, scale: 1, duration: life * 0.3, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, x: tx, y: ty, scale: 0.4, alpha: 0, angle: 220, duration: life * 0.55, ease: 'Cubic.easeIn', onComplete: () => g.destroy() }) })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y - 8, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speed: { min: 10, max: 40 }, scale: { start: 0.3, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [o.color, 0xffd9a0], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth); em.explode(Math.round((o.isNew ? 12 : 6) * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // BLADE → Cleave — a wide iron crescent sweeps in the strike direction with a
+  // class-color edge glint + dust kick. T1 one crescent · T2/T3 double-crescent
+  // "X" + (T3) a lingering ground gash · T4 full circular whirlwind.
+  orcCleaveFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffd0a0, iron: 0xd2d7e0, depth: 13, durationMs: 440, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const ang = Math.atan2(o.dirY ?? 0, o.dirX ?? 1)
+    const full = tier >= 4, R = 32 + tier * 5, half = full ? Math.PI : Math.PI * 0.45
+    const swings = full ? 1 : (tier >= 2 ? 2 : 1)
+    for (let s = 0; s < swings; s++) {
+      const g = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      _drawCrescentBand(g, R, R * 0.62, half, o.iron, o.color)
+      const tilt = swings > 1 ? (s === 0 ? -0.4 : 0.4) : 0
+      g.setRotation(ang + tilt - half * 0.5); _glow(g, o.color, 3, 10)
+      const spin = full ? Math.PI * 2.2 : half * 0.5
+      scene.tweens.add({ targets: g, rotation: ang + tilt + spin, alpha: 1, scaleX: 1.12, scaleY: 1.12, duration: life * (full ? 0.55 : 0.3), delay: s * 70, ease: full ? 'Cubic.easeIn' : 'Quart.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    if (tier >= 3) {
+      const gg = scene.add.graphics().setPosition(x, y + 4).setDepth(o.depth - 1).setAlpha(0); made.push(gg)
+      gg.lineStyle(3, 0x2a1d10, 0.9); let px = Math.cos(ang) * 8, py = Math.sin(ang) * 8 * 0.6, a = ang
+      gg.beginPath(); gg.moveTo(px, py)
+      for (let i = 0; i < 4; i++) { a += (Math.random() - 0.5) * 0.5; const sl = (R * 1.4) / 4; px += Math.cos(a) * sl; py += Math.sin(a) * sl * 0.55; gg.lineTo(px, py) }
+      gg.strokePath(); gg.lineStyle(1.4, 0xff8a3a, 0.6); gg.strokePath()
+      scene.tweens.add({ targets: gg, alpha: 1, duration: life * 0.25, onComplete: () => scene.tweens.add({ targets: gg, alpha: 0, duration: life * 2, onComplete: () => gg.destroy() }) })
+    }
+    if (mult > 0) {
+      const em = scene.add.particles(x + Math.cos(ang) * R * 0.5, y - 4 + Math.sin(ang) * R * 0.5, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speed: { min: 40, max: 130 }, angle: { min: (ang * 180 / Math.PI) - 40, max: (ang * 180 / Math.PI) + 40 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xc4bca8, 0x8a8270], emitting: false })
+      em.setDepth(o.depth - 0.7); em.explode(Math.round((8 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(life * 1.5, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // HEAVY → Shield Bash — an iron kite shield thrusts forward, clangs with an
+  // iron-spark burst, sets a golden brace halo (DR), then recoils.
+  shieldBashFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xc9a23f, depth: 14, durationMs: 420, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const ang = Math.atan2(o.dirY ?? 0, o.dirX ?? 1), reach = 22 + tier * 4
+    const g = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth); made.push(g)
+    _drawKiteShield(g, 26 + tier * 2, o.color); g.setRotation(ang)
+    const fx = x + Math.cos(ang) * reach, fy = y - 6 + Math.sin(ang) * reach
+    scene.tweens.add({ targets: g, x: fx, y: fy, duration: life * 0.28, ease: 'Quint.easeIn',
+      onComplete: () => {
+        const flash = scene.add.circle(fx, fy, 6, 0xfff0c0, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive clang spark core
+        _glow(flash, o.color, 5, 12)
+        scene.tweens.add({ targets: flash, scale: 3, alpha: 0, duration: life * 0.4, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+        for (let i = 0; i < 7; i++) {
+          const a = ang + (Math.random() - 0.5) * 1.4, d = 14 + Math.random() * 20
+          const sp = scene.add.graphics().setPosition(fx, fy).setDepth(o.depth + 0.5).setBlendMode(Phaser.BlendModes.ADD)
+          sp.fillStyle(0xffe9a8, 0.95); sp.fillRect(-1, -0.6, 5, 1.2)
+          scene.tweens.add({ targets: sp, x: fx + Math.cos(a) * d, y: fy + Math.sin(a) * d, rotation: a, alpha: 0, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => sp.destroy() })
+        }
+        scene.tweens.add({ targets: g, x, y: y - 6, duration: life * 0.5, delay: life * 0.05, ease: 'Back.easeOut', onComplete: () => g.destroy() })
+      } })
+    const brace = scene.add.circle(x, y - 6, 16, o.color, 0).setStrokeStyle(2.5, o.color, 0.7).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth - 0.5)  // circle-ok: brace/guard accent ring; the shield thrust is the hero read
+    _glow(brace, o.color, 3, 10); made.push(brace)
+    scene.tweens.add({ targets: brace, scale: 1.5, alpha: 0, duration: life * 0.8, ease: 'Sine.easeOut', onComplete: () => brace.destroy() })
+    return made
+  },
+
+  // ARCANE → Hexbolt — a crude orb of stolen magic bound in rattling iron chains
+  // spins across the arena and bursts into purple shrapnel.
+  hexboltFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9a6cff, depth: 14, durationMs: 520, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 80, ty = Number.isFinite(o.toY) ? o.toY : y
+    const s = 6 + tier
+    const orb = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(orb)
+    _drawChainedOrb(orb, s, o.color); _glow(orb, o.color, 5, 14)
+    const travel = life * 0.55
+    scene.tweens.add({ targets: orb, rotation: Math.PI * 2, duration: travel, ease: 'Linear' })
+    scene.tweens.add({ targets: orb, x: tx, y: ty, duration: travel, ease: 'Quad.easeIn',
+      onComplete: () => {
+        orb.destroy()
+        const flash = scene.add.circle(tx, ty, 8, o.color, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive arcane impact core
+        _glow(flash, 0xffffff, 5, 14); made.push(flash)
+        scene.tweens.add({ targets: flash, scale: 3.2, alpha: 0, duration: life * 0.4, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+        for (let i = 0; i < 5; i++) {
+          const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 18
+          const lk = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.5)
+          lk.fillStyle(0x4a3a6a, 1); lk.fillRoundedRect(-3, -2, 6, 4, 1.6)
+          scene.tweens.add({ targets: lk, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d, rotation: a * 2, alpha: 0, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => lk.destroy() })
+        }
+        if (mult > 0) {
+          const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speed: { min: 40, max: 120 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.color, 0xd8c4ff], blendMode: 'ADD', emitting: false })
+          em.setDepth(o.depth); em.explode(Math.round((10 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+        }
+      } })
+    if (mult > 0) {
+      const trail = scene.add.particles(x, y, _softDotTexture(scene), { follow: orb, lifespan: 260 * slow, frequency: 18, quantity: 1, scale: { start: 0.36, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [o.color, 0x6a4aaa], blendMode: 'ADD' })
+      trail.setDepth(o.depth - 0.5); made.push(trail)
+      scene.time.delayedCall(travel, () => { try { trail.stop() } catch (e) {} ; scene.time.delayedCall(400, () => { try { trail.destroy() } catch (e) {} }) })
+    }
+    return made
+  },
+
+  // HUNTER → Volley — a fan of spinning war-axes streaks from the boss to each
+  // target, each leaving a green fletch trail and a hit-spark on arrival.
+  volleyFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x88dd66, iron: 0xc7ccd6, depth: 14, durationMs: 460, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    let targets = (Array.isArray(o.targets) && o.targets.length) ? o.targets : null
+    if (!targets) {
+      targets = []; const n = 3 + tier
+      for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.4; targets.push({ x: x + Math.cos(a) * 90, y: y + Math.sin(a) * 90 }) }
+    }
+    targets.forEach((t, i) => {
+      if (!_validXY(t.x, t.y)) return
+      const g = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth); made.push(g)
+      _drawWarAxe(g, 5 + tier * 0.6, o.iron)
+      const ang = Math.atan2(t.y - (y - 6), t.x - x); g.setRotation(ang)
+      scene.tweens.add({ targets: g, x: t.x, y: t.y, rotation: ang + Math.PI * 6, duration: life * 0.6, delay: i * 35, ease: 'Quad.easeIn',
+        onComplete: () => {
+          const flash = scene.add.circle(t.x, t.y, 5, 0xffe9a8, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive axe-hit spark
+          _glow(flash, o.color, 3, 8); made.push(flash)
+          scene.tweens.add({ targets: flash, scale: 2.4, alpha: 0, duration: life * 0.3, onComplete: () => flash.destroy() })
+          g.destroy()
+        } })
+      const trail = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5); made.push(trail)
+      trail.lineStyle(2, o.color, 0.6); trail.beginPath(); trail.moveTo(0, 0); trail.lineTo((t.x - x) * 0.3, (t.y - (y - 6)) * 0.3); trail.strokePath()
+      scene.tweens.add({ targets: trail, alpha: 0, duration: life * 0.5, onComplete: () => trail.destroy() })
+    })
+    return made
+  },
+
+  // FAITH → Reaver's Smite — an iron greatsword slams down overhead; on impact a
+  // light-thread siphons up to the boss (the lifesteal). x,y = victim.
+  reaverSmiteFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffe9a8, depth: 15, durationMs: 560, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const bladeLen = 40 + tier * 6
+    const g = scene.add.graphics().setPosition(x, y - bladeLen - 30).setDepth(o.depth).setAlpha(0); made.push(g)
+    g.fillStyle(0x3a2a18, 1); g.fillRect(-2, -10, 4, 14)                                          // grip
+    g.fillStyle(0x5a4326, 1); g.fillRect(-7, -2, 14, 4)                                           // crossguard
+    g.fillStyle(0x9aa0ac, 1); g.beginPath(); g.moveTo(-4, 2); g.lineTo(4, 2); g.lineTo(2.2, bladeLen); g.lineTo(0, bladeLen + 6); g.lineTo(-2.2, bladeLen); g.closePath(); g.fillPath()  // blade
+    g.fillStyle(0xd6dae2, 1); g.beginPath(); g.moveTo(-4, 2); g.lineTo(0, 2); g.lineTo(0, bladeLen + 6); g.lineTo(-2.2, bladeLen); g.closePath(); g.fillPath()  // lit edge
+    _glow(g, o.color, 3, 9)
+    scene.tweens.add({ targets: g, y: y - bladeLen, alpha: 1, duration: life * 0.32, ease: 'Quint.easeIn',
+      onComplete: () => {
+        const flash = scene.add.circle(x, y, 8, 0xfff4cc, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive smite impact core
+        _glow(flash, o.color, 6, 16); made.push(flash)
+        scene.tweens.add({ targets: flash, scale: 3.6, alpha: 0, duration: life * 0.4, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+        scene.tweens.add({ targets: g, alpha: 0, y: y - bladeLen + 6, duration: life * 0.4, onComplete: () => g.destroy() })
+        const sfx = Number.isFinite(o.fromX) ? o.fromX : x, sfy = Number.isFinite(o.fromY) ? o.fromY : y - 60
+        const dx = sfx - x, dy = sfy - y, dl = Math.hypot(dx, dy) || 1
+        if (mult > 0) {
+          const sip = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: 420 * slow, frequency: 22, quantity: 2, speedX: { min: dx / dl * 100, max: dx / dl * 180 }, speedY: { min: dy / dl * 100, max: dy / dl * 180 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [o.color, 0xfff4cc], blendMode: 'ADD' })
+          sip.setDepth(o.depth); made.push(sip)
+          scene.time.delayedCall(life * 0.5, () => { try { sip.stop() } catch (e) {} ; scene.time.delayedCall(500, () => { try { sip.destroy() } catch (e) {} }) })
+        }
+        const thread = scene.add.line(0, 0, x, y, sfx, sfy, o.color, 0.8).setOrigin(0, 0).setLineWidth(2).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth); made.push(thread)
+        _glow(thread, o.color, 4, 10)
+        scene.tweens.add({ targets: thread, alpha: 0, duration: life * 0.5, ease: 'Quad.easeIn', onComplete: () => thread.destroy() })
+      } })
+    return made
+  },
+
+  // T4 ULT → Veteran's Armory — every claimed weapon materialises orbiting the
+  // boss, then fires outward in sequence over expanding shock rings. The finale.
+  veteransArmoryFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 16, durationMs: 1400, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const types = (Array.isArray(o.trophies) && o.trophies.length) ? o.trophies : ['blade', 'heavy', 'arcane', 'hunter', 'faith']
+    const COLORS = { blade: 0xd0d4dc, heavy: 0xc9a23f, arcane: 0x9a6cff, hunter: 0x66cc66, faith: 0xffe9a8 }
+    const core = scene.add.circle(x, y - 6, 10, 0xffcaa0, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth)  // circle-ok: additive armory charge core
+    _glow(core, 0xffcaa0, 8, 22); made.push(core)
+    scene.tweens.add({ targets: core, scale: 2.4, alpha: 0.4, duration: life * 0.4, yoyo: true, ease: 'Sine.easeInOut', onComplete: () => core.destroy() })
+    const R = 46
+    types.forEach((tp, i) => {
+      const col = COLORS[tp] ?? 0xffffff
+      const a0 = (Math.PI * 2 * i) / types.length - Math.PI / 2
+      const g = scene.add.graphics().setPosition(x + Math.cos(a0) * 12, y - 6 + Math.sin(a0) * 12).setDepth(o.depth + 1).setAlpha(0).setScale(0.4); made.push(g)
+      if (tp === 'heavy') _drawKiteShield(g, 16, col)
+      else if (tp === 'arcane') _drawChainedOrb(g, 7, col)
+      else _drawWarAxe(g, 7, tp === 'blade' ? 0xd0d4dc : col)
+      _glow(g, col, 3, 9)
+      const ox = x + Math.cos(a0) * R, oy = y - 6 + Math.sin(a0) * R
+      scene.tweens.add({ targets: g, x: ox, y: oy, alpha: 1, scale: 1, rotation: a0 + Math.PI, duration: life * 0.35, delay: i * 50, ease: 'Back.easeOut',
+        onComplete: () => {
+          const fx2 = x + Math.cos(a0) * 200, fy2 = y - 6 + Math.sin(a0) * 200
+          scene.tweens.add({ targets: g, x: fx2, y: fy2, rotation: a0 + Math.PI * 5, alpha: 0, duration: life * 0.3, delay: i * 40, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+        } })
+    })
+    for (let r = 0; r < 3; r++) {
+      const ring = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.8); made.push(ring)
+      ring.lineStyle(3, 0xffcaa0, 0.8); ring.strokeCircle(0, 0, 20)
+      scene.tweens.add({ targets: ring, scale: 4 + r, alpha: 0, duration: life * 0.6, delay: life * 0.35 + r * 120, ease: 'Quint.easeOut', onComplete: () => ring.destroy() })
+    }
+    if (mult > 0) {
+      const em = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speed: { min: 60, max: 220 }, angle: { min: 0, max: 360 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0xffcaa0, 0xffe9a8, 0xd0d4dc], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth); em.explode(Math.round(28 * mult)); made.push(em); scene.time.delayedCall(life * 1.5, () => { try { em.destroy() } catch (e) {} })
+    }
+    scene.cameras?.main?.shake?.(360, 0.006)
+    return made
+  },
+
+  // ══ BOSS ABILITY VFX — ELDER LICH · THE WITHERING ═══════════════════════════
+  // Souls are the RECOLORED, animated T1 ghost sprite (_makeSoulSprite) so they
+  // move like ghostly creatures, over ectoplasm + drain-thread graphics. Distinct
+  // from the Orc's forged iron. opts.tier (1..4) escalates.
+
+  // Public wrapper so other systems (the boss's soul-orbit tell) can spawn the
+  // same recolored ghost-soul sprite.
+  makeSoulSprite(scene, x, y, opts = {}) { return _makeSoulSprite(scene, x, y, opts) },
+
+  // Shared soul-aura pieces (BossRenderer's LIVE aura calls these so the in-game
+  // look and the lab preview can never drift).
+  soulAuraColor(sat, overK = 0) { return _soulAuraColor(Math.max(0, Math.min(1, sat)), Math.max(0, Math.min(1, overK))) },
+  soulGlowParams(sat, overK = 0, now = 0) { return _soulGlowParams(Math.max(0, Math.min(1, sat)), Math.max(0, Math.min(1, overK)), now) },
+  spawnSoulWisp(scene, x, y, dsz, col, depth) { return _spawnSoulWispGfx(scene, x, y, dsz, col, depth) },
+  // Depth/perspective cue for an orbiting element — behind at the top, in front
+  // at the bottom, smaller+dimmer at the back. THE standard for orbiting auras.
+  orbitCue(ang, baseDepth, baseScale = 1, baseAlpha = 1, spread = 0.7) { return _orbitCue(ang, baseDepth, baseScale, baseAlpha, spread) },
+
+  // PREVIEW of the Lich's soul aura at a chosen saturation/overflow — for the
+  // VFX Lab so the levels can be SEEN and tested. The REAL aura is a pulsing Glow
+  // OUTLINE on the boss sprite (pass opts.sprite to apply it, same as the live
+  // BossRenderer aura); plus rising-wisp/orbit/leak ambiance. opts.sat 0..1,
+  // opts.overK 0..1 (overflow band), opts.orbit = ghost-souls to orbit.
+  soulAuraFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { sat: 0.6, overK: 0, dsz: 100, durationMs: 3200, depth: 13, orbit: 0, sprite: null, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const sat = Math.max(0, Math.min(1, o.sat)), overK = Math.max(0, Math.min(1, o.overK))
+    const col = o.color ?? _soulAuraColor(sat, overK)
+    // (1) the AURA itself — a pulsing Glow OUTLINE on the sprite (WebGL only).
+    if (o.sprite && o.sprite.postFX && scene.renderer?.type === Phaser.WEBGL) {
+      let glow = null
+      try { const p = _soulGlowParams(sat, overK, 0); glow = o.sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 12) } catch (e) {}
+      if (glow) {
+        scene.tweens.addCounter({ from: 0, to: 1, duration: life, ease: 'Linear',
+          onUpdate: () => { const p = _soulGlowParams(sat, overK, scene.time?.now ?? 0); try { glow.color = p.color; glow.outerStrength = p.strength } catch (e) {} },
+          onComplete: () => { try { o.sprite.postFX.remove(glow) } catch (e) {} } })
+      }
+    }
+    // (2) ambiance — rising wisps across the preview
+    const nW = Math.round(2 + sat * 5 + overK * 3)
+    for (let i = 0; i < nW; i++) scene.time.delayedCall((life * 0.7) * (i / Math.max(1, nW)), () => { if (_validXY(x, y)) _spawnSoulWispGfx(scene, x, y, o.dsz, col, o.depth + 0.5) })
+    // overflow soul-leaks
+    if (overK > 0) {
+      const nL = 1 + Math.round(overK * 2)
+      for (let i = 0; i < nL; i++) scene.time.delayedCall((life * 0.6) * (i / Math.max(1, nL)), () => {
+        const sp = _makeSoulSprite(scene, x + (Math.random() - 0.5) * 20, y - o.dsz * 0.2, { color: col, scale: 0.3, depth: o.depth + 0.6, alpha: 0.85 })
+        if (sp) scene.tweens.add({ targets: sp, x: sp.x + (Math.random() - 0.5) * 40, y: sp.y - 44, alpha: 0, scale: 0.18, duration: 900 * slow, ease: 'Sine.easeOut', onComplete: () => sp.destroy() })
+      })
+    }
+    // optional orbiting souls (so the preview shows the full soul-level look) —
+    // they pass BEHIND the sprite at the top of the ring and IN FRONT at the
+    // bottom (depth/size/brightness cue), matching the live boss orbit.
+    if (o.orbit > 0) {
+      const souls = []
+      for (let i = 0; i < o.orbit; i++) { const sp = _makeSoulSprite(scene, x, y, { color: i % 2 ? 0xc0a0ff : 0x9affc0, scale: 0.3, depth: o.depth, alpha: 0.85 }); if (sp) { souls.push(sp); made.push(sp) } }
+      const R2 = 42, baseDepth = (o.sprite && Number.isFinite(o.sprite.depth)) ? o.sprite.depth : o.depth
+      scene.tweens.addCounter({ from: 0, to: Math.PI * 2, duration: life, ease: 'Linear',
+        onUpdate: (tw) => { const v = tw.getValue(); souls.forEach((sp, i) => { if (sp.active === false) return; const a = v + (Math.PI * 2 * i) / souls.length; const c = _orbitCue(a, baseDepth, 0.3, 0.9); sp.setPosition(x + Math.cos(a) * R2, y - 14 + Math.sin(a) * R2 * 0.45); sp.setDepth(c.depth); sp.setScale(c.scale); sp.setAlpha(c.alpha) }) },
+        onComplete: () => souls.forEach(sp => scene.tweens.add({ targets: sp, alpha: 0, duration: 300, onComplete: () => sp.destroy() })) })
+    }
+    return made
+  },
+
+  // HARVEST — a soul tears loose from the corpse on an ectoplasm puff, rises, and
+  // streaks to the Lich.
+  soulHarvestWispFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x88e0a0, depth: 16, durationMs: 840, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const tx = Number.isFinite(o.toX) ? o.toX : x, ty = Number.isFinite(o.toY) ? o.toY : y - 80
+    const puff = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.75); made.push(puff)
+    puff.fillStyle(o.color, 0.5); puff.fillEllipse(0, 2, 24, 11); puff.fillStyle(_lerpColor(o.color, 0xffffff, 0.5), 0.4); puff.fillEllipse(0, 1, 12, 6)
+    scene.tweens.add({ targets: puff, alpha: 0, scaleX: 1.7, scaleY: 0.6, duration: life * 0.4, onComplete: () => puff.destroy() })
+    const g = _makeSoulSprite(scene, x, y - 4, { color: 0x9affc0, depth: o.depth, scale: 0.34, dir: 'down', alpha: 0 }); made.push(g)
+    scene.tweens.add({ targets: g, y: y - 26, alpha: 0.95, scale: 0.62, duration: life * 0.3, ease: 'Sine.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, x: tx, y: ty, scale: 0.3, alpha: 0, duration: life * 0.6, ease: 'Cubic.easeIn', onComplete: () => g.destroy() }) })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speed: { min: 8, max: 32 }, scale: { start: 0.32, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [o.color, 0xd8ffe0], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth); em.explode(Math.round(8 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // CHANNEL SOULS (day ability) — a swirling ectoplasm pool wells up, tormented
+  // SOULS rise wailing, and drain threads pull life home. Tier adds wither haze
+  // (T3) and a soul-cage (T4).
+  soulChannelFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 14, durationMs: 950, tier: 1, victims: [], ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const GREEN = 0x66dd88, VIOLET = 0x9a6cff
+    // layered ectoplasm pool (violet base, green mid, pale hot centre)
+    const pool = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(pool)
+    pool.fillStyle(VIOLET, 0.20); pool.fillEllipse(0, 6, 124, 48)
+    pool.fillStyle(GREEN, 0.16); pool.fillEllipse(0, 6, 86, 34)
+    pool.fillStyle(_lerpColor(GREEN, 0xffffff, 0.5), 0.12); pool.fillEllipse(0, 5, 46, 18)
+    scene.tweens.add({ targets: pool, alpha: 1, scaleX: 1.06, duration: life * 0.2, yoyo: true, hold: life * 0.45, ease: 'Sine.easeOut', onComplete: () => pool.destroy() })
+    // rising souls (full spirits, not faces)
+    for (let i = 0; i < 3 + tier; i++) {
+      const fx0 = x + (Math.random() - 0.5) * 92, fy0 = y + (Math.random() - 0.5) * 26
+      const g = _makeSoulSprite(scene, fx0, fy0 + 14, { color: i % 2 ? 0xc0a0ff : 0x9affc0, depth: o.depth, scale: 0.28, dir: 'down', alpha: 0 }); made.push(g)
+      scene.tweens.add({ targets: g, y: fy0 - 30, alpha: 0.92, scale: 0.5, angle: (Math.random() - 0.5) * 16, duration: life * 0.46, delay: i * 50, ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, y: g.y - 18, alpha: 0, duration: life * 0.4, onComplete: () => g.destroy() }) })
+    }
+    if (tier >= 3) {
+      const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 0.5).setAlpha(0); made.push(haze)
+      haze.fillStyle(0x6a6a60, 0.20); haze.fillEllipse(0, 4, 134, 54); haze.fillStyle(0x4a4a44, 0.16); haze.fillEllipse(0, 6, 96, 38)
+      scene.tweens.add({ targets: haze, alpha: 1, duration: life * 0.3, yoyo: true, hold: life * 0.3, onComplete: () => haze.destroy() })
+    }
+    if (tier >= 4) {
+      const cage = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(1, 0.3); made.push(cage)
+      cage.lineStyle(2.5, 0xb48aff, 0.9); for (let b = -3; b <= 3; b++) { cage.beginPath(); cage.moveTo(b * 9, -26); cage.lineTo(b * 9, 26); cage.strokePath() }
+      cage.lineStyle(2, 0xd6c4ff, 0.7); cage.beginPath(); cage.moveTo(-28, -26); cage.lineTo(28, -26); cage.moveTo(-28, 26); cage.lineTo(28, 26); cage.strokePath()
+      _glow(cage, 0xb48aff, 3, 10)
+      scene.tweens.add({ targets: cage, scaleY: 1, alpha: 1, duration: life * 0.25, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: cage, alpha: 0, duration: life * 0.5, delay: life * 0.3, onComplete: () => cage.destroy() }) })
+    }
+    const fromX = Number.isFinite(o.fromX) ? o.fromX : x, fromY = Number.isFinite(o.fromY) ? o.fromY : y
+    for (const v of (o.victims || [])) {
+      if (!_validXY(v.x, v.y)) continue
+      const thread = scene.add.line(0, 0, v.x, v.y, fromX, fromY, GREEN, 0.7).setOrigin(0, 0).setLineWidth(2).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth); made.push(thread)
+      _glow(thread, GREEN, 3, 8)
+      scene.tweens.add({ targets: thread, alpha: 0, duration: life * 0.6, ease: 'Quad.easeIn', onComplete: () => thread.destroy() })
+      if (mult > 0) {
+        const dx = fromX - v.x, dy = fromY - v.y, dl = Math.hypot(dx, dy) || 1
+        const em = scene.add.particles(v.x, v.y, _softDotTexture(scene), { lifespan: 420 * slow, frequency: 30, quantity: 1, speedX: { min: dx / dl * 120, max: dx / dl * 200 }, speedY: { min: dy / dl * 120, max: dy / dl * 200 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [GREEN, VIOLET], blendMode: 'ADD' })
+        em.setDepth(o.depth); made.push(em); scene.time.delayedCall(life * 0.4, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(500, () => { try { em.destroy() } catch (e) {} }) })
+      }
+    }
+    scene.cameras?.main?.shake?.(180, 0.003)
+    return made
+  },
+
+  // T1 · Death Coil — a hurled SOUL (upright, faintly wobbling) with a comet
+  // ecto-tail; on impact it bursts into ecto shards and drains life back.
+  deathCoilFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9a6cff, depth: 14, durationMs: 520, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 80, ty = Number.isFinite(o.toY) ? o.toY : y
+    const orb = _makeSoulSprite(scene, x, y, { color: 0xc0a0ff, depth: o.depth, scale: 0.46 + tier * 0.05, dir: 'down' }); made.push(orb)
+    const travel = life * 0.55
+    scene.tweens.add({ targets: orb, angle: { from: -10, to: 10 }, duration: travel * 0.5, yoyo: true, repeat: 1, ease: 'Sine.easeInOut' })   // gentle wobble, faces the viewer
+    scene.tweens.add({ targets: orb, x: tx, y: ty, duration: travel, ease: 'Quad.easeIn',
+      onComplete: () => {
+        orb.destroy()
+        const flash = scene.add.circle(tx, ty, 7, o.color, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive soul impact core
+        _glow(flash, 0xffffff, 4, 12); made.push(flash)
+        scene.tweens.add({ targets: flash, scale: 3, alpha: 0, duration: life * 0.4, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+        // ecto shards (small soul-wisps) burst out
+        for (let i = 0; i < 4 + tier; i++) {
+          const a = Math.random() * Math.PI * 2, d = 12 + Math.random() * 18
+          const sh = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.5).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5); made.push(sh)
+          _drawSoulWisp(sh, 3.5, i % 2 ? 0x88dd88 : o.color)
+          scene.tweens.add({ targets: sh, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d, alpha: 0, angle: (Math.random() - 0.5) * 120, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => sh.destroy() })
+        }
+        const thread = scene.add.line(0, 0, tx, ty, x, y, 0x88dd88, 0.8).setOrigin(0, 0).setLineWidth(2).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth); made.push(thread)
+        _glow(thread, 0x88dd88, 3, 8)
+        scene.tweens.add({ targets: thread, alpha: 0, duration: life * 0.4, onComplete: () => thread.destroy() })
+        if (mult > 0) {
+          const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speed: { min: 30, max: 90 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.color, 0xd8c4ff], blendMode: 'ADD', emitting: false })
+          em.setDepth(o.depth); em.explode(Math.round(8 * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+        }
+      } })
+    if (mult > 0) {
+      const trail = scene.add.particles(x, y, _softDotTexture(scene), { follow: orb, lifespan: 260 * slow, frequency: 16, quantity: 1, scale: { start: 0.36, end: 0 }, alpha: { start: 0.75, end: 0 }, tint: [o.color, 0x66cc88], blendMode: 'ADD' })
+      trail.setDepth(o.depth - 0.5); made.push(trail)
+      scene.time.delayedCall(travel, () => { try { trail.stop() } catch (e) {} ; scene.time.delayedCall(320, () => { try { trail.destroy() } catch (e) {} }) })
+    }
+    return made
+  },
+
+  // T2 · Soul Siphon — pulsing tethers to several heroes; a small SOUL slides
+  // along each tether back to the Lich (the stolen life), trailing motes.
+  soulSiphonFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x88dd88, depth: 14, durationMs: 920, tier: 1, targets: [], ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    ;(o.targets || []).forEach((t, ti) => {
+      if (!_validXY(t.x, t.y)) return
+      const thread = scene.add.line(0, 0, x, y, t.x, t.y, o.color, 0.7).setOrigin(0, 0).setLineWidth(2.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth); made.push(thread)
+      _glow(thread, o.color, 4, 10)
+      scene.tweens.add({ targets: thread, alpha: 0.25, yoyo: true, repeat: 2, duration: life * 0.16, ease: 'Sine.easeInOut',
+        onComplete: () => scene.tweens.add({ targets: thread, alpha: 0, duration: life * 0.2, onComplete: () => thread.destroy() }) })
+      // a wrenched soul slides target → Lich
+      const s = _makeSoulSprite(scene, t.x, t.y, { color: ti % 2 ? 0xc0a0ff : 0x9affc0, depth: o.depth + 0.5, scale: 0.4, dir: 'down', alpha: 0 }); made.push(s)
+      scene.tweens.add({ targets: s, alpha: 0.9, duration: life * 0.15, delay: ti * 40,
+        onComplete: () => scene.tweens.add({ targets: s, x, y, scale: 0.22, alpha: 0, duration: life * 0.55, ease: 'Quad.easeIn', onComplete: () => s.destroy() }) })
+      if (mult > 0) {
+        const dx = x - t.x, dy = y - t.y, dl = Math.hypot(dx, dy) || 1
+        const em = scene.add.particles(t.x, t.y, _softDotTexture(scene), { lifespan: 500 * slow, frequency: 26, quantity: 1, speedX: { min: dx / dl * 100, max: dx / dl * 170 }, speedY: { min: dy / dl * 100, max: dy / dl * 170 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.color, 0x9a6cff], blendMode: 'ADD' })
+        em.setDepth(o.depth); made.push(em); scene.time.delayedCall(life * 0.7, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(500, () => { try { em.destroy() } catch (e) {} }) })
+      }
+    })
+    return made
+  },
+
+  // T3 · Soul Nova — expanding ghost rings + a host of wailing SOULS flung outward
+  // through an ecto mist.
+  soulNovaFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x9a6cff, depth: 14, durationMs: 760, tier: 1, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // ecto mist bloom under the rings
+    const mist = scene.add.graphics().setPosition(x, y - 4).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setScale(0.4); made.push(mist)
+    mist.fillStyle(0x88dd88, 0.3); mist.fillCircle(0, 0, 26); mist.fillStyle(o.color, 0.22); mist.fillCircle(0, 0, 18)
+    scene.tweens.add({ targets: mist, scale: 2.6, alpha: 0, duration: life * 0.6, ease: 'Quad.easeOut', onComplete: () => mist.destroy() })
+    for (let r = 0; r < 2 + (tier >= 3 ? 1 : 0); r++) {
+      const ring = scene.add.graphics().setPosition(x, y - 4).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.9); made.push(ring)
+      ring.lineStyle(3, r % 2 ? 0x88dd88 : o.color, 0.85); ring.strokeCircle(0, 0, 16)
+      scene.tweens.add({ targets: ring, scale: 3.6 + r, alpha: 0, duration: life * 0.7, delay: r * 90, ease: 'Quint.easeOut', onComplete: () => ring.destroy() })
+    }
+    const n = 4 + tier
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n, d = 40 + tier * 8
+      const g = _makeSoulSprite(scene, x, y - 4, { color: i % 2 ? 0xc0a0ff : 0x9affc0, depth: o.depth + 0.5, scale: 0.22, dir: 'down', alpha: 0 }); made.push(g)
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * d, y: y - 4 + Math.sin(a) * d, alpha: 0.92, scale: 0.5, angle: (Math.random() - 0.5) * 24, duration: life * 0.42, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 0.3, duration: life * 0.35, onComplete: () => g.destroy() }) })
+    }
+    const core = scene.add.circle(x, y - 4, 10, o.color, 0.85).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth + 1)  // circle-ok: additive nova core flash
+    _glow(core, 0x88dd88, 6, 16); made.push(core)
+    scene.tweens.add({ targets: core, scale: 3, alpha: 0, duration: life * 0.5, ease: 'Expo.easeOut', onComplete: () => core.destroy() })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y - 4, _softDotTexture(scene), { lifespan: { min: life * 0.4, max: life * 0.9 }, speed: { min: 50, max: 180 }, angle: { min: 0, max: 360 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [o.color, 0x88dd88, 0xd8c4ff], blendMode: 'ADD', emitting: false })
+      em.setDepth(o.depth); em.explode(Math.round((14 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(life * 1.4, () => { try { em.destroy() } catch (e) {} })
+    }
+    scene.cameras?.main?.shake?.(220, 0.004)
+    return made
+  },
+
+  // T4 · Soul Cage — soul-bars + domes snap shut around a victim with a trapped
+  // SOUL writhing inside, ecto motes spiralling inward.
+  soulCageFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xb48aff, depth: 15, durationMs: 880, tier: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const H = 20, R = 14
+    // trapped soul inside, writhing
+    const soul = _makeSoulSprite(scene, x, y - 6, { color: 0xc7b0ff, depth: o.depth - 0.5, scale: 0.4, dir: 'down', alpha: 0 }); made.push(soul)
+    scene.tweens.add({ targets: soul, alpha: 0.92, scale: 0.55, duration: life * 0.25,
+      onComplete: () => scene.tweens.add({ targets: soul, x: x + 3, angle: 10, yoyo: true, repeat: 2, duration: life * 0.16, ease: 'Sine.easeInOut',
+        onComplete: () => scene.tweens.add({ targets: soul, alpha: 0, scale: 0.45, duration: life * 0.3, onComplete: () => soul.destroy() }) }) })
+    // the cage
+    const cage = scene.add.graphics().setPosition(x, y - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(1, 0.2); made.push(cage)
+    cage.lineStyle(2.4, o.color, 0.95)
+    for (let b = -2; b <= 2; b++) { const bx = b * (R * 2 / 4); cage.beginPath(); cage.moveTo(bx, -H); cage.lineTo(bx, H); cage.strokePath() }
+    cage.lineStyle(2, 0xd6c4ff, 0.8)
+    cage.beginPath(); cage.arc(0, -H, R, Math.PI, 0, false); cage.strokePath()   // top dome
+    cage.beginPath(); cage.arc(0, H, R, 0, Math.PI, false); cage.strokePath()    // bottom bowl
+    _glow(cage, o.color, 4, 12)
+    scene.tweens.add({ targets: cage, scaleY: 1, alpha: 1, duration: life * 0.25, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: cage, alpha: 0, duration: life * 0.5, delay: life * 0.25, onComplete: () => cage.destroy() }) })
+    if (mult > 0) {
+      const em = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.6 }, speed: { min: 20, max: 60 }, scale: { start: 0.3, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.color, 0x88dd88], blendMode: 'ADD',
+        emitZone: { type: 'edge', source: new Phaser.Geom.Circle(0, 0, R + 8), quantity: 10 } })
+      em.setDepth(o.depth - 0.5); made.push(em); scene.time.delayedCall(life * 0.5, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(500, () => { try { em.destroy() } catch (e) {} }) })
     }
     return made
   },

@@ -155,6 +155,39 @@ export const Balance = {
   LICH_PHYLACTERY_ROOM_FIND_CHANCE: 0.20, // per-adv one-shot roll on first entry into the phyl's room
   LICH_PHYLACTERY_DMG_INTERVAL_MS: 800,  // adv damage tick rate while attacking the heart
 
+  // --- Elder Lich THE WITHERING (2026-06-14 overhaul) — Soul Essence economy ---
+  LICH_SOUL_PER_KILL:            2,     // base essence banked per dungeon death
+  LICH_SOUL_PER_ADV_LEVEL:       0.5,   // + this × adv level (floored)
+  LICH_SOUL_REGEN_PCT_PER_SEC:   0.30,  // boss heals this %maxHp/sec (day only) while holding essence
+  LICH_SOUL_REGEN_MIN_ESSENCE:   1,     // need at least this much banked to regen
+  // Day ability — CHANNEL SOULS (arm → click room → fire; spends essence)
+  LICH_CHANNEL_COST:             12,    // essence spent per cast
+  LICH_CHANNEL_DMG_FRAC:         0.60,  // base per-target dmg = bossAtkScaled × this
+  LICH_CHANNEL_ESSENCE_SCALE:    0.02,  // +this dmg-frac per essence in reserve (capped)
+  LICH_CHANNEL_ESSENCE_SCALE_CAP: 1.20, // cap on the essence damage bonus
+  LICH_CHANNEL_SIPHON_HEAL_FRAC: 0.50,  // T2: heal boss this × total dmg dealt
+  LICH_CHANNEL_SIPHON_ESSENCE:   1,     // T2: bank this much bonus essence per victim hit
+  LICH_WITHER_DURATION_MS:       6000,  // T3: wither (no-heal) window
+  LICH_WITHER_DOT_FRAC:          0.10,  // T3: soul-rot dmg/tick = bossAtkScaled × this
+  LICH_WITHER_DOT_INTERVAL_MS:   1000,  // soul-rot tick cadence
+  LICH_CAGE_DURATION_MS:         3000,  // T4: soul-cage freeze duration (day)
+  LICH_CAGE_DRAIN_FRAC:          0.18,  // T4: cage drain dmg/tick = bossAtkScaled × this (heals boss)
+  // Throne-fight death magic (per-target dmg = bossAtkScaled × frac; lifesteal heals boss)
+  LICH_FIGHT_COIL_DMG_FRAC:      0.85,  // Death Coil
+  LICH_FIGHT_COIL_HEAL_FRAC:     0.60,  // heals boss for this × coil dmg
+  LICH_FIGHT_SIPHON_DMG_FRAC:    0.35,  // Soul Siphon per-tick per-target
+  LICH_FIGHT_SIPHON_HEAL_FRAC:   0.80,  // heals boss for this × siphon dmg
+  LICH_FIGHT_NOVA_DMG_FRAC:      0.55,  // Soul Nova AoE (all targets)
+  LICH_FIGHT_NOVA_HEAL_FRAC:     0.40,
+  LICH_FIGHT_CAGE_DMG_FRAC:      0.50,  // Soul Cage ult per-tick
+  LICH_FIGHT_CAGE_HEAL_FRAC:     1.0,
+  // Soul AURA (the in-world tell): saturation = essence ÷ capacity. Capacity
+  // GROWS with act + boss level so the aura stays a meaningful 0–100% read all
+  // run (late-game floods just push it into the dramatic "Oversouled" overflow).
+  LICH_AURA_CAP_BASE:            60,
+  LICH_AURA_CAP_PER_ACT:         55,
+  LICH_AURA_CAP_PER_LEVEL:       7,
+
   // --- Phase 1b.5: Lich Necromancy ---
   // Skeleton lifespan: spawn at dawn N+1 (after the kill on day N), expire
   // at the end of day N+1 — i.e. one full day of life. Tracked via
@@ -214,6 +247,26 @@ export const Balance = {
   // Orcs in the same room buff every other orc in that room. Stacks per ally.
   ORC_WARBAND_ATK_PCT_PER_ALLY:    0.05,  // +5% ATK per other orc in same room
   ORC_WARBAND_DEF_PCT_PER_ALLY:    0.05,  // +5% DEF per other orc in same room
+
+  // --- Orc Veteran TROPHY HUNTER (2026-06-14 overhaul) ---
+  // Throne-fight attacks: per trophy STACK beyond the first, each attack's
+  // damage scales up (T2+). Base damage is a fraction of scaled boss ATK.
+  ORC_TROPHY_DMG_PER_STACK:        0.06,  // +6% attack damage per stack over 1
+  ORC_TROPHY_DMG_STACK_CAP:        8,     // stacks counted toward the bonus
+  ORC_TROPHY_CLEAVE_DMG_FRAC:      0.75,  // Cleave: frontal arc damage
+  ORC_TROPHY_SHIELDBASH_DMG_FRAC:  0.65,  // Shield Bash: single-target charge
+  ORC_TROPHY_HEXBOLT_DMG_FRAC:     0.80,  // Hexbolt: ranged orb (primary)
+  ORC_TROPHY_VOLLEY_DMG_FRAC:      0.40,  // Volley: per-projectile, hits many
+  ORC_TROPHY_SMITE_DMG_FRAC:       0.90,  // Reaver's Smite: heavy single hit
+  ORC_TROPHY_SMITE_LIFESTEAL:      0.60,  // heals boss for 60% of smite damage
+  // Mastery aura (T3+): the most-claimed trophy type grants a dungeon-wide
+  // passive. Magnitudes scale gently with that type's stack count.
+  ORC_MASTERY_ATK_PCT_PER_STACK:   0.04,  // Blade  → minions +ATK
+  ORC_MASTERY_DEF_PCT_PER_STACK:   0.05,  // Heavy  → minions +DEF
+  ORC_MASTERY_TRAP_RECHARGE_MULT:  0.75,  // Arcane → trap cooldownMs ×0.75
+  ORC_MASTERY_RANGE_BONUS:         1,     // Hunter → ranged minions +1 reach
+  ORC_MASTERY_REGEN_HP_PER_SEC:    0.4,   // Faith  → boss heals %maxHp/sec ×stack
+  ORC_MASTERY_PCT_CAP:             0.60,  // cap on the ATK/DEF aura bonus
 
   // --- Succubus Queen second ability — Doppelgänger (boss-fight only) ---
   // The Queen hides among illusory duplicates during the boss fight. Each

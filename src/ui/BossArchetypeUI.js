@@ -123,6 +123,14 @@ export class BossArchetypeUI {
     })
     // Tick the button each phase change so its enabled state matches uses-left.
     this._on('GOLEM_EARTHQUAKE_FIRED', () => this._refreshVisibility())
+    // Elder Lich THE WITHERING — Channel Souls room-targeting. The DOM strip
+    // arms it; this installs the Game-scene room-pick that fires the spell.
+    this._on('LICH_CHANNEL_ARMED', () => {
+      this._installSoulRoomPick()
+      showToast(this._scene, 'CHANNEL SOULS armed — click a room to unleash', { type: 'info', duration: 3000 })
+    })
+    this._on('LICH_CHANNEL_DISARMED', () => this._removeSoulRoomPick())
+    this._on('LICH_CHANNEL_FIRED', () => this._removeSoulRoomPick())
     // Phase 1b.9 — Demon Sacrifice Pact wiring.
     this._on('DEMON_SACRIFICE_ARMED', () => {
       this._sacArmed = true
@@ -673,6 +681,32 @@ export class BossArchetypeUI {
     this._roomPickGame    = null
   }
 
+  // Lich CHANNEL SOULS room-pick (mirrors the earthquake picker). One click
+  // resolves the targeted room; right-click cancels.
+  _installSoulRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._soulPickHandler) return
+    this._soulPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) {
+        EventBus.emit('LICH_CHANNEL_DISARM')
+        return
+      }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('LICH_CHANNEL_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._soulPickHandler)
+    this._soulPickGame = game
+  }
+
+  _removeSoulRoomPick() {
+    if (!this._soulPickHandler || !this._soulPickGame) return
+    this._soulPickGame.input.off('pointerdown', this._soulPickHandler)
+    this._soulPickHandler = null
+    this._soulPickGame    = null
+  }
+
   // Camera shake on the Game scene + a small "EARTHQUAKE" floater above the
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
@@ -723,6 +757,7 @@ export class BossArchetypeUI {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
     this._listeners = []
     this._removeRoomPickListener()
+    this._removeSoulRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

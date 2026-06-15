@@ -869,7 +869,10 @@ export class BuildMenu {
     return all.filter(it => {
       if (it.hidden) return false   // pseudo-items used by forced-placement only
       if (it.archetypeRestriction && it.archetypeRestriction !== archId) return false
-      if (it.id === 'phylactery_heart' && (phylAlreadyPlaced || phylDestroyedThisRun)) return false
+      // The Withering rework (2026-06-14): the Phylactery Heart is RETIRED —
+      // its extra-life role is folded into the Lich's Soul Essence lifeline, so
+      // the Heart item is no longer offered.
+      if (it.id === 'phylactery_heart') return false
       return true
     }).sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
   }

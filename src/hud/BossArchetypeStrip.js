@@ -22,6 +22,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { Balance } from '../config/balance.js'
 
 export class BossArchetypeStrip {
   constructor(gameState, opts = {}) {
@@ -60,6 +61,11 @@ export class BossArchetypeStrip {
         ref: el => { this._demonBtn = el },
         on: { click: () => this._onDemonClick() },
       }, 'SACRIFICE'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-channel',
+        ref: el => { this._lichBtn = el },
+        on: { click: () => this._onLichClick() },
+      }, 'CHANNEL SOULS'),
     ])
   }
 
@@ -76,6 +82,11 @@ export class BossArchetypeStrip {
     sub('DEMON_SACRIFICE_ARMED',     () => { this._demonArmed = true;  this._refresh() })
     sub('DEMON_SACRIFICE_DISARMED',  () => { this._demonArmed = false; this._refresh() })
     sub('DEMON_SACRIFICE_FIRED',     () => { this._demonArmed = false; this._refresh() })
+    // Lich Channel Souls.
+    sub('LICH_CHANNEL_ARMED',    () => { this._lichArmed = true;  this._refresh() })
+    sub('LICH_CHANNEL_DISARMED', () => { this._lichArmed = false; this._refresh() })
+    sub('LICH_CHANNEL_FIRED',    () => { this._lichArmed = false; this._refresh() })
+    sub('LICH_SOUL_HARVEST',     () => this._refresh())   // essence changed → enabled state may flip
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -92,6 +103,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._demonArmed ? 'DEMON_SACRIFICE_DISARM' : 'DEMON_SACRIFICE_ARM')
   }
 
+  _onLichClick() {
+    if (this._lichBtn?.disabled) return
+    EventBus.emit(this._lichArmed ? 'LICH_CHANNEL_DISARM' : 'LICH_CHANNEL_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -99,10 +115,12 @@ export class BossArchetypeStrip {
     const archId   = this._gs?.player?.bossArchetypeId
     const isGolem  = archId === 'golem'
     const isDemon  = archId === 'demon'
+    const isLich   = archId === 'lich'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
+    const lichActive  = isLich && isDay
 
-    const anyActive = golemActive || demonActive
+    const anyActive = golemActive || demonActive || lichActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -123,6 +141,13 @@ export class BossArchetypeStrip {
       const haveMinion = (this._gs?.minions ?? []).some(m =>
         m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon')
       this._demonBtn.disabled = !(usesLeft > 0 && haveMinion)
+    }
+    if (this._lichBtn) {
+      this._lichBtn.style.display = lichActive ? '' : 'none'
+      this._lichBtn.classList.toggle('armed', !!this._lichArmed)
+      const ess = this._gs?.boss?.soulEssence ?? 0
+      this._lichBtn.textContent = this._lichArmed ? 'PICK A ROOM' : `CHANNEL SOULS · ${Math.floor(ess)}`
+      this._lichBtn.disabled = !(ess >= (Balance.LICH_CHANNEL_COST ?? 12))
     }
   }
 

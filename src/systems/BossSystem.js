@@ -27,6 +27,20 @@ import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { TILE }     from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { currentAct } from '../config/acts.js'
+import { TROPHY_BY_ID } from '../config/orcTrophies.js'
+
+// Orc Veteran — Trophy Hunter throne-fight attack actions (boss state-machine
+// action ids). These replace the generic slam/lunge for the orc archetype.
+const ORC_TROPHY_ACTIONS = new Set(['cleave', 'shieldbash', 'hexbolt', 'volley', 'reaversmite', 'armory'])
+// Elder Lich — The Withering throne-fight actions (lifedrain death-caster).
+const LICH_FIGHT_ACTIONS = new Set(['deathcoil', 'soulsiphon', 'soulnova', 'soulcage'])
+
+// Adventurers render FOOT-anchored (AdventurerRenderer origin y ≈ 0.85), so
+// adv.worldY is at their feet. VFX that should strike/connect at the BODY use
+// this lift to reach the chest instead of the floor. (Bosses are centre-anchored,
+// so boss.worldY is already mid-body.)
+const ADV_CHEST_DY = 16
 
 // Rival "Clash of Dominions" duel — the rival boss SKIN renders foot-anchored
 // (AdventurerRenderer origin 0.85, scale 2 → its body centre sits ~1.4 tiles above
@@ -662,6 +676,18 @@ export class BossSystem {
       case 'recover':
         // Catch breath, no motion
         break
+      // ── Orc Veteran — Trophy Hunter throne attacks ──
+      case 'cleave':      this._tickOrcCleave(boss, bs, dt);      break
+      case 'shieldbash':  this._tickOrcShieldBash(boss, bs, dt);  break
+      case 'hexbolt':     this._tickOrcHexbolt(boss, bs, dt);     break
+      case 'volley':      this._tickOrcVolley(boss, bs, dt);      break
+      case 'reaversmite': this._tickOrcReaverSmite(boss, bs, dt); break
+      case 'armory':      this._tickOrcArmory(boss, bs, dt);      break
+      // ── Elder Lich — The Withering ──
+      case 'deathcoil':   this._tickLichDeathCoil(boss, bs, dt);  break
+      case 'soulsiphon':  this._tickLichSoulSiphon(boss, bs, dt); break
+      case 'soulnova':    this._tickLichSoulNova(boss, bs, dt);   break
+      case 'soulcage':    this._tickLichSoulCage(boss, bs, dt);   break
     }
 
     // Sprite separation — never let the boss occupy an adventurer's tile.
@@ -693,10 +719,17 @@ export class BossSystem {
 
   _pickBossAction(bs) {
     // Big-move actions always cool down into recover.
-    if (bs.action === 'slam' || bs.action === 'lunge') {
+    if (bs.action === 'slam' || bs.action === 'lunge' || ORC_TROPHY_ACTIONS.has(bs.action) || LICH_FIGHT_ACTIONS.has(bs.action)) {
+      // Orc Trophy Hunter — T3+ chains a second trophy attack before recovering.
+      if (ORC_TROPHY_ACTIONS.has(bs.action) && bs.chainNext) {
+        const next = bs.chainNext
+        bs.chainNext = null
+        this._beginOrcAttack(bs, next)
+        return
+      }
       bs.action    = 'recover'
       bs.actionT   = 0
-      bs.actionDur = 0.4 + Math.random() * 0.2
+      bs.actionDur = (0.4 + Math.random() * 0.2) * (bs.lastStand ? 0.6 : 1)
       bs.slamFired = false
       bs.windUpEmitted = false
       return
@@ -721,6 +754,24 @@ export class BossSystem {
       bs.actionT   = 0
       bs.actionDur = 0.4 + Math.random() * 0.3
       bs.targetId  = fleeingTarget.adv.instanceId
+      return
+    }
+    // ── Orc Veteran — Trophy Hunter — chooses from its claimed arsenal ──
+    if (this._archIdForBoss() === 'orc') {
+      const act = this._pickOrcTrophyAction(bs)
+      if (act) { this._beginOrcAttack(bs, act); return }
+      bs.action    = 'chase'
+      bs.actionT   = 0
+      bs.actionDur = (0.4 + Math.random() * 0.3) * (bs.lastStand ? 0.6 : 1)
+      return
+    }
+    // ── Elder Lich — The Withering — death-magic rotation ──
+    if (this._archIdForBoss() === 'lich') {
+      const act = this._pickLichAction(bs)
+      if (act) { this._beginLichAttack(bs, act); return }
+      bs.action    = 'chase'
+      bs.actionT   = 0
+      bs.actionDur = 0.4 + Math.random() * 0.3
       return
     }
     const partyCount = this._fightStates.size
@@ -759,6 +810,414 @@ export class BossSystem {
       bs.action    = 'chase'
       bs.actionT   = 0
       bs.actionDur = 0.5 + Math.random() * 0.4
+    }
+  }
+
+  // ══ Orc Veteran — TROPHY HUNTER throne fight ════════════════════════════
+  // The Veteran fights with the arsenal he claimed over the run. Each trophy
+  // type arms one telegraphed special; tier gates how many he wields. Baseline
+  // round-DPS (_tickFightCombat) still flows underneath — these are the heavy,
+  // choreographed hits layered on top, the way slam/lunge are for other bosses.
+
+  // Claimed attacks: Blade/Cleave is his innate basic (always available);
+  // other types only once their trophy is claimed. stacks ≥ 1.
+  _orcClaimedAttacks() {
+    const t = this._gameState?.boss?.trophies ?? {}
+    const out = [{ type: 'blade', attack: 'cleave', stacks: Math.max(1, t.blade?.stacks ?? 0) }]
+    for (const id of ['heavy', 'arcane', 'hunter', 'faith']) {
+      const s = t[id]?.stacks ?? 0
+      if (s > 0) out.push({ type: id, attack: TROPHY_BY_ID[id].attack, stacks: s })
+    }
+    return out
+  }
+
+  // Tier gates the rotation width: T1 = 2 strongest, T2 = 3, T3+ = all.
+  _orcAvailableAttacks(tier) {
+    const all = this._orcClaimedAttacks().sort((a, b) => b.stacks - a.stacks)
+    const cap = tier <= 1 ? 2 : tier === 2 ? 3 : all.length
+    return all.slice(0, cap)
+  }
+
+  _weightedTrophyPick(list) {
+    if (!list?.length) return null
+    let total = 0
+    for (const a of list) total += 1 + (a.stacks ?? 0)
+    let r = Math.random() * total
+    for (const a of list) { r -= 1 + (a.stacks ?? 0); if (r <= 0) return a }
+    return list[list.length - 1]
+  }
+
+  _pickOrcTrophyAction(bs) {
+    const boss = this._gameState.boss
+    const tier = currentAct(this._gameState)
+    // T4 — Veteran's Armory ult: once per fight below 30% HP. Triggers Last Stand.
+    if (tier >= 4 && !bs.armoryUsed && (boss?.maxHp ?? 0) > 0 &&
+        (boss.hp ?? 0) / (boss.maxHp ?? 1) <= 0.30) {
+      bs.armoryUsed = true
+      bs.lastStand  = true
+      boss._lastStand = true
+      return 'armory'
+    }
+    // Sometimes reposition between specials so the fight breathes.
+    if (Math.random() < 0.26) return null
+    const list = this._orcAvailableAttacks(tier)
+    if (!list.length) return 'cleave'
+    const pick = this._weightedTrophyPick(list)
+    // T3+ — chance to chain a different second attack right after this one.
+    bs.chainNext = null
+    if (tier >= 3 && list.length > 1 && Math.random() < 0.5) {
+      const rest = list.filter(a => a.attack !== pick.attack)
+      bs.chainNext = this._weightedTrophyPick(rest)?.attack ?? null
+    }
+    return pick.attack
+  }
+
+  _beginOrcAttack(bs, attack) {
+    bs.action       = attack
+    bs.actionT      = 0
+    bs.struck       = false
+    bs.windUpEmitted = false
+    bs.castEmitted  = false
+    bs.armoryWave   = 0
+    const tgt = this._highestAggroFightState()
+    if (tgt) bs.targetId = tgt.adv.instanceId
+    const fast = bs.lastStand ? 0.65 : 1
+    const dur = { cleave: 0.95, shieldbash: 0.85, hexbolt: 0.80, volley: 0.95, reaversmite: 0.90, armory: 2.2 }[attack] ?? 0.9
+    bs.actionDur = dur * fast
+  }
+
+  // ── Target-set helpers ──
+  _orcTargetFS() {
+    return this._highestAggroFightState()
+      ?? [...this._fightStates.values()].find(fs => fs.action !== 'dying')
+      ?? null
+  }
+
+  _orcAdvsInRange(cx, cy, range) {
+    const out = [], r2 = range * range
+    for (const fs of this._fightStates.values()) {
+      if (fs.action === 'dying') continue
+      const dx = fs.adv.worldX - cx, dy = fs.adv.worldY - cy
+      if (dx * dx + dy * dy <= r2) out.push(fs)
+    }
+    return out
+  }
+
+  _orcAdvsInArc(cx, cy, dirX, dirY, range, halfAngle) {
+    const out = []
+    const dl = Math.hypot(dirX, dirY) || 1
+    const nx = dirX / dl, ny = dirY / dl
+    for (const fs of this._fightStates.values()) {
+      if (fs.action === 'dying') continue
+      const dx = fs.adv.worldX - cx, dy = fs.adv.worldY - cy
+      const d = Math.hypot(dx, dy)
+      if (d > range || d < 0.01) continue
+      const dot = (dx / d) * nx + (dy / d) * ny
+      if (Math.acos(Math.max(-1, Math.min(1, dot))) <= halfAngle) out.push(fs)
+    }
+    return out
+  }
+
+  // Apply a trophy attack's burst damage to a set of fight-states. Mirrors the
+  // slam's per-victim handling (block shrug, hit-flash, round log, death →
+  // dying, optional knockback) and returns total damage dealt (for lifesteal).
+  _orcStrikeTargets(boss, fsList, dmgFrac, opts = {}) {
+    const stacks = opts.stacks ?? 1
+    const stackBonus = 1 + Balance.ORC_TROPHY_DMG_PER_STACK *
+      Math.min(Balance.ORC_TROPHY_DMG_STACK_CAP, Math.max(0, stacks - 1))
+    let dealt = 0
+    for (const fs of fsList) {
+      if (!fs || fs.action === 'dying') continue
+      if (this._advBlocking(fs.adv)) { this._blockShrug(fs.adv); continue }
+      const def   = fs.adv.stats?.defense ?? 0
+      const taken = Math.max(1, Math.floor(this._bossAtkScaled(boss) * dmgFrac * stackBonus - def))
+      fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - taken)
+      dealt += taken
+      this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: this._chestY(fs.adv), color: opts.color })
+      if (this._roundLog) {
+        this._roundLog.push({ side: 'boss', damage: taken, targetId: fs.adv.instanceId, kind: opts.kind ?? 'trophy' })
+      }
+      if (fs.adv.resources.hp <= 0) {
+        fs.action = 'dying'; fs.actionT = 0; fs.actionDur = 0.6; fs.dyingKilled = false
+        continue
+      }
+      if (opts.knockback && fs.adv.aiState !== 'fleeing') {
+        const dx = fs.adv.worldX - boss.worldX, dy = fs.adv.worldY - boss.worldY
+        const d  = Math.hypot(dx, dy) || 0.01
+        const KB = opts.knockback * Balance.TILE_SIZE
+        fs.vx = (dx / d) * KB; fs.vy = (dy / d) * KB
+        fs.action = 'knockback'; fs.actionT = 0; fs.actionDur = 0.45; fs.strikeEmitted = false
+      }
+    }
+    return dealt
+  }
+
+  // ── BLADE → Cleave: telegraphed frontal crescent + knockback ──
+  _tickOrcCleave(boss, bs, dt) {
+    const TS = Balance.TILE_SIZE
+    const t  = bs.actionT
+    const target = this._fightStates.get(bs.targetId) ?? this._orcTargetFS()
+    const dirX = target ? target.adv.worldX - boss.worldX : 1
+    const dirY = target ? target.adv.worldY - boss.worldY : 0
+    if (!bs.windUpEmitted) {
+      bs.windUpEmitted = true
+      this._emitFx({ kind: 'wind_up', x: boss.worldX, y: boss.worldY })
+      this._rollSlamDodges(boss)
+    }
+    if (t >= 0.45 && !bs.struck) {
+      bs.struck = true
+      const stacks = this._gameState.boss?.trophies?.blade?.stacks ?? 1
+      AbilityVfx?.orcCleaveFx?.(this._scene, boss.worldX, boss.worldY, { dirX, dirY, tier: currentAct(this._gameState) })
+      const list = this._orcAdvsInArc(boss.worldX, boss.worldY, dirX, dirY, 2.6 * TS, Math.PI * 0.6)
+      this._orcStrikeTargets(boss, list, Balance.ORC_TROPHY_CLEAVE_DMG_FRAC, { stacks, knockback: 12, kind: 'cleave', color: 0xffd0a0 })
+    }
+  }
+
+  // ── HEAVY → Shield Bash: charge in, strike, then brace (DR) ──
+  _tickOrcShieldBash(boss, bs, dt) {
+    const TS = Balance.TILE_SIZE
+    const t  = bs.actionT
+    const target = this._fightStates.get(bs.targetId) ?? this._orcTargetFS()
+    if (target && t < 0.45) {
+      const dx = target.adv.worldX - boss.worldX, dy = target.adv.worldY - boss.worldY
+      const d  = Math.hypot(dx, dy) || 1
+      const speed = 6 * TS
+      boss.worldX += (dx / d) * speed * dt
+      boss.worldY += (dy / d) * speed * dt
+      this._emitFx({ kind: 'lunge_trail', x: boss.worldX, y: boss.worldY, color: 0xc9a23f })
+    }
+    if (t >= 0.45 && !bs.struck) {
+      bs.struck = true
+      const stacks = this._gameState.boss?.trophies?.heavy?.stacks ?? 1
+      const dirX = target ? target.adv.worldX - boss.worldX : 1
+      const dirY = target ? target.adv.worldY - boss.worldY : 0
+      AbilityVfx?.shieldBashFx?.(this._scene, boss.worldX, boss.worldY, { dirX, dirY, tier: currentAct(this._gameState) })
+      const hits = target
+        ? [target, ...this._orcAdvsInRange(target.adv.worldX, target.adv.worldY, 1.1 * TS).filter(fs => fs !== target)]
+        : this._orcAdvsInRange(boss.worldX, boss.worldY, 1.3 * TS)
+      this._orcStrikeTargets(boss, hits, Balance.ORC_TROPHY_SHIELDBASH_DMG_FRAC, { stacks, knockback: 16, kind: 'shieldbash', color: 0xc9a23f })
+      boss._braceUntil = (this._scene?.time?.now ?? 0) + 1200   // takes reduced damage for a beat
+    }
+  }
+
+  // ── ARCANE → Hexbolt: stolen-magic orb bound in iron chains, hurled ──
+  _tickOrcHexbolt(boss, bs, dt) {
+    const TS = Balance.TILE_SIZE
+    const t  = bs.actionT
+    const target = this._fightStates.get(bs.targetId) ?? this._orcTargetFS()
+    if (!bs.castEmitted) {
+      bs.castEmitted = true
+      this._emitFx({ kind: 'cast', x: boss.worldX, y: boss.worldY, color: 0x9a6cff })
+    }
+    if (t >= 0.35 && !bs.struck) {
+      bs.struck = true
+      const stacks = this._gameState.boss?.trophies?.arcane?.stacks ?? 1
+      const tx = target ? target.adv.worldX : boss.worldX
+      const ty = target ? this._chestY(target.adv) : boss.worldY
+      AbilityVfx?.hexboltFx?.(this._scene, boss.worldX, boss.worldY - 10, { toX: tx, toY: ty, tier: currentAct(this._gameState) })
+      const hits = target
+        ? [target, ...this._orcAdvsInRange(tx, ty, 1.2 * TS).filter(fs => fs !== target)]
+        : []
+      this._orcStrikeTargets(boss, hits, Balance.ORC_TROPHY_HEXBOLT_DMG_FRAC, { stacks, kind: 'hexbolt', color: 0x9a6cff })
+    }
+  }
+
+  // ── HUNTER → Volley: a fan of spinning thrown weapons across the arena ──
+  _tickOrcVolley(boss, bs, dt) {
+    const t = bs.actionT
+    if (!bs.windUpEmitted) {
+      bs.windUpEmitted = true
+      this._emitFx({ kind: 'cast', x: boss.worldX, y: boss.worldY, color: 0x66cc66 })
+    }
+    if (t >= 0.40 && !bs.struck) {
+      bs.struck = true
+      const stacks = this._gameState.boss?.trophies?.hunter?.stacks ?? 1
+      const all = [...this._fightStates.values()].filter(fs => fs.action !== 'dying')
+      all.sort((a, b) =>
+        Math.hypot(a.adv.worldX - boss.worldX, a.adv.worldY - boss.worldY) -
+        Math.hypot(b.adv.worldX - boss.worldX, b.adv.worldY - boss.worldY))
+      const hits = all.slice(0, 2 + currentAct(this._gameState))   // T1:3 … T4:6
+      AbilityVfx?.volleyFx?.(this._scene, boss.worldX, boss.worldY, {
+        tier: currentAct(this._gameState),
+        targets: hits.map(fs => ({ x: fs.adv.worldX, y: this._chestY(fs.adv) })),
+      })
+      this._orcStrikeTargets(boss, hits, Balance.ORC_TROPHY_VOLLEY_DMG_FRAC, { stacks, kind: 'volley', color: 0x88dd66 })
+    }
+  }
+
+  // ── FAITH → Reaver's Smite: overhead strike that drinks the light (heals) ──
+  _tickOrcReaverSmite(boss, bs, dt) {
+    const t = bs.actionT
+    const target = this._fightStates.get(bs.targetId) ?? this._orcTargetFS()
+    const tx = target ? target.adv.worldX : boss.worldX
+    const ty = target ? this._chestY(target.adv) : boss.worldY
+    if (!bs.windUpEmitted) {
+      bs.windUpEmitted = true
+      this._emitFx({ kind: 'wind_up', x: tx, y: ty, color: 0xffe9a8 })
+    }
+    if (t >= 0.50 && !bs.struck) {
+      bs.struck = true
+      const stacks = this._gameState.boss?.trophies?.faith?.stacks ?? 1
+      AbilityVfx?.reaverSmiteFx?.(this._scene, tx, ty, { fromX: boss.worldX, fromY: boss.worldY, tier: currentAct(this._gameState) })
+      const dealt = this._orcStrikeTargets(boss, target ? [target] : [], Balance.ORC_TROPHY_SMITE_DMG_FRAC, { stacks, kind: 'reaversmite', color: 0xffe9a8 })
+      if (dealt > 0) {
+        const heal = Math.round(dealt * Balance.ORC_TROPHY_SMITE_LIFESTEAL)
+        boss.hp = Math.min(boss.maxHp ?? boss.hp ?? 0, (boss.hp ?? 0) + heal)
+        this._floatText(boss.worldX, boss.worldY - 30, '+' + heal, '#ffe9a8')
+      }
+    }
+  }
+
+  // ── T4 ult → Veteran's Armory: unleash the whole arsenal in a sequence ──
+  _tickOrcArmory(boss, bs, dt) {
+    const TS = Balance.TILE_SIZE
+    const t  = bs.actionT
+    if (!bs.windUpEmitted) {
+      bs.windUpEmitted = true
+      this._floatText(boss.worldX, boss.worldY - 34, "VETERAN'S ARMORY", '#ffcaa0')
+      AbilityVfx?.veteransArmoryFx?.(this._scene, boss.worldX, boss.worldY, {
+        trophies: Object.keys(this._gameState.boss?.trophies ?? {}),
+      })
+      this._emitFx({ kind: 'shockwave', x: boss.worldX, y: boss.worldY })
+    }
+    const waves = [0.6, 1.2, 1.8]
+    if ((bs.armoryWave ?? 0) < waves.length && t >= waves[bs.armoryWave ?? 0]) {
+      bs.armoryWave = (bs.armoryWave ?? 0) + 1
+      const all = this._orcAdvsInRange(boss.worldX, boss.worldY, 3.2 * TS)
+      this._orcStrikeTargets(boss, all, 0.5, { stacks: 4, knockback: 10, kind: 'armory', color: 0xffcaa0 })
+      this._emitFx({ kind: 'shockwave', x: boss.worldX, y: boss.worldY })
+    }
+  }
+
+  // ══ Elder Lich — THE WITHERING throne fight (lifedrain death-caster) ════════
+  // A caster that sustains itself by draining the party. All attacks heal the
+  // Lich; tier widens the rotation and target counts so big parties don't
+  // trivialize it. Baseline round-DPS (_tickFightCombat) still flows underneath.
+
+  _lichClaimedActions(tier) {
+    const acts = ['deathcoil']
+    if (tier >= 2) acts.push('soulsiphon')
+    if (tier >= 3) acts.push('soulnova')
+    if (tier >= 4) acts.push('soulcage')
+    return acts
+  }
+
+  _pickLichAction(bs) {
+    if (Math.random() < 0.22) return null   // drift/reposition beat
+    const acts = this._lichClaimedActions(currentAct(this._gameState))
+    // Bias toward the strongest unlocked spell a little.
+    const pick = Math.random() < 0.5 ? acts[acts.length - 1] : acts[Math.floor(Math.random() * acts.length)]
+    return pick
+  }
+
+  _beginLichAttack(bs, attack) {
+    bs.action = attack
+    bs.actionT = 0
+    bs.struck = false
+    bs.castEmitted = false
+    bs.siphonTickAt = 0
+    const tgt = this._highestAggroFightState()
+    if (tgt) bs.targetId = tgt.adv.instanceId
+    const dur = { deathcoil: 0.8, soulsiphon: 1.5, soulnova: 1.0, soulcage: 1.6 }[attack] ?? 0.9
+    bs.actionDur = dur
+  }
+
+  // Chest-height Y for an adventurer (foot-anchored sprite → lift to body).
+  _chestY(adv) { return (adv?.worldY ?? 0) - ADV_CHEST_DY }
+
+  // N nearest non-dying combatants to the boss.
+  _lichNearest(n) {
+    const boss = this._gameState.boss
+    const all = [...this._fightStates.values()].filter(fs => fs.action !== 'dying')
+    all.sort((a, b) =>
+      Math.hypot(a.adv.worldX - boss.worldX, a.adv.worldY - boss.worldY) -
+      Math.hypot(b.adv.worldX - boss.worldX, b.adv.worldY - boss.worldY))
+    return all.slice(0, Math.max(0, n))
+  }
+
+  // Damage a set of combatants + heal the boss for healFrac of the total dealt
+  // (the lifedrain core). Mirrors the slam's block/death/round-log handling.
+  _lichDrain(boss, fsList, dmgFrac, healFrac, opts = {}) {
+    let dealt = 0
+    for (const fs of fsList) {
+      if (!fs || fs.action === 'dying') continue
+      if (this._advBlocking(fs.adv)) { this._blockShrug(fs.adv); continue }
+      const def   = fs.adv.stats?.defense ?? 0
+      const taken = Math.max(1, Math.floor(this._bossAtkScaled(boss) * dmgFrac - def))
+      fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - taken)
+      dealt += taken
+      this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: this._chestY(fs.adv), color: opts.color ?? 0x9a6cff })
+      if (this._roundLog) this._roundLog.push({ side: 'boss', damage: taken, targetId: fs.adv.instanceId, kind: opts.kind ?? 'soul' })
+      if (fs.adv.resources.hp <= 0) { fs.action = 'dying'; fs.actionT = 0; fs.actionDur = 0.6; fs.dyingKilled = false }
+    }
+    if (dealt > 0 && healFrac > 0) {
+      boss.hp = Math.min(boss.maxHp ?? boss.hp ?? 0, (boss.hp ?? 0) + Math.round(dealt * healFrac))
+    }
+    return dealt
+  }
+
+  // T1 · Death Coil — soul-bolt at the focus (chains to more at higher tiers).
+  _tickLichDeathCoil(boss, bs, dt) {
+    const t = bs.actionT
+    const target = this._fightStates.get(bs.targetId) ?? this._highestAggroFightState()
+    if (!bs.castEmitted) { bs.castEmitted = true; this._emitFx({ kind: 'cast', x: boss.worldX, y: boss.worldY, color: 0x9a6cff }) }
+    if (t >= 0.35 && !bs.struck) {
+      bs.struck = true
+      const tier = currentAct(this._gameState)
+      const tx = target ? target.adv.worldX : boss.worldX
+      const ty = target ? this._chestY(target.adv) : boss.worldY
+      AbilityVfx?.deathCoilFx?.(this._scene, boss.worldX, boss.worldY - 10, { toX: tx, toY: ty, tier })
+      const chain = tier >= 3 ? 2 : (tier >= 2 ? 1 : 0)
+      const extra = this._lichNearest(1 + chain).filter(fs => fs !== target).slice(0, chain)
+      const hits = target ? [target, ...extra] : extra
+      this._lichDrain(boss, hits, Balance.LICH_FIGHT_COIL_DMG_FRAC, Balance.LICH_FIGHT_COIL_HEAL_FRAC, { kind: 'deathcoil', color: 0x9a6cff })
+    }
+  }
+
+  // T2 · Soul Siphon — sustained beam tethering K heroes, draining each tick.
+  _tickLichSoulSiphon(boss, bs, dt) {
+    const t = bs.actionT
+    if (!bs.castEmitted) {
+      bs.castEmitted = true
+      const tier = currentAct(this._gameState)
+      bs._siphonK = 2 + (tier >= 3 ? 1 : 0)
+      const tethers = this._lichNearest(bs._siphonK)
+      AbilityVfx?.soulSiphonFx?.(this._scene, boss.worldX, boss.worldY - 8, { tier, targets: tethers.map(fs => ({ x: fs.adv.worldX, y: this._chestY(fs.adv) })) })
+    }
+    if (t - (bs.siphonTickAt ?? 0) >= 0.35) {
+      bs.siphonTickAt = t
+      this._lichDrain(boss, this._lichNearest(bs._siphonK ?? 2), Balance.LICH_FIGHT_SIPHON_DMG_FRAC, Balance.LICH_FIGHT_SIPHON_HEAL_FRAC, { kind: 'soulsiphon', color: 0x88dd88 })
+    }
+  }
+
+  // T3 · Soul Nova — AoE burst on all + big self-heal + Wither (no-heal) on hit.
+  _tickLichSoulNova(boss, bs, dt) {
+    const t = bs.actionT
+    if (!bs.castEmitted) { bs.castEmitted = true; this._emitFx({ kind: 'wind_up', x: boss.worldX, y: boss.worldY, color: 0x9a6cff }) }
+    if (t >= 0.45 && !bs.struck) {
+      bs.struck = true
+      AbilityVfx?.soulNovaFx?.(this._scene, boss.worldX, boss.worldY, { tier: currentAct(this._gameState) })
+      const all = [...this._fightStates.values()]
+      this._lichDrain(boss, all, Balance.LICH_FIGHT_NOVA_DMG_FRAC, Balance.LICH_FIGHT_NOVA_HEAL_FRAC, { kind: 'soulnova', color: 0x9a6cff })
+      const now = this._scene?.time?.now ?? 0
+      for (const fs of all) { if ((fs.adv?.resources?.hp ?? 0) > 0) fs.adv._noHealUntil = now + Balance.LICH_WITHER_DURATION_MS }
+    }
+  }
+
+  // T4 · Soul Cage (ult) — cage the nearest cluster (scales with tier) + drain.
+  _tickLichSoulCage(boss, bs, dt) {
+    const t = bs.actionT
+    if (!bs.castEmitted) {
+      bs.castEmitted = true
+      this._floatText(boss.worldX, boss.worldY - 30, 'SOUL CAGE', '#b48aff')
+      this._emitFx({ kind: 'cast', x: boss.worldX, y: boss.worldY, color: 0xb48aff })
+    }
+    if (t >= 0.5 && !bs.struck) {
+      bs.struck = true
+      const tier = currentAct(this._gameState)
+      const caged = this._lichNearest(2 + tier)   // T4 = 6
+      for (const fs of caged) AbilityVfx?.soulCageFx?.(this._scene, fs.adv.worldX, this._chestY(fs.adv), { tier })
+      this._lichDrain(boss, caged, Balance.LICH_FIGHT_CAGE_DMG_FRAC, Balance.LICH_FIGHT_CAGE_HEAL_FRAC, { kind: 'soulcage', color: 0xb48aff })
     }
   }
 
@@ -1696,6 +2155,8 @@ export class BossSystem {
   _bossAtkScaled(boss) {
     const f = this._gameState?._mechanicFlags ?? {}
     let atk = boss?.attack ?? 0
+    // Orc Veteran — Last Stand (T4 Armory) berserk surge.
+    if (boss?._lastStand) atk *= 1.3
     if (f.wrathUnbound) {
       const missing = 1 - Math.max(0, Math.min(1, (boss?.hp ?? 0) / Math.max(1, boss?.maxHp ?? 1)))
       atk *= (1 + (Balance.MECHANIC_WRATH_MAX_ATK_BONUS ?? 1) * missing)
@@ -1718,6 +2179,8 @@ export class BossSystem {
     }
     if (lf.wrathUnbound) dmg = Math.round(dmg * (Balance.MECHANIC_WRATH_DMG_TAKEN_MULT ?? 1.5))
     if (lf.suddenDeath)  dmg = Math.round(dmg * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5))
+    // Orc Veteran — Shield Bash brace: heavily reduced damage while braced.
+    if (boss?._braceUntil && now < boss._braceUntil) dmg = Math.round(dmg * 0.4)
     const hpBefore = boss?.hp ?? 0
     if (this._archIdForBoss() === 'slime' && Array.isArray(boss.slimes) && boss.slimes.length > 0) {
       const alive = boss.slimes.filter(s => (s.hp ?? 0) > 0)
@@ -5309,6 +5772,10 @@ export class BossSystem {
     this._duelMode       = false
     this._duel           = null
     this._duelOutro      = null
+    // Orc Veteran — clear transient throne-fight buffs so they never leak past
+    // the fight (Last Stand atk surge / Shield Bash brace window).
+    const _orcBoss = this._gameState?.boss
+    if (_orcBoss) { _orcBoss._lastStand = false; _orcBoss._braceUntil = 0 }
     if (this._fxGraphics)  this._fxGraphics.clear()
     if (this._fxParticles) this._fxParticles.length = 0
   }

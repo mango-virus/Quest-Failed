@@ -226,18 +226,22 @@
     "spriteFrame": null,
     "portraitAvailable": true,
     "headline": {
-      "name": "Phylactery",
-      "summary": "Place a Heart in any room as a hidden extra life. Adventurers who learn of it will hunt the heart over the boss — and every hit on it wounds the boss too.",
+      "name": "The Withering",
+      "summary": "Every death in your dungeon banks Soul Essence — the Lich's lifeline, the fuel for your active Channel Souls ability, and the reserve it carries into the throne fight.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Necromancy — dead adventurers rise at dawn as free undead, keeping their class abilities for a day.",
+        "text": "Channel Souls — during the day, spend essence on a target room: blast, drain, wither, then (late acts) cage everyone inside. Room-wide, so it scales with the crowd.",
+        "implemented": true
+      },
+      {
+        "text": "Soul Harvest — the Lich slowly regenerates while it holds essence; hoard for a deadlier final fight or spend now for kill pressure.",
         "implemented": true
       }
     ],
-    "flavorText": "Death is a door. You hold the key. You also rebuilt the door.",
-    "description": "Death economy",
+    "flavorText": "It does not raise the dead — it drinks them. Every soul your halls collect makes the withering deeper.",
+    "description": "Soul-harvest economy",
     "modifiers": {
       "goldGainMultiplier": 1,
       "minionXpMultiplier": 1,
@@ -300,18 +304,22 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Loot the Fallen",
-      "summary": "Every orc gains permanent ATK for each kill — but loses it all on death.",
+      "name": "Trophy Hunter",
+      "summary": "Every hero class your dungeon kills arms the Veteran with their weapon — his throne-fight arsenal grows over the run and sharpens with repeat kills.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Warband — orcs in the same room buff each other's ATK and DEF. Pack them tight.",
+        "text": "Warband — orcs in the same room buff each other's ATK and DEF, and each loots permanent ATK per kill.",
+        "implemented": true
+      },
+      {
+        "text": "Mastery (Act III+) — his most-claimed trophy radiates a dungeon-wide boon (Blade→minion ATK, Heavy→minion DEF, Arcane→traps recharge, Hunter→minion range, Faith→boss regen).",
         "implemented": true
       }
     ],
-    "flavorText": "Every kill makes the axe heavier. Every brother in the room makes the swing harder.",
-    "description": "Veteran scaling & warband",
+    "flavorText": "He wears the realm's champions as trophies. Every hero you feed him teaches the axe a new way to kill.",
+    "description": "Trophy hunter & warband",
     "modifiers": {
       "goldGainMultiplier": 1,
       "minionXpMultiplier": 1,

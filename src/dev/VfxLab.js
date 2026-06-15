@@ -60,6 +60,9 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Gladiator', fx: ['gladiatorBlockFx', 'crowdRoarFx'] },
   { label: 'Adv·Gambler',   fx: ['diceRoll', 'coinFlip'] },
   { label: 'Champion/Event', fx: ['lastVowFx', 'holyAegisFx', 'shadowAriseFx', 'consecrateFx'] },
+  // ── Boss ability VFX (bespoke per archetype) ──
+  { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx'] },
+  { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -151,6 +154,7 @@ export class VfxLab {
     }
     sweep(this._gs.minions)
     sweep(this._gs.adventurers?.active)
+    if (this._bossStandIn) { try { this._bossStandIn.destroy() } catch (e) {} this._bossStandIn = null }
     this._entity = null; this._dummy = null
     this._lab2ndHero = null; this._labFallen = null   // primed-precondition entities (swept above)
   }
@@ -170,6 +174,28 @@ export class VfxLab {
       m._vfxLabFrozen = true; m._hidden = false; m.aiState = 'idle'
       this._gs.minions.push(m)
       this._entity = m
+    } else if (kind === 'boss') {
+      // Boss stand-in — a positioned anchor + a visible sprite so the boss's
+      // bespoke throne-fight VFX can be fired from the ABILITIES section. Not
+      // pushed into gs (no AI/renderer entity); we own the sprite's lifecycle.
+      const tile = { x: Math.round(this._x / 32), y: Math.round(this._y / 32) }
+      this._entity = {
+        worldX: this._x, worldY: this._y, tileX: tile.x, tileY: tile.y,
+        _vfxLabFrozen: true, aiState: 'idle', isBossStandIn: true, archId: id, color: 0xaa3322,
+      }
+      // Depth must clear the lab backdrop (depth 5); match the entity Y-sort band.
+      const bossDepth = 7 + this._y * 0.0005
+      const key = `${id}-idle`
+      if (this._scene.textures.exists(key)) {
+        // Center-anchor to MATCH BossRenderer (origin 0.5,0.5 at boss.worldY), so
+        // a VFX fired at the entity's worldX/worldY lands on the sprite exactly
+        // where it will in the real throne fight.
+        this._bossStandIn = this._scene.add.sprite(this._x, this._y, key).setOrigin(0.5, 0.5).setDepth(bossDepth).setScale(1.6)
+        const anim = `${id}-idle-down`
+        if (this._scene.anims.exists(anim)) { try { this._bossStandIn.play(anim) } catch (e) {} }
+      } else {
+        this._bossStandIn = this._scene.add.circle(this._x, this._y, 24, 0xaa3322, 0.85).setStrokeStyle(2, 0xffcaa0, 0.9).setDepth(bossDepth)
+      }
     } else {
       const def = (cache.get('adventurerClasses') ?? []).find(d => d.id === id)
       if (!def) return
@@ -224,7 +250,7 @@ export class VfxLab {
   // VFX render on the clean stage. All tagged _vfxLabFrozen → swept on despawn.
   _setupAdvArena() {
     const e = this._entity
-    if (!e || e.definitionId) return
+    if (!e || e.definitionId || e.isBossStandIn) return
     const cache = this._scene.cache.json
     const tx = e.tileX, ty = e.tileY
     // Shared party so party-scoped abilities (knight aura, bard inspire, cleric
@@ -303,6 +329,44 @@ export class VfxLab {
   // ClassAbilitySystem.devFireAbility, with the fake arena set up in _spawn).
   _abilitiesOf(entity) {
     if (!entity) return []
+    // Boss stand-in — its bespoke throne-fight abilities fire the real VFX on the
+    // boss + the dummy target. Tier cycles 1→4 per press (see _orcTier) to show
+    // escalation. Only the Orc is built so far; other archetypes list nothing yet.
+    if (entity.isBossStandIn) {
+      const e = entity
+      const tX = () => this._dummy?.worldX ?? (e.worldX + 100)
+      // dummy is foot-anchored → aim at its chest (−16), matching the in-game
+      // BossSystem._chestY lift, so the lab preview lines up like the real fight.
+      const tY = () => (this._dummy?.worldY ?? e.worldY) - 16
+      const dir = () => ({ dx: tX() - e.worldX, dy: tY() - e.worldY })
+      if (entity.archId === 'lich') {
+        // Soul AURA level previews — see/test how the in-world aura reads at each
+        // saturation (matches BossRenderer's live aura via shared helpers).
+        const aura = (sat, overK, orbit) => () => AbilityVfx.soulAuraFx(this._scene, e.worldX, e.worldY, { sat, overK, orbit, sprite: this._bossStandIn, dsz: this._bossStandIn?.displayHeight || 100, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low (25%)',  fire: aura(0.25, 0, 2) },
+          { label: 'Aura: Mid (60%)',  fire: aura(0.6, 0, 4) },
+          { label: 'Aura: High (95%)', fire: aura(0.95, 0, 7) },
+          { label: 'Aura: OVERSOULED', fire: aura(1, 0.85, 8) },
+          { label: 'Harvest Soul', fire: () => AbilityVfx.soulHarvestWispFx(this._scene, tX(), tY(), { toX: e.worldX, toY: e.worldY - 20 }) },
+          { label: 'Channel Souls (day)', fire: () => AbilityVfx.soulChannelFx(this._scene, tX(), tY(), { tier: this._orcTier(), fromX: e.worldX, fromY: e.worldY, victims: [{ x: tX(), y: tY() }, { x: e.worldX - 40, y: e.worldY + 30 }] }) },
+          { label: 'Death Coil', fire: () => AbilityVfx.deathCoilFx(this._scene, e.worldX, e.worldY - 10, { toX: tX(), toY: tY(), tier: this._orcTier() }) },
+          { label: 'Soul Siphon', fire: () => AbilityVfx.soulSiphonFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), targets: [{ x: tX(), y: tY() }, { x: e.worldX - 90, y: e.worldY - 10 }] }) },
+          { label: 'Soul Nova', fire: () => AbilityVfx.soulNovaFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier() }) },
+          { label: 'Soul Cage', fire: () => AbilityVfx.soulCageFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+        ]
+      }
+      if (entity.archId !== 'orc') return []
+      return [
+        { label: 'Claim Trophy', fire: () => AbilityVfx.trophyClaimFx(this._scene, tX(), tY(), { color: 0xd0d4dc, toX: e.worldX, toY: e.worldY - 20, isNew: true }) },
+        { label: 'Cleave (Blade)', fire: () => { const { dx, dy } = dir(); AbilityVfx.orcCleaveFx(this._scene, e.worldX, e.worldY, { dirX: dx, dirY: dy, tier: this._orcTier() }) } },
+        { label: 'Shield Bash (Heavy)', fire: () => { const { dx, dy } = dir(); AbilityVfx.shieldBashFx(this._scene, e.worldX, e.worldY, { dirX: dx, dirY: dy, tier: this._orcTier() }) } },
+        { label: 'Hexbolt (Arcane)', fire: () => AbilityVfx.hexboltFx(this._scene, e.worldX, e.worldY - 10, { toX: tX(), toY: tY() - 10, tier: this._orcTier() }) },
+        { label: 'Volley (Hunter)', fire: () => AbilityVfx.volleyFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), targets: [{ x: tX(), y: tY() }, { x: e.worldX - 90, y: e.worldY - 10 }, { x: e.worldX + 60, y: e.worldY + 50 }] }) },
+        { label: "Reaver's Smite (Faith)", fire: () => AbilityVfx.reaverSmiteFx(this._scene, tX(), tY(), { fromX: e.worldX, fromY: e.worldY - 10, tier: this._orcTier() }) },
+        { label: "Veteran's Armory (T4 ULT)", fire: () => AbilityVfx.veteransArmoryFx(this._scene, e.worldX, e.worldY, { trophies: ['blade', 'heavy', 'arcane', 'hunter', 'faith'] }) },
+      ]
+    }
     if (entity.definitionId) {
       const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === entity.definitionId)
       return (def?.abilities ?? []).map(ab => ({
@@ -491,6 +555,13 @@ export class VfxLab {
     this._forceReplay()
   }
 
+  // Cycle tier 1→4 on each press so the lab demonstrates how the boss VFX
+  // escalates per act (e.g. Cleave: single → double-X → +ground-gash → whirlwind).
+  _orcTier() {
+    this._orcTierTick = ((this._orcTierTick ?? -1) + 1) % 4
+    return this._orcTierTick + 1
+  }
+
   _fireRaw(name, colorKey) {
     const s = this._scene, e = this._entity, d = this._dummy
     if (!e) return
@@ -503,6 +574,22 @@ export class VfxLab {
         case 'arcBoltFx':    AbilityVfx.arcBoltFx(s, e.worldX, e.worldY - 10, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY) - 10, opts); break
         case 'piercingArrowFx': AbilityVfx.piercingArrowFx(s, e.worldX, e.worldY - 8, (d?.worldX ?? e.worldX + 120), (d?.worldY ?? e.worldY) - 8, opts); break
         case 'pounceFx':     AbilityVfx.pounceFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
+        // Boss · Orc Veteran (Trophy Hunter) — repeated presses cycle tier 1→4 to show escalation.
+        case 'orcCleaveFx':  { const dx = (d?.worldX ?? e.worldX + 90) - e.worldX, dy = (d?.worldY ?? e.worldY) - e.worldY; AbilityVfx.orcCleaveFx(s, e.worldX, e.worldY, { ...opts, dirX: dx, dirY: dy, tier: this._orcTier() }); break }
+        case 'shieldBashFx': { const dx = (d?.worldX ?? e.worldX + 90) - e.worldX, dy = (d?.worldY ?? e.worldY) - e.worldY; AbilityVfx.shieldBashFx(s, e.worldX, e.worldY, { ...opts, dirX: dx, dirY: dy, tier: this._orcTier() }); break }
+        case 'hexboltFx':    AbilityVfx.hexboltFx(s, e.worldX, e.worldY - 10, { ...opts, toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 10, tier: this._orcTier() }); break
+        case 'volleyFx':     AbilityVfx.volleyFx(s, e.worldX, e.worldY, { ...opts, tier: this._orcTier(), targets: [{ x: (d?.worldX ?? e.worldX + 100), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 90, y: e.worldY - 10 }, { x: e.worldX + 60, y: e.worldY + 50 }] }); break
+        case 'reaverSmiteFx': AbilityVfx.reaverSmiteFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, fromX: e.worldX, fromY: e.worldY - 10, tier: this._orcTier() }); break
+        case 'trophyClaimFx': AbilityVfx.trophyClaimFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, toX: e.worldX, toY: e.worldY - 20, isNew: true }); break
+        case 'veteransArmoryFx': AbilityVfx.veteransArmoryFx(s, e.worldX, e.worldY, { ...opts, trophies: ['blade', 'heavy', 'arcane', 'hunter', 'faith'] }); break
+        // Boss · Elder Lich (The Withering)
+        case 'soulHarvestWispFx': AbilityVfx.soulHarvestWispFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, toX: e.worldX, toY: e.worldY - 20 }); break
+        case 'soulChannelFx': AbilityVfx.soulChannelFx(s, e.worldX + 40, e.worldY, { ...opts, tier: this._orcTier(), fromX: e.worldX, fromY: e.worldY, victims: [{ x: (d?.worldX ?? e.worldX + 100), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 40, y: e.worldY + 30 }] }); break
+        case 'deathCoilFx': AbilityVfx.deathCoilFx(s, e.worldX, e.worldY - 10, { ...opts, toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 10, tier: this._orcTier() }); break
+        case 'soulSiphonFx': AbilityVfx.soulSiphonFx(s, e.worldX, e.worldY - 8, { ...opts, tier: this._orcTier(), targets: [{ x: (d?.worldX ?? e.worldX + 100), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 90, y: e.worldY - 10 }] }); break
+        case 'soulNovaFx': AbilityVfx.soulNovaFx(s, e.worldX, e.worldY, { ...opts, tier: this._orcTier() }); break
+        case 'soulCageFx': AbilityVfx.soulCageFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, tier: this._orcTier() }); break
+        case 'soulAuraFx': { const t = this._orcTier(); AbilityVfx.soulAuraFx(s, e.worldX, e.worldY, { sat: [0.25, 0.6, 0.95, 1][t - 1], overK: t >= 4 ? 0.85 : 0, orbit: [2, 4, 7, 8][t - 1], sprite: this._bossStandIn, dsz: this._bossStandIn?.displayHeight || 100 }); break }
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
@@ -586,9 +673,11 @@ export class VfxLab {
     for (const d of (this._scene.cache.json.get('minionTypes') ?? [])) { const o = this._el('option'); o.value = 'minion:' + d.id; o.textContent = `${d.name} (${d.id})`; ogM.appendChild(o) }
     const ogA = this._el('optgroup'); ogA.label = 'ADVENTURERS'
     for (const d of (this._scene.cache.json.get('adventurerClasses') ?? [])) { const o = this._el('option'); o.value = 'adv:' + d.id; o.textContent = d.name ?? d.id; ogA.appendChild(o) }
-    pick.appendChild(ogM); pick.appendChild(ogA)
+    const ogB = this._el('optgroup'); ogB.label = 'BOSSES'
+    for (const d of (this._scene.cache.json.get('bossArchetypes') ?? [])) { const o = this._el('option'); o.value = 'boss:' + d.id; o.textContent = d.name ?? d.id; ogB.appendChild(o) }
+    pick.appendChild(ogM); pick.appendChild(ogA); pick.appendChild(ogB)
     pick.value = 'minion:goblin1'
-    pick.onchange = () => { const [k, id] = pick.value.split(':'); this._spawn(k === 'adv' ? 'adv' : 'minion', id) }
+    pick.onchange = () => { const [k, id] = pick.value.split(':'); this._spawn(k, id) }
     p.appendChild(pick)
 
     // Loop + slow toggles
@@ -659,11 +748,13 @@ export class VfxLab {
     const abs = this._abilitiesOf(this._entity)
     if (!abs.length) this._abilitySec.appendChild(this._el('div', 'font:9px monospace;color:#777;', '(no abilities — stat-block / event class)'))
     for (const item of abs) this._abilitySec.appendChild(this._btn(item.label, () => this._fireAbility(item)))
-    // Animations
+    // Animations (boss stand-in has its own idle sprite — no adv/minion anims)
     while (this._animSec.children.length > 1) this._animSec.lastChild.remove()
-    const isMinion = !!this._entity?.definitionId
-    const states = isMinion ? MINION_ANIMS : ADV_ANIMS
-    for (const st of states) this._animSec.appendChild(this._btn(st, () => this._playAnim(st)))
-    this._animSec.appendChild(this._btn('▸ resume', () => this._playAnim(null)))
+    if (!this._entity?.isBossStandIn) {
+      const isMinion = !!this._entity?.definitionId
+      const states = isMinion ? MINION_ANIMS : ADV_ANIMS
+      for (const st of states) this._animSec.appendChild(this._btn(st, () => this._playAnim(st)))
+      this._animSec.appendChild(this._btn('▸ resume', () => this._playAnim(null)))
+    }
   }
 }

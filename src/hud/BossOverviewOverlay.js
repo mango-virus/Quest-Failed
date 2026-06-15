@@ -16,7 +16,8 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { animatedBossSprite } from './inGameSnapshot.js'
-import { ascensionInfo } from '../config/acts.js'
+import { ascensionInfo, currentAct } from '../config/acts.js'
+import { TROPHY_TYPES } from '../config/orcTrophies.js'
 
 export class BossOverviewOverlay {
   constructor(gameState) {
@@ -407,6 +408,10 @@ export class BossOverviewOverlay {
           abilities.slice(0, 2).map(a => this._abilityCard(a, true))
         ),
       ]),
+      // Trophy Wall (Orc Veteran — Trophy Hunter)
+      this._renderTrophyWall(),
+      // Soul Essence gauge (Elder Lich — The Withering)
+      this._renderSoulGauge(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -526,6 +531,90 @@ export class BossOverviewOverlay {
         h('span', { style: { color: 'var(--blood)' } }, '▼ '),
         p.tradeoffDescription || p.bane,
       ]),
+    ])
+  }
+
+  // Orc Veteran — Trophy Hunter. The arsenal he's seized over the run: each
+  // claimed trophy type + its empower stacks. The most-claimed type is his
+  // Mastery (its dungeon-wide aura is live from Act III). Null for other bosses.
+  _renderTrophyWall() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'orc') return null
+    const tr = this._gameState.boss?.trophies ?? {}
+    const claimed = TROPHY_TYPES.filter(t => (tr[t.id]?.stacks ?? 0) > 0)
+    // top (Mastery) type — most stacks, ties by TROPHY_TYPES order
+    let topId = null, topStacks = 0
+    for (const t of TROPHY_TYPES) {
+      const s = tr[t.id]?.stacks ?? 0
+      if (s > topStacks) { topStacks = s; topId = t.id }
+    }
+    const masteryLive = currentAct(this._gameState) >= 3 && topId
+    const css = (c) => '#' + (c >>> 0).toString(16).padStart(6, '0').slice(-6)
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'TROPHY WALL'),
+        h('span', { className: 'pix', style: { fontSize: '11px', color: 'var(--text-mute)' } },
+          `${claimed.length}/${TROPHY_TYPES.length} CLAIMED`),
+      ]),
+      claimed.length === 0
+        ? h('div', { className: 'qf-boss-empty' }, 'No trophies claimed — slay heroes to seize their arms.')
+        : h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' } },
+            claimed.map(t => {
+              const c = css(t.color)
+              const stacks = tr[t.id].stacks
+              const isTop = t.id === topId
+              return h('div', {
+                style: {
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '5px 9px', borderRadius: '6px',
+                  border: `1px solid ${c}`,
+                  background: `${c}1a`,
+                  boxShadow: isTop && masteryLive ? `0 0 10px ${c}66` : 'none',
+                },
+              }, [
+                h('span', { style: { fontSize: '15px', color: c } }, t.icon),
+                h('span', { className: 'pix', style: { fontSize: '12px', color: 'var(--text)' } }, t.label.toUpperCase()),
+                h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: c } }, `×${stacks}`),
+                isTop && masteryLive && h('span', {
+                  className: 'pix',
+                  style: { fontSize: '10px', color: c, opacity: 0.9, borderLeft: `1px solid ${c}55`, paddingLeft: '6px' },
+                }, `★ ${t.mastery}`),
+              ])
+            })
+          ),
+      masteryLive
+        ? h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+            'Mastery aura active — the most-claimed trophy empowers your whole dungeon.')
+        : (claimed.length > 0
+            ? h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+                'Mastery aura unlocks at Act III.')
+            : null),
+    ])
+  }
+
+  // Elder Lich — The Withering. The banked Soul Essence: lifeline (day regen),
+  // ammo for CHANNEL SOULS, and the throne-fight reserve. Null for other bosses.
+  _renderSoulGauge() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'lich') return null
+    const ess  = Math.floor(this._gameState.boss?.soulEssence ?? 0)
+    const cost = 12   // Balance.LICH_CHANNEL_COST
+    const casts = Math.floor(ess / cost)
+    // bar fills toward the next cast (cosmetic; essence has no hard cap)
+    const pct = Math.max(0, Math.min(100, ((ess % cost) / cost) * 100))
+    const C = '#9affb0'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'SOUL ESSENCE'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(ess)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#0e1a12', border: '1px solid #2a3a2c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#5fae6a,#9affb0)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        casts > 0
+          ? `${casts} Channel Souls cast${casts === 1 ? '' : 's'} ready · harvested from every death · the Lich regenerates while it holds essence.`
+          : 'Harvested from every death in your dungeon — fuels Channel Souls + regenerates the Lich. Need 12 to channel.'),
     ])
   }
 

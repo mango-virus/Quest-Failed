@@ -116,6 +116,8 @@ import { Balance }  from '../config/balance.js'
 import { createMinion, applyMinionScaling, applyBossLevelToMinion } from '../entities/Minion.js'
 import { TILE }     from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { classifyTrophy, TROPHY_BY_ID, TROPHY_TYPES } from '../config/orcTrophies.js'
+import { currentAct } from '../config/acts.js'
 
 // Slime King Absorb & Excrete — Goopling roll pool, level-gated.
 //
@@ -185,6 +187,11 @@ export class BossArchetypeSystem {
     EventBus.on('DEMON_SACRIFICE_ARM',     this._armSacrifice,    this)
     EventBus.on('DEMON_SACRIFICE_DISARM',  this._disarmSacrifice, this)
     EventBus.on('DEMON_SACRIFICE_TARGET',  this._fireSacrifice,   this)
+    // Lich THE WITHERING — Channel Souls (active day ability)
+    this._soulChannelArmed = false
+    EventBus.on('LICH_CHANNEL_ARM',    this._armSoulChannel,    this)
+    EventBus.on('LICH_CHANNEL_DISARM', this._disarmSoulChannel, this)
+    EventBus.on('LICH_CHANNEL_TARGET', this._fireSoulChannel,   this)
 
     // Backfill Living Architecture for the rooms already placed at scene
     // boot (boss chamber, plus any rooms restored from a save).
@@ -243,9 +250,13 @@ export class BossArchetypeSystem {
     EventBus.off('DEMON_SACRIFICE_ARM',     this._armSacrifice,    this)
     EventBus.off('DEMON_SACRIFICE_DISARM',  this._disarmSacrifice, this)
     EventBus.off('DEMON_SACRIFICE_TARGET',  this._fireSacrifice,   this)
+    EventBus.off('LICH_CHANNEL_ARM',    this._armSoulChannel,    this)
+    EventBus.off('LICH_CHANNEL_DISARM', this._disarmSoulChannel, this)
+    EventBus.off('LICH_CHANNEL_TARGET', this._fireSoulChannel,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
+    this._clearSoulOrbit()
     this._stopPetrifyTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
@@ -278,26 +289,15 @@ export class BossArchetypeSystem {
           newBonus: killer.lootAtkBonus,
         })
       }
+      // TROPHY HUNTER — claim/empower a trophy from the slain hero's class.
+      this._claimTrophy(payload?.adventurer)
     }
-    // LICH: Necromancy — queue this dead adv for raise at next dawn.
+    // LICH: THE WITHERING — Soul Harvest. Every death anywhere in the dungeon
+    // banks Soul Essence on the boss (the run-long resource). Necromancy is CUT
+    // (no raises). The banked essence is the Lich's lifeline (regen), the ammo
+    // for the day-phase CHANNEL SOULS ability, and its throne-fight reserve.
     if (this._archId() === 'lich') {
-      const adv = payload?.adventurer
-      if (adv) {
-        this._gameState._lich ??= { pendingRaises: [] }
-        this._gameState._lich.pendingRaises ??= []
-        this._gameState._lich.pendingRaises.push({
-          classId:       adv.classId ?? 'knight',
-          name:          adv.name ?? 'Risen',
-          level:         adv.level ?? 1,
-          tileX:         adv.tileX,
-          tileY:         adv.tileY,
-          // Capture LPC sheet identity so MinionRenderer can render the
-          // raised minion with the dead adventurer's sprite (tinted
-          // darker), matching the "they look like the adventurer that
-          // died" design intent.
-          spriteVariant: adv.spriteVariant ?? null,
-        })
-      }
+      this._harvestSoul(payload?.adventurer)
     }
     // WRAITH: Fear bump for any adv who watched a same-party member die,
     // plus Haunting ghost spawn at the death tile.
@@ -700,6 +700,328 @@ export class BossArchetypeSystem {
     }
   }
 
+  // ── ORC: Trophy Hunter ──────────────────────────────────────────────────
+  // The Veteran claims a trophy from every hero class the dungeon kills. First
+  // kill of a class CLAIMS its trophy type; repeat kills EMPOWER it (stacks).
+  // Stored JSON-serializable on boss.trophies = { <type>: { stacks } }.
+
+  _classDefById(classId) {
+    const list = this._scene?.cache?.json?.get?.('adventurerClasses') ?? []
+    return list.find(c => c.id === classId) ?? null
+  }
+
+  _claimTrophy(adv) {
+    if (!adv) return
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const type = classifyTrophy(this._classDefById(adv.classId))
+    if (!type) return   // event / non-combatant class — not a trophy
+
+    boss.trophies ??= {}
+    const had = !!boss.trophies[type]
+    const entry = (boss.trophies[type] ??= { stacks: 0 })
+    entry.stacks = (entry.stacks ?? 0) + 1
+
+    EventBus.emit('ORC_TROPHY_CLAIMED', {
+      type,
+      stacks:    entry.stacks,
+      firstTime: !had,
+      classId:   adv.classId ?? null,
+      x:         adv.worldX,
+      y:         adv.worldY,
+      color:     TROPHY_BY_ID[type]?.color ?? 0xffffff,
+    })
+
+    // VFX — the fallen hero's emblem streaks to the throne rack. The renderer
+    // (BossArchetypeRenderer / AbilityVfx) draws it at the death tile.
+    if (Number.isFinite(adv.worldX) && Number.isFinite(adv.worldY)) {
+      const boss2 = this._gameState?.boss
+      AbilityVfx?.trophyClaimFx?.(this._scene, adv.worldX, adv.worldY, {
+        color:  TROPHY_BY_ID[type]?.color ?? 0xffffff,
+        icon:   TROPHY_BY_ID[type]?.icon ?? '✦',
+        toX:    boss2?.worldX,
+        toY:    boss2?.worldY,
+        isNew:  !had,
+      })
+    }
+  }
+
+  // The most-claimed trophy type (ties broken by TROPHY_TYPES order). Null if
+  // nothing claimed.
+  _trophyTopType() {
+    const t = this._gameState?.boss?.trophies
+    if (!t) return null
+    let best = null, bestStacks = 0
+    for (const def of TROPHY_TYPES) {
+      const s = t[def.id]?.stacks ?? 0
+      if (s > bestStacks) { bestStacks = s; best = def.id }
+    }
+    return best
+  }
+
+  // ── ORC: Mastery aura (T3+) ─────────────────────────────────────────────
+  // The most-claimed trophy type radiates a dungeon-wide passive. Recomputed
+  // each tick from baselines (so it's reversible and save-safe), mirroring the
+  // Warband / Bloodlust pattern. Skips orc-family minions for the ATK/DEF auras
+  // (Warband already owns their stat recompute).
+  _tickMastery(delta) {
+    if (this._archId() !== 'orc') return
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const tierOn = currentAct(this._gameState) >= 3
+    const top    = tierOn ? this._trophyTopType() : null
+
+    // Publish the active aura for cross-system readers (TrapSystem recharge,
+    // CombatSystem range). Cleared to null when no aura is active.
+    boss._orcMastery = top ? { type: top } : null
+    // When the active type CHANGES (e.g. Hunter→Blade as stacks shift, or drops
+    // below T3), wipe the previous type's minion buffs before applying the new one
+    // so a stale range/ATK/DEF bonus can't linger.
+    if ((boss._orcMasteryActive ?? null) !== top) {
+      this._clearMasteryMinionBuffs()
+      boss._orcMasteryActive = top
+    }
+    if (!top) return
+
+    const stacks = boss.trophies?.[top]?.stacks ?? 1
+    const minions = this._gameState?.minions ?? []
+
+    if (top === 'blade' || top === 'heavy') {
+      const isAtk = top === 'blade'
+      const pct = Math.min(
+        Balance.ORC_MASTERY_PCT_CAP,
+        (isAtk ? Balance.ORC_MASTERY_ATK_PCT_PER_STACK : Balance.ORC_MASTERY_DEF_PCT_PER_STACK) * stacks,
+      )
+      for (const m of minions) {
+        if (this._isOrcMinion(m)) continue   // Warband owns orc-family stats
+        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        m.stats ??= {}
+        if (isAtk) {
+          m._masteryBaseAtk ??= m.stats.attack ?? 1
+          m.stats.attack = Math.max(1, Math.round(m._masteryBaseAtk * (1 + pct)))
+        } else {
+          m._masteryBaseDef ??= m.stats.defense ?? 0
+          m.stats.defense = Math.max(0, Math.round(m._masteryBaseDef * (1 + pct)))
+        }
+      }
+    } else if (top === 'hunter') {
+      // Ranged minions gain reach (melee minions stay melee).
+      for (const m of minions) {
+        if (this._isOrcMinion(m)) continue
+        const base = (m._masteryBaseRange ??= m.attackRange ?? 1)
+        if (base > 1) m.attackRange = base + Balance.ORC_MASTERY_RANGE_BONUS
+      }
+    } else if (top === 'faith') {
+      // Boss slowly regenerates while not in a fight.
+      if (!this._bossFightActive && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 0)) {
+        const perSec = (boss.maxHp ?? 0) * (Balance.ORC_MASTERY_REGEN_HP_PER_SEC / 100) * stacks
+        boss.hp = Math.min(boss.maxHp ?? 0, (boss.hp ?? 0) + perSec * ((delta ?? 0) / 1000))
+      }
+    }
+    // Arcane → trap recharge is read passively by TrapSystem off boss._orcMastery.
+  }
+
+  // Restore any minion stats the Mastery aura temporarily raised (aura type
+  // changed away from blade/heavy/hunter, or dropped below T3).
+  _clearMasteryMinionBuffs() {
+    for (const m of (this._gameState?.minions ?? [])) {
+      if (m._masteryBaseAtk != null)   { m.stats ??= {}; m.stats.attack  = m._masteryBaseAtk;  m._masteryBaseAtk  = null }
+      if (m._masteryBaseDef != null)   { m.stats ??= {}; m.stats.defense = m._masteryBaseDef;  m._masteryBaseDef  = null }
+      if (m._masteryBaseRange != null) { m.attackRange = m._masteryBaseRange; m._masteryBaseRange = null }
+    }
+  }
+
+  // ══ ELDER LICH — THE WITHERING ══════════════════════════════════════════
+  // Soul Essence economy: every dungeon death banks essence on the boss; it's
+  // the Lich's lifeline (day regen), the ammo for the active CHANNEL SOULS
+  // ability, and its throne-fight reserve. (Necromancy cut; Phylactery folded.)
+
+  _lichTier() { return currentAct(this._gameState) }
+
+  _harvestSoul(adv) {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const lvl  = adv?.level ?? 1
+    const gain = Balance.LICH_SOUL_PER_KILL + Math.floor(lvl * Balance.LICH_SOUL_PER_ADV_LEVEL)
+    boss.soulEssence = (boss.soulEssence ?? 0) + gain
+    EventBus.emit('LICH_SOUL_HARVEST', { gain, total: boss.soulEssence })
+    if (Number.isFinite(adv?.worldX) && Number.isFinite(adv?.worldY)) {
+      // Foot-anchored advs → lift to the chest so the soul peels off the body.
+      AbilityVfx?.soulHarvestWispFx?.(this._scene, adv.worldX, adv.worldY - 16, {
+        toX: boss.worldX, toY: boss.worldY,
+      })
+    }
+  }
+
+  // Day-phase lifeline: the Lich slowly regenerates while it holds essence.
+  _lichRegenTick(delta) {
+    if (this._archId() !== 'lich') return
+    const boss = this._gameState?.boss
+    if (!boss || this._bossFightActive) return
+    if ((this._gameState?.meta?.phase ?? '') !== 'day') return
+    if ((boss.soulEssence ?? 0) < Balance.LICH_SOUL_REGEN_MIN_ESSENCE) return
+    if ((boss.hp ?? 0) <= 0 || (boss.hp ?? 0) >= (boss.maxHp ?? 0)) return
+    const perSec = (boss.maxHp ?? 0) * (Balance.LICH_SOUL_REGEN_PCT_PER_SEC / 100)
+    boss.hp = Math.min(boss.maxHp, (boss.hp ?? 0) + perSec * ((delta ?? 0) / 1000))
+  }
+
+  // ── CHANNEL SOULS (active day ability) — arm → click room → fire ──
+  _soulChannelAvailable() {
+    if (this._archId() !== 'lich') return false
+    if ((this._gameState?.meta?.phase ?? '') !== 'day') return false
+    return (this._gameState?.boss?.soulEssence ?? 0) >= Balance.LICH_CHANNEL_COST
+  }
+
+  _armSoulChannel() {
+    if (!this._soulChannelAvailable()) return
+    this._soulChannelArmed = true
+    EventBus.emit('LICH_CHANNEL_ARMED', {})
+  }
+
+  _disarmSoulChannel() {
+    this._soulChannelArmed = false
+    EventBus.emit('LICH_CHANNEL_DISARMED', {})
+  }
+
+  // payload: { roomId } — fired by the UI after the player clicks a room while
+  // CHANNEL SOULS is armed. The effect ESCALATES by act-tier and is room-wide
+  // (scales with the crowd) + scales with banked essence.
+  _fireSoulChannel(payload) {
+    if (!this._soulChannelArmed) return
+    if (!this._soulChannelAvailable()) { this._disarmSoulChannel(); return }
+    const boss = this._gameState?.boss
+    const room = this._gameState?.dungeon?.rooms?.find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = this._lichTier()
+    const now  = this._scene?.time?.now ?? 0
+
+    // Spend essence; bigger reserve = bigger blast (essence-fuelled).
+    const reserve = boss.soulEssence ?? 0
+    boss.soulEssence = Math.max(0, reserve - Balance.LICH_CHANNEL_COST)
+    const essBonus  = Math.min(Balance.LICH_CHANNEL_ESSENCE_SCALE_CAP, reserve * Balance.LICH_CHANNEL_ESSENCE_SCALE)
+    const atk       = boss.attack ?? 0
+    const perTarget = Math.max(1, Math.floor(atk * (Balance.LICH_CHANNEL_DMG_FRAC + essBonus)))
+
+    const advs = this._gameState?.adventurers?.active ?? []
+    let totalDmg = 0, victims = 0
+    const victimPts = []
+    for (const adv of advs) {
+      if (!adv || (adv.resources?.hp ?? 0) <= 0) continue
+      if (!_advInsideRoom(adv, room)) continue
+      const before = adv.resources.hp
+      adv.resources.hp = Math.max(this._shadowFloor(adv), before - perTarget)
+      const dealt = before - adv.resources.hp
+      totalDmg += dealt; victims++
+      victimPts.push({ x: adv.worldX, y: adv.worldY - 16 })   // chest, not feet
+      // T3+ Wither — no-heal + soul-rot DoT (ticked in _tickSoulRot).
+      if (tier >= 3) {
+        adv._noHealUntil = now + Balance.LICH_WITHER_DURATION_MS
+        adv._witherUntil = now + Balance.LICH_WITHER_DURATION_MS
+        adv._witherTickAt = now
+      }
+      // T4 Soul Cage — freeze in place (reuse _petrifiedUntil) + cage-drain DoT.
+      if (tier >= 4) {
+        adv._petrifiedUntil = now + Balance.LICH_CAGE_DURATION_MS
+        adv._soulCagedUntil = now + Balance.LICH_CAGE_DURATION_MS
+        adv._soulCageTickAt = now
+      }
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: adv.instanceId, damage: dealt, damageType: 'soul' })
+      if (adv.resources.hp <= 0) {
+        EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'boss', killerName: 'The Withering', roomId: room.instanceId, damageType: 'soul' })
+      }
+    }
+    // T2+ Soul Siphon — heal the boss + bank bonus essence per victim.
+    if (tier >= 2 && victims > 0) {
+      const heal = Math.round(totalDmg * Balance.LICH_CHANNEL_SIPHON_HEAL_FRAC)
+      boss.hp = Math.min(boss.maxHp ?? boss.hp ?? 0, (boss.hp ?? 0) + heal)
+      boss.soulEssence = (boss.soulEssence ?? 0) + victims * Balance.LICH_CHANNEL_SIPHON_ESSENCE
+    }
+
+    // VFX — soul channel over the room (tier-escalating) + drain threads home.
+    const TS = Balance.TILE_SIZE
+    const cx = (room.gridX + room.width  / 2) * TS
+    const cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.soulChannelFx?.(this._scene, cx, cy, {
+      tier, fromX: boss.worldX, fromY: boss.worldY, victims: victimPts,
+    })
+
+    this._soulChannelArmed = false
+    EventBus.emit('LICH_CHANNEL_FIRED', {
+      roomId: room.instanceId, room, tier, victims, totalDmg,
+      essenceLeft: boss.soulEssence,
+    })
+  }
+
+  // Tick the Wither soul-rot + Soul Cage drain DoTs (day phase).
+  _tickSoulRot(now) {
+    if (this._archId() !== 'lich') return
+    const boss = this._gameState?.boss
+    const atk  = boss?.attack ?? 0
+    for (const adv of (this._gameState?.adventurers?.active ?? [])) {
+      if (!adv || (adv.resources?.hp ?? 0) <= 0) continue
+      if (adv._witherUntil && now < adv._witherUntil &&
+          now - (adv._witherTickAt ?? 0) >= Balance.LICH_WITHER_DOT_INTERVAL_MS) {
+        adv._witherTickAt = now
+        const dmg = Math.max(1, Math.floor(atk * Balance.LICH_WITHER_DOT_FRAC))
+        adv.resources.hp = Math.max(this._shadowFloor(adv), adv.resources.hp - dmg)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: adv.instanceId, damage: dmg, damageType: 'soul' })
+        if (adv.resources.hp <= 0) { EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'boss', killerName: 'Wither', roomId: null, damageType: 'soul' }); continue }
+      }
+      if (adv._soulCagedUntil && now < adv._soulCagedUntil &&
+          now - (adv._soulCageTickAt ?? 0) >= Balance.LICH_WITHER_DOT_INTERVAL_MS) {
+        adv._soulCageTickAt = now
+        const before = adv.resources.hp
+        const dmg = Math.max(1, Math.floor(atk * Balance.LICH_CAGE_DRAIN_FRAC))
+        adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
+        const dealt = before - adv.resources.hp
+        if (boss) boss.hp = Math.min(boss.maxHp ?? boss.hp ?? 0, (boss.hp ?? 0) + dealt)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: adv.instanceId, damage: dealt, damageType: 'soul' })
+        if (adv.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'boss', killerName: 'Soul Cage', roomId: null, damageType: 'soul' })
+      }
+    }
+  }
+
+  // VISIBLE SOUL-COUNT TELL — ghostly souls orbit the Lich during the day; the
+  // more Soul Essence banked, the more spirits swirl around him (1 per 20, cap 8).
+  // They use the recolored animated ghost sprite, so they read as living souls.
+  _tickSoulOrbit() {
+    if (typeof this._scene?.add?.sprite !== 'function') return   // headless sim — no renderer
+    const boss = this._gameState?.boss
+    const day  = (this._gameState?.meta?.phase ?? '') === 'day'
+    if (this._archId() !== 'lich' || !day || this._bossFightActive || !boss || !Number.isFinite(boss.worldX)) {
+      this._clearSoulOrbit(); return
+    }
+    const PER = 20, MAX = 8
+    const desired = Math.max(0, Math.min(MAX, Math.floor((boss.soulEssence ?? 0) / PER)))
+    this._soulOrbit ??= []
+    while (this._soulOrbit.length > desired) { const s = this._soulOrbit.pop(); try { s.destroy() } catch (e) {} }
+    while (this._soulOrbit.length < desired) {
+      const idx = this._soulOrbit.length
+      const sp = AbilityVfx?.makeSoulSprite?.(this._scene, boss.worldX, boss.worldY, { color: idx % 2 ? 0xc0a0ff : 0x9affc0, scale: 0.32, depth: 9, alpha: 0.8, dir: 'down' })
+      if (!sp) break
+      this._soulOrbit.push(sp)
+    }
+    const now = this._scene?.time?.now ?? 0
+    const n = this._soulOrbit.length, R = 40
+    const baseDepth = 7 + boss.worldY * 0.0005   // the boss container's depth
+    for (let i = 0; i < n; i++) {
+      const sp = this._soulOrbit[i]
+      if (!sp || sp.active === false) continue
+      const ang = now * 0.0013 + (Math.PI * 2 * i) / Math.max(1, n)
+      // True 3D orbit: behind the boss at the top of the ring, in front at the
+      // bottom, smaller+dimmer at the back (shared orbit cue).
+      const c = AbilityVfx.orbitCue(ang, baseDepth, 0.32, 0.9)
+      sp.setPosition(boss.worldX + Math.cos(ang) * R, boss.worldY - 18 + Math.sin(ang) * R * 0.45 + Math.sin(now * 0.004 + i) * 4)
+      sp.setDepth(c.depth); sp.setScale(c.scale); sp.setAlpha(c.alpha)
+    }
+  }
+
+  _clearSoulOrbit() {
+    if (!this._soulOrbit?.length) return
+    for (const s of this._soulOrbit) { try { s.destroy() } catch (e) {} }
+    this._soulOrbit = []
+  }
+
   // ── GOLEM: Living Architecture ──────────────────────────────────────────
   // Tracks (rooms-counted-so-far, hp-applied, def-applied) on
   // `gameState.boss._golem` so saves rehydrate consistently and dynamic
@@ -760,6 +1082,8 @@ export class BossArchetypeSystem {
     // player who armed earthquake but didn't fire it ends up with the
     // button stuck on "PICK A ROOM" the next day.
     this._disarmEarthquake()
+    // Lich: disarm Channel Souls so the button resets for the next day.
+    this._disarmSoulChannel()
     // Beholder: clear yesterday's anti-magic markings the moment night begins
     // (the new selection happens on DAY_PHASE_BEGAN).
     this._clearAntiMagicMarks()
@@ -1288,6 +1612,13 @@ export class BossArchetypeSystem {
     this._tickSuccubus(delta, this._scene?.time?.now ?? 0)
     // Orc Loot+Warband live recompute.
     this._tickOrc()
+    // Orc Trophy Hunter — Mastery aura (T3+) dungeon-wide passive recompute.
+    this._tickMastery(delta)
+    // Lich THE WITHERING — soul-essence regen + active-ability DoTs (wither/cage)
+    // + the orbiting soul-count tell.
+    this._lichRegenTick(delta)
+    this._tickSoulRot(this._scene?.time?.now ?? 0)
+    this._tickSoulOrbit()
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return
