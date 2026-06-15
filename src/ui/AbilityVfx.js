@@ -7222,4 +7222,262 @@ export const AbilityVfx = {
     scene.cameras?.main?.shake?.(220, 0.005)
     return made
   },
+
+  // ── WRAITH · THE DREAD HARVEST — spectral terror VFX ───────────────────────
+  // Palette: SHADOW 0x0a0c18 · INDIGO 0x2a2f55 · GHOST 0x8a96d8 · PALE 0xc6d0f5.
+
+  // Spawn a recolored, ANIMATED ghost sprite (the T1 ghost minion via _makeSoulSprite)
+  // with a soft cold-mote trail — the wraith's spectral unit. Returns the sprite (or
+  // null headless). Used by every dread VFX so the haunts read as real ghosts, never
+  // flat drawn faces.
+  _spawnWraithGhost(scene, x, y, opts = {}) {
+    const o = { color: 0x9fb4ff, scale: 0.34, depth: 16, dir: 'down', alpha: 0, trail: true, ...opts }
+    const gh = _makeSoulSprite(scene, x, y, o)
+    if (gh && o.trail && _particlesMult() > 0) {
+      try {
+        const tr = scene.add.particles(0, 0, _softDotTexture(scene), { follow: gh, lifespan: 300, frequency: 30, quantity: 1, tint: [o.color, 0xc6d4ff], scale: { start: 0.32, end: 0 }, alpha: { start: 0.5, end: 0 }, blendMode: 'ADD' })
+        tr.setDepth(o.depth - 0.1); gh._trail = tr
+      } catch (e) {}
+    }
+    return gh
+  },
+  _killWraithGhost(scene, gh, dur = 240) {
+    if (!gh) return
+    if (gh._trail) { try { gh._trail.stop() } catch (e) {} scene.time.delayedCall(dur + 320, () => { try { gh._trail.destroy() } catch (e) {} }) }
+    scene.tweens.add({ targets: gh, alpha: 0, scaleX: (gh.scaleX || 0.34) * 0.55, scaleY: (gh.scaleY || 0.34) * 1.3, duration: dur, ease: 'Sine.easeIn', onComplete: () => { try { gh.destroy() } catch (e) {} } })
+  },
+
+  // NIGHT TERROR: the room is swallowed by a closing wall of darkness and a SWARM
+  // of shrieking ghosts spirals inward onto the victims, raking them with claws.
+  nightTerrorFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 60, rectW: 200, rectH: 150, victims: [], big: false, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const SHADOW = 0x0a0c18, GHOST = 0x9fb4ff, PALE = 0xd2dcff, scl = o.big ? 1.3 : 1
+    // darkness CLOSES IN — a thick vignette ring contracting from the room edge to
+    // a tight throat, then releasing (the room "blinks shut" with terror).
+    const vig = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.MULTIPLY); made.push(vig)
+    vig.lineStyle(Math.max(o.rectW, o.rectH) * 0.55, SHADOW, 0.9); vig.strokeEllipse(0, 0, o.rectW * 1.7 * scl, o.rectH * 1.7 * scl)
+    vig.setScale(1).setAlpha(0)
+    scene.tweens.add({ targets: vig, alpha: 1, scaleX: 0.5, scaleY: 0.5, duration: 360, ease: 'Quad.easeIn',
+      onComplete: () => scene.tweens.add({ targets: vig, alpha: 0, scaleX: 1.1, scaleY: 1.1, duration: 420, ease: 'Quad.easeOut', onComplete: () => vig.destroy() }) })
+    // cold dread shockwave
+    const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+    ring.lineStyle(3, GHOST, 0.85); ring.strokeEllipse(0, 0, 18, 12); _glow(ring, GHOST, 3, 9)  // circle-ok: expanding dread shockwave edge
+    scene.tweens.add({ targets: ring, scaleX: (o.rectW / 22) * scl, scaleY: (o.rectH / 18) * scl, alpha: 0, duration: 480, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+    // the ghost SWARM spirals inward from the edges to the victims
+    const targets = (o.victims && o.victims.length) ? o.victims : [{ x, y }]
+    const ghosts = 4 + tier + (o.big ? 3 : 0)
+    for (let i = 0; i < ghosts; i++) {
+      const a = (i / ghosts) * Math.PI * 2 + Math.random() * 0.5
+      const sx = x + Math.cos(a) * o.rectW * 0.6 * scl, sy = y + Math.sin(a) * o.rectH * 0.55 * scl
+      const tgt = targets[i % targets.length]
+      const dir = _soulDir(tgt.x - sx, tgt.y - sy)
+      const gh = this._spawnWraithGhost(scene, sx, sy, { color: i % 3 ? GHOST : PALE, scale: 0.26 + Math.random() * 0.12, depth: o.depth + 1, dir, alpha: 0 })
+      if (!gh) continue
+      made.push(gh)
+      const midX = (sx + tgt.x) / 2 + (Math.random() - 0.5) * 40, midY = (sy + tgt.y) / 2 + (Math.random() - 0.5) * 40
+      scene.tweens.add({ targets: gh, alpha: 0.92, duration: 120, delay: i * 45 })
+      // curved spiral-in via a two-leg path, then strike + dissipate
+      scene.tweens.add({ targets: gh, x: midX, y: midY, duration: 200, delay: i * 45, ease: 'Sine.easeIn',
+        onComplete: () => scene.tweens.add({ targets: gh, x: tgt.x + (Math.random() - 0.5) * 16, y: tgt.y + (Math.random() - 0.5) * 12, duration: 200, ease: 'Quad.easeIn',
+          onComplete: () => this._killWraithGhost(scene, gh, 200) }) })
+    }
+    // claw rakes flash across each victim as the ghosts hit
+    for (const v of targets) {
+      if (!_validXY(v.x, v.y)) continue
+      const cl = scene.add.graphics().setPosition(v.x, v.y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(cl)
+      const ca = Math.random() * Math.PI
+      for (let k = -1; k <= 1; k++) { cl.lineStyle(2.2, PALE, 0.9); cl.beginPath(); const off = k * 6; cl.moveTo(Math.cos(ca) * -15 + Math.cos(ca + 1.57) * off, Math.sin(ca) * -15 + Math.sin(ca + 1.57) * off); cl.lineTo(Math.cos(ca) * 15 + Math.cos(ca + 1.57) * off, Math.sin(ca) * 15 + Math.sin(ca + 1.57) * off); cl.strokePath() }
+      _glow(cl, GHOST, 2, 7)
+      scene.tweens.add({ targets: cl, alpha: 1, scaleX: 1.3, duration: 90, delay: 360, yoyo: true, hold: 70, onComplete: () => cl.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speed: { min: 20, max: 90 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [SHADOW, GHOST, PALE], emitting: false }); em.setDepth(o.depth); em.explode(Math.round((16 + tier * 3) * mult * scl)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(o.big ? 220 : 130, o.big ? 0.005 : 0.003)
+    return made
+  },
+
+  // DREAD ZONE: a lingering haunted shroud — a churning pool of darkness with
+  // ghosts drifting and bobbing inside it. `refresh:true` = a ghost surfaces on a
+  // fear tick.
+  dreadZoneFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 2, depth: 60, rectW: 180, rectH: 130, refresh: false, lifeMs: 5000, ...opts }
+    const made = [], SHADOW = 0x0a0c18, GHOST = 0x9fb4ff
+    if (o.refresh) {
+      const sx = x + (Math.random() - 0.5) * o.rectW * 0.5, sy = y + (Math.random() - 0.5) * o.rectH * 0.4
+      const gh = this._spawnWraithGhost(scene, sx, sy + 8, { color: GHOST, scale: 0.22, depth: o.depth + 0.5, dir: 'up', alpha: 0, trail: false })
+      if (gh) { made.push(gh); scene.tweens.add({ targets: gh, y: sy - 16, alpha: 0.7, duration: 360, ease: 'Sine.easeOut', onComplete: () => this._killWraithGhost(scene, gh, 260) }) }
+      return made
+    }
+    // churning dark shroud (two offset lobes so it isn't a clean ellipse)
+    const shroud = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(shroud)
+    shroud.fillStyle(SHADOW, 0.5); shroud.fillEllipse(0, 0, o.rectW, o.rectH * 0.8)
+    shroud.fillStyle(0x161a30, 0.4); shroud.fillEllipse(-o.rectW * 0.18, 4, o.rectW * 0.62, o.rectH * 0.55); shroud.fillEllipse(o.rectW * 0.2, -4, o.rectW * 0.5, o.rectH * 0.5)
+    scene.tweens.add({ targets: shroud, alpha: 1, duration: 300 })
+    // a few ghosts wander/bob inside the shroud for its lifetime
+    const wanderers = []
+    for (let i = 0; i < 3; i++) {
+      const gx = x + (Math.random() - 0.5) * o.rectW * 0.5, gy = y + (Math.random() - 0.5) * o.rectH * 0.4
+      const gh = this._spawnWraithGhost(scene, gx, gy, { color: GHOST, scale: 0.2 + Math.random() * 0.08, depth: o.depth, dir: 'down', alpha: 0, trail: false })
+      if (gh) { made.push(gh); wanderers.push(gh); scene.tweens.add({ targets: gh, alpha: 0.55, duration: 400, delay: i * 120 }) }
+    }
+    let ph = 0
+    const churn = scene.tweens.addCounter({ from: 0, to: 1, duration: o.lifeMs, onUpdate: () => {
+      ph += 0.035
+      if (shroud.active) shroud.setScale(1 + 0.05 * Math.sin(ph), 1 + 0.06 * Math.cos(ph * 0.7))
+      wanderers.forEach((gh, k) => { if (gh.active) { gh.x = x + Math.cos(ph * 0.6 + k * 2.1) * o.rectW * 0.32; gh.y = y + Math.sin(ph * 0.8 + k * 2.1) * o.rectH * 0.28 - Math.abs(Math.sin(ph + k)) * 6 } })
+    }, onComplete: () => { wanderers.forEach(gh => this._killWraithGhost(scene, gh, 400)); scene.tweens.add({ targets: shroud, alpha: 0, duration: 500, onComplete: () => shroud.destroy() }) } })
+    made.push(churn)
+    return made
+  },
+
+  // FRIGHT DEATH: a terrified hero's heart stops — the floor cracks with shadow and
+  // their pale ghost is wrenched violently upward, shredding into wisps.
+  frightDeathFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 60, ...opts }
+    const made = [], SHADOW = 0x0a0c18, GHOST = 0x9fb4ff, PALE = 0xd2dcff, mult = _particlesMult()
+    // shadow cracks radiating on the floor
+    const cr = scene.add.graphics().setPosition(x, y + 12).setDepth(o.depth - 1); made.push(cr)
+    cr.fillStyle(SHADOW, 0.6); cr.fillEllipse(0, 0, 24, 9)
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; cr.lineStyle(1.5, SHADOW, 0.8); cr.beginPath(); cr.moveTo(0, 0); cr.lineTo(Math.cos(a) * (12 + Math.random() * 10), Math.sin(a) * (5 + Math.random() * 4)); cr.strokePath() }
+    scene.tweens.add({ targets: cr, alpha: 0, duration: 640, onComplete: () => cr.destroy() })
+    // cold gasp flash
+    const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+    fl.fillStyle(PALE, 0.9); fl.fillCircle(0, 0, 6); _glow(fl, GHOST, 5, 13)
+    scene.tweens.add({ targets: fl, scale: 2.8, alpha: 0, duration: 320, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+    // the ghost is WRENCHED upward (a hard jerk + stretch), then shreds
+    const gh = this._spawnWraithGhost(scene, x, y, { color: PALE, scale: 0.36, depth: o.depth + 0.5, dir: 'down', alpha: 0 })
+    if (gh) {
+      made.push(gh)
+      scene.tweens.add({ targets: gh, alpha: 1, scaleY: 0.5, duration: 90, ease: 'Back.easeIn',
+        onComplete: () => scene.tweens.add({ targets: gh, y: y - 46, scaleX: 0.45, scaleY: 0.7, alpha: 0, duration: 560, ease: 'Quad.easeIn', onComplete: () => this._killWraithGhost(scene, gh, 60) }) })
+    } else {
+      const f = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.5).setBlendMode(Phaser.BlendModes.ADD); made.push(f)
+      f.fillStyle(PALE, 0.85); f.fillCircle(0, 0, 7); _glow(f, GHOST, 4, 10)
+      scene.tweens.add({ targets: f, y: y - 44, alpha: 0, scale: 0.5, duration: 560, ease: 'Sine.easeIn', onComplete: () => f.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y - 6, _softDotTexture(scene), { lifespan: { min: 360, max: 760 }, speedY: { min: -90, max: -30 }, speedX: { min: -50, max: 50 }, scale: { start: 0.42, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [GHOST, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round(14 * mult)); made.push(em); scene.time.delayedCall(760, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // DREAD PULSE (fight T1): a cold wail-wave — a double shock ring with ghosts
+  // surfing outward on the wavefront.
+  dreadPulseFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 60, rectW: 160, rectH: 120, ...opts }
+    const made = [], GHOST = 0x9fb4ff, PALE = 0xd2dcff, mult = _particlesMult()
+    for (let r = 0; r < 2; r++) {
+      const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+      ring.lineStyle(3 - r, r ? PALE : GHOST, 0.85); ring.strokeEllipse(0, 0, 16, 11); _glow(ring, GHOST, 2, 7)  // circle-ok: cold wail-wave ring
+      scene.tweens.add({ targets: ring, scaleX: (o.rectW / 20), scaleY: (o.rectH / 16), alpha: 0, duration: 540 + r * 120, delay: r * 100, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+    }
+    // ghosts ride the wave outward, facing the way they fly
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + Math.random() * 0.3
+      const tx = x + Math.cos(a) * o.rectW * 0.44, ty = y + Math.sin(a) * o.rectH * 0.44
+      const gh = this._spawnWraithGhost(scene, x, y, { color: GHOST, scale: 0.2, depth: o.depth + 1, dir: _soulDir(Math.cos(a), Math.sin(a)), alpha: 0, trail: false })
+      if (!gh) continue
+      made.push(gh)
+      scene.tweens.add({ targets: gh, alpha: 0.85, duration: 120 })
+      scene.tweens.add({ targets: gh, x: tx, y: ty, duration: 320, ease: 'Quad.easeOut', onComplete: () => this._killWraithGhost(scene, gh, 200) })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 360, max: 720 }, speed: { min: 40, max: 130 }, angle: { min: 0, max: 360 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [GHOST, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth); em.explode(Math.round(14 * mult)); made.push(em); scene.time.delayedCall(720, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // PHANTOM ASSAULT (fight T2): ghosts erupt from dark rifts and DIVE on each
+  // fighter with a raking strike, leaving cold-mote trails.
+  phantomAssaultFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 2, depth: 60, rectW: 160, rectH: 120, victims: [], ...opts }
+    const made = [], SHADOW = 0x0a0c18, GHOST = 0x9fb4ff, PALE = 0xd2dcff
+    const targets = (o.victims && o.victims.length) ? o.victims : [{ x: x + 50, y }]
+    for (let i = 0; i < targets.length; i++) {
+      const v = targets[i]; if (!_validXY(v.x, v.y)) continue
+      const a = (i / targets.length) * Math.PI * 2
+      const sx = x + Math.cos(a) * o.rectW * 0.55, sy = y + Math.sin(a) * o.rectH * 0.55
+      // a dark rift opens where the ghost manifests
+      const rift = scene.add.graphics().setPosition(sx, sy).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(rift)
+      rift.fillStyle(SHADOW, 0.9); rift.fillEllipse(0, 0, 18, 6); rift.lineStyle(2, GHOST, 0.8); rift.strokeEllipse(0, 0, 18, 6)
+      scene.tweens.add({ targets: rift, alpha: 1, scaleX: 1.4, duration: 130, delay: i * 30, yoyo: true, hold: 60, onComplete: () => rift.destroy() })
+      const gh = this._spawnWraithGhost(scene, sx, sy, { color: i % 2 ? GHOST : PALE, scale: 0.3, depth: o.depth + 0.5, dir: _soulDir(v.x - sx, v.y - sy), alpha: 0 })
+      if (!gh) continue
+      made.push(gh)
+      scene.tweens.add({ targets: gh, alpha: 0.92, duration: 120, delay: i * 30 + 80 })
+      scene.tweens.add({ targets: gh, x: v.x, y: v.y - 6, duration: 260, delay: i * 30 + 80, ease: 'Quad.easeIn',
+        onComplete: () => {
+          const sl = scene.add.graphics().setPosition(v.x, v.y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(sl)
+          for (let k = -1; k <= 1; k++) { sl.lineStyle(2.2, PALE, 0.9); sl.beginPath(); sl.moveTo(-13 + k * 3, -11); sl.lineTo(13 + k * 3, 11); sl.strokePath() }
+          _glow(sl, GHOST, 3, 8)
+          scene.tweens.add({ targets: sl, alpha: 0, scaleX: 1.6, duration: 220, onComplete: () => sl.destroy() })
+          this._killWraithGhost(scene, gh, 220)
+        } })
+    }
+    return made
+  },
+
+  // MASS HYSTERIA (fight T3): the party turns on itself — pairs of panicked ghosts
+  // lunge at each other across a red-tinged jittering haze.
+  massHysteriaFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 3, depth: 60, rectW: 170, rectH: 130, ...opts }
+    const made = [], GHOST = 0x9fb4ff, PANIC = 0xe06a86, PALE = 0xd2dcff, mult = _particlesMult()
+    // pulsing red panic vignette
+    const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(haze)
+    haze.fillStyle(PANIC, 0.16); haze.fillEllipse(0, 0, o.rectW, o.rectH * 0.8)
+    scene.tweens.add({ targets: haze, alpha: 1, duration: 180, yoyo: true, repeat: 1, hold: 200, onComplete: () => haze.destroy() })
+    // 3 pairs of ghosts lunge at each other (the party knifing itself)
+    for (let p = 0; p < 3; p++) {
+      const cxp = x + (Math.random() * 2 - 1) * o.rectW * 0.32, cyp = y + (Math.random() * 2 - 1) * o.rectH * 0.3
+      const sep = 22 + Math.random() * 14
+      const gA = this._spawnWraithGhost(scene, cxp - sep, cyp, { color: GHOST, scale: 0.22, depth: o.depth, dir: 'right', alpha: 0, trail: false })
+      const gB = this._spawnWraithGhost(scene, cxp + sep, cyp, { color: i_panicTint(p), scale: 0.22, depth: o.depth, dir: 'left', alpha: 0, flipX: true, trail: false })
+      const clashAt = p * 80
+      for (const [g, fromLeft] of [[gA, true], [gB, false]]) {
+        if (!g) continue
+        made.push(g)
+        scene.tweens.add({ targets: g, alpha: 0.9, duration: 100, delay: clashAt })
+        scene.tweens.add({ targets: g, x: cxp + (fromLeft ? -3 : 3), duration: 200, delay: clashAt, ease: 'Quad.easeIn', onComplete: () => this._killWraithGhost(scene, g, 180) })
+      }
+      // clash flash where they meet
+      const cf = scene.add.graphics().setPosition(cxp, cyp).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(cf)
+      cf.lineStyle(2, PALE, 0.9); cf.beginPath(); cf.moveTo(-8, -7); cf.lineTo(8, 7); cf.moveTo(8, -7); cf.lineTo(-8, 7); cf.strokePath(); _glow(cf, PANIC, 3, 8)
+      scene.tweens.add({ targets: cf, alpha: 1, scale: 1.4, duration: 90, delay: clashAt + 200, yoyo: true, hold: 60, onComplete: () => cf.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speed: { min: 30, max: 110 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [PANIC, GHOST], emitting: false }); em.setDepth(o.depth); em.explode(Math.round(16 * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // PANIC BREAK: a hero snaps — their terrified ghost recoils up-and-away on a cold
+  // burst, and (on a flee) dropped gold coins spin out across the floor.
+  panicBreakFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 60, gold: false, ...opts }
+    const made = [], GHOST = 0x9fb4ff, PALE = 0xd2dcff
+    const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+    fl.fillStyle(PALE, 0.85); fl.fillCircle(0, 0, 5); _glow(fl, GHOST, 4, 10)
+    scene.tweens.add({ targets: fl, scale: 2.3, alpha: 0, duration: 300, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+    // the terrified ghost recoils upward and away
+    const away = (Math.random() < 0.5 ? -1 : 1)
+    const gh = this._spawnWraithGhost(scene, x, y, { color: GHOST, scale: 0.28, depth: o.depth + 1, dir: away < 0 ? 'left' : 'right', flipX: away > 0, alpha: 0 })
+    if (gh) { made.push(gh); scene.tweens.add({ targets: gh, alpha: 0.9, duration: 110 }); scene.tweens.add({ targets: gh, x: x + away * 30, y: y - 26, duration: 360, ease: 'Quad.easeOut', onComplete: () => this._killWraithGhost(scene, gh, 220) }) }
+    if (o.gold) {
+      for (let i = 0; i < 6; i++) {
+        const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22
+        const c = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(c)
+        c.fillStyle(0x6a4a10, 1); c.fillCircle(0.5, 0.8, 2.6)
+        c.fillStyle(0xffd24a, 1); c.fillCircle(0, 0, 2.4)
+        c.fillStyle(0xfff2b0, 0.9); c.fillCircle(-0.7, -0.8, 0.9)
+        // spin via scaleX oscillation while it arcs out and bounces down
+        scene.tweens.add({ targets: c, scaleX: { from: 1, to: 0.2 }, duration: 130, yoyo: true, repeat: 3 })
+        scene.tweens.add({ targets: c, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d + 12, alpha: 0, duration: 520 + Math.random() * 180, ease: 'Quad.easeIn', onComplete: () => c.destroy() })
+      }
+    }
+    return made
+  },
 }
+
+// Mass-hysteria pair tint helper (kept module-local so the method stays terse).
+function i_panicTint(p) { return p % 2 ? 0xe06a86 : 0x9fb4ff }

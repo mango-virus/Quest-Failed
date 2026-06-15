@@ -259,6 +259,20 @@ export class BossArchetypeSystem {
       this._gameState.boss.blood   ??= 0
       this._gameState.boss._vampRite ??= { usesLeft: uses }
     }
+    // Wraith THE DREAD HARVEST — banked DREAD economy + NIGHT TERROR (day active)
+    this._terrorArmed    = false
+    this._dreadFightTimer = null
+    this._terrorZones    = []        // [{ roomId, until, lastTickAt, tier }] — haunted dread zones
+    this._dreadAmbientAt = 0         // ambient-fear cadence stamp
+    EventBus.on('WRAITH_TERROR_ARM',    this._armTerror,    this)
+    EventBus.on('WRAITH_TERROR_DISARM', this._disarmTerror, this)
+    EventBus.on('WRAITH_TERROR_TARGET', this._fireTerror,   this)
+    if (this._archId() === 'wraith' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.WRAITH_TERROR_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.WRAITH_TERROR_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.dread     ??= 0
+      this._gameState.boss._wraithTerror ??= { usesLeft: uses }
+    }
     if (this._archId() === 'myconid' && this._gameState?.boss) {
       const bLv = this._gameState.boss.level ?? 1
       const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
@@ -345,6 +359,9 @@ export class BossArchetypeSystem {
     EventBus.off('VAMPIRE_RITE_ARM',    this._armRite,    this)
     EventBus.off('VAMPIRE_RITE_DISARM', this._disarmRite, this)
     EventBus.off('VAMPIRE_RITE_TARGET', this._fireRite,   this)
+    EventBus.off('WRAITH_TERROR_ARM',    this._armTerror,    this)
+    EventBus.off('WRAITH_TERROR_DISARM', this._disarmTerror, this)
+    EventBus.off('WRAITH_TERROR_TARGET', this._fireTerror,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -355,6 +372,7 @@ export class BossArchetypeSystem {
     this._stopFortressFightTimer()
     this._stopPlagueFightTimer()
     this._stopBloodFightTimer()
+    this._stopDreadFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -1626,6 +1644,14 @@ export class BossArchetypeSystem {
       this._riteZones = []
     }
     this._disarmRite()
+    // Wraith: refill Night Terror uses + disarm; clear haunted zones. DREAD persists.
+    if (this._archId() === 'wraith' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.WRAITH_TERROR_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.WRAITH_TERROR_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss._wraithTerror = { usesLeft: uses }
+      this._terrorZones = []
+    }
+    this._disarmTerror()
     // Demon: reset daily Sacrifice uses; top the Hellgate roster up to
     // N=bossLevel imps. Killed or sacrificed imps from prior days do NOT
     // revive (enforced by the dead-imp filter in MinionAISystem.respawnAll);
@@ -2040,6 +2066,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickBloodFight(),
       })
     }
+    if (this._archId() === 'wraith') {
+      this._stopDreadFightTimer()
+      this._nightTerrorFinaleDone = false
+      this._dreadFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickDreadFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -2058,6 +2093,7 @@ export class BossArchetypeSystem {
     if (this._archId() === 'golem') this._stopFortressFightTimer()
     if (this._archId() === 'lizardman') this._stopPlagueFightTimer()
     if (this._archId() === 'vampire') this._stopBloodFightTimer()
+    if (this._archId() === 'wraith') this._stopDreadFightTimer()
   }
 
   _stopFortressFightTimer() {
@@ -4413,15 +4449,45 @@ export class BossArchetypeSystem {
     if (!adv) return
     if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
     if (amount <= 0) return
+    // THE DREAD HARVEST — banked DREAD amplifies every fright, and a cut of the
+    // fear actually inflicted banks back into the pool (the terror feeds it).
+    amount *= this._dreadFearMult()
     const cap = Balance.WRAITH_FEAR_MAX
     const before = adv._fear ?? 0
     adv._fear = Math.min(cap, before + amount)
-    if (adv._fear !== before) {
+    const delta = adv._fear - before
+    if (delta > 0) {
+      this._bankDread(delta * (Balance.WRAITH_DREAD_PER_FEAR ?? 0.25))
       EventBus.emit('WRAITH_FEAR_CHANGED', {
         advId:  adv.instanceId,
         fear:   adv._fear,
-        delta:  adv._fear - before,
+        delta,
       })
+    }
+  }
+
+  // ── WRAITH: THE DREAD HARVEST — banked DREAD economy ───────────────────────
+  _dreadCap() { return (Balance.WRAITH_DREAD_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.WRAITH_DREAD_CAP_PER_ACT ?? 50) }
+  _dreadSat() { return Math.max(0, Math.min(1, (this._gameState?.boss?.dread ?? 0) / Math.max(1, this._dreadCap()))) }
+  _dreadFearMult() { return 1 + this._dreadSat() * (Balance.WRAITH_DREAD_FEAR_MULT_MAX ?? 1.0) }
+
+  _bankDread(amount) {
+    const boss = this._gameState?.boss
+    if (!boss || !(amount > 0)) return
+    const before = boss.dread ?? 0
+    boss.dread = Math.min(this._dreadCap(), before + amount)
+    const gained = boss.dread - before
+    if (gained > 0) EventBus.emit('WRAITH_DREAD_BANKED', { amount: gained, total: boss.dread })
+  }
+
+  // Contagious Panic (T3) — when a hero breaks, nearby allies catch the terror.
+  _spreadPanic(adv, amount) {
+    if (currentAct(this._gameState) < 3 || !adv || !Number.isFinite(adv.worldX)) return
+    const TS = Balance.TILE_SIZE, R = (Balance.WRAITH_PANIC_SPREAD_RADIUS_TS ?? 3) * TS
+    for (const a of (this._gameState?.adventurers?.active ?? [])) {
+      if (!a || a === adv || (a.resources?.hp ?? 0) <= 0) continue
+      if (Math.hypot((a.worldX ?? 0) - adv.worldX, (a.worldY ?? 0) - adv.worldY) > R) continue
+      this._addFear(a, amount)
     }
   }
 
@@ -4514,10 +4580,31 @@ export class BossArchetypeSystem {
     // -2 from each threshold per boss-lv beyond 1, clamped to floors so even
     // lv10 leaves panic-death at 80, friendly-fire at 55, flee at 30.
     const bossLv = this._gameState?.boss?.level ?? 1
-    const reduction = Math.max(0, bossLv - 1) * Balance.WRAITH_FEAR_THRESHOLD_REDUCTION_PER_LV
-    const fleeThresh = Math.max(30, Balance.WRAITH_FEAR_FLEE_THRESHOLD            - reduction)
-    const ffThresh   = Math.max(55, Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD   - reduction)
-    const pdThresh   = Math.max(80, Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD     - reduction)
+    // DREAD lowers the break thresholds further as it banks (the dungeon is more
+    // terrifying the more terror it has fed on).
+    const dreadDrop = this._dreadSat() * (Balance.WRAITH_DREAD_THRESHOLD_REDUCTION ?? 15)
+    const reduction = Math.max(0, bossLv - 1) * Balance.WRAITH_FEAR_THRESHOLD_REDUCTION_PER_LV + dreadDrop
+    const fleeThresh = Math.max(25, Balance.WRAITH_FEAR_FLEE_THRESHOLD            - reduction)
+    const ffThresh   = Math.max(45, Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD   - reduction)
+    const pdThresh   = Math.max(70, Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD     - reduction)
+    const tier = currentAct(this._gameState)
+    // Creeping Dread (T2+) — a passive ambient terror tick to everyone in
+    // non-entry rooms, scaled by DREAD saturation. The Pall (T4) raises a fear
+    // FLOOR across the whole party so nobody stays calm.
+    if (tier >= 2 && now - (this._dreadAmbientAt ?? 0) >= (Balance.WRAITH_AMBIENT_INTERVAL_MS ?? 1000)) {
+      this._dreadAmbientAt = now
+      const grid = this._scene?.dungeonGrid
+      const amb = (Balance.WRAITH_AMBIENT_FEAR ?? 1.2) * (0.5 + this._dreadSat())
+      const pallFloor = tier >= 4 ? (Balance.WRAITH_PALL_FEAR_FLOOR ?? 40) : 0
+      for (const a of advs) {
+        if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
+        const r = grid?.getRoomAtTile?.(a.tileX, a.tileY)
+        const def = r?.definitionId
+        if (def === 'entry_hall') continue
+        this._addFear(a, amb)
+        if (pallFloor > 0 && (a._fear ?? 0) < pallFloor) this._addFear(a, pallFloor - (a._fear ?? 0))
+      }
+    }
     for (const adv of advs) {
       if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const fear = adv._fear ?? 0
@@ -4533,6 +4620,17 @@ export class BossArchetypeSystem {
           adv.path = null
           EventBus.emit('WRAITH_FEAR_FLEE', { advId: adv.instanceId, roomId: pick.instanceId })
         }
+        // Player-positive: a panicked hero drops gold as they bolt, the terror
+        // banks DREAD, and (T3+) it spreads to nearby allies — never a clean escape.
+        this._gameState.player ??= {}
+        const dropped = Math.round((Balance.GOLD_PER_KILL ?? 10) * (Balance.WRAITH_FLEE_GOLD_FRAC ?? 0.4))
+        if (dropped > 0) {
+          this._gameState.player.gold = (this._gameState.player.gold ?? 0) + dropped
+          EventBus.emit('RESOURCES_AWARDED', { gold: dropped, source: 'wraith_panic_flee' })
+        }
+        this._bankDread(Balance.WRAITH_DREAD_PER_BREAK ?? 6)
+        this._spreadPanic(adv, Balance.WRAITH_PANIC_SPREAD_FEAR ?? 12)
+        if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.panicBreakFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { gold: true })
       }
       // 75% — friendly-fire window. Single-shot per threshold crossing:
       // armed once when fear first hits 75, runs for FRIENDLY_FIRE_WINDOW_MS,
@@ -4550,6 +4648,9 @@ export class BossArchetypeSystem {
             adv.goal = { type: 'ATTACK_ALLY', allyId: target.instanceId, source: 'wraith_fear' }
             adv.path = null
             EventBus.emit('WRAITH_FRIENDLY_FIRE', { advId: adv.instanceId, targetId: target.instanceId })
+            this._bankDread(Balance.WRAITH_DREAD_PER_BREAK ?? 6)
+            this._spreadPanic(adv, Balance.WRAITH_PANIC_SPREAD_FEAR ?? 12)
+            if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.panicBreakFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, {})
           }
         } else if (adv._fearAttackUntil && now >= adv._fearAttackUntil &&
                    adv.goal?.type === 'ATTACK_ALLY' && adv.goal?.source === 'wraith_fear') {
@@ -4578,6 +4679,9 @@ export class BossArchetypeSystem {
         this._gameState.player ??= {}
         this._gameState.player.gold = (this._gameState.player.gold ?? 0) + Balance.GOLD_PER_KILL
         EventBus.emit('RESOURCES_AWARDED', { gold: Balance.GOLD_PER_KILL, source: 'wraith_panic' })
+        if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.frightDeathFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, {})
+        this._bankDread(Balance.WRAITH_DREAD_PER_BREAK ?? 6)
+        this._spreadPanic(adv, Balance.WRAITH_PANIC_SPREAD_FEAR ?? 12)
         EventBus.emit('ADVENTURER_DIED', {
           adventurer: adv,
           killerId:   'fear',
@@ -4590,6 +4694,123 @@ export class BossArchetypeSystem {
     }
     // Move haunt ghosts (wall-phase) — runs every tick so they hunt smoothly.
     this._tickHauntGhosts(now)
+    // Tick haunted dread zones (Night Terror T2).
+    this._tickTerrorZones(now)
+  }
+
+  // Haunted dread zones (Night Terror T2) — keep adding fear to anyone inside.
+  _tickTerrorZones(now) {
+    if (!this._terrorZones || this._terrorZones.length === 0) return
+    const TS = Balance.TILE_SIZE
+    for (let i = this._terrorZones.length - 1; i >= 0; i--) {
+      const z = this._terrorZones[i]
+      if (now >= z.until) { this._terrorZones.splice(i, 1); continue }
+      if (now - (z.lastTickAt ?? 0) < (Balance.WRAITH_TERROR_ZONE_TICK_MS ?? 1000)) continue
+      z.lastTickAt = now
+      const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === z.roomId)
+      if (!room) { this._terrorZones.splice(i, 1); continue }
+      const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+      let any = false
+      for (const a of (this._gameState?.adventurers?.active ?? [])) {
+        if (!a || (a.resources?.hp ?? 0) <= 0 || !_advInsideRoom(a, room)) continue
+        this._addFear(a, Balance.WRAITH_TERROR_ZONE_FEAR ?? 8); any = true
+      }
+      if (any) AbilityVfx?.dreadZoneFx?.(this._scene, cx, cy, { tier: z.tier ?? 2, rectW: room.width * TS, rectH: room.height * TS, refresh: true })
+    }
+  }
+
+  // ── NIGHT TERROR (day active) ──────────────────────────────────────────────
+  _terrorUsesLeft() { return this._gameState?.boss?._wraithTerror?.usesLeft ?? 0 }
+  _terrorAvailable() { return this._archId() === 'wraith' && (this._gameState?.meta?.phase ?? '') === 'day' && this._terrorUsesLeft() > 0 }
+  _armTerror() { if (!this._terrorAvailable()) return; this._terrorArmed = true; EventBus.emit('WRAITH_TERROR_ARMED', {}) }
+  _disarmTerror() { this._terrorArmed = false; EventBus.emit('WRAITH_TERROR_DISARMED', {}) }
+  _fireTerror(payload) {
+    if (!this._terrorArmed) return
+    if (!this._terrorAvailable()) { this._disarmTerror(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState), TS = Balance.TILE_SIZE
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    const spike = (Balance.WRAITH_TERROR_FEAR ?? 35) * (0.7 + this._dreadSat())
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    for (const a of advsIn) this._addFear(a, spike)
+    // T3 — instantly break the most-afraid hero (force the friendly-fire window).
+    if (tier >= 3 && advsIn.length > 0) {
+      const top = advsIn.slice().sort((a, b) => (b._fear ?? 0) - (a._fear ?? 0))[0]
+      if (top) this._addFear(top, Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD ?? 75)
+    }
+    // T4 — any hero already past the panic threshold is frightened to death now.
+    if (tier >= 4) {
+      const pd = Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD ?? 100
+      for (const a of advsIn) {
+        if ((a._fear ?? 0) >= pd - 1 && !a._shadowMonarch && !a._lightParty && !a._fearPanicDeathTriggered) {
+          this._addFear(a, pd)   // _tickWraith will resolve the heart-stop next frame
+        }
+      }
+    }
+    // T2 — lingering haunted dread zone.
+    if (tier >= 2) {
+      this._terrorZones = (this._terrorZones ?? []).filter(z => z.roomId !== room.instanceId)
+      this._terrorZones.push({ roomId: room.instanceId, until: (this._scene?.time?.now ?? 0) + (Balance.WRAITH_TERROR_ZONE_MS ?? 5000), lastTickAt: 0, tier })
+    }
+    this._bankDread((Balance.WRAITH_DREAD_PER_BREAK ?? 6) * advsIn.length)
+    AbilityVfx?.nightTerrorFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS, victims: advsIn.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+    if (boss._wraithTerror) boss._wraithTerror.usesLeft = Math.max(0, (boss._wraithTerror.usesLeft ?? 0) - 1)
+    this._terrorArmed = false
+    EventBus.emit('WRAITH_TERROR_FIRED', { roomId: room.instanceId, room, tier, victims: advsIn.length })
+  }
+
+  _stopDreadFightTimer() { this._dreadFightTimer?.remove?.(false); this._dreadFightTimer = null }
+
+  // Throne fight — Dread Pulse -> Phantom Assault -> Mass Hysteria -> Night Terror
+  // finale. Fear matters in the throne room too: terror weakens + turns fighters.
+  _tickDreadFight() {
+    const boss = this._gameState?.boss; if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber'); if (!bossRoom) return
+    const TS = Balance.TILE_SIZE
+    const fighters = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+    const dreadDmg = (a, pct, type = 'fear') => {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: type })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Wraith', roomId: bossRoom.instanceId, damageType: type })
+    }
+
+    // T4 Night Terror finale (<30% HP) — black out the room, mass fright-death.
+    if (tier >= 4 && !this._nightTerrorFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._nightTerrorFinaleDone = true
+      AbilityVfx?.nightTerrorFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS, big: true, victims: fighters.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+      const pd = Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD ?? 100
+      for (const a of fighters) {
+        this._addFear(a, Balance.WRAITH_TERROR_FEAR ?? 35)
+        if ((a._fear ?? 0) >= pd - 1 && !a._shadowMonarch && !a._lightParty) {
+          if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.frightDeathFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, {})
+          dreadDmg(a, 9.99, 'fear')   // overkill → instant heart-stop for the truly terrified
+        } else {
+          dreadDmg(a, (Balance.WRAITH_FIGHT_FINALE_PCT ?? 0.12) + this._dreadSat() * 0.08, 'fear')
+        }
+      }
+      return
+    }
+    if (tier >= 3) {
+      // Mass Hysteria — fighters past the ff-threshold turn on each other.
+      AbilityVfx?.massHysteriaFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      const ff = Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD ?? 75
+      for (const a of fighters) this._addFear(a, Balance.WRAITH_FIGHT_FEAR_TICK ?? 14)
+      for (const a of fighters) { if ((a._fear ?? 0) >= ff) dreadDmg(a, Balance.WRAITH_FIGHT_HYSTERIA_PCT ?? 0.06, 'physical') }
+    } else if (tier >= 2) {
+      // Phantom Assault — haunt-ghosts manifest and strike all fighters.
+      AbilityVfx?.phantomAssaultFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS, victims: fighters.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+      for (const a of fighters) { this._addFear(a, Balance.WRAITH_FIGHT_FEAR_TICK ?? 14); dreadDmg(a, Balance.WRAITH_FIGHT_PHANTOM_PCT ?? 0.05, 'fear') }
+    } else {
+      // Dread Pulse — a wave of terror + chip damage.
+      AbilityVfx?.dreadPulseFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) { this._addFear(a, Balance.WRAITH_FIGHT_FEAR_TICK ?? 14); dreadDmg(a, Balance.WRAITH_FIGHT_PULSE_PCT ?? 0.04, 'fear') }
+    }
   }
 
   // Spawn a free ghost2 at the death tile when the wraith is the active boss.

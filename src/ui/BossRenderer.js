@@ -174,6 +174,8 @@ export class BossRenderer {
     this._updatePlagueAura()
     // Vampire — crimson Glow-outline aura reading banked BLOOD.
     this._updateBloodAura()
+    // Wraith — cold spectral-indigo Glow-outline aura reading banked DREAD.
+    this._updateDreadAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -714,6 +716,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._bloodGlow) } catch (e) {}
     }
     this._bloodGlow = null
+  }
+
+  _updateDreadAura() {
+    const isWraith = this._gameState?.player?.bossArchetypeId === 'wraith'
+    if (!isWraith || !this._container || !this._sprite) { this._clearDreadAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.WRAITH_DREAD_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.WRAITH_DREAD_CAP_PER_ACT ?? 50)
+    const sat = Math.max(0, Math.min(1, (boss?.dread ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x1a2238, 0xb6c2f0)
+      if (!this._dreadGlow) { try { this._dreadGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._dreadGlow = true } }
+      else if (this._dreadGlow !== true) { try { this._dreadGlow.color = p.color; this._dreadGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearDreadAura() {
+    if (this._dreadGlow && this._dreadGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._dreadGlow) } catch (e) {}
+    }
+    this._dreadGlow = null
   }
 
   _build(boss) {

@@ -134,13 +134,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Fear Meter",
-      "summary": "Adventurers gain fear from horrors in your dungeon. Enough fear makes them flee, turn on each other, or drop dead.",
+      "name": "The Dread Harvest",
+      "summary": "Banks DREAD from every fright; it amplifies all fear and drops the break thresholds, so the party panics, knifes itself, and drops dead faster as terror pools.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Haunting — dead adventurers leave free Ghosts that haunt their room and phase through walls to attack.",
+        "text": "Fear → breaks — enough fear makes a hero flee (dropping gold + spreading panic), knife an ally, or die of fright. Every break feeds DREAD.",
+        "implemented": true
+      },
+      {
+        "text": "Night Terror (day) — flood a room with dread: a fear spike, a lingering haunted zone, and at high acts an instant break / mass heart-stop.",
+        "implemented": true
+      },
+      {
+        "text": "Haunting — dead adventurers leave free wall-phasing Ghosts that haunt their room and build the dungeon's DREAD.",
         "implemented": true
       }
     ],

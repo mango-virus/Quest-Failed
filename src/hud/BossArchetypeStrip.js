@@ -96,6 +96,11 @@ export class BossArchetypeStrip {
         ref: el => { this._vampBtn = el },
         on: { click: () => this._onVampClick() },
       }, 'BLOOD RITE'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-terror',
+        ref: el => { this._wraithBtn = el },
+        on: { click: () => this._onWraithClick() },
+      }, 'NIGHT TERROR'),
     ])
   }
 
@@ -141,6 +146,10 @@ export class BossArchetypeStrip {
     sub('VAMPIRE_RITE_ARMED',    () => { this._vampArmed = true;  this._refresh() })
     sub('VAMPIRE_RITE_DISARMED', () => { this._vampArmed = false; this._refresh() })
     sub('VAMPIRE_RITE_FIRED',    () => { this._vampArmed = false; this._refresh() })
+    // Wraith Night Terror.
+    sub('WRAITH_TERROR_ARMED',    () => { this._wraithArmed = true;  this._refresh() })
+    sub('WRAITH_TERROR_DISARMED', () => { this._wraithArmed = false; this._refresh() })
+    sub('WRAITH_TERROR_FIRED',    () => { this._wraithArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -192,6 +201,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._vampArmed ? 'VAMPIRE_RITE_DISARM' : 'VAMPIRE_RITE_ARM')
   }
 
+  _onWraithClick() {
+    if (this._wraithBtn?.disabled) return
+    EventBus.emit(this._wraithArmed ? 'WRAITH_TERROR_DISARM' : 'WRAITH_TERROR_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -206,6 +220,7 @@ export class BossArchetypeStrip {
     const isMyconid = archId === 'myconid'
     const isLizardman = archId === 'lizardman'
     const isVampire = archId === 'vampire'
+    const isWraith = archId === 'wraith'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
@@ -215,8 +230,9 @@ export class BossArchetypeStrip {
     const myconidActive = isMyconid && isDay
     const lizardActive = isLizardman && isDay
     const vampActive = isVampire && isDay
+    const wraithActive = isWraith && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive || wraithActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -286,6 +302,13 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._vampRite?.usesLeft ?? 0
       this._vampBtn.textContent = this._vampArmed ? 'PICK A ROOM' : `BLOOD RITE · ${uses}`
       this._vampBtn.disabled = !(uses > 0)
+    }
+    if (this._wraithBtn) {
+      this._wraithBtn.style.display = wraithActive ? '' : 'none'
+      this._wraithBtn.classList.toggle('armed', !!this._wraithArmed)
+      const uses = this._gs?.boss?._wraithTerror?.usesLeft ?? 0
+      this._wraithBtn.textContent = this._wraithArmed ? 'PICK A ROOM' : `NIGHT TERROR · ${uses}`
+      this._wraithBtn.disabled = !(uses > 0)
     }
   }
 

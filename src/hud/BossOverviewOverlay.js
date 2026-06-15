@@ -426,6 +426,8 @@ export class BossOverviewOverlay {
       this._renderVirulenceStatus(),
       // Blood readout (Vampire — The Blood Sovereign)
       this._renderBloodStatus(),
+      // Dread readout (Wraith — The Dread Harvest)
+      this._renderDreadStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -797,6 +799,31 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${thralls} thrall${thralls === 1 ? '' : 's'} in the Court · phase: ${phase}. BLOOD banks from every wound the dungeon deals + each kill; spend it on Blood Rites and feast in the throne fight.`),
+    ])
+  }
+
+  _renderDreadStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'wraith') return null
+    const boss = this._gameState.boss ?? {}
+    const dread = Math.floor(boss.dread ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.WRAITH_DREAD_CAP_BASE ?? 60) + tier * (Balance.WRAITH_DREAD_CAP_PER_ACT ?? 50)
+    const ff = Balance.WRAITH_FEAR_FRIENDLY_FIRE_THRESHOLD ?? 75
+    const breaking = (this._gameState.adventurers?.active ?? []).filter(a => (a._fear ?? 0) >= ff && (a.resources?.hp ?? 0) > 0).length
+    const C = '#b6c2f0'
+    const pct = Math.max(0, Math.min(100, (dread / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'The Pall' : tier >= 3 ? 'Contagious Panic' : tier >= 2 ? 'Creeping Dread' : 'Haunting'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'DREAD'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(dread)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#14162a', border: '1px solid #2a2c44', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#2a3050,#b6c2f0)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${breaking} breaking · phase: ${phase}. Every fright feeds DREAD, which amplifies fear and drops the break thresholds — terror cashes out as panic, friendly-fire, and heart-stops.`),
     ])
   }
 

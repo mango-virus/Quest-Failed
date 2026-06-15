@@ -1024,13 +1024,69 @@ conversion flash), `bloodEruptFx` (thrall death nova + chain-charm tendril), `cr
 Court with the crowd. No single-target fixed-magnitude, no heal-block.
 
 **Acceptance checklist (Blood Sovereign):**
-- ☐ BLOOD (`boss.blood`) banks from dungeon damage-to-heroes + per-kill gulp; persists; caps/act; passive regen; gauge + readout.
-- ☐ Day BLOOD RITE: arm→room, tier-gated Tithe/Court Levy/Sanguine Pool/Crimson Rite; DOM button + Phaser room-pick + events; uses/day reset on night; crowd %maxHP.
-- ☐ Dungeon kit: T1 Blood Tax + daily charm→thrall; T2 Court scaling; T3 Sanguine Vigor lifesteal; T4 Blood Bond charmed-death erupt + chain-charm (capped).
-- ☐ Throne fight tier-gated: Crimson Lance / Sanguine Embrace / Blood Tempest / Blood Moon finale (Blood-scaled).
-- ☐ Tells: crimson glow-outline aura (BossRenderer) reading Blood; charmed crimson tint + heart-mote (AdventurerRenderer); BLOOD + thrall panel readout.
-- ☐ Bespoke animated blood VFX (bloodRite/sanguinePool/charmBind/bloodErupt/crimsonLance/sanguineEmbrace/bloodTempest/bloodMoon), lab-wired; lint-vfx clean (incl. dup-key guard); meets detail bar; live-verified.
-- ☐ SaveSystem persists blood, strips scene-time zone/timer fields; node --check; new vampire-bloodcourt-check.mjs green; soak clean; bossArchetypes.json text; live preview verified.
+- ☑ BLOOD (`boss.blood`) banks from dungeon damage-to-heroes + per-kill gulp; persists; caps/act; passive regen; gauge + readout.
+- ☑ Day BLOOD RITE: arm→room, tier-gated Tithe/Court Levy/Sanguine Pool/Crimson Rite; DOM button + Phaser room-pick + events; uses/day reset on night; crowd %maxHP.
+- ☑ Dungeon kit: T1 Blood Tax + daily charm→thrall; T2 Court scaling; T3 Sanguine Vigor lifesteal; T4 Blood Bond charmed-death erupt + chain-charm (capped).
+- ☑ Throne fight tier-gated: Crimson Lance / Sanguine Embrace / Blood Tempest / Blood Moon finale (Blood-scaled).
+- ☑ Tells: crimson glow-outline aura (BossRenderer) reading Blood; charmed crimson tint + heart-mote (AdventurerRenderer); BLOOD + thrall panel readout.
+- ☑ Bespoke animated blood VFX (bloodRite/sanguinePool/charmBind/bloodErupt/crimsonLance/sanguineEmbrace/bloodTempest/bloodMoon), lab-wired; lint-vfx clean (incl. dup-key guard); meets detail bar; live-verified (incl. redesigned gory _drawBloodPool 2026-06-15).
+- ☑ SaveSystem persists blood (no strip needed); node --check; vampire-bloodcourt-check.mjs green; soak clean (120/0); bossArchetypes.json text; live preview verified. Committed 7d991453.
+
+---
+
+## Boss overhaul #10 — Dark Wraith → THE DREAD HARVEST (locked 2026-06-15)
+
+**Fantasy:** the dungeon's terror is its food. The Wraith banks DREAD from every fright and spends it to break
+minds — and every broken mind pays the player (a kill, a knifed ally, or scattered gold). Builds on the
+existing per-adv Fear engine (`_addFear`/`_fear`, flee/friendly-fire/panic-death thresholds) + Haunting ghosts.
+
+**DREAD — banked resource (`boss.dread`, persists, caps by act):** pools dungeon-wide — a cut of EVERY fear
+point added anywhere banks DREAD, plus a chunk each time a hero breaks (panics, knifes an ally, flees, dies of
+fear). While banked it (a) multiplies all fear gain (DREAD multiplier on `_addFear`), (b) adds a passive
+ambient terror tick to everyone in the dungeon scaled to DREAD saturation, (c) nudges the break thresholds
+down. Crowd-scaling, threshold-based (no HP falloff). NO heal-block.
+
+**Dungeon kit by act (`_tickWraith`):** T1 **Haunting + Fear** (existing) → T2 **Creeping Dread** (passive
+ambient fear to everyone in non-entry rooms, DREAD-scaled) → T3 **Contagious Panic** (a hero who breaks spikes
+nearby allies' fear) → T4 **The Pall** (dungeon-wide elevated baseline fear, thresholds at floor, ghosts
+everywhere).
+
+**Player-positive break outcomes (refine existing — never a clean escape):** Flee (≥flee thresh) → panics to a
+random room AND drops gold + spreads panic to allies passed. Friendly-fire (≥ff thresh) → attacks allies.
+Frighten-to-death (max fear) → instant heart-stop kill (HP-independent → scales late).
+
+**Day active — NIGHT TERROR** (`WRAITH_TERROR_*` events; strip button + Phaser room-pick; uses/day scale w/
+level, refill nightly): floods a room with a big DREAD-scaled fear spike (crowd-wide). T1 spike → T2 + lingering
+haunted **dread zone** (keeps adding fear a few s) → T3 + instantly break the most-afraid hero (friendly-fire)
+→ T4 + any hero past the panic threshold is frightened to death at once. Banks DREAD from the terror.
+
+**Throne fight — fight-timer terror duelist (`_tickDreadFight`):** T1 **Dread Pulse** (wave: all fighters fear
++ small %maxHP) → T2 **Phantom Assault** (haunt-ghosts manifest + strike) → T3 **Mass Hysteria** (fighters past
+ff-thresh attack each other) → T4 **Night Terror finale** (<30% HP: room goes black, big fear spike, the
+most-terrified frightened to death — instant if past panic thresh else %maxHP; scales w/ DREAD).
+
+**Tells:** cold spectral-indigo glow-outline aura reading DREAD saturation (washed-out ghost-blue → pale
+white-violet; distinct from Beholder bright-violet + Vampire crimson). High-fear heroes get a trembling pale
+dread tint. DREAD gauge + "N breaking" party-fear readout + phase in the boss panel.
+
+**VFX (bespoke; won't clobber existing minion ghost VFX `fearStrikeFx`/`dreadAuraFx`/`hauntCloakFx`/
+`pallOfDreadFx`/`panicState`):** `nightTerrorFx` (room plunges dark, spectral faces/claws lunge from edges),
+`dreadZoneFx` (lingering haunted shroud), `frightDeathFx` (soul/shadow rips out on a heart-stop), `dreadPulseFx`
+(expanding wail ring), `phantomAssaultFx` (manifesting ghosts strike), `panicBreakFx` (terror burst + scattered
+gold on a flee). NO `Balance` ref inside AbilityVfx — pass magnitudes/durations via opts.
+
+**Always-useful:** thresholds are %-of-party not fixed-target; fright-death is HP-independent; ambient +
+contagion + Pall scale with crowd; DREAD snowballs. No single-target fixed-magnitude, no heal-block.
+
+**Acceptance checklist (Dread Harvest):**
+- ☑ DREAD (`boss.dread`) banks from fear added + hero breaks; persists; caps/act; multiplies fear gain + ambient tick + threshold nudge; gauge + readout.
+- ☑ Dungeon kit: T1 Haunting+Fear; T2 Creeping Dread (ambient); T3 Contagious Panic (break spreads); T4 The Pall (dungeon-wide).
+- ☑ Player-positive breaks: flee drops gold + spreads panic; friendly-fire; frighten-to-death instant kill.
+- ☑ Day NIGHT TERROR: arm→room, tier-gated spike/zone/break/mass-death; DOM button + Phaser room-pick + events; uses reset on night.
+- ☑ Throne fight tier-gated: Dread Pulse / Phantom Assault / Mass Hysteria / Night Terror finale (DREAD-scaled).
+- ☑ Tells: spectral-indigo glow-outline aura (BossRenderer) reading DREAD; high-fear tint (AdventurerRenderer); DREAD + breaking panel readout.
+- ☑ Bespoke animated dread VFX (nightTerror/dreadZone/frightDeath/dreadPulse/phantomAssault/panicBreak) — all built on the animated ghost sprite (`_makeSoulSprite`, no drawn faces), lab-wired; lint-vfx clean (incl. dup-key guard); live-verified.
+- ☑ SaveSystem (dread + terror uses are plain persisted fields; no strip needed); node --check; wraith-dread-check.mjs green; soak clean (120/0); bossArchetypes.json text; live preview verified.
 
 ---
 

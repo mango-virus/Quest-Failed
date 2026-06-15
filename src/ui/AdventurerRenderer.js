@@ -884,6 +884,23 @@ export class AdventurerRenderer {
         }
       }
 
+      // Wraith THE DREAD HARVEST — a terrified hero (high fear) glows a cold,
+      // trembling spectral indigo, deepening toward their break. Lets you read
+      // who is about to panic / knife an ally / drop dead.
+      {
+        const fImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const fear = adv._fear ?? 0
+        if (fImg && fImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (fear >= 40) {
+            const k = Math.min(1, (fear - 40) / 60)
+            const str = 1.4 + k * 3 + 0.5 * Math.sin(now / 90)   // trembling pulse, faster as fear climbs
+            if (!s._wraithFearFx) { try { s._wraithFearFx = fImg.postFX.addGlow(0x8a96d8, str, 0, false, 0.05, 8) } catch (e) { s._wraithFearFx = null } }
+            else if (s._wraithFearFx !== true) { try { s._wraithFearFx.outerStrength = str } catch (e) {} }
+          } else if (s._wraithFearFx) { try { if (s._wraithFearFx !== true) fImg.postFX.remove(s._wraithFearFx) } catch (e) {} s._wraithFearFx = null }
+        }
+      }
+
       // Zombie ROT — while rot-infected (`_rotInfectedUntil`), the hero is a walking
       // CORPSE-in-waiting (it rises as YOUR zombie if it dies). Distinct from the
       // slime's bright-green glow: an ASHEN necrotic pallor (partial desaturate + dim

@@ -510,6 +510,35 @@ export const Balance = {
   WRAITH_HAUNT_MAX_ACTIVE:                 5,   // hard cap on simultaneous Haunt ghosts (Wraith was over-tuned otherwise)
   WRAITH_HAUNT_MAX_PER_BOSS_LV:           0.5,  // +0.5 max per boss-lv (floor) → cap = base + floor(bossLv/2)
 
+  // --- Boss overhaul #10: THE DREAD HARVEST — banked DREAD economy ---
+  WRAITH_DREAD_PER_FEAR:           0.25,  // DREAD banked per fear point actually inflicted
+  WRAITH_DREAD_PER_BREAK:          6,     // DREAD chunk when a hero breaks (flee/ff/death) or per terror victim
+  WRAITH_DREAD_CAP_BASE:           60,    // cap = BASE + act*PER_ACT
+  WRAITH_DREAD_CAP_PER_ACT:        50,
+  WRAITH_DREAD_FEAR_MULT_MAX:      1.0,   // at full DREAD, fear gain is x(1+this) = x2
+  WRAITH_DREAD_THRESHOLD_REDUCTION: 15,   // at full DREAD, break thresholds drop by this (atop boss-lv reduction)
+  WRAITH_AMBIENT_INTERVAL_MS:      1000,  // Creeping Dread ambient-fear cadence (T2+)
+  WRAITH_AMBIENT_FEAR:             1.2,   // base ambient fear/tick (x (0.5 + dreadSat))
+  WRAITH_PALL_FEAR_FLOOR:          40,    // T4 The Pall — nobody sits below this fear
+  WRAITH_PANIC_SPREAD_RADIUS_TS:   3,     // Contagious Panic (T3) reach
+  WRAITH_PANIC_SPREAD_FEAR:        12,    // fear dumped on nearby allies when a hero breaks
+  WRAITH_FLEE_GOLD_FRAC:           0.4,   // gold dropped on a panic-flee (× GOLD_PER_KILL)
+
+  // NIGHT TERROR (day active) — crowd-wide fear spike, escalates by act.
+  WRAITH_TERROR_USES_PER_DAY:      1,
+  WRAITH_TERROR_USES_PER_BOSS_LV:  0.25,
+  WRAITH_TERROR_FEAR:              35,    // base fear spike to everyone in the room (× (0.7 + dreadSat))
+  WRAITH_TERROR_ZONE_MS:           5000,  // T2 haunted dread zone lifetime
+  WRAITH_TERROR_ZONE_TICK_MS:      1000,
+  WRAITH_TERROR_ZONE_FEAR:         8,     // fear/tick from standing in a haunted zone
+
+  // Throne fight — tier-gated terror hazards (all %maxHP / fear).
+  WRAITH_FIGHT_FEAR_TICK:          14,    // fear added to fighters each beat
+  WRAITH_FIGHT_PULSE_PCT:          0.04,  // T1 Dread Pulse %maxHP
+  WRAITH_FIGHT_PHANTOM_PCT:        0.05,  // T2 Phantom Assault %maxHP
+  WRAITH_FIGHT_HYSTERIA_PCT:       0.06,  // T3 Mass Hysteria self-harm %maxHP (fighters past ff-thresh)
+  WRAITH_FIGHT_FINALE_PCT:         0.12,  // T4 finale %maxHP for the not-yet-max-fear (+ dreadSat*0.08)
+
   // --- Minions ---
   MINION_RESPAWN_COST_GOLD: 5,
 

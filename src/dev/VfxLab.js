@@ -70,6 +70,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'golemBulwarkFx', 'collapseFx'] },
   { label: 'Boss·Lizardman (Plague)', fx: ['plagueSpitFx', 'contagionFx', 'outbreakFx', 'miasmaSpewFx'] },
   { label: 'Boss·Vampire (Blood Court)', fx: ['bloodRiteFx', 'sanguinePoolFx', 'charmBindFx', 'bloodEruptFx', 'crimsonLanceFx', 'sanguineEmbraceFx', 'bloodTempestFx', 'bloodMoonFx'] },
+  { label: 'Boss·Wraith (Dread)', fx: ['nightTerrorFx', 'dreadZoneFx', 'frightDeathFx', 'dreadPulseFx', 'phantomAssaultFx', 'massHysteriaFx', 'panicBreakFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -438,6 +439,21 @@ export class VfxLab {
           { label: 'Blood Moon (T4)', fire: () => AbilityVfx.bloodMoonFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }) },
         ]
       }
+      if (entity.archId === 'wraith') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x1a2238, hi: 0xb6c2f0, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Dread',  fire: aura(0.3) },
+          { label: 'Aura: Mid Dread',  fire: aura(0.65) },
+          { label: 'Aura: High Dread', fire: aura(1) },
+          { label: 'Night Terror (room)', fire: () => AbilityVfx.nightTerrorFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150, victims: [{ x: tX(), y: tY() }, { x: tX() - 40, y: tY() + 12 }, { x: tX() + 36, y: tY() - 8 }] }) },
+          { label: 'Dread Zone (T2)', fire: () => AbilityVfx.dreadZoneFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 180, rectH: 130 }) },
+          { label: 'Fright Death', fire: () => AbilityVfx.frightDeathFx(this._scene, tX(), tY(), {}) },
+          { label: 'Dread Pulse', fire: () => AbilityVfx.dreadPulseFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 160, rectH: 120 }) },
+          { label: 'Phantom Assault (T2)', fire: () => AbilityVfx.phantomAssaultFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 160, rectH: 120, victims: [{ x: tX(), y: tY() }, { x: tX() - 40, y: tY() + 12 }] }) },
+          { label: 'Mass Hysteria (T3)', fire: () => AbilityVfx.massHysteriaFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 170, rectH: 130 }) },
+          { label: 'Panic Break (flee)', fire: () => AbilityVfx.panicBreakFx(this._scene, tX(), tY(), { gold: true }) },
+        ]
+      }
       if (entity.archId === 'golem') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
         return [
@@ -744,6 +760,14 @@ export class VfxLab {
         case 'sanguineEmbraceFx': AbilityVfx.sanguineEmbraceFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 90), toY: (d?.worldY ?? e.worldY) - 16 }); break
         case 'bloodTempestFx':   AbilityVfx.bloodTempestFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
         case 'bloodMoonFx':      AbilityVfx.bloodMoonFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
+        // Boss · Wraith (The Dread Harvest) — tier cycles 1→4.
+        case 'nightTerrorFx':    AbilityVfx.nightTerrorFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
+        case 'dreadZoneFx':      AbilityVfx.dreadZoneFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 180, rectH: 130 }); break
+        case 'frightDeathFx':    AbilityVfx.frightDeathFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, {}); break
+        case 'dreadPulseFx':     AbilityVfx.dreadPulseFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 160, rectH: 120 }); break
+        case 'phantomAssaultFx': AbilityVfx.phantomAssaultFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 160, rectH: 120, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
+        case 'massHysteriaFx':   AbilityVfx.massHysteriaFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 170, rectH: 130 }); break
+        case 'panicBreakFx':     AbilityVfx.panicBreakFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { gold: true }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
