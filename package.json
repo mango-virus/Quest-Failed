@@ -11,6 +11,7 @@
     "lint-content:strict": "node tools/lint-content.mjs --strict",
     "lint-vfx": "node tools/lint-vfx.mjs",
     "serve": "node tools/devserve.mjs",
+    "gen-walkers": "node tools/gen-walker-manifest.mjs",
     "sim": "node tools/sim/harness.mjs game",
     "sim:balance": "node tools/sim/balance.mjs",
     "sim:pacts": "node tools/sim/pactsweep.mjs",

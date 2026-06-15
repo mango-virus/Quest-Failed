@@ -40,11 +40,7 @@ import { getUnlockedBossIds } from '../data/bossUnlocks.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
-import { TitlePickerOverlay } from './TitlePickerOverlay.js'
 import { WhatsNewOverlay } from './WhatsNewOverlay.js'
-import {
-  titleFxClassById, titleFxBorderClassById, titleColorById,
-} from './titleFx.js'
 
 // (2026-06-09 rebuild) Boss-video pool removed — the title-screen backdrop
 // is now an in-engine throne-room render owned by the Phaser MainMenu
@@ -76,6 +72,13 @@ function _stopAllGameplayScenes(sm) {
   }
 }
 
+// Menu index → _activate id. The new "Crypt Tablet" layout is a 3-row grid:
+//   row 0: [CONTINUE(0), NEW EVIL(1)]   row 1: [LEADERBOARD(2), ACHIEVEMENTS(3)]
+//   row 2: [OPTIONS(4), QUIT(5)]
+// Arrow keys move within/between rows; Z/Enter activates; hover selects.
+const MENU_IDS = ['continue', 'new', 'leader', 'achievements', 'options', 'quit']
+const MENU_ROWS = [[0, 1], [2, 3], [4, 5]]
+
 export class MainMenuOverlay {
   constructor() {
     this._el = null
@@ -85,7 +88,9 @@ export class MainMenuOverlay {
     this._nameEntry = null
     this._devTools = null
     this._whatsNew = null
-    this._hovered = 'continue'
+    this._sel = 0          // selected menu index (see MENU_IDS / MENU_ROWS)
+    this._btns = []        // menu button els by index — keyboard nav + press fx
+    this._walkers = null   // MenuWalkers atmosphere instance (lazy)
     this._save = null
     this._closed = false
     this._keyHandler = (e) => this._onKey(e)
@@ -104,7 +109,7 @@ export class MainMenuOverlay {
     // prompt; listens for SHOW_CONFIRM.
     this._confirm = new ConfirmPopup()
     this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
-    if (!this._save) this._hovered = 'new'   // CONTINUE is disabled — default-focus NEW EVIL
+    this._sel = this._save ? 0 : 1   // no save → CONTINUE disabled, focus NEW EVIL
     this._render()
     window.addEventListener('keydown', this._keyHandler)
     // Background prefetch of the top-3 leaderboard so the LEADERBOARD
@@ -180,9 +185,12 @@ export class MainMenuOverlay {
 
   close() {
     this._closed = true
+    this._walkers?.destroy?.()
+    this._walkers = null
     this._el?.remove()
     this._el = null
     this._refs = null
+    this._btns = []
     window.removeEventListener('keydown', this._keyHandler)
     if (this._onNameChanged) {
       EventBus.off('NAME_CHANGED', this._onNameChanged)
@@ -194,8 +202,6 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry?.close()
     this._nameEntry = null
-    this._titlePicker?.close()
-    this._titlePicker = null
     this._devTools?.close()
     this._devTools = null
     this._whatsNew?.close()
@@ -211,409 +217,347 @@ export class MainMenuOverlay {
   // ─── Rendering ─────────────────────────────────────────────────
   _render() {
     if (!this._el) {
-      this._el = h('div', { className: 'mm-root qf-mm' })
+      this._el = h('div', { className: 'qf-cm qcm-pixelbtn' })
       // Mount into the 1920×1080 #hud-stage so MainMenu letterboxes on
       // non-16:9 viewports the same way the in-game HUD does. Ensure the
       // stage is scaled even if HudRoot hasn't mounted yet (which it
-      // hasn't, at the title screen).
+      // hasn't, at the title screen). The .qf-cm root is OPAQUE — it owns
+      // the whole backdrop (brick wall + torches + walkers), so the Phaser
+      // MainMenu scene behind it is no longer the visible title backdrop.
       ensureStageScaled()
       const stage = document.getElementById('hud-stage') || document.body
       stage.appendChild(this._el)
     }
+    this._btns = []
     mount(this._el, this._renderInner())
+    this._applySelection()
+    this._mountAtmosphere()
   }
 
   _renderInner() {
-    const items = this._menuItems()
+    this._refs ||= {}
     return [
-      // TOP — QUEST / FAILED logo block, centered. Sits above the in-engine
-      // torches the Phaser MainMenu draws to either side (their positions
-      // mirror LOGO_CENTER_* / TORCH_OFFSET_X in src/scenes/MainMenu.js).
-      h('div', { className: 'qf-mm-logoblock qf-mm-logoblock-top' }, [
-        h('div', { className: 'pix mm-logo-eyebrow qf-mm-eyebrow' }, [
-          h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
-          'A DUNGEON-BUILDER ROGUELIKE',
-          h('span', { className: 'qf-mm-eye-glyph' }, '◇'),
-        ]),
-        h('div', { className: 'pix mm-logo qf-mm-logo-quest' }, 'QUEST'),
-        h('div', {
-          className: 'pix mm-logo qf-mm-logo-failed',
-          style: { animationDelay: '180ms' },
-        }, 'FAILED'),
+      // ── Backdrop layers (z0, pointer-events:none) ───────────────────────
+      h('div', { className: 'qcm-bricks' }),
+      h('div', { className: 'qcm-torchglow l' }),
+      h('div', { className: 'qcm-torchglow r' }),
+      this._buildEmbers(),
+      h('div', { className: 'qcm-fog' }),
+      // Walkers mount here (MenuWalkers, lazy in _mountAtmosphere).
+      h('div', { className: 'qcm-walkers', ref: el => { this._refs.walkers = el } }),
+      // Real torch.png (43×288, 6-frame vertical strip) flanking the logo.
+      h('div', { className: 'qcm-torch l' }, [h('div', { className: 'qcm-torchsprite' })]),
+      h('div', { className: 'qcm-torch r' }, [h('div', { className: 'qcm-torchsprite' })]),
+
+      // ── Title ───────────────────────────────────────────────────────────
+      h('div', { className: 'qcm-title' }, [
+        h('span', { className: 'pix qcm-t1' }, 'QUEST'),
+        h('span', { className: 'pix qcm-t2' }, 'FAILED'),
       ]),
-      // BOTTOM SLAB — identity strip + reign-state line + vertical button
-      // stack + flavor + footer. Centered, narrow. The throne-room boss
-      // sprite (Phaser canvas) is visible above the slab.
-      h('div', { className: 'qf-mm-slab' }, [
-        h('div', { className: 'qf-mm-identity' }, [
-          // Player-name row — clickable to open NameEntryOverlay. Persistent
-          // identity above the reign info so the player can see / change
-          // their name from the title screen at any time.
-          this._renderPlayerName(),
-          // Equipped-title pill — shows the title the player is currently
-          // wearing (rendered in its own fx/colour), click to change it
-          // via TitlePickerOverlay. Hidden entirely until they unlock
-          // their first title.
-          this._renderTitlePill(),
-        ]),
-        h('div', { className: 'qf-mm-reign' }, [
-          h('div', { className: 'pix qf-mm-eyebrow-sm mm-logo-eyebrow' },
-            'YOUR REIGN, MY LORD'),
-          h('div', {
-            className: 'pix qf-mm-currentboss mm-current-boss',
-            ref: el => { (this._refs ||= {}).bossName = el },
-          }, this._currentBossName()),
-          h('div', {
-            className: 'qf-mm-currentsub',
-            ref: el => { (this._refs ||= {}).bossSub = el },
-          }, this._currentBossSub()),
-        ]),
-        h('div', {
-          className: 'qf-mm-items',
-          // Keep a ref so the cheat-name flip (mango on/off) can surgically
-          // swap the items without re-rendering the entire menu.
-          ref: el => { this._refs = { ...(this._refs || {}), menuItems: el } },
-        }, items.map((m, i) => this._renderItem(m, i))),
-        h('div', { className: 'qf-mm-bottom' }, [
-          h('div', { className: 'pix mm-prompt qf-mm-prompt' },
-            '› PRESS Z TO CONTINUE'),
-          h('div', { className: 'mm-logo-tag qf-mm-quote' }, [
-            '"The fools come bearing torches and prayers.',
-            h('br'),
-            'They will leave bearing nothing."',
-          ]),
-        ]),
+      h('div', { className: 'sil qcm-tag' }, '◦  A Dungeon‑Builder Roguelike  ◦'),
+
+      // ── Tablet (foreground) ─────────────────────────────────────────────
+      h('div', { className: 'qcm-tablet' }, [
+        h('div', { className: 'qcm-crest', ref: el => { this._refs.crest = el } },
+          this._buildCrestInner()),
+        h('div', { className: 'qcm-prim', ref: el => { this._refs.prim = el } },
+          this._buildPrimInner()),
+        h('div', { className: 'qcm-grid', ref: el => { this._refs.grid = el } },
+          this._buildGridInner()),
+        h('div', { className: 'qcm-hints' }, this._buildHints()),
       ]),
-      // FOOTER — version / save state / copyright, anchored to the very
-      // bottom edge of the 1920×1080 stage.
-      h('div', { className: 'pix qf-mm-footer qf-mm-footer-bottom' }, [
-        h('span', null, 'v 0.1.4'),
-        h('span', {
-          ref: el => { (this._refs ||= {}).savePill = el },
-          style: { color: this._save ? 'var(--poison)' : 'var(--text-dim)' },
-        }, this._save ? 'SAVE OK' : 'NO SAVE'),
-        h('span', null, '© BONEMAKER · MMXXVI'),
-      ]),
+
+      // ── Footer chips: WHAT'S NEW (version, right) + DEV TOOLS (mango, left)
+      h('div', { className: 'qcm-foot' }, [this._buildVersionChip()]),
+      PlayerProfile.isCheatName() && this._buildDevChip(),
     ]
   }
 
-  _renderItem(m, i) {
-    const dimmed = m.enabled === false
-    let btnEl
-    // Hover visuals are pure CSS now — flipping a JS state flag on
-    // mouseenter caused the whole item list to re-render, which re-fired
-    // each button's `mm-item-in` animation (with its own 500-700ms delay)
-    // and made the menu flash empty mid-hover. The primary tint applies
-    // via .qf-mm-item.qf-mm-item-primary:hover.
-    return h('button', {
-      className: `btn mm-item qf-mm-item${m.primary ? ' qf-mm-item-primary' : ''}`,
-      dataset: { id: m.id, dimmed: dimmed ? 'true' : 'false' },
-      style: {
-        '--item-color': m.color,
-        animationDelay: `${500 + i * 70}ms`,
-        opacity: dimmed ? 0.4 : 1,
-      },
-      disabled: dimmed,
-      ref: el => { btnEl = el },
-      // Gate on the LIVE disabled state, not the render-time `dimmed` closure —
-      // _refreshMenuItems flips el.disabled in place when the active player's
-      // save changes (name switch), so the captured value would go stale.
-      on: { click: () => { if (!btnEl?.disabled) this._activate(m.id) } },
-    }, [
-      h('span', {
-        className: 'pix qf-mm-item-icon',
-        // Inline color as a defensive fallback — if for any reason the
-        // --item-color var is missing on this button, the icon still gets
-        // its design tint.
-        style: { color: m.color },
-      }, m.icon),
-      h('div', { className: 'qf-mm-item-textcol' }, [
-        h('div', { className: 'pix qf-mm-item-label' }, m.label),
-        h('div', { className: 'qf-mm-item-sub' }, m.sub),
-      ]),
-      // "NEW" badge — appears beside the label on items the player
-      // hasn't engaged with yet (currently just the ACHIEVEMENTS entry
-      // via `newBadge: !PlayerProfile.hasSeenAchievements()`). Cleared
-      // by the surgical DOM removal in `_openAchievements`'s onClose
-      // path so the badge disappears immediately after first use,
-      // without re-running the item's entrance animation.
-      m.newBadge && h('span', { className: 'pix qf-mm-item-new' }, 'NEW'),
-      // Mail-icon badge — used by GAME REQUESTS to signal that there's
-      // unseen mail (a dev reply to the player's submission, or new
-      // submissions for mango to triage). Different colour family than
-      // NEW so both can co-exist if needed; positioned on the opposite
-      // edge so they don't overlap.
-      m.mailBadge > 0 && h('span', { className: 'pix qf-mm-item-mail' }, [
-        h('span', { className: 'qf-mm-item-mail-icon' }, '✉'),
-        ' ',
-        String(m.mailBadge),
-      ]),
-    ])
-  }
-
-  _menuItems() {
-    const items = [
-      { id: 'continue', label: 'CONTINUE', sub: this._continueSub(), icon: '▶',
-        primary: true, enabled: !!this._save, color: 'var(--blood)' },
-      { id: 'new', label: 'NEW EVIL', sub: 'Begin a new run', icon: '+', color: 'var(--gold)',
-        // Cross-surface NEW badge — fires if EITHER an unlocked companion
-        // OR an unlocked boss is still tagged on its respective select
-        // screen. Both surfaces clear their own tags via hover-dismiss,
-        // and once the underlying seen-set has no unseen unlocked ids
-        // left on either side, this OR collapses to false and the badge
-        // goes away. Drives the player to the start-a-run flow when they
-        // have something fresh to encounter at picking time.
-        newBadge: PlayerProfile.hasUnseenNewCompanions(
-                    [...PlayerProfile.getUnlockedCompanions()]
-                  ) ||
-                  PlayerProfile.hasUnseenNewBosses(getUnlockedBossIds()) },
-      { id: 'leader', label: 'LEADERBOARD', sub: 'Global hall of evil', icon: '◆', color: 'var(--rumor)',
-        // NEW badge fires when the last-known top-3 contains any
-        // run ROW ID the local player hasn't hover-acknowledged on
-        // the leaderboard podium yet. Source for the top-3 list is
-        // `Leaderboard.getCachedTop3()` — written by every `fetchTop`
-        // call, so this badge stays live across sessions without
-        // firing its own fetch. Self-rows are filtered out by
-        // canonical-name compare against the local player's name.
-        //
-        // Optimistic-default: when the cache is empty (fresh browser,
-        // post-v2-migration session, or a prefetch that hasn't landed
-        // yet) we DON'T have data to compare against, so we fire the
-        // badge anyway. Opening the leaderboard once populates the
-        // cache and seeds the real comparison; the badge then settles
-        // to the accurate "any unseen id?" state on subsequent renders.
-        // Without this default, fresh sessions never see the badge
-        // until they manually open the overlay — which is the very
-        // thing the badge is supposed to encourage them to do.
-        newBadge: (() => {
-          const myCanon = PlayerProfile.getName().trim().toLowerCase()
-          const cached = Leaderboard.getCachedTop3?.() || []
-          // Optimistic-on when there's nothing cached yet — see comment
-          // above. The prefetch fired in `open()` will resolve shortly
-          // and re-sync (which may then HIDE the badge if everything's
-          // already in the seen-set, but only after we have real data).
-          if (cached.length === 0) return true
-          const ids = cached
-            .filter(e => e && typeof e.id === 'string' && e.id &&
-                         (!myCanon ||
-                          (typeof e.name !== 'string') ||
-                          e.name.trim().toLowerCase() !== myCanon))
-            .map(e => e.id)
-          // After filtering self-rows, if the cache only contained
-          // your own runs, `ids` is empty → nothing to flag — return
-          // false here (not optimistic, since we DO have data and it's
-          // genuinely empty for the badge's purpose).
-          if (ids.length === 0) return false
-          return PlayerProfile.hasUnseenNewLeaderboardIds(ids)
-        })() },
-      { id: 'achievements', label: 'ACHIEVEMENTS', sub: 'Hall of trophies', icon: '🏆',
-        color: 'var(--gold-bright, #ffd964)',
-        // Show a "NEW" badge whenever there's an achievement in the data
-        // file the player hasn't been introduced to yet. Drives both the
-        // first-time-player intro (fresh seen-set → all current ids are
-        // unseen → badge shows) AND the "we just added a new achievement,
-        // tag comes back" behavior (seen-set lacks the new id → badge
-        // shows). Cleared when the player opens the overlay — at which
-        // point AchievementsOverlay calls markAchievementsKnown(allIds).
-        newBadge: PlayerProfile.hasUnseenNewAchievements(
-          (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
-        ) },
-      { id: 'requests', label: 'GAME REQUESTS', sub: 'Requests and feedback', icon: '✉',
-        color: 'var(--rumor)',
-        // Per-name NEW badge — fires until the player has opened the
-        // overlay at least once. Cleared in _openGameRequests after
-        // PlayerProfile.markGameRequestsSeen.
-        newBadge: !PlayerProfile.hasSeenGameRequests(),
-        // Mail-icon chip — count of unseen replies (for the player) +
-        // unseen new submissions (for mango). Sourced from the in-
-        // memory cache populated by GameRequests.prefetchUnreadCounts
-        // (fired in open(), and again on overlay close so a viewed
-        // tab clears its chip on the next render). Sum so a single
-        // ✉ chip serves both purposes — clicking GAME REQUESTS lands
-        // on whatever tab has mail.
-        mailBadge: (GameRequests.getCachedPlayerMail?.() ?? 0) +
-                   (GameRequests.getCachedAdminMail?.() ?? 0) },
-    ]
-    // Dev surfaces (editors, day-jump, notification tests) are mango-only
-    // and live behind a SINGLE "DEV TOOLS" row that opens DevToolsOverlay —
-    // they used to be listed individually here, but the growing list ran
-    // off the bottom of the panel. One row keeps the menu compact and
-    // scales as more tools are added (just edit DEV_TOOL_GROUPS in
-    // DevToolsOverlay.js + add the matching _activate case). The menu-items
-    // list is re-rendered (surgically) on name change so this row appears /
-    // disappears when flipping into / out of the cheat name.
-    if (PlayerProfile.isCheatName()) {
-      items.push(
-        { id: 'devtools', label: 'DEV TOOLS', sub: 'Editors · day-jump · tests', icon: '⚙', color: 'var(--poison)' },
-      )
+  // ─── Atmosphere builders ───────────────────────────────────────────────
+  _buildEmbers() {
+    const n = 34
+    const spans = []
+    for (let i = 0; i < n; i++) {
+      const left = Math.random() * 100
+      const bottom = Math.random() * 40
+      const delay = -(Math.random() * 9)
+      const dur = 6 + Math.random() * 7
+      const drift = (Math.random() * 2 - 1) * 40
+      const sz = 3 * (0.6 + Math.random() * 1.1)
+      const op = 0.85 * (0.5 + Math.random() * 0.5)
+      spans.push(h('span', {
+        className: 'qcm-ember',
+        style: {
+          left: left + '%', bottom: bottom + '%', width: sz + 'px', height: sz + 'px',
+          '--qf-drift': drift + 'px', '--qf-ember-op': op,
+          animationDuration: dur + 's', animationDelay: delay + 's',
+        },
+      }))
     }
-    items.push(
-      // Permanent re-open of the recent-updates panel. NEW badge shows
-      // while there's an update the player hasn't acknowledged yet (same
-      // badge mechanism as ACHIEVEMENTS); cleared once they open it.
-      { id: 'whatsnew', label: "WHAT'S NEW", sub: 'Recent updates & additions', icon: '✨',
-        color: 'var(--gold-bright, #ffd964)', newBadge: WhatsNewOverlay.hasUnseen() },
-      { id: 'options', label: 'OPTIONS', sub: 'Audio · controls', icon: '◇', color: 'var(--warn)' },
-      { id: 'quit', label: 'QUIT', sub: 'Return to the mortal realm', icon: '✖', color: 'var(--text-mute)' },
-    )
-    return items
+    return h('div', { className: 'qcm-embers' }, spans)
   }
 
-  _continueSub() {
-    if (!this._save) return 'No saved run'
-    const day = this._save.meta?.dayNumber ?? 1
-    return `Resume Day ${day}`
+  // Lazily spin up the walkers (real adventurer + boss sprite-sheets pacing /
+  // fleeing along the base of the wall). Only one instance; bound to the boss
+  // the player currently reigns as (or their last archetype / orc fallback).
+  _mountAtmosphere() {
+    const host = this._refs?.walkers
+    if (!host || this._walkers) return
+    const bossId = String(
+      this._save?.player?.bossArchetypeId
+      ?? PlayerProfile.getLastArchetypeId?.()
+      ?? 'orc'
+    ).replace(/^the_/, '')
+    import('./menuWalkers.js').then(({ MenuWalkers }) => {
+      if (this._closed || !this._refs?.walkers) return
+      this._walkers = new MenuWalkers(this._refs.walkers, { bossId, stageW: 1920 })
+      this._walkers.start()
+      this._walkers.fire()   // a little life on first paint
+    }).catch(() => {})
   }
 
-  _currentBossName() {
-    if (!this._save) return 'A NEW DUNGEON AWAITS'
+  // ─── Reign crest (boss portrait + name + quote, or empty-throne state) ──
+  _buildCrestInner() {
+    const arch = this._currentArch()
+    if (this._save && arch) {
+      return [
+        h('div', { className: 'qcm-namerow' }, [
+          h('div', { className: 'qcm-avatar' }, [this._bossPortraitImg(arch.id)]),
+          h('div', { className: 'qcm-rname' }, (arch.name || arch.id).toUpperCase()),
+        ]),
+        h('div', { className: 'qcm-quote' }, [
+          h('span', { className: 'qcm-qline' },
+            arch.flavorText ? `“${arch.flavorText}”` : ''),
+        ]),
+      ]
+    }
+    return [
+      h('div', { className: 'qcm-namerow' }, [
+        h('div', { className: 'qcm-avatar qcm-avatar-empty' },
+          [h('span', { className: 'qcm-emptglyph' }, '♛')]),
+        h('div', { className: 'qcm-rname qcm-rname-empty' }, 'THE THRONE AWAITS'),
+      ]),
+      h('div', { className: 'qcm-quote' }, [
+        h('span', { className: 'qcm-qline qcm-tip' },
+          'The crown sits unclaimed — begin a New Evil to take your first throne.'),
+      ]),
+    ]
+  }
+
+  _bossPortraitImg(id) {
+    const clean = String(id || '').replace(/^the_/, '')
+    return h('img', {
+      className: 'qcm-portrait',
+      src: `assets/ui/bestiary/portraits/${clean}_p.png`,
+      alt: '',
+      // Hide the <img> (keeping the framed avatar box) if the portrait 404s.
+      on: { error: (e) => { e.currentTarget.style.visibility = 'hidden' } },
+    })
+  }
+
+  // Resolve the saved run's boss archetype object from the JSON cache. Returns
+  // null when there's no save. Falls back to a minimal {id,name} if the cache
+  // isn't reachable yet.
+  _currentArch() {
+    if (!this._save) return null
     const archId = String(this._save.player?.bossArchetypeId ?? '').replace(/^the_/, '')
-    if (!archId) return 'YOUR BOSS'
-    // Try to resolve the archetype name from the cache.
+    if (!archId) return null
     const scenes = window.__game?.scene?.scenes || []
     for (const s of scenes) {
       const archs = s.cache?.json?.get?.('bossArchetypes')
       if (Array.isArray(archs)) {
-        const arch = archs.find(a => a.id === archId)
-        if (arch?.name) return arch.name.toUpperCase()
+        const a = archs.find(x => x.id === archId)
+        if (a) return a
       }
     }
-    return archId.replace(/_/g, ' ').toUpperCase()
+    return { id: archId, name: archId.replace(/_/g, ' '), flavorText: '' }
   }
 
-  _currentBossSub() {
-    if (!this._save) return 'Begin your evil to claim a name in the bone-halls.'
-    const day   = this._save.meta?.dayNumber ?? 1
-    const kills = this._save.player?.totalKills
-                ?? this._save.run?.totals?.advsKilled
-                ?? 0
-    return `Day ${day} · ${kills} kill${kills === 1 ? '' : 's'}`
+  // ─── Primary cards: CONTINUE run-card + NEW EVIL ───────────────────────
+  _buildPrimInner() {
+    return [this._buildContinueCard(), this._buildNewEvilCard()]
   }
 
-  // ─── Player name ───────────────────────────────────────────────
-  // Pill above the boss heading that shows the current player name (or
-  // "SET YOUR NAME" if unset) and opens NameEntryOverlay on click. The
-  // old Phaser MainMenu prompted via NameEntryPanel before each new run;
-  // this is the DOM equivalent, persistent so the player can change their
-  // name from the title screen at any time. Drives per-name progression
-  // in PlayerProfile (boss-level unlocks scope to the current name).
-  _renderPlayerName() {
-    const name = PlayerProfile.getName().trim()
-    const hasName = !!name
+  _buildContinueCard() {
+    const hasSave = !!this._save
+    const day = this._save?.meta?.dayNumber ?? 1
+    const cls = 'qcm-item qcm-cont'
+      + (hasSave ? ' qcm-primary' : ' qcm-disabled')
+      + (this._sel === 0 ? ' on' : '')
     return h('button', {
-      className: 'qf-mm-playername' + (hasName ? '' : ' qf-mm-playername-empty'),
-      title: hasName
-        ? `Change your name (currently ${name})`
-        : 'Set your name — required to begin a new run',
-      'aria-label': hasName ? `Change name from ${name}` : 'Set your name',
-      // Keep a ref so we can surgically swap the pill on name change
-      // instead of re-rendering the whole menu — a full _render() would
-      // recreate the boss-video <video> element with no src and leave a
-      // black stage until the next clip would have queued.
-      ref: el => { this._refs = { ...(this._refs || {}), playerName: el } },
-      on: { click: () => this._editName() },
-    }, [
-      // Tiny eyebrow above the name itself — names this control as an
-      // action ("YOUR NAME · CLICK TO CHANGE") so it reads as a button
-      // even at a glance, instead of looking like decorative metadata.
-      h('div', { className: 'pix qf-mm-playername-eyebrow' },
-        hasName ? 'YOUR NAME · CLICK TO CHANGE' : 'YOUR NAME — REQUIRED'),
-      h('div', { className: 'qf-mm-playername-row' }, [
-        h('span', { className: 'qf-mm-playername-icon' }, '✎'),
-        h('span', { className: 'pix qf-mm-playername-label' },
-          hasName ? name.toUpperCase() : 'SET YOUR NAME'),
-      ]),
-    ])
-  }
-
-  // ─── Equipped title ────────────────────────────────────────────
-  // Pill beneath the player-name button showing the title the player is
-  // currently wearing — drawn in the title's own signature look (animated
-  // gradient for the legendary fx titles, solid signature colour for the
-  // normal coloured ones, gold fallback otherwise). Click opens the
-  // TitlePickerOverlay so they can swap it without leaving the menu.
-  // Returns null (renders nothing) until the player has unlocked a title.
-  _renderTitlePill() {
-    const active = PlayerProfile.getActiveTitle()
-    // Wrap so _refreshTitlePill can surgically swap the inner pill on
-    // change without re-rendering the whole panel head (which would
-    // recreate the boss-video element and blank the stage).
-    return h('div', {
-      className: 'qf-mm-titlepill-wrap',
-      ref: el => { this._refs = { ...(this._refs || {}), titlePill: el } },
-    }, active ? [this._buildTitlePillButton(active)] : [])
-  }
-
-  _buildTitlePillButton(active) {
-    const count    = PlayerProfile.getUnlockedTitles().length
-    const fxBorder = titleFxBorderClassById(active.id)
-    const tColor   = fxBorder ? null : titleColorById(active.id)
-    return h('button', {
-      className: ('qf-mm-titlepill ' + fxBorder).trimEnd(),
-      title: `Change your equipped title (currently ${active.name})`,
-      'aria-label': `Change equipped title from ${active.name}`,
-      style: tColor
-        ? { borderColor: tColor, boxShadow: `0 0 16px ${tColor}55` }
-        : undefined,
-      on: { click: () => this._openTitlePicker() },
-    }, [
-      h('div', { className: 'pix qf-mm-titlepill-eyebrow' },
-        count > 1 ? 'EQUIPPED TITLE · CLICK TO CHANGE'
-                  : 'EQUIPPED TITLE'),
-      h('div', { className: 'qf-mm-titlepill-row' }, [
-        h('span', { className: 'qf-mm-titlepill-icon' }, '✦'),
-        h('span', {
-          className: ('pix qf-mm-titlepill-name ' + titleFxClassById(active.id)).trimEnd(),
-          style: tColor ? { color: tColor } : undefined,
-        }, active.name),
-        count > 1 && h('span', { className: 'qf-mm-titlepill-count' },
-          `· ${count} unlocked ▼`),
-      ]),
-    ])
-  }
-
-  // Open the standalone title picker. Refreshes the pill on every pick so
-  // the menu reflects the new title live while the modal stays open.
-  _openTitlePicker() {
-    if (this._titlePicker) return
-    this._titlePicker = new TitlePickerOverlay({
-      onChange: () => this._refreshTitlePill(),
-      onClose:  () => { this._titlePicker = null; this._refreshTitlePill() },
-    })
-    this._titlePicker.open()
-  }
-
-  // Surgically rebuild the title pill in place (e.g. after a pick).
-  _refreshTitlePill() {
-    const wrap = this._refs?.titlePill
-    if (!wrap) return
-    const active = PlayerProfile.getActiveTitle()
-    wrap.replaceChildren(...(active ? [this._buildTitlePillButton(active)] : []))
-  }
-
-  // Open NameEntryOverlay seeded with the current name (if any). Saves on
-  // confirm and surgically refreshes the player-name pill so the rest of
-  // the menu (boss-video chain in particular) keeps playing untouched.
-  _editName() {
-    if (this._nameEntry) return
-    const current = PlayerProfile.getName().trim()
-    this._nameEntry = new NameEntryOverlay({
-      title:        'YOUR NAME, MY LORD',
-      instruction:  current
-        ? 'Rename yourself — the dungeon will remember the new one.'
-        : 'Enter your title — the dungeon will remember it.',
-      initial:      current,
-      confirmLabel: current ? 'SAVE' : 'BEGIN REIGN',
-      onConfirm: (n) => {
-        PlayerProfile.setName(n)
-        this._nameEntry = null
-        // Names are profiles: titles AND the save slot are per-name, so
-        // re-resolve this name's save + refresh every name-dependent surface.
-        this._syncNameDependentUI()
+      className: cls,
+      disabled: !hasSave,
+      ref: el => { this._btns[0] = el },
+      on: {
+        mouseenter: () => { if (hasSave) this._select(0) },
+        click: () => { if (hasSave) this._press(0) },
       },
-      onCancel: () => { this._nameEntry = null },
+    }, [
+      h('div', { className: 'qcm-cont-top' }, [
+        h('span', { className: 'qcm-glyph' }, '▶'),
+        h('span', { className: 'pix qcm-cont-label' }, 'CONTINUE'),
+        h('span', { className: 'qcm-cont-resume' }, [
+          hasSave ? this._buildMiniMap() : null,
+          hasSave ? `Resume · Day ${day}` : 'Nothing to resume yet',
+          hasSave ? h('span', { className: 'pix qcm-cont-go' }, '›') : null,
+        ]),
+      ]),
+      hasSave ? h('div', { className: 'qcm-cont-stats' }, this._buildContStats()) : null,
+    ])
+  }
+
+  // Decorative dungeon-map glyph beside the resume line (static — evokes the
+  // minimap without wiring live room data into the title screen).
+  _buildMiniMap() {
+    const dot = (left, top, kind) => h('i', {
+      className: kind || '', style: { left: left + 'px', top: top + 'px' },
     })
-    this._nameEntry.open()
+    return h('span', { className: 'qcm-cont-map', 'aria-hidden': 'true' }, [
+      dot(3, 3, 'dim'), dot(14, 3), dot(25, 3), dot(47, 4),
+      dot(14, 13), dot(36, 13, 'boss'), dot(58, 13),
+      dot(3, 23), dot(25, 23), dot(58, 23, 'dim'),
+    ])
+  }
+
+  _buildContStats() {
+    const s = this._save
+    const kills = s.player?.totalKills ?? s.run?.totals?.advsKilled ?? 0
+    const pacts = s.activeMechanics?.length ?? s.history?.pacts?.length ?? 0
+    const bossLv = s.boss?.level ?? 1
+    const act = s.meta?.act?.current
+    const day = s.meta?.dayNumber ?? 1
+    const stat = (label, val) => h('span', { className: 'st' }, [
+      h('span', { className: 'k' }, label),
+      h('span', { className: 'v' }, String(val)),
+    ])
+    // Campaign ("acts") mode shows ACT pips; default survival mode has no act,
+    // so the 4th stat falls back to the current DAY.
+    const lastCol = act
+      ? h('span', { className: 'st' }, [
+          h('span', { className: 'k' }, 'Act'),
+          h('span', { className: 'pips' },
+            [0, 1, 2, 3].map(i => h('i', { className: i < act ? 'on' : '' }))),
+        ])
+      : stat('Day', day)
+    return [stat('Kills', kills), stat('Pacts', pacts), stat('Boss Lv', bossLv), lastCol]
+  }
+
+  _buildNewEvilCard() {
+    const hasSave = !!this._save
+    const cls = 'qcm-item qcm-newevil'
+      + (!hasSave ? ' qcm-primary' : '')
+      + (this._sel === 1 ? ' on' : '')
+    return h('button', {
+      className: cls,
+      ref: el => { this._btns[1] = el },
+      on: { mouseenter: () => this._select(1), click: () => this._press(1) },
+    }, [
+      h('span', { className: 'qcm-glyph', style: { color: 'var(--blood-glow)' } }, '✦'),
+      h('span', { className: 'qcm-itxt' }, [
+        h('span', { className: 'pix qcm-il' }, 'NEW EVIL'),
+        h('span', { className: 'qcm-is' }, 'Begin a new run'),
+      ]),
+    ])
+  }
+
+  // ─── Grid: LEADERBOARD / ACHIEVEMENTS / OPTIONS / QUIT ─────────────────
+  _buildGridInner() {
+    const items = [
+      { idx: 2, l: 'LEADERBOARD', g: '◆', c: 'var(--rumor)', nu: this._leaderboardNewBadge() },
+      { idx: 3, l: 'ACHIEVEMENTS', g: '♛', c: 'var(--gold-bright, #ffd964)', nu: this._achievementsNewBadge() },
+      { idx: 4, l: 'OPTIONS', g: '◇', c: '#ff5fb0' },
+      { idx: 5, l: 'QUIT', g: '✕', c: 'var(--warn)' },
+    ]
+    return items.map(it => this._buildGridItem(it))
+  }
+
+  _buildGridItem(it) {
+    const on = this._sel === it.idx
+    return h('button', {
+      className: 'qcm-item' + (on ? ' on' : ''),
+      ref: el => { this._btns[it.idx] = el },
+      on: { mouseenter: () => this._select(it.idx), click: () => this._press(it.idx) },
+    }, [
+      h('span', { className: 'qcm-glyph', style: on ? undefined : { color: it.c } }, it.g),
+      h('span', { className: 'qcm-itxt' }, [h('span', { className: 'pix qcm-il' }, it.l)]),
+      it.nu && h('span', { className: 'sil qcm-new' }, 'NEW'),
+    ])
+  }
+
+  _buildHints() {
+    const hint = (caps, label) => h('span', { className: 'h' },
+      [...caps.map(c => h('kbd', null, c)), ' ' + label])
+    return [
+      hint(['↑', '↓'], 'Navigate'),
+      hint(['Z'], 'Select'),
+      hint(['Esc'], 'Quit'),
+    ]
+  }
+
+  _buildVersionChip() {
+    const nu = WhatsNewOverlay.hasUnseen()
+    return h('button', {
+      className: 'qcm-ver',
+      title: "What's new in this version",
+      ref: el => { (this._refs ||= {}).version = el },
+      on: { click: () => this._activate('whatsnew') },
+    }, ['v ', h('b', null, '0.1.4'), nu && h('span', { className: 'sil qcm-ver-nu' }, 'NEW')])
+  }
+
+  _buildDevChip() {
+    return h('button', {
+      className: 'qcm-dev',
+      title: 'Mango dev tools',
+      on: { click: () => this._activate('devtools') },
+    }, [h('span', { className: 'qcm-dev-gear' }, '⚙'), 'DEV TOOLS'])
+  }
+
+  // ─── NEW-badge helpers (ported from the prior _menuItems) ──────────────
+  _achievementsNewBadge() {
+    return PlayerProfile.hasUnseenNewAchievements(
+      (AchievementSystem.getDefinitions?.() || []).map(d => d.id)
+    )
+  }
+
+  _leaderboardNewBadge() {
+    const myCanon = PlayerProfile.getName().trim().toLowerCase()
+    const cached = Leaderboard.getCachedTop3?.() || []
+    // Optimistic-on when nothing is cached yet (fresh session) — the open()
+    // prefetch resolves shortly and re-syncs to the accurate state.
+    if (cached.length === 0) return true
+    const ids = cached
+      .filter(e => e && typeof e.id === 'string' && e.id &&
+        (!myCanon || typeof e.name !== 'string' ||
+          e.name.trim().toLowerCase() !== myCanon))
+      .map(e => e.id)
+    if (ids.length === 0) return false
+    return PlayerProfile.hasUnseenNewLeaderboardIds(ids)
+  }
+
+  // ─── Selection + activation ────────────────────────────────────────────
+  _select(i) {
+    if (this._sel === i) return
+    this._sel = i
+    this._applySelection()
+  }
+
+  _applySelection() {
+    for (let i = 0; i < this._btns.length; i++) {
+      const el = this._btns[i]
+      if (!el) continue
+      el.classList.toggle('on', i === this._sel && !el.disabled)
+    }
+  }
+
+  // Press: tactile fire flash + walker burst, then route to the action.
+  _press(i) {
+    const el = this._btns[i]
+    if (el && !el.disabled) {
+      el.classList.add('fire')
+      setTimeout(() => el?.classList.remove('fire'), 300)
+      this._walkers?.fire?.()
+    }
+    this._activate(MENU_IDS[i])
   }
 
   // Modal flavour used when NEW EVIL is clicked without a name set —
@@ -759,126 +703,73 @@ export class MainMenuOverlay {
     }, 250)
   }
 
-  // Swap just the player-name button without re-rendering the whole menu —
-  // a full _render() would re-fire the menu-item entrance animations.
-  _refreshPlayerName() {
-    const old = this._refs?.playerName
-    if (!old || !old.parentNode) return
-    const fresh = this._renderPlayerName()
-    old.parentNode.replaceChild(fresh, old)
-  }
-
-  // Rebuild the menu items list IN PLACE only when the cheat-name flip
-  // actually changes the item set — ordinary renames (callum → alex) leave
-  // the items untouched, so the per-item entrance animations don't re-fire.
-  // Flipping into / out of "mango" rebuilds so ROOM/TILESET editors appear
-  // or disappear without leaving the menu and coming back.
-  //
-  // For ordinary renames, also surgically swap the per-item NEW badges so
-  // they reflect the NEW player's seen-set instead of the previous name's.
-  // Without this, 123 → LJ would leave LJ looking at 123's stale badges
-  // until the menu was fully torn down and reopened. The badge state is
-  // the only per-name UI on these items today (other than the player-pill,
-  // already handled by _refreshPlayerName); if that changes, extend the
-  // sync block below to cover the new fields.
+  // Rebuild the badge-bearing surfaces in place (grid items + version chip).
+  // Called after the leaderboard / achievements / what's-new / requests
+  // overlays close, and after the background prefetches land — so NEW badges
+  // appear/clear without a full menu re-render (the entrance animation is on
+  // the whole tablet, not per-item, so rebuilding these regions is flicker-
+  // free). Re-binds this._btns for the grid and re-applies selection.
   _refreshMenuItems() {
-    const host = this._refs?.menuItems
-    if (!host) return
-    const items = this._menuItems()
-    if (items.length !== host.children.length) {
-      // Full rebuild when the item set itself changed (cheat-name toggle).
-      host.replaceChildren()
-      items.forEach((m, i) => host.appendChild(this._renderItem(m, i)))
-      return
+    if (this._refs?.grid) mount(this._refs.grid, this._buildGridInner())
+    if (this._refs?.version?.parentNode) {
+      const fresh = this._buildVersionChip()
+      this._refs.version.parentNode.replaceChild(fresh, this._refs.version)
     }
-    // Count unchanged: walk the existing DOM and sync each NEW badge in
-    // place. Adding the badge inserts the same `.qf-mm-item-new` span the
-    // initial render would have, in the same slot (last child of the
-    // item button), so the cleared-state DOM and the live-state DOM are
-    // structurally identical — only the badge presence differs.
-    for (let i = 0; i < items.length; i++) {
-      const m  = items[i]
-      const el = host.children[i]
-      if (!el) continue
-      const existing = el.querySelector(':scope > .qf-mm-item-new')
-      const shouldShow = !!m.newBadge
-      if (shouldShow && !existing) {
-        // Build a span identical to the one `_renderItem` produces.
-        const badge = document.createElement('span')
-        badge.className = 'pix qf-mm-item-new'
-        badge.textContent = 'NEW'
-        el.appendChild(badge)
-      } else if (!shouldShow && existing) {
-        existing.remove()
-      }
-      // Mail-icon badge — same sync pattern, on the opposite edge.
-      // Count > 0 → show; otherwise drop. Re-stamping the count text
-      // each refresh keeps it accurate when the prefetch resolves.
-      const mailEl = el.querySelector(':scope > .qf-mm-item-mail')
-      const mailCount = m.mailBadge ?? 0
-      if (mailCount > 0) {
-        if (mailEl) {
-          // Refresh just the count text (icon is a child span).
-          const txtNode = Array.from(mailEl.childNodes).find(n => n.nodeType === Node.TEXT_NODE && /\d/.test(n.textContent))
-          if (txtNode) txtNode.textContent = String(mailCount)
-        } else {
-          const badge = document.createElement('span')
-          badge.className = 'pix qf-mm-item-mail'
-          const icon = document.createElement('span')
-          icon.className = 'qf-mm-item-mail-icon'
-          icon.textContent = '✉'
-          badge.appendChild(icon)
-          badge.appendChild(document.createTextNode(' '))
-          badge.appendChild(document.createTextNode(String(mailCount)))
-          el.appendChild(badge)
-        }
-      } else if (mailEl) {
-        mailEl.remove()
-      }
-      // Save-dependent state — CONTINUE flips enabled/disabled + subtitle when
-      // the active player's save changes (a name switch swaps save slots).
-      // Re-applied in place so we keep the no-full-rebuild guarantee above.
-      const dimmed = m.enabled === false
-      if (el.disabled !== dimmed) {
-        el.disabled = dimmed
-        el.dataset.dimmed = dimmed ? 'true' : 'false'
-        el.style.opacity = dimmed ? '0.4' : '1'
-      }
-      const subEl = el.querySelector(':scope .qf-mm-item-sub')
-      if (subEl && subEl.textContent !== (m.sub ?? '')) subEl.textContent = m.sub ?? ''
-    }
+    this._applySelection()
   }
 
-  // Re-apply the chrome that reads `this._save` outside the menu items — the
-  // boss heading + sub and the SAVE OK / NO SAVE footer pill. (The CONTINUE
-  // button's enabled-state + subtitle are synced inside _refreshMenuItems.)
+  // Re-apply the save-dependent surfaces — the reign crest (boss portrait +
+  // name + quote) and the primary cards (CONTINUE enabled/stats vs. NEW EVIL
+  // primary). Rebuilt in place; re-binds CONTINUE/NEW EVIL in this._btns.
   _refreshSaveDependentUI() {
-    if (this._refs?.bossName) this._refs.bossName.textContent = this._currentBossName()
-    if (this._refs?.bossSub)  this._refs.bossSub.textContent  = this._currentBossSub()
-    if (this._refs?.savePill) {
-      this._refs.savePill.textContent = this._save ? 'SAVE OK' : 'NO SAVE'
-      this._refs.savePill.style.color = this._save ? 'var(--poison)' : 'var(--text-dim)'
-    }
+    if (this._refs?.crest) mount(this._refs.crest, this._buildCrestInner())
+    if (this._refs?.prim)  mount(this._refs.prim, this._buildPrimInner())
+    this._applySelection()
   }
 
   // Single entry point for "the active player name changed": re-resolve the
   // name's save slot (saves are name-scoped — see SaveSystem._saveKey) then
   // refresh every name-dependent surface. Called from the NAME_CHANGED event
-  // and the inline NameEntryOverlay confirm paths.
+  // and the inline NameEntryOverlay confirm path (the new-run name prompt).
   _syncNameDependentUI() {
     this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
-    this._refreshPlayerName()
-    this._refreshTitlePill()
     this._refreshSaveDependentUI()
     this._refreshMenuItems()
   }
 
-  // ─── Keybinds + actions ────────────────────────────────────────
+  // ─── Keybinds: grid navigation + select + quit ─────────────────────────
   _onKey(e) {
-    if (e.key === 'z' || e.key === 'Z') {
-      // PRESS Z TO CONTINUE — load saved game if any, otherwise NEW EVIL.
-      e.preventDefault()
-      this._activate(this._save ? 'continue' : 'new')
+    const find = (i) => {
+      for (let r = 0; r < MENU_ROWS.length; r++) {
+        const c = MENU_ROWS[r].indexOf(i)
+        if (c >= 0) return [r, c]
+      }
+      return [0, 0]
+    }
+    const [r, c] = find(this._sel)
+    switch (e.key) {
+      case 'ArrowRight':
+        this._select(MENU_ROWS[r][(c + 1) % MENU_ROWS[r].length]); e.preventDefault(); break
+      case 'ArrowLeft':
+        this._select(MENU_ROWS[r][(c - 1 + MENU_ROWS[r].length) % MENU_ROWS[r].length]); e.preventDefault(); break
+      case 'ArrowDown': {
+        const nr = (r + 1) % MENU_ROWS.length
+        this._select(MENU_ROWS[nr][Math.min(c, MENU_ROWS[nr].length - 1)]); e.preventDefault(); break
+      }
+      case 'ArrowUp': {
+        const nr = (r - 1 + MENU_ROWS.length) % MENU_ROWS.length
+        this._select(MENU_ROWS[nr][Math.min(c, MENU_ROWS[nr].length - 1)]); e.preventDefault(); break
+      }
+      case 'z': case 'Z': case 'Enter': {
+        e.preventDefault()
+        // CONTINUE selected but no save → fall through to NEW EVIL.
+        let i = this._sel
+        if (i === 0 && !this._save) i = 1
+        this._press(i)
+        break
+      }
+      case 'Escape':
+        e.preventDefault(); this._press(5); break
     }
   }
 
