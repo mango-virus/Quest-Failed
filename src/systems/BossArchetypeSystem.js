@@ -192,6 +192,16 @@ export class BossArchetypeSystem {
     EventBus.on('LICH_CHANNEL_ARM',    this._armSoulChannel,    this)
     EventBus.on('LICH_CHANNEL_DISARM', this._disarmSoulChannel, this)
     EventBus.on('LICH_CHANNEL_TARGET', this._fireSoulChannel,   this)
+    // Slime MITOSIS SURGE (active day ability)
+    this._surgeArmed = false
+    EventBus.on('SLIME_SURGE_ARM',    this._armSurge,    this)
+    EventBus.on('SLIME_SURGE_DISARM', this._disarmSurge, this)
+    EventBus.on('SLIME_SURGE_TARGET', this._fireSurge,   this)
+    if (this._archId() === 'slime') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.SLIME_SURGE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.SLIME_SURGE_USES_PER_BOSS_LV ?? 0.25))
+      if (this._gameState?.boss) this._gameState.boss._slimeSurge ??= { usesLeft: uses }
+    }
 
     // Backfill Living Architecture for the rooms already placed at scene
     // boot (boss chamber, plus any rooms restored from a save).
@@ -253,6 +263,9 @@ export class BossArchetypeSystem {
     EventBus.off('LICH_CHANNEL_ARM',    this._armSoulChannel,    this)
     EventBus.off('LICH_CHANNEL_DISARM', this._disarmSoulChannel, this)
     EventBus.off('LICH_CHANNEL_TARGET', this._fireSoulChannel,   this)
+    EventBus.off('SLIME_SURGE_ARM',    this._armSurge,    this)
+    EventBus.off('SLIME_SURGE_DISARM', this._disarmSurge, this)
+    EventBus.off('SLIME_SURGE_TARGET', this._fireSurge,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -394,6 +407,17 @@ export class BossArchetypeSystem {
     // minions (which are obviously not orc-tagged).
     if (this._archId() === 'slime') {
       this._onSlimeMinionDied(m)
+      // T4 — THE TIDE: a slain goopling near a high-Mass King respawns (the horde
+      // self-heals). Capped by the goopling cap so it can't runaway.
+      if (m._isGoopling && currentAct(this._gameState) >= 4 &&
+          (this._gameState.boss?.slimeMass ?? 0) >= 20 &&
+          this._countGooplings() < this._slimeBudCap() &&
+          Math.random() < (Balance.SLIME_FIGHT_TIDE_CHANCE ?? 0.5)) {
+        const boss = this._gameState.boss
+        const bx = Number.isFinite(boss?.tileX) ? boss.tileX : m.tileX
+        const by = Number.isFinite(boss?.tileY) ? boss.tileY : m.tileY
+        if (Number.isFinite(bx)) { const [tx, ty] = this._walkableNear(bx, by); this._spawnGoopling(tx, ty, m.assignedRoomId ?? null) }
+      }
       // No early-return — we still let downstream orc/etc. handlers run
       // in case a future archetype layer wants to react to the same death.
     }
@@ -519,6 +543,9 @@ export class BossArchetypeSystem {
     if (boss) {
       boss.maxHp = (boss.maxHp ?? 0) + 2
       boss.hp    = Math.min(boss.maxHp, (boss.hp ?? 0) + 2)
+      // MITOSIS overhaul — absorbing swells the King's Mass (drives body size,
+      // aura intensity, and how big a horde it splits into in the throne fight).
+      boss.slimeMass = (boss.slimeMass ?? 0) + (Balance.SLIME_MASS_PER_ABSORB ?? 2)
     }
 
     EventBus.emit('SLIME_ABSORBED', {
@@ -633,6 +660,167 @@ export class BossArchetypeSystem {
     if (m._mercenary)     return true
     if (m._sacrificed || m._burnt) return true            // deliberate destruction
     return false
+  }
+
+  // ══ SLIME KING — MITOSIS / THE UNKILLABLE HORDE (day-phase) ══════════════
+  // Mass swells from absorbing + time-budding → drives body size, aura, and the
+  // throne-fight horde. Dungeon kit: Bud(T1)/Coalesce(T2)/Acidic Trail(T3)/Tide(T4).
+
+  _slimeMassCap() {
+    const lvl = this._gameState?.boss?.level ?? 1
+    return (Balance.SLIME_MASS_CAP_BASE ?? 40)
+      + currentAct(this._gameState) * (Balance.SLIME_MASS_CAP_PER_ACT ?? 40)
+      + lvl * (Balance.SLIME_MASS_CAP_PER_LEVEL ?? 6)
+  }
+
+  _slimeBudCap() {
+    return (Balance.SLIME_BUD_MAX_ACTIVE ?? 4) + currentAct(this._gameState) * (Balance.SLIME_BUD_MAX_PER_ACT ?? 2)
+  }
+
+  _countGooplings() {
+    return (this._gameState?.minions ?? []).filter(m => m._isGoopling && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
+  }
+
+  _gooplingDefForLevel() {
+    const defs = this._scene?.cache?.json?.get?.('minionTypes') ?? []
+    const pool = _gooplingPoolForBossLevel(this._gameState?.boss?.level ?? 1).filter(id => defs.some(d => d.id === id))
+    return pool.length ? defs.find(d => d.id === pool[Math.floor(Math.random() * pool.length)]) : null
+  }
+
+  // First walkable tile at/around (ax,ay) not already occupied by a live minion.
+  _walkableNear(ax, ay) {
+    const grid = this._scene?.dungeonGrid
+    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [0, 0]]) {
+      const tx = ax + ox, ty = ay + oy, t = grid?.getTileType?.(tx, ty)
+      if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) {
+        const occ = (this._gameState.minions ?? []).some(m => m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.tileX === tx && m.tileY === ty)
+        if (!occ) return [tx, ty]
+      }
+    }
+    return [ax, ay]
+  }
+
+  _spawnGoopling(tileX, tileY, homeRoomId) {
+    const def = this._gooplingDefForLevel()
+    if (!def) return null
+    const bossLv = this._gameState?.boss?.level ?? 1
+    const g = createMinion(def, { x: tileX, y: tileY }, homeRoomId, { class: 'garrison' })
+    applyBossLevelToMinion(g, bossLv)
+    g._isGoopling = true
+    g._gooplingHomeId = homeRoomId
+    this._gameState.minions.push(g)
+    EventBus.emit('MINION_PLACED', { minion: g })
+    if (Number.isFinite(g.worldX)) AbilityVfx?.slimeSplitFx?.(this._scene, g.worldX, g.worldY, { small: true })
+    return g
+  }
+
+  _tickSlimeDay(delta) {
+    if (this._archId() !== 'slime') return
+    const boss = this._gameState?.boss
+    if (!boss || this._bossFightActive) return
+    if ((this._gameState?.meta?.phase ?? '') !== 'day') return
+    const now = this._scene?.time?.now ?? 0
+    const tier = currentAct(this._gameState)
+    // T1 — Budding: a free goopling + Mass on cadence, capped.
+    if (now - (this._slimeBudAt ?? 0) >= (Balance.SLIME_BUD_INTERVAL_MS ?? 9000)) {
+      this._slimeBudAt = now
+      if (this._countGooplings() < this._slimeBudCap() && Number.isFinite(boss.tileX)) {
+        const rooms = (this._gameState.dungeon?.rooms ?? []).filter(r => r.definitionId !== 'boss_chamber')
+        const home = rooms.length ? rooms[Math.floor(Math.random() * rooms.length)].instanceId : null
+        const [tx, ty] = this._walkableNear(boss.tileX, boss.tileY)
+        if (this._spawnGoopling(tx, ty, home)) boss.slimeMass = (boss.slimeMass ?? 0) + (Balance.SLIME_MASS_PER_BUD ?? 1)
+      }
+    }
+    if (tier >= 2) this._tickCoalesce(now)
+    if (tier >= 3) this._tickAcidTrail(now)
+  }
+
+  // T2 — Coalesce: two adjacent gooplings merge into one bigger blob (gradual,
+  // one merge per cadence). The survivor gains the other's HP/ATK + a merge tier.
+  _tickCoalesce(now) {
+    if (now - (this._coalesceAt ?? 0) < (Balance.SLIME_COALESCE_MS ?? 5000)) return
+    this._coalesceAt = now
+    const gs = this._gameState
+    const blobs = (gs.minions ?? []).filter(m => m._isGoopling && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0)
+    for (let i = 0; i < blobs.length; i++) {
+      for (let j = i + 1; j < blobs.length; j++) {
+        const a = blobs[i], b = blobs[j]
+        if (Math.abs(a.tileX - b.tileX) <= 1 && Math.abs(a.tileY - b.tileY) <= 1) {
+          a.stats ??= {}; a.resources ??= {}
+          a.resources.maxHp = (a.resources.maxHp ?? 10) + (b.resources?.maxHp ?? 10)
+          a.resources.hp    = (a.resources.hp ?? 10) + (b.resources?.hp ?? 10)
+          a.stats.attack    = (a.stats?.attack ?? 1) + Math.ceil((b.stats?.attack ?? 1) * 0.5)
+          a._mergeTier      = (a._mergeTier ?? 0) + 1
+          if (Number.isFinite(a.worldX)) AbilityVfx?.slimeMergeFx?.(this._scene, a.worldX, a.worldY)
+          b.resources.hp = 0; b.aiState = 'dead'
+          EventBus.emit('MINION_REMOVED', { minion: b })
+          const idx = gs.minions.indexOf(b); if (idx >= 0) gs.minions.splice(idx, 1)
+          return
+        }
+      }
+    }
+  }
+
+  // T3 — Acidic Trail: roaming slimes corrode the tiles they sit on; adventurers
+  // crossing a fresh trail tile take acid damage. Trail is transient (rebuilt each
+  // tick), so no save handling needed.
+  _tickAcidTrail(now) {
+    const gs = this._gameState
+    this._acidTrail ??= new Map()
+    for (const m of (gs.minions ?? [])) {
+      if (!m._isGoopling || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      this._acidTrail.set(m.tileX + ',' + m.tileY, now + (Balance.SLIME_TRAIL_LIFESPAN_MS ?? 2600))
+    }
+    for (const [k, until] of this._acidTrail) if (now > until) this._acidTrail.delete(k)
+    if (now - (this._acidDmgAt ?? 0) < (Balance.SLIME_TRAIL_INTERVAL_MS ?? 900)) return
+    this._acidDmgAt = now
+    const atk = gs.boss?.attack ?? 0
+    for (const adv of (gs.adventurers?.active ?? [])) {
+      if (!adv || (adv.resources?.hp ?? 0) <= 0) continue
+      if (this._acidTrail.has(adv.tileX + ',' + adv.tileY)) {
+        const dmg = Math.max(1, Math.floor(atk * (Balance.SLIME_TRAIL_DMG_FRAC ?? 0.2)))
+        adv.resources.hp = Math.max(this._shadowFloor(adv), adv.resources.hp - dmg)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: adv.instanceId, damage: dmg, damageType: 'acid' })
+        if (Number.isFinite(adv.worldX)) AbilityVfx?.acidPuddleFx?.(this._scene, adv.worldX, adv.worldY, { hit: true })
+        if (adv.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'boss', killerName: 'Acidic Trail', roomId: null, damageType: 'acid' })
+      }
+    }
+  }
+
+  // ── MITOSIS SURGE (active day ability) — arm → click a room → flood it ──
+  _surgeUsesLeft() { return this._gameState?.boss?._slimeSurge?.usesLeft ?? 0 }
+  _surgeAvailable() {
+    return this._archId() === 'slime' && (this._gameState?.meta?.phase ?? '') === 'day' && this._surgeUsesLeft() > 0
+  }
+  _armSurge() { if (!this._surgeAvailable()) return; this._surgeArmed = true; EventBus.emit('SLIME_SURGE_ARMED', {}) }
+  _disarmSurge() { this._surgeArmed = false; EventBus.emit('SLIME_SURGE_DISARMED', {}) }
+
+  _fireSurge(payload) {
+    if (!this._surgeArmed) return
+    if (!this._surgeAvailable()) { this._disarmSurge(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    const mass = boss.slimeMass ?? 0
+    let count = Math.round((Balance.SLIME_SURGE_BASE_COUNT ?? 3)
+      + advsIn.length * (Balance.SLIME_SURGE_PER_VICTIM ?? 1)
+      + mass * (Balance.SLIME_SURGE_PER_MASS ?? 0.08))
+    count = Math.max(1, Math.min(Balance.SLIME_SURGE_MAX ?? 12, count))
+    const cx = room.gridX + Math.floor(room.width / 2), cy = room.gridY + Math.floor(room.height / 2)
+    let spawned = 0
+    for (let i = 0; i < count; i++) {
+      const rx = room.gridX + 1 + Math.floor(Math.random() * Math.max(1, room.width - 2))
+      const ry = room.gridY + 1 + Math.floor(Math.random() * Math.max(1, room.height - 2))
+      const [tx, ty] = this._walkableNear(rx, ry)
+      if (this._spawnGoopling(tx, ty, room.instanceId)) spawned++
+    }
+    AbilityVfx?.slimeSurgeFx?.(this._scene, cx * 32 + 16, cy * 32 + 16, { count: spawned })
+    // goo wraps the adventurers caught in the surge
+    for (const a of advsIn) if (Number.isFinite(a.worldX)) AbilityVfx?.slimeEngulfFx?.(this._scene, a.worldX, a.worldY - 16, { tier: currentAct(this._gameState) })
+    if (boss._slimeSurge) boss._slimeSurge.usesLeft = Math.max(0, (boss._slimeSurge.usesLeft ?? 0) - 1)
+    this._surgeArmed = false
+    EventBus.emit('SLIME_SURGE_FIRED', { roomId: room.instanceId, count: spawned, room })
   }
 
   // ── ORC: Warband (live cluster recompute) ──────────────────────────────
@@ -1084,6 +1272,14 @@ export class BossArchetypeSystem {
     this._disarmEarthquake()
     // Lich: disarm Channel Souls so the button resets for the next day.
     this._disarmSoulChannel()
+    // Slime: refill Mitosis Surge uses + disarm so the button resets.
+    if (this._archId() === 'slime') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.SLIME_SURGE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.SLIME_SURGE_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss ??= {}
+      this._gameState.boss._slimeSurge = { usesLeft: uses }
+    }
+    this._disarmSurge()
     // Beholder: clear yesterday's anti-magic markings the moment night begins
     // (the new selection happens on DAY_PHASE_BEGAN).
     this._clearAntiMagicMarks()
@@ -1619,6 +1815,8 @@ export class BossArchetypeSystem {
     this._lichRegenTick(delta)
     this._tickSoulRot(this._scene?.time?.now ?? 0)
     this._tickSoulOrbit()
+    // Slime MITOSIS — day-phase budding / coalesce / acidic trail.
+    this._tickSlimeDay(delta)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return

@@ -419,18 +419,22 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Absorb & Excrete",
-      "summary": "Dead minions get swallowed by the King — he excretes a random Goopling that waddles back to its post (+2 boss HP each).",
+      "name": "Mitosis",
+      "summary": "A self-multiplying ooze: it buds free gooplings and absorbs the dead, swelling its Mass — the more Mass, the bigger it grows and the larger the horde it splits into in the throne fight.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Mitosis — at half HP, the King splits into two smaller slimes that each have their own health. They split again at half. Kill every last blob to win.",
+        "text": "Mitosis Surge — during the day, flood a target room with a wave of gooplings that swarm everyone inside (scales with Mass + the crowd).",
+        "implemented": true
+      },
+      {
+        "text": "The Horde — roaming gooplings coalesce into bigger slimes and leave acid trails; in the throne fight blobs split, recombine if not bursted, and (late acts) self-heal.",
         "implemented": true
       }
     ],
     "flavorText": "There is no killing it. There is only making more of it.",
-    "description": "Splits when struck, leaks little ones",
+    "description": "Self-multiplying horde",
     "modifiers": {
       "goldGainMultiplier": 1,
       "minionXpMultiplier": 1,

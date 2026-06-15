@@ -9893,6 +9893,17 @@ body {
 .qf-archstrip-earthquake.armed { color: #ffe488; border-color: #ffcc66; background: #2a1a06; }
 .qf-archstrip-sacrifice.armed  { color: #ffcccc; border-color: #ff7777; background: #2a0808; }
 .qf-archstrip-channel.armed    { color: #d6ffcc; border-color: #9affb0; background: #0e1e10; }
+/* Slime — Mitosis Surge (gooey green). */
+.qf-archstrip-surge {
+  border-color: #4fae5a;
+  color: #aef0a0;
+}
+.qf-archstrip-surge:hover:not(:disabled) {
+  background: #0e1e12;
+  border-color: #9aff8a;
+  color: #d6ffc6;
+}
+.qf-archstrip-surge.armed { color: #d6ffc6; border-color: #9aff8a; background: #0e1e12; }
 @keyframes archstrip-pulse {
   0%, 100% { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 0 rgba(255, 200, 100, 0); }
   50%      { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 22px rgba(255, 200, 100, 0.5); }

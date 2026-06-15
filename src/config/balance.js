@@ -188,6 +188,37 @@ export const Balance = {
   LICH_AURA_CAP_PER_ACT:         55,
   LICH_AURA_CAP_PER_LEVEL:       7,
 
+  // --- Slime King MITOSIS / THE UNKILLABLE HORDE (2026-06-14 overhaul) ---
+  SLIME_MASS_PER_ABSORB:         2,     // +Mass per minion absorbed
+  SLIME_MASS_PER_BUD:           1,      // +Mass per time-bud
+  SLIME_BUD_INTERVAL_MS:        9000,   // day-phase budding cadence (free goopling + Mass)
+  SLIME_BUD_MAX_ACTIVE:         4,      // cap on free gooplings alive at once (per act bonus below)
+  SLIME_BUD_MAX_PER_ACT:        3,      // + this × act to the goopling cap
+  SLIME_MASS_CAP_BASE:          40,     // aura/size saturation capacity (grows w/ act+level)
+  SLIME_MASS_CAP_PER_ACT:       40,
+  SLIME_MASS_CAP_PER_LEVEL:     6,
+  SLIME_MASS_SIZE_BONUS:        0.45,   // day-boss body scale: ×(1 + saturation × this)
+  SLIME_COALESCE_MS:            5000,   // T2: gooplings idle-touching this long merge
+  SLIME_TRAIL_DMG_FRAC:         0.20,   // T3: acid-trail dmg/tick = bossAtk × this
+  SLIME_TRAIL_INTERVAL_MS:      900,
+  SLIME_TRAIL_LIFESPAN_MS:      2600,   // a trail tile stays corrosive this long
+  // Day active — MITOSIS SURGE (arm → room → flood gooplings)
+  SLIME_SURGE_USES_PER_DAY:     1,
+  SLIME_SURGE_USES_PER_BOSS_LV: 0.25,   // +1 use per 4 boss levels
+  SLIME_SURGE_BASE_COUNT:       3,      // gooplings spawned; + crowd + Mass scaling
+  SLIME_SURGE_PER_VICTIM:       1,      // + this per adventurer in the room
+  SLIME_SURGE_PER_MASS:         0.08,   // + this × Mass
+  SLIME_SURGE_MAX:              12,     // hard cap on a single surge
+  // Throne fight
+  SLIME_FIGHT_GENCAP_BASE:      2,      // split generation cap (T1); + per tier below
+  SLIME_FIGHT_GENCAP_PER_TIER:  0.5,    // floor → T1 2, T2 2, T3 3, T4 4 (act-1)*0.5+2
+  SLIME_FIGHT_RECOMBINE_MS:     2600,   // T2: undamaged small blobs this close+long merge
+  SLIME_FIGHT_RECOMBINE_DIST:   34,     // px proximity to merge
+  SLIME_FIGHT_ACID_DMG_FRAC:    0.30,   // T3: split-puddle dmg/round = bossAtk × this
+  SLIME_FIGHT_ACID_RADIUS:      40,     // px
+  SLIME_FIGHT_ACID_MS:          3000,
+  SLIME_FIGHT_TIDE_CHANCE:      0.5,    // T4: chance a slain blob respawns near a big one
+
   // --- Phase 1b.5: Lich Necromancy ---
   // Skeleton lifespan: spawn at dawn N+1 (after the kill on day N), expire
   // at the end of day N+1 — i.e. one full day of life. Tracked via

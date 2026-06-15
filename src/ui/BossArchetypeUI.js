@@ -131,6 +131,13 @@ export class BossArchetypeUI {
     })
     this._on('LICH_CHANNEL_DISARMED', () => this._removeSoulRoomPick())
     this._on('LICH_CHANNEL_FIRED', () => this._removeSoulRoomPick())
+    // Slime King MITOSIS SURGE room-targeting.
+    this._on('SLIME_SURGE_ARMED', () => {
+      this._installSurgeRoomPick()
+      showToast(this._scene, 'MITOSIS SURGE armed — click a room to flood', { type: 'info', duration: 3000 })
+    })
+    this._on('SLIME_SURGE_DISARMED', () => this._removeSurgeRoomPick())
+    this._on('SLIME_SURGE_FIRED', () => this._removeSurgeRoomPick())
     // Phase 1b.9 — Demon Sacrifice Pact wiring.
     this._on('DEMON_SACRIFICE_ARMED', () => {
       this._sacArmed = true
@@ -707,6 +714,28 @@ export class BossArchetypeUI {
     this._soulPickGame    = null
   }
 
+  // Slime MITOSIS SURGE room-pick (mirrors the soul / earthquake pickers).
+  _installSurgeRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._surgePickHandler) return
+    this._surgePickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('SLIME_SURGE_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('SLIME_SURGE_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._surgePickHandler)
+    this._surgePickGame = game
+  }
+
+  _removeSurgeRoomPick() {
+    if (!this._surgePickHandler || !this._surgePickGame) return
+    this._surgePickGame.input.off('pointerdown', this._surgePickHandler)
+    this._surgePickHandler = null
+    this._surgePickGame    = null
+  }
+
   // Camera shake on the Game scene + a small "EARTHQUAKE" floater above the
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
@@ -758,6 +787,7 @@ export class BossArchetypeUI {
     this._listeners = []
     this._removeRoomPickListener()
     this._removeSoulRoomPick()
+    this._removeSurgeRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

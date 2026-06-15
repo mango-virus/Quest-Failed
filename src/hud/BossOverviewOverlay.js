@@ -412,6 +412,8 @@ export class BossOverviewOverlay {
       this._renderTrophyWall(),
       // Soul Essence gauge (Elder Lich — The Withering)
       this._renderSoulGauge(),
+      // Mass / Horde readout (Slime King — Mitosis)
+      this._renderSlimeMass(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -615,6 +617,29 @@ export class BossOverviewOverlay {
         casts > 0
           ? `${casts} Channel Souls cast${casts === 1 ? '' : 's'} ready · harvested from every death · the Lich regenerates while it holds essence.`
           : 'Harvested from every death in your dungeon — fuels Channel Souls + regenerates the Lich. Need 12 to channel.'),
+    ])
+  }
+
+  // Slime King — Mitosis. Mass (drives body size, aura, and the throne-fight
+  // horde) + the live goopling count. Null for other bosses.
+  _renderSlimeMass() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'slime') return null
+    const mass = Math.floor(this._gameState.boss?.slimeMass ?? 0)
+    const gooplings = (this._gameState.minions ?? []).filter(m => m._isGoopling && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
+    const C = '#9aff7a'
+    const cap = 40 + 40 + 6   // rough act/level reference for the bar (cosmetic)
+    const pct = Math.max(0, Math.min(100, (mass / Math.max(1, cap)) * 100))
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'SLIME MASS'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(mass)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#0e1a12', border: '1px solid #2a3a2c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#3a8f44,#9aff7a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${gooplings} goopling${gooplings === 1 ? '' : 's'} roaming · Mass swells the King's body, aura, and the horde it splits into.`),
     ])
   }
 

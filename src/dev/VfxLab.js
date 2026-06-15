@@ -63,6 +63,7 @@ const RAW_VFX_GROUPS = [
   // ── Boss ability VFX (bespoke per archetype) ──
   { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx'] },
   { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },
+  { label: 'Boss·Slime (Mitosis)', fx: ['slimeSplitFx', 'slimeMergeFx', 'acidPuddleFx', 'slimeSurgeFx', 'slimeEngulfFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -356,6 +357,19 @@ export class VfxLab {
           { label: 'Soul Cage', fire: () => AbilityVfx.soulCageFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
         ]
       }
+      if (entity.archId === 'slime') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x2e7d3a, hi: 0x9aff7a, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Mass', fire: aura(0.3) },
+          { label: 'Aura: Mid Mass', fire: aura(0.65) },
+          { label: 'Aura: High Mass', fire: aura(1) },
+          { label: 'Split', fire: () => AbilityVfx.slimeSplitFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), children: [{ x: e.worldX - 26, y: e.worldY + 6 }, { x: e.worldX + 26, y: e.worldY + 6 }] }) },
+          { label: 'Merge', fire: () => AbilityVfx.slimeMergeFx(this._scene, e.worldX, e.worldY) },
+          { label: 'Acid Puddle', fire: () => AbilityVfx.acidPuddleFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Mitosis Surge', fire: () => AbilityVfx.slimeSurgeFx(this._scene, e.worldX, e.worldY, { count: 7 }) },
+          { label: 'Engulf', fire: () => AbilityVfx.slimeEngulfFx(this._scene, tX(), tY() - 16, { tier: this._orcTier() }) },
+        ]
+      }
       if (entity.archId !== 'orc') return []
       return [
         { label: 'Claim Trophy', fire: () => AbilityVfx.trophyClaimFx(this._scene, tX(), tY(), { color: 0xd0d4dc, toX: e.worldX, toY: e.worldY - 20, isNew: true }) },
@@ -590,6 +604,12 @@ export class VfxLab {
         case 'soulNovaFx': AbilityVfx.soulNovaFx(s, e.worldX, e.worldY, { ...opts, tier: this._orcTier() }); break
         case 'soulCageFx': AbilityVfx.soulCageFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, tier: this._orcTier() }); break
         case 'soulAuraFx': { const t = this._orcTier(); AbilityVfx.soulAuraFx(s, e.worldX, e.worldY, { sat: [0.25, 0.6, 0.95, 1][t - 1], overK: t >= 4 ? 0.85 : 0, orbit: [2, 4, 7, 8][t - 1], sprite: this._bossStandIn, dsz: this._bossStandIn?.displayHeight || 100 }); break }
+        // Boss · Slime King (Mitosis) — tier cycles 1→4.
+        case 'slimeSplitFx':  AbilityVfx.slimeSplitFx(s, e.worldX, e.worldY, { tier: this._orcTier(), children: [{ x: e.worldX - 26, y: e.worldY + 6 }, { x: e.worldX + 26, y: e.worldY + 6 }] }); break
+        case 'slimeMergeFx':  AbilityVfx.slimeMergeFx(s, e.worldX, e.worldY); break
+        case 'acidPuddleFx':  AbilityVfx.acidPuddleFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
+        case 'slimeSurgeFx':  AbilityVfx.slimeSurgeFx(s, e.worldX, e.worldY, { count: 6 }); break
+        case 'slimeEngulfFx': AbilityVfx.slimeEngulfFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

@@ -156,6 +156,8 @@ export class BossRenderer {
     // Elder Lich — persistent soul aura whose colour/intensity reads his soul
     // saturation (essence ÷ a scaling capacity); overflow → "Oversouled".
     this._updateSoulAura()
+    // Slime King — body grows with Mass + a gooey pulsing Glow-outline aura.
+    this._updateSlimeAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -320,6 +322,7 @@ export class BossRenderer {
     this._slimeLastHp.clear()
     this._ascAura = null   // destroyed with the container below
     this._soulGlow = null  // postFX on the sprite; destroyed with the container below
+    this._slimeGlow = null
     this._container?.destroy()
     this._container = null
     this._sprite    = null
@@ -536,6 +539,35 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._soulGlow) } catch (e) {}
     }
     this._soulGlow = null
+  }
+
+  // ── Slime King — Mass body-growth + gooey Glow-outline aura ──────────────
+  _updateSlimeAura() {
+    const isSlime = this._gameState?.player?.bossArchetypeId === 'slime'
+    if (!isSlime || !this._container || !this._sprite) { this._clearSlimeAura(); return }
+    const boss = this._gameState.boss
+    const mass = boss?.slimeMass ?? 0
+    const cap = (Balance.SLIME_MASS_CAP_BASE ?? 40)
+      + currentAct(this._gameState) * (Balance.SLIME_MASS_CAP_PER_ACT ?? 40)
+      + (boss?.level ?? 1) * (Balance.SLIME_MASS_CAP_PER_LEVEL ?? 6)
+    const sat = Math.max(0, Math.min(1, mass / cap))
+    const now = this._scene?.time?.now ?? 0
+    // body grows with Mass (on top of the tier scale).
+    const baseScale = BOSS_SPRITE_SCALE * this._tierScale(this._tier)
+    this._sprite.setScale?.(baseScale * (1 + sat * (Balance.SLIME_MASS_SIZE_BONUS ?? 0.45)))
+    // gooey glow outline (the standard aura).
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x2e7d3a, 0x9aff7a)
+      if (!this._slimeGlow) { try { this._slimeGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._slimeGlow = true } }
+      else if (this._slimeGlow !== true) { try { this._slimeGlow.color = p.color; this._slimeGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearSlimeAura() {
+    if (this._slimeGlow && this._slimeGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._slimeGlow) } catch (e) {}
+    }
+    this._slimeGlow = null
   }
 
   _build(boss) {

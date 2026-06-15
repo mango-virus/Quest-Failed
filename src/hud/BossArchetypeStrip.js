@@ -66,6 +66,11 @@ export class BossArchetypeStrip {
         ref: el => { this._lichBtn = el },
         on: { click: () => this._onLichClick() },
       }, 'CHANNEL SOULS'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-surge',
+        ref: el => { this._slimeBtn = el },
+        on: { click: () => this._onSlimeClick() },
+      }, 'MITOSIS SURGE'),
     ])
   }
 
@@ -87,6 +92,10 @@ export class BossArchetypeStrip {
     sub('LICH_CHANNEL_DISARMED', () => { this._lichArmed = false; this._refresh() })
     sub('LICH_CHANNEL_FIRED',    () => { this._lichArmed = false; this._refresh() })
     sub('LICH_SOUL_HARVEST',     () => this._refresh())   // essence changed → enabled state may flip
+    // Slime Mitosis Surge.
+    sub('SLIME_SURGE_ARMED',    () => { this._slimeArmed = true;  this._refresh() })
+    sub('SLIME_SURGE_DISARMED', () => { this._slimeArmed = false; this._refresh() })
+    sub('SLIME_SURGE_FIRED',    () => { this._slimeArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -108,6 +117,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._lichArmed ? 'LICH_CHANNEL_DISARM' : 'LICH_CHANNEL_ARM')
   }
 
+  _onSlimeClick() {
+    if (this._slimeBtn?.disabled) return
+    EventBus.emit(this._slimeArmed ? 'SLIME_SURGE_DISARM' : 'SLIME_SURGE_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -116,11 +130,13 @@ export class BossArchetypeStrip {
     const isGolem  = archId === 'golem'
     const isDemon  = archId === 'demon'
     const isLich   = archId === 'lich'
+    const isSlime  = archId === 'slime'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
+    const slimeActive = isSlime && isDay
 
-    const anyActive = golemActive || demonActive || lichActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -148,6 +164,13 @@ export class BossArchetypeStrip {
       const ess = this._gs?.boss?.soulEssence ?? 0
       this._lichBtn.textContent = this._lichArmed ? 'PICK A ROOM' : `CHANNEL SOULS · ${Math.floor(ess)}`
       this._lichBtn.disabled = !(ess >= (Balance.LICH_CHANNEL_COST ?? 12))
+    }
+    if (this._slimeBtn) {
+      this._slimeBtn.style.display = slimeActive ? '' : 'none'
+      this._slimeBtn.classList.toggle('armed', !!this._slimeArmed)
+      const uses = this._gs?.boss?._slimeSurge?.usesLeft ?? 0
+      this._slimeBtn.textContent = this._slimeArmed ? 'PICK A ROOM' : 'MITOSIS SURGE'
+      this._slimeBtn.disabled = !(uses > 0)
     }
   }
 

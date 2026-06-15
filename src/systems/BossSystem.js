@@ -2070,7 +2070,28 @@ export class BossSystem {
       generation: 0,
       hasSplit:   false,
     }]
-    // Keep the mirror clean from the start.
+    // MITOSIS — a fat-Mass King walks in flanked by a small starting horde. The
+    // extra blobs are CARVED from the King's starting HP (total conserved ≤ maxHp)
+    // so the cluster never exceeds the boss's maxHp. The "fatter" read is the
+    // bigger body (Mass→size) + the pre-split horde, not extra HP.
+    this._tideRespawns = 0
+    this._slimePuddles = []
+    const mass = boss.slimeMass ?? 0
+    const cap  = (Balance.SLIME_MASS_CAP_BASE ?? 40) + currentAct(this._gameState) * (Balance.SLIME_MASS_CAP_PER_ACT ?? 40) + (boss.level ?? 1) * (Balance.SLIME_MASS_CAP_PER_LEVEL ?? 6)
+    const sat  = cap > 0 ? mass / cap : 0
+    const extra = (sat >= 0.85 ? 2 : sat >= 0.5 ? 1 : 0)
+    if (extra > 0) {
+      const slice = Math.max(1, Math.floor(startHp * 0.16))
+      boss.slimes[0].hp = Math.max(1, startHp - extra * slice)
+      for (let i = 0; i < extra; i++) {
+        const sign = i % 2 ? 1 : -1
+        boss.slimes.push({
+          id: `slime_${Date.now()}_pre${i}`, hp: slice, maxHp: slice,
+          worldX: wx + sign * 34, worldY: wy + 18, generation: 1, hasSplit: false,
+        })
+      }
+    }
+    // Keep the mirror clean from the start (clamped — see _syncBossHpFromSlimes).
     this._syncBossHpFromSlimes(boss)
   }
 
@@ -2118,6 +2139,66 @@ export class BossSystem {
     // VFX anchors, sprite-separation guard) operate on the cluster's
     // current centre.
     this._syncBossPosFromSlimes(boss)
+    // MITOSIS elevations: T2 Recombine (undamaged small blobs merge back) + T3
+    // acid-puddle damage.
+    const tier = currentAct(this._gameState)
+    if (tier >= 2) this._tickSlimeRecombine()
+    if (tier >= 3) this._tickSlimeAcidPuddles()
+  }
+
+  // T2 — Recombine: two small blobs that have been UNDAMAGED + close for a beat
+  // merge back into a bigger one (which can split again) — burst them fast or the
+  // fight resets. One merge per check.
+  _tickSlimeRecombine() {
+    const boss = this._gameState.boss
+    if (!boss?.slimes) return
+    if (this._fightT - (this._recombineAt ?? 0) < 0.5) return
+    this._recombineAt = this._fightT
+    const alive = boss.slimes.filter(s => (s.hp ?? 0) > 0 && (s.generation ?? 0) >= 1)
+    const D = Balance.SLIME_FIGHT_RECOMBINE_DIST ?? 34
+    const QUIET = (Balance.SLIME_FIGHT_RECOMBINE_MS ?? 2600) / 1000
+    for (let i = 0; i < alive.length; i++) {
+      for (let j = i + 1; j < alive.length; j++) {
+        const a = alive[i], b = alive[j]
+        if ((this._fightT - (a._lastHitFightT ?? -99)) < QUIET) continue
+        if ((this._fightT - (b._lastHitFightT ?? -99)) < QUIET) continue
+        if (Math.hypot(a.worldX - b.worldX, a.worldY - b.worldY) > D) continue
+        a.hp = (a.hp ?? 0) + (b.hp ?? 0)
+        a.maxHp = (a.maxHp ?? 0) + (b.maxHp ?? 0)
+        a.generation = Math.min(a.generation ?? 1, b.generation ?? 1)
+        a.hasSplit = false
+        a._lastHitFightT = this._fightT
+        const bx = b.worldX, by = b.worldY
+        const idx = boss.slimes.indexOf(b); if (idx >= 0) boss.slimes.splice(idx, 1)
+        AbilityVfx.slimeMergeFx?.(this._scene, (a.worldX + bx) / 2, (a.worldY + by) / 2)
+        this._floatText(a.worldX, a.worldY - 16, 'MERGE', '#aaffbb')
+        this._syncBossHpFromSlimes(boss)
+        return
+      }
+    }
+  }
+
+  // T3 — acid puddles (dropped by splits) damage adventurers standing in them.
+  _tickSlimeAcidPuddles() {
+    if (!this._slimePuddles?.length) return
+    this._slimePuddles = this._slimePuddles.filter(p => this._fightT < p.until)
+    const R = Balance.SLIME_FIGHT_ACID_RADIUS ?? 40
+    const atk = this._bossAtkScaled(this._gameState.boss)
+    for (const p of this._slimePuddles) {
+      if (this._fightT - (p.hitAt ?? 0) < 0.6) continue
+      p.hitAt = this._fightT
+      for (const fs of this._fightStates.values()) {
+        if (fs.action === 'dying') continue
+        if (Math.hypot(fs.adv.worldX - p.x, fs.adv.worldY - p.y) > R) continue
+        if (this._advBlocking(fs.adv)) { this._blockShrug(fs.adv); continue }
+        const def = fs.adv.stats?.defense ?? 0
+        const taken = Math.max(1, Math.floor(atk * (Balance.SLIME_FIGHT_ACID_DMG_FRAC ?? 0.3) - def))
+        fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - taken)
+        this._emitFx({ kind: 'strike', x: fs.adv.worldX, y: this._chestY(fs.adv), color: 0x88ee99 })
+        if (this._roundLog) this._roundLog.push({ side: 'boss', damage: taken, targetId: fs.adv.instanceId, kind: 'acid' })
+        if (fs.adv.resources.hp <= 0) { fs.action = 'dying'; fs.actionT = 0; fs.actionDur = 0.6; fs.dyingKilled = false }
+      }
+    }
   }
 
   // Average worldX/Y of all alive slimes → boss.worldX/Y. Single-slime
@@ -2191,9 +2272,16 @@ export class BossSystem {
         // per round when dmg < count (otherwise some rounds could deal 0
         // to particular slimes and the fight would drag).
         const per = Math.max(1, Math.ceil(dmg / alive.length))
+        const newlyDead = []
         for (const s of alive) {
+          const wasAlive = (s.hp ?? 0) > 0
           s.hp = Math.max(0, (s.hp ?? 0) - per)
+          s._lastHitFightT = this._fightT   // for Recombine (undamaged blobs merge)
+          if (wasAlive && s.hp <= 0) newlyDead.push(s)
         }
+        // T4 THE TIDE — a slain blob near a still-living big slime respawns (capped
+        // per fight + only while a gen-0/mini-king lives, so the fight stays winnable).
+        if (currentAct(this._gameState) >= 4 && newlyDead.length > 0) this._maybeTideRespawn(boss)
         // Splits checked on a snapshot of `alive` — the array is mutated
         // by splits (parent removed, children added), so iterating the
         // post-mutation slimes would risk re-checking just-spawned children
@@ -2213,11 +2301,16 @@ export class BossSystem {
     }
   }
 
-  // Per-slime split gate. Generation 2 slimes are the cap — they die
-  // normally. hasSplit guards against double-splitting on chained damage.
+  // Split generation cap grows with the act (more blobs each tier); mini-kings
+  // (T4) get one extra generation of subdivision.
+  _slimeFightGenCap() {
+    return Math.floor((currentAct(this._gameState) - 1) * (Balance.SLIME_FIGHT_GENCAP_PER_TIER ?? 0.5) + (Balance.SLIME_FIGHT_GENCAP_BASE ?? 2))
+  }
+
+  // Per-slime split gate. hasSplit guards against double-splitting on chained damage.
   _maybeSplitSlime(slime) {
     if (!slime || slime.hasSplit) return
-    if ((slime.generation ?? 0) >= 2) return
+    if ((slime.generation ?? 0) >= this._slimeFightGenCap() + (slime.isMiniKing ? 1 : 0)) return
     if ((slime.hp ?? 0) <= 0) return
     if ((slime.hp ?? 0) > (slime.maxHp ?? 1) * 0.5) return
     this._performSlimeSplit(slime)
@@ -2234,11 +2327,17 @@ export class BossSystem {
     const idx = boss.slimes.indexOf(parent)
     if (idx < 0) return
     boss.slimes.splice(idx, 1)
-    const childMaxHp = Math.max(1, Math.floor((parent.maxHp ?? 0) / 4))
     const OFFSET_PX = 26
     const childGen = (parent.generation ?? 0) + 1
     const parentX = parent.worldX ?? 0
     const parentY = parent.worldY ?? 0
+    const tier = currentAct(this._gameState)
+    // T4 — the King's first division births MINI-KINGS: children that subdivide
+    // one generation DEEPER (the deep horde). HP is conserved (childMaxHp = /4,
+    // same as a normal split) — the "fatter" read is the extra split depth, not
+    // bonus HP, so the cluster's total HP never exceeds the King's maxHp.
+    const miniKing = tier >= 4 && (parent.generation ?? 0) === 0
+    const childMaxHp = Math.max(1, Math.floor((parent.maxHp ?? 0) / 4))
     const created = []
     for (let i = 0; i < 2; i++) {
       const sign = (i === 0 ? -1 : 1)
@@ -2250,6 +2349,7 @@ export class BossSystem {
         worldY:     parentY,
         generation: childGen,
         hasSplit:   false,
+        isMiniKing: miniKing || !!parent.isMiniKing,
       }
       boss.slimes.push(child)
       created.push(child)
@@ -2259,21 +2359,41 @@ export class BossSystem {
       generation:  childGen,
       children:    created.map(c => ({ id: c.id, hp: c.hp, maxHp: c.maxHp })),
     })
-    AbilityVfx.particleBurst(this._scene, parentX, parentY, {
-      color: 0x55cc77, count: 22, durationMs: 700, speed: 95, depth: 60,
-    })
-    AbilityVfx.pulseRing(this._scene, parentX, parentY, {
-      color: 0x55cc77, fromR: 8, toR: 64, alpha: 0.9, durationMs: 600, depth: 59,
-    })
-    this._floatText(parentX, parentY - 16, 'SPLIT!', '#aaffbb')
-    for (const c of created) {
-      AbilityVfx.particleBurst(this._scene, c.worldX, c.worldY, {
-        color: 0x88ee99, count: 10, durationMs: 500, speed: 60, depth: 58,
-      })
-      AbilityVfx.pulseRing(this._scene, c.worldX, c.worldY, {
-        color: 0x88ee99, fromR: 4, toR: 28, alpha: 0.85, durationMs: 450, depth: 57,
-      })
+    // Bespoke gooey split (replaces the generic burst+ring).
+    AbilityVfx.slimeSplitFx?.(this._scene, parentX, parentY, { tier, children: created.map(c => ({ x: c.worldX, y: c.worldY })) })
+    this._floatText(parentX, parentY - 16, miniKing ? 'MINI-KING!' : 'SPLIT!', '#aaffbb')
+    // T3 — Acid Split: each division leaves a corrosive puddle that damages the party.
+    if (tier >= 3) {
+      this._slimePuddles ??= []
+      this._slimePuddles.push({ x: parentX, y: parentY, until: this._fightT + (Balance.SLIME_FIGHT_ACID_MS ?? 3000) / 1000, hitAt: 0 })
+      AbilityVfx.acidPuddleFx?.(this._scene, parentX, parentY, { tier })
     }
+  }
+
+  // T4 THE TIDE — respawn a small blob near a still-living big slime (capped per
+  // fight, only while a gen-0/mini-king lives) so the horde self-heals without
+  // making the fight unwinnable.
+  _maybeTideRespawn(boss) {
+    if (!boss?.slimes) return
+    if ((this._tideRespawns ?? 0) >= 3) return
+    if ((boss.slimeMass ?? 0) < 20) return
+    if (Math.random() >= (Balance.SLIME_FIGHT_TIDE_CHANCE ?? 0.5)) return
+    const anchors = boss.slimes.filter(s => (s.hp ?? 0) > 0 && ((s.generation ?? 0) === 0 || s.isMiniKing))
+    if (!anchors.length) return   // the big ones are dead → no more tide
+    const a = anchors[0]
+    // CARVE the replacement's HP out of the anchor (total conserved ≤ maxHp) — the
+    // King sheds a piece rather than conjuring free HP.
+    const hp = Math.max(1, Math.floor((a.hp ?? 0) * 0.3))
+    if ((a.hp ?? 0) <= hp + 1) return   // anchor too small to shed
+    a.hp -= hp
+    boss.slimes.push({
+      id: `slime_${Date.now()}_tide_${Math.random().toString(36).slice(2, 5)}`,
+      hp, maxHp: hp, worldX: (a.worldX ?? 0) + (Math.random() - 0.5) * 30, worldY: (a.worldY ?? 0) + 14,
+      generation: 2, hasSplit: true, isMiniKing: false,
+    })
+    this._tideRespawns = (this._tideRespawns ?? 0) + 1
+    AbilityVfx.slimeSplitFx?.(this._scene, a.worldX ?? 0, a.worldY ?? 0, { small: true })
+    this._syncBossHpFromSlimes(boss)
   }
 
   // Mirror boss.hp = sum of alive slime hps. Lets every existing
@@ -2284,7 +2404,11 @@ export class BossSystem {
     if (!boss?.slimes) return
     let total = 0
     for (const s of boss.slimes) total += Math.max(0, s.hp ?? 0)
-    boss.hp = total
+    // Clamp to maxHp as a hard guarantee of the boss.hp ≤ maxHp invariant — the
+    // MITOSIS paths conserve total, but this is belt-and-suspenders so a future
+    // blob-spawn can never break the HP bar / invariant checker. The death check
+    // (boss.hp ≤ 0) is unaffected: every blob dead → total 0.
+    boss.hp = Math.min(boss.maxHp ?? total, total)
   }
 
   _tryDoppelgangerAbsorb() {

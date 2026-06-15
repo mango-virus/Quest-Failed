@@ -621,6 +621,16 @@ function _soulGlowParams(sat, overK, now) {
   const base  = 0.6 + 3.4 * sat + overK * 1.8
   return { color: col, strength: Math.max(0.4, base * pulse) }
 }
+
+// Generic boss AURA glow params (the standard pulsing Glow-OUTLINE aura) — colour
+// lerps lo→hi by saturation, strength pulses + scales with saturation. For any
+// boss whose aura is a single hue ramp (e.g. the Slime's green Mass aura).
+function _auraGlowParams(sat, now, lo, hi) {
+  const s = Math.max(0, Math.min(1, sat))
+  const pulse = 0.78 + 0.22 * Math.sin((now || 0) * 0.005)
+  const base  = 0.6 + 3.2 * s
+  return { color: _lerpColor(lo, hi, s), strength: Math.max(0.4, base * pulse) }
+}
 // A small ghostly wisp that rises off a point and fades (world-space, self-cleaning).
 function _spawnSoulWispGfx(scene, x, y, dsz, col, depth) {
   if (typeof scene.add?.graphics !== 'function') return null
@@ -5668,6 +5678,21 @@ export const AbilityVfx = {
   // look and the lab preview can never drift).
   soulAuraColor(sat, overK = 0) { return _soulAuraColor(Math.max(0, Math.min(1, sat)), Math.max(0, Math.min(1, overK))) },
   soulGlowParams(sat, overK = 0, now = 0) { return _soulGlowParams(Math.max(0, Math.min(1, sat)), Math.max(0, Math.min(1, overK)), now) },
+  auraGlowParams(sat, now = 0, lo = 0x2e7d3a, hi = 0x9aff7a) { return _auraGlowParams(sat, now, lo, hi) },
+  // Generic boss-aura PREVIEW (lab): applies the pulsing Glow-outline to opts.sprite
+  // at a chosen saturation for durationMs, then removes it. lo/hi = colour ramp.
+  bossAuraFx(scene, x, y, opts = {}) {
+    const o = { sat: 0.6, lo: 0x2e7d3a, hi: 0x9aff7a, durationMs: 3200, ...opts }
+    if (!o.sprite || !o.sprite.postFX || scene.renderer?.type !== Phaser.WEBGL) return null
+    const life = (o.durationMs) * (o.slow ?? 1)
+    let glow = null
+    try { const p = _auraGlowParams(o.sat, 0, o.lo, o.hi); glow = o.sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 12) } catch (e) {}
+    if (!glow) return null
+    scene.tweens.addCounter({ from: 0, to: 1, duration: life, ease: 'Linear',
+      onUpdate: () => { const p = _auraGlowParams(o.sat, scene.time?.now ?? 0, o.lo, o.hi); try { glow.color = p.color; glow.outerStrength = p.strength } catch (e) {} },
+      onComplete: () => { try { o.sprite.postFX.remove(glow) } catch (e) {} } })
+    return [glow]
+  },
   spawnSoulWisp(scene, x, y, dsz, col, depth) { return _spawnSoulWispGfx(scene, x, y, dsz, col, depth) },
   // Depth/perspective cue for an orbiting element — behind at the top, in front
   // at the bottom, smaller+dimmer at the back. THE standard for orbiting auras.
@@ -5913,6 +5938,122 @@ export const AbilityVfx = {
         emitZone: { type: 'edge', source: new Phaser.Geom.Circle(0, 0, R + 8), quantity: 10 } })
       em.setDepth(o.depth - 0.5); made.push(em); scene.time.delayedCall(life * 0.5, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(500, () => { try { em.destroy() } catch (e) {} }) })
     }
+    return made
+  },
+
+  // ══ BOSS ABILITY VFX — SLIME KING · MITOSIS / THE HORDE ═════════════════════
+  // Gooey green ooze (reuses _drawSlimeBlob). opts.tier escalates.
+
+  // SPLIT — a blob stretches, pinches, and divides into two, flinging goo droplets.
+  // opts.children = world points of the two new blobs; opts.small for a budling pop.
+  slimeSplitFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x55cc77, depth: 60, durationMs: 560, tier: 1, small: false, children: null, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    const R = o.small ? 6 : 11 + o.tier
+    // the dividing blob — squashes wide then snaps apart
+    const blob = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(blob)
+    _drawSlimeBlob(blob, R, o.color)
+    scene.tweens.add({ targets: blob, scaleX: 1.7, scaleY: 0.6, alpha: 0, duration: life * 0.45, ease: 'Quad.easeOut', onComplete: () => blob.destroy() })
+    // the two children plop out (or just a pop for buds)
+    const pts = o.children && o.children.length ? o.children : (o.small ? [] : [{ x: x - 22, y }, { x: x + 22, y }])
+    for (const c of pts) {
+      if (!_validXY(c.x, c.y)) continue
+      const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.4); made.push(g)
+      _drawSlimeBlob(g, R * 0.7, _lerpColor(o.color, 0xffffff, 0.15))
+      scene.tweens.add({ targets: g, x: c.x, y: c.y, scaleX: 1, scaleY: 1, duration: life * 0.4, ease: 'Back.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.3, onComplete: () => g.destroy() }) })
+    }
+    // goo droplets fling out
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.7 }, speed: { min: 40, max: 130 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.color, 0x88ee99, 0x2e8b57], emitting: false })
+      em.setDepth(o.depth + 1); em.explode(Math.round((o.small ? 5 : 12) * mult)); made.push(em); scene.time.delayedCall(life, () => { try { em.destroy() } catch (e) {} })
+    }
+    return made
+  },
+
+  // MERGE / COALESCE — two blobs flow together into one with a wet plop.
+  slimeMergeFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x55cc77, depth: 60, durationMs: 520, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    for (const sign of [-1, 1]) {
+      const g = scene.add.graphics().setPosition(x + sign * 20, y).setDepth(o.depth).setAlpha(0.9); made.push(g)
+      _drawSlimeBlob(g, 8, o.color)
+      scene.tweens.add({ targets: g, x, scaleX: 0.5, alpha: 0, duration: life * 0.5, ease: 'Quad.easeIn', onComplete: () => g.destroy() })
+    }
+    const pool = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.5).setScale(0.5).setAlpha(0); made.push(pool)
+    _drawSlimeBlob(pool, 13, _lerpColor(o.color, 0xffffff, 0.18))
+    scene.tweens.add({ targets: pool, scaleX: 1.15, scaleY: 0.9, alpha: 0.95, duration: life * 0.5, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: pool, alpha: 0, scaleY: 0.7, duration: life * 0.4, onComplete: () => pool.destroy() }) })
+    return made
+  },
+
+  // ACID PUDDLE — a bubbling corrosive pool that lingers (~3s); opts.hit = a quick
+  // splash on a struck adventurer.
+  acidPuddleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x88ee44, depth: 1.6, durationMs: 3000, tier: 1, hit: false, ...opts }
+    const slow = o.slow ?? 1, life = (o.hit ? 360 : o.durationMs) * slow, mult = _particlesMult(), made = []
+    const R = o.hit ? 8 : 20 + o.tier * 2
+    const pool = scene.add.graphics().setPosition(x, y + 4).setDepth(o.depth).setAlpha(0); made.push(pool)
+    pool.fillStyle(0x2e8b1e, 0.5); pool.fillEllipse(0, 0, R * 2, R * 0.9)
+    pool.fillStyle(o.color, 0.4); pool.fillEllipse(0, 0, R * 1.4, R * 0.6)
+    pool.fillStyle(_lerpColor(o.color, 0xffffff, 0.4), 0.4); pool.fillEllipse(-R * 0.2, -1, R * 0.5, R * 0.26)
+    if (o.hit) {
+      scene.tweens.add({ targets: pool, alpha: 0.9, scale: 1.3, duration: life * 0.4, yoyo: true, onComplete: () => pool.destroy() })
+    } else {
+      scene.tweens.add({ targets: pool, alpha: 0.85, duration: life * 0.12, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: pool, alpha: 0, duration: life * 0.3, delay: life * 0.55, onComplete: () => pool.destroy() }) })
+      // rising corrosive bubbles over the puddle's life
+      if (mult > 0) {
+        const em = scene.add.particles(x, y + 2, _softDotTexture(scene), { frequency: 140, quantity: 1, lifespan: 700 * slow, speedY: { min: -34, max: -12 }, speedX: { min: -10, max: 10 }, x: { min: -R, max: R }, scale: { start: 0.26, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [o.color, 0xccff88], blendMode: 'ADD' })
+        em.setDepth(o.depth + 0.5); made.push(em)
+        scene.time.delayedCall(life * 0.7, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) })
+      }
+    }
+    return made
+  },
+
+  // MITOSIS SURGE — gooplings erupt across a room: a goo geyser + a scatter of
+  // little blobs bursting outward. opts.count scales the eruption.
+  slimeSurgeFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x55cc77, depth: 60, durationMs: 760, count: 4, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, mult = _particlesMult(), made = []
+    // central geyser of goo
+    const geyser = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(1, 0.3).setAlpha(0.9); made.push(geyser)
+    _drawSlimeBlob(geyser, 14, o.color)
+    scene.tweens.add({ targets: geyser, scaleX: 1.5, scaleY: 1.6, alpha: 0, y: y - 10, duration: life * 0.5, ease: 'Quad.easeOut', onComplete: () => geyser.destroy() })
+    // little blobs burst outward + plop
+    const n = Math.max(3, Math.min(12, o.count))
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.4, d = 24 + Math.random() * 40
+      const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.3); made.push(g)
+      _drawSlimeBlob(g, 6, _lerpColor(o.color, 0x88ee99, Math.random()))
+      scene.tweens.add({ targets: g, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, scale: 0.9, duration: life * 0.5, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 0.5, duration: life * 0.3, onComplete: () => g.destroy() }) })
+    }
+    if (mult > 0) {
+      const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: life * 0.3, max: life * 0.8 }, speed: { min: 50, max: 160 }, angle: { min: 0, max: 360 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: [o.color, 0x88ee99], emitting: false })
+      em.setDepth(o.depth + 1); em.explode(Math.round(16 * mult)); made.push(em); scene.time.delayedCall(life * 1.2, () => { try { em.destroy() } catch (e) {} })
+    }
+    scene.cameras?.main?.shake?.(180, 0.003)
+    return made
+  },
+
+  // ENGULF — goo wraps a hero: a translucent blob swells over them + drips.
+  slimeEngulfFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x55cc77, depth: 14, durationMs: 620, tier: 1, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const g = scene.add.graphics().setPosition(x, y - 8).setDepth(o.depth).setAlpha(0).setScale(0.4); made.push(g)
+    g.fillStyle(o.color, 0.5); g.fillEllipse(0, 0, 30, 38)
+    g.fillStyle(_lerpColor(o.color, 0x000000, 0.3), 0.4); g.fillEllipse(2, 6, 22, 24)
+    g.fillStyle(_lerpColor(o.color, 0xffffff, 0.5), 0.5); g.fillCircle(-7, -10, 5)
+    _glow(g, o.color, 2, 8)
+    scene.tweens.add({ targets: g, alpha: 0.85, scale: 1, duration: life * 0.3, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scaleY: 1.3, y: g.y + 6, duration: life * 0.5, ease: 'Quad.easeIn', onComplete: () => g.destroy() }) })
     return made
   },
 }

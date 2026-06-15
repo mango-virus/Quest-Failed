@@ -672,6 +672,47 @@ soul-bar Cage; grey Wither aura. All bespoke `AbilityVfx` primitives, tier-escal
 - ☐ Bespoke soul-fire VFX for harvest + each attack; tier-escalating; all in the VFX Lab; lint-vfx clean.
 - ☐ Headless harness green; soak clean; bossArchetypes.json lich headline/mechanics updated; live preview positions verified.
 
+### Boss #3 — Slime King → **MITOSIS / THE UNKILLABLE HORDE** (LOCKED 2026-06-14)
+
+**Core — Mass.** The King is a self-multiplying ooze with a **Mass** value (`boss.slimeMass`, persists)
+that swells as it buds/absorbs. Mass is PHYSICAL, not a spent currency: more Mass → the King's body
+grows bigger AND it splits into a bigger horde in the throne fight. Elevates the existing Mitosis
+(split-at-half-HP) + Absorb & Excrete machinery; doesn't replace it.
+
+**Dungeon kit (escalates per act):**
+- **T1 · Budding + Absorb** — buds free gooplings over time + from absorbing dead minions (off the cap); each absorb also +Mass (elevates existing Absorb & Excrete).
+- **T2 · Coalesce** — roaming gooplings that linger/touch MERGE into bigger slimes over the day.
+- **T3 · Acidic Trail** — roaming slimes leave a corrosive trail on their tiles; adventurers crossing take damage.
+- **T4 · The Tide** — at high Mass, killing a slime near a big one SPAWNS a replacement (the horde self-heals).
+
+**Day-phase active ability — MITOSIS SURGE** (arm → click a room → fire; uses/day scale with boss level):
+floods a target room with a wave of gooplings that swarm everyone inside; count scales with Mass +
+the crowd in the room (room-wide → never falls off late game).
+
+**Throne fight — the splitting horde (elevates existing mitosis):**
+- Mass → bigger entry (more HP + more starting blobs at high Mass).
+- **T1 · Mitosis** — splits at half HP into 2 (existing); split gen-cap grows by tier (more blobs each act).
+- **T2 · Recombine** — unkilled small blobs drift together and MERGE back into a bigger one if not bursted fast.
+- **T3 · Acid Split** — each split drops an acid puddle that damages the party.
+- **T4 · Mini-King elites + Ooze Tide** — at high Mass the King's children are mini-kings (split deeper); slain blobs near a big one respawn.
+
+**Tells:** body SIZE scales with Mass (physical danger read, uses the existing generation scale); a
+gooey **pulsing Glow-OUTLINE aura** (the standard aura) whose intensity scales with Mass; the visible
+goopling population IS the horde tell; a Mass/Horde readout on the boss panel.
+
+**VFX (gooey green, bespoke, lab-testable):** split (blob stretches→pinches→divides w/ goo splatter,
+replacing the generic particleBurst/pulseRing), merge/coalesce, acid puddle/trail, engulf, Mitosis
+Surge flood. Tier-escalating.
+
+**Acceptance checklist (Mitosis/Horde):**
+- ☐ `boss.slimeMass` grows on absorb + time-budding; persists; save-safe.
+- ☐ Body size scales with Mass (BossRenderer); gooey Glow-OUTLINE aura scales with Mass; Mass/Horde readout on the panel.
+- ☐ Dungeon kit: Budding(T1)/Coalesce(T2)/Acidic Trail(T3)/The Tide(T4), act-gated.
+- ☐ MITOSIS SURGE active: arm→room→fire, DOM (BossArchetypeStrip) + Phaser room-pick + events; room/Mass-scaling; uses/day.
+- ☐ Throne fight: Mass→entry size; split gen-cap by tier; Recombine(T2); acid puddles(T3); mini-kings + tide-respawn(T4).
+- ☐ Bespoke slime VFX (split/merge/acid/engulf/surge); lint-vfx clean; lab-wired.
+- ☐ Headless harness green; soak clean; bossArchetypes.json slime text updated; live preview verified.
+
 ---
 
 ## Personality combos
