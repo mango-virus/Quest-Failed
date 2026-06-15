@@ -6599,4 +6599,170 @@ export const AbilityVfx = {
     scene.cameras?.main?.shake?.(600, 0.008)
     return made
   },
+
+  // ── GOLEM · The Living Fortress — seismic VFX ────────────────────────────
+  // A flung chunk of rubble (shaded irregular polygon) used across the set.
+  _spawnRubble(scene, x, y, depth, size, vx, vy, life) {
+    const g = scene.add.graphics().setPosition(x, y).setDepth(depth); const s = size
+    const dark = 0x3a3026, mid = 0x6a5a44, lite = 0x9a8460
+    g.fillStyle(dark, 1); g.beginPath(); g.moveTo(-s, s * 0.4); g.lineTo(-s * 0.5, -s); g.lineTo(s * 0.7, -s * 0.6); g.lineTo(s, s * 0.5); g.lineTo(0, s); g.closePath(); g.fillPath()
+    g.fillStyle(mid, 1); g.beginPath(); g.moveTo(-s * 0.5, -s); g.lineTo(s * 0.7, -s * 0.6); g.lineTo(s * 0.2, 0); g.closePath(); g.fillPath()
+    g.fillStyle(lite, 0.8); g.fillRect(-s * 0.3, -s * 0.5, s * 0.3, s * 0.3)
+    scene.tweens.add({ targets: g, x: x + vx, y: y + vy, rotation: (Math.random() - 0.5) * 6, duration: life, ease: 'Quad.easeOut' })
+    scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, delay: life * 0.6, onComplete: () => g.destroy() })
+    return g
+  },
+
+  // SEISMIC SLAM — radiating ground cracks + dust ring + flung rubble + shake.
+  seismicSlamFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 2.6, rectW: 200, rectH: 150, small: false, durationMs: 800, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const scl = o.small ? 0.55 : 1
+    const reach = Math.min(o.rectW, o.rectH) * 0.5 * scl
+    // radiating cracks
+    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(g)
+    const arms = 5 + tier
+    const drawCracks = (p) => {
+      g.clear(); g.lineStyle(2.4 * scl, 0x2a221a, 0.9)
+      for (let i = 0; i < arms; i++) {
+        const a = (i / arms) * Math.PI * 2 + (i % 2 ? 0.25 : -0.2), L = reach * p
+        g.beginPath(); g.moveTo(0, 0)
+        for (let k = 1; k <= 5; k++) { const t = k / 5, wob = Math.sin(t * 9 + i) * 5 * scl; g.lineTo(Math.cos(a) * L * t + Math.cos(a + Math.PI / 2) * wob, (Math.sin(a) * L * t + Math.sin(a + Math.PI / 2) * wob) * 0.6) }
+        g.strokePath()
+      }
+      g.lineStyle(1, 0xd8a24a, 0.5)   // faint amber seam glint
+      for (let i = 0; i < arms; i++) { const a = (i / arms) * Math.PI * 2 + (i % 2 ? 0.25 : -0.2); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * reach * p * 0.7, Math.sin(a) * reach * p * 0.7 * 0.6); g.strokePath() }
+    }
+    scene.tweens.addCounter({ from: 0, to: 1, duration: 160, ease: 'Quad.easeOut', onUpdate: (tw) => drawCracks(tw.getValue()),
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: o.durationMs * 0.6, delay: o.durationMs * 0.3, onComplete: () => g.destroy() }) })
+    // expanding dust ring
+    const dust = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.3).setAlpha(0.5); made.push(dust)
+    dust.fillStyle(0x8a7a60, 0.4); dust.fillEllipse(0, 0, reach * 1.2, reach * 0.7)
+    dust.setScale(0.3)
+    scene.tweens.add({ targets: dust, scale: 1, alpha: 0, duration: o.durationMs * 0.7, ease: 'Quad.easeOut', onComplete: () => dust.destroy() })
+    // flung rubble
+    for (let i = 0; i < (o.small ? 4 : 7 + tier); i++) {
+      const a = Math.random() * Math.PI * 2, d = (24 + Math.random() * 30) * scl
+      made.push(this._spawnRubble(scene, x, y, o.depth + 1, (3 + Math.random() * 3) * scl, Math.cos(a) * d, -Math.abs(Math.sin(a)) * d - 18, 360 + Math.random() * 200))
+    }
+    // dust motes
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 400, max: 900 }, speed: { min: 20, max: 90 * scl }, angle: { min: 200, max: 340 }, scale: { start: 0.5 * scl, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x9a8460, 0x6a5a44], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((10 + tier * 3) * mult * scl)); made.push(em); scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(o.small ? 140 : 280 + tier * 30, (o.small ? 0.003 : 0.006))
+    return made
+  },
+
+  // FISSURE — a jagged crack tears open with a glowing amber seam; lingers.
+  fissureFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 2.5, rectW: 200, durationMs: 4000, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const len = Math.min(o.rectW * 0.8, 80 + tier * 24), w = 4 + tier
+    const ang = (Math.random() - 0.5) * 0.6
+    const g = scene.add.graphics().setPosition(x, y).setRotation(ang).setDepth(o.depth); made.push(g)
+    // dark crack body (jagged filled band) + glowing seam
+    const pts = []
+    for (let i = 0; i <= 10; i++) { const t = i / 10, px = (t - 0.5) * len, jit = Math.sin(t * 14) * w * 0.5; pts.push([px, jit]) }
+    g.fillStyle(0x140f0a, 0.9); g.beginPath(); g.moveTo(pts[0][0], pts[0][1] - w)
+    for (const [px, py] of pts) g.lineTo(px, py - w * (0.5 + Math.random() * 0.3))
+    for (let i = pts.length - 1; i >= 0; i--) g.lineTo(pts[i][0], pts[i][1] + w * (0.5 + Math.random() * 0.3))
+    g.closePath(); g.fillPath()
+    g.lineStyle(2, 0xff7a1e, 0.75).beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const [px, py] of pts) g.lineTo(px, py); g.strokePath()  // magma seam
+    g.lineStyle(1, 0xffd27a, 0.6).beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const [px, py] of pts) g.lineTo(px, py); g.strokePath()
+    _glow(g, 0xff7a1e, 2, 8)
+    g.setScale(0, 1)
+    scene.tweens.add({ targets: g, scaleX: 1, duration: 180, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: g, alpha: 0, duration: o.durationMs * 0.4, delay: o.durationMs * 0.6, onComplete: () => g.destroy() })
+    // heat/dust rising from the seam over its life
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: 800, frequency: 120, quantity: 1, x: { min: -len / 2, max: len / 2 }, speedY: { min: -26, max: -8 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0xff8a3a, 0x8a7a60], blendMode: 'ADD' }); em.setDepth(o.depth + 0.5); made.push(em); scene.time.delayedCall(o.durationMs * 0.7, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} }) }) }
+    return made
+  },
+
+  // RISE PILLAR — a stone column heaves up from the floor with debris + dust.
+  risePillarFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 6, durationMs: 700, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), made = []
+    const w = 14 + tier * 2, h = 34 + tier * 6
+    // base crack telegraph + dust
+    const base = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 0.5).setAlpha(0.6); made.push(base)
+    base.fillStyle(0x8a7a60, 0.4); base.fillEllipse(0, 0, w * 2.2, w * 0.9)
+    scene.tweens.add({ targets: base, scale: 1.4, alpha: 0, duration: o.durationMs * 0.6, onComplete: () => base.destroy() })
+    // the pillar (rocky trapezoid) heaves up from below the floor line
+    const p = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(p)
+    p.fillStyle(0x554835, 1); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.5, 0); p.closePath(); p.fillPath()
+    p.fillStyle(0x77654a, 1); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(-w * 0.1, -h); p.lineTo(-w * 0.16, 0); p.closePath(); p.fillPath()  // lit face
+    p.fillStyle(0x9a8460, 0.9); p.beginPath(); p.moveTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.2, -h * 0.78); p.lineTo(-w * 0.2, -h * 0.78); p.closePath(); p.fillPath()  // top cap
+    p.lineStyle(1.5, 0x2a221a, 0.8); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.5, 0); p.strokePath()
+    p.setScale(1, 0).setY(y)
+    scene.tweens.add({ targets: p, scaleY: 1, duration: 150, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({ targets: p, scaleY: 0.9, alpha: 0, y: y + 4, duration: o.durationMs * 0.4, delay: o.durationMs * 0.3, ease: 'Quad.easeIn', onComplete: () => p.destroy() }) })
+    // debris kicked out at the base
+    for (let i = 0; i < 4 + tier; i++) { const a = Math.random() * Math.PI * 2, d = 16 + Math.random() * 18; made.push(this._spawnRubble(scene, x, y, o.depth + 1, 2.5 + Math.random() * 2, Math.cos(a) * d, -Math.abs(Math.sin(a)) * d - 14, 320 + Math.random() * 160)) }
+    scene.cameras?.main?.shake?.(160, 0.003)
+    return made
+  },
+
+  // BULWARK — stone plates slam in from around the boss to form a shell.
+  bulwarkFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 9, durationMs: 2600, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), made = []
+    const n = 6, R = 30 + tier * 2
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2
+      const plate = scene.add.graphics().setPosition(x + Math.cos(a) * R * 2.2, y + Math.sin(a) * R * 1.3).setDepth(o.depth).setRotation(a + Math.PI / 2); made.push(plate)
+      const pw = 16 + tier * 2, ph = 22 + tier * 2
+      plate.fillStyle(0x554835, 1); plate.fillRect(-pw / 2, -ph / 2, pw, ph)
+      plate.fillStyle(0x77654a, 1); plate.fillRect(-pw / 2, -ph / 2, pw * 0.45, ph)
+      plate.lineStyle(1.5, 0x2a221a, 0.9); plate.strokeRect(-pw / 2, -ph / 2, pw, ph)
+      plate.setAlpha(0)
+      // slam inward to the shell radius
+      scene.tweens.add({ targets: plate, x: x + Math.cos(a) * R, y: y + Math.sin(a) * R * 0.7, alpha: 0.95, duration: 160, ease: 'Quad.easeIn',
+        onComplete: () => scene.tweens.add({ targets: plate, alpha: 0, scale: 0.9, duration: 300, delay: o.durationMs - 460, onComplete: () => plate.destroy() }) })
+    }
+    // dust puff + a stone flash as they lock
+    scene.time.delayedCall(160, () => {
+      const puff = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.3).setAlpha(0.6); made.push(puff)
+      puff.fillStyle(0x8a7a60, 0.4); puff.fillCircle(0, 0, R * 1.1); puff.setScale(0.4)
+      scene.tweens.add({ targets: puff, scale: 1.3, alpha: 0, duration: 400, onComplete: () => puff.destroy() })
+    })
+    scene.cameras?.main?.shake?.(180, 0.003)
+    return made
+  },
+
+  // COLLAPSE — the ceiling caves: rubble rains across the room + a dust pall.
+  collapseFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 16, rectW: 260, rectH: 190, durationMs: 1500, ...opts }
+    const mult = _particlesMult(), made = []
+    const halfW = o.rectW / 2, halfH = o.rectH / 2
+    // dust pall fills the room
+    const pall = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(pall)
+    pall.fillStyle(0x6a5a44, 0.3); pall.fillEllipse(0, 0, o.rectW, o.rectH * 0.8)
+    pall.fillStyle(0x4a4036, 0.25); pall.fillEllipse(0, 6, o.rectW * 0.7, o.rectH * 0.5)
+    scene.tweens.add({ targets: pall, alpha: 1, duration: o.durationMs * 0.25, yoyo: true, hold: o.durationMs * 0.4, onComplete: () => pall.destroy() })
+    // rubble rains from the top of the room to random floor points
+    const n = 12 + (o.tier ?? 4) * 2
+    for (let i = 0; i < n; i++) {
+      const tx = x + (Math.random() * 2 - 1) * halfW * 0.9, ty = y + (Math.random() * 2 - 1) * halfH * 0.7
+      scene.time.delayedCall(Math.random() * o.durationMs * 0.55, () => {
+        if (!_validXY(tx, ty)) return
+        const rock = scene.add.graphics().setPosition(tx, ty - 120).setDepth(o.depth); made.push(rock)
+        const s = 3 + Math.random() * 4
+        rock.fillStyle(0x3a3026, 1); rock.beginPath(); rock.moveTo(-s, s * 0.4); rock.lineTo(-s * 0.4, -s); rock.lineTo(s * 0.7, -s * 0.6); rock.lineTo(s, s * 0.5); rock.closePath(); rock.fillPath()
+        rock.fillStyle(0x6a5a44, 1); rock.fillRect(-s * 0.3, -s * 0.4, s * 0.4, s * 0.5)
+        scene.tweens.add({ targets: rock, y: ty, rotation: (Math.random() - 0.5) * 4, duration: 240, ease: 'Quad.easeIn',
+          onComplete: () => {
+            const d = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.2).setAlpha(0.6); made.push(d)
+            d.fillStyle(0x8a7a60, 0.5); d.fillEllipse(0, 0, s * 4, s * 1.6); d.setScale(0.4)
+            scene.tweens.add({ targets: d, scale: 1.2, alpha: 0, duration: 320, onComplete: () => d.destroy() })
+            scene.tweens.add({ targets: rock, alpha: 0, duration: 400, delay: 200, onComplete: () => rock.destroy() })
+          } })
+      })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 700, max: 1500 }, speedX: { min: -60, max: 60 }, speedY: { min: -20, max: 40 }, scale: { start: 0.6, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x9a8460, 0x6a5a44], emitting: false }); em.setDepth(o.depth); em.explode(Math.round(36 * mult)); made.push(em); scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(620, 0.009)
+    return made
+  },
 }

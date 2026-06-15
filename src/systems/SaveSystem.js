@@ -747,6 +747,8 @@ function _rehydrateRunHistory(state) {
     // these recomputed/transient fields are dropped. `_orcMastery` re-derives on
     // the next BossArchetypeSystem tick; `_lastStand`/`_braceUntil` are per-fight.
     '_orcMastery', '_orcMasteryActive', '_lastStand', '_braceUntil',
+    // Golem Bulwark — scene-time damage-reduction window (fight-only).
+    '_bulwarkUntil',
   ]
   if (state.boss) {
     for (const k of BOSS_TRANSIENT_KEYS) if (k in state.boss) delete state.boss[k]

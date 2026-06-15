@@ -157,6 +157,8 @@ export class BossArchetypeSystem {
     this._bloomFightTimer    = null
     this._brimstoneFightTimer = null
     this._hellfireZones      = []   // [{ roomId, until }] — Pact burning ground
+    this._fortressFightTimer = null
+    this._fissureZones       = []   // [{ roomId, until }] — Seismic fissures
     this._petrifyFxGraphics  = null
     // Beholder Anti-Magic Aura — graphics layer for the daily purple glow.
     this._antiMagicFx        = null
@@ -317,6 +319,7 @@ export class BossArchetypeSystem {
     this._stopPetrifyTimer()
     this._stopBloomFightTimer()
     this._stopBrimstoneFightTimer()
+    this._stopFortressFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -1496,8 +1499,11 @@ export class BossArchetypeSystem {
     if (this._archId() === 'golem') {
       const boss = this._gameState?.boss
       if (boss?._golem) {
-        boss._golem.earthquakeUsesLeft = Balance.GOLEM_EARTHQUAKE_USES_PER_DAY
+        const bLv = boss.level ?? 1
+        boss._golem.earthquakeUsesLeft = (Balance.GOLEM_EARTHQUAKE_USES_PER_DAY ?? 1)
+          + Math.floor(bLv * (Balance.GOLEM_EQ_USES_PER_BOSS_LV ?? 0.25))
       }
+      this._fissureZones = []   // cracks don't persist overnight
     }
     // Disarm via the proper API so the UI hears GOLEM_EARTHQUAKE_DISARMED
     // and resets its button label / room-pick listener. Without this, a
@@ -1611,55 +1617,128 @@ export class BossArchetypeSystem {
     EventBus.emit('GOLEM_EARTHQUAKE_DISARMED', {})
   }
 
-  // payload: { roomId } — fired by the UI after the player clicks a room
-  // while the earthquake is armed.
+  // Bedrock helpers — the dungeon's room count drives the Golem's might.
+  _bedrock() { return this._gameState?.dungeon?.rooms?.length ?? 0 }
+  _bedrockSat() { return Math.max(0, Math.min(1, this._bedrock() / Math.max(1, Balance.GOLEM_BEDROCK_CAP_ROOMS ?? 20))) }
+
+  // Apply the Seismic Slam to one room — damage everyone inside + tier riders
+  // (T2 fissure zone, T3 burial). `mult` scales the damage (T4 adjacency < 1).
+  _seismicHitRoom(room, tier, now, mult = 1) {
+    const rooms = this._bedrock()
+    const dmg = Math.max(1, Math.round(rooms * (Balance.GOLEM_EARTHQUAKE_DMG_PER_ROOM ?? 2) * mult))
+    const hits = []
+    for (const adv of (this._gameState?.adventurers?.active ?? [])) {
+      if (!adv || (adv.resources?.hp ?? 0) <= 0 || !_advInsideRoom(adv, room)) continue
+      const before = adv.resources.hp
+      adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
+      hits.push({ advId: adv.instanceId, dmg })
+      // T3 Collapse — buried (brief can't-act); T4 longer.
+      if (tier >= 3) {
+        const buryMs = (Balance.GOLEM_COLLAPSE_BURY_MS ?? 1600) + Math.max(0, tier - 3) * (Balance.GOLEM_COLLAPSE_BURY_PER_ACT ?? 400)
+        adv._petrifiedUntil = Math.max(adv._petrifiedUntil ?? 0, now + buryMs)
+        EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'BURIED' })
+      }
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: adv.instanceId, damage: dmg, damageType: 'earthquake' })
+      if (adv.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'boss', killerName: 'Seismic Slam', roomId: room.instanceId, damageType: 'earthquake' })
+    }
+    // T2 Fissure — a lingering crack: aftershock DoT + slow for a few seconds.
+    if (tier >= 2) {
+      this._fissureZones = (this._fissureZones ?? []).filter(z => z.roomId !== room.instanceId)
+      this._fissureZones.push({ roomId: room.instanceId, until: now + (Balance.GOLEM_FISSURE_DURATION_MS ?? 4000), _tickAt: now })
+    }
+    return { dmg, hits }
+  }
+
+  // payload: { roomId } — fired by the UI after the player clicks a room.
   _fireEarthquake(payload) {
     if (!this._earthquakeArmed) return
     if (!this._earthquakeAvailable()) { this._disarmEarthquake(); return }
     const room = this._gameState?.dungeon?.rooms?.find(r => r.instanceId === payload?.roomId)
     if (!room) return
+    const tier = currentAct(this._gameState)
+    const now  = this._scene?.time?.now ?? 0
+    const TS   = Balance.TILE_SIZE
 
-    const totalRooms = this._gameState?.dungeon?.rooms?.length ?? 0
-    const dmg        = totalRooms * Balance.GOLEM_EARTHQUAKE_DMG_PER_ROOM
-
-    // Apply damage to every adventurer currently inside the room.
-    const advs = this._gameState?.adventurers?.active ?? []
-    const hits = []
-    for (const adv of advs) {
-      if (!adv || (adv.resources?.hp ?? 0) <= 0) continue
-      if (!_advInsideRoom(adv, room)) continue
-      const before = adv.resources.hp
-      adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
-      hits.push({ advId: adv.instanceId, dmg })
-      EventBus.emit('COMBAT_HIT', {
-        sourceId:   'boss',
-        targetId:   adv.instanceId,
-        damage:     dmg,
-        damageType: 'earthquake',
-      })
-      if (adv.resources.hp <= 0) {
-        EventBus.emit('ADVENTURER_DIED', {
-          adventurer: adv,
-          killerId:   'boss',
-          killerName: 'Earthquake',
-          roomId:     room.instanceId,
-          damageType: 'earthquake',
-        })
+    const main = this._seismicHitRoom(room, tier, now, 1)
+    // T4 Cataclysm — adjacent rooms convulse too (reduced).
+    if (tier >= 4) {
+      for (const adj of this._adjacentRooms(room)) {
+        this._seismicHitRoom(adj, tier, now, Balance.GOLEM_CATACLYSM_ADJ_FRAC ?? 0.6)
+        const acx = (adj.gridX + adj.width / 2) * TS, acy = (adj.gridY + adj.height / 2) * TS
+        AbilityVfx?.seismicSlamFx?.(this._scene, acx, acy, { tier: tier - 1, rectW: adj.width * TS, rectH: adj.height * TS })
       }
     }
 
-    // Burn the use, disarm, and emit a fired event so the UI can play VFX.
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.seismicSlamFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS })
+    if (tier >= 2) AbilityVfx?.fissureFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS })
+
     const boss = this._gameState?.boss
-    if (boss?._golem) {
-      boss._golem.earthquakeUsesLeft = Math.max(0, (boss._golem.earthquakeUsesLeft ?? 0) - 1)
-    }
+    if (boss?._golem) boss._golem.earthquakeUsesLeft = Math.max(0, (boss._golem.earthquakeUsesLeft ?? 0) - 1)
     this._earthquakeArmed = false
-    EventBus.emit('GOLEM_EARTHQUAKE_FIRED', {
-      roomId: room.instanceId,
-      room,
-      damage: dmg,
-      hits,
-    })
+    EventBus.emit('GOLEM_EARTHQUAKE_FIRED', { roomId: room.instanceId, room, damage: main.dmg, hits: main.hits, tier })
+  }
+
+  // Dungeon-kit Aftershock (T2+) + lingering Fissure-zone ticks. Driven from
+  // the per-frame tick(). Transient zones live on the system (not saved).
+  _tickGolem(now) {
+    if (this._archId() !== 'golem') return
+    const tier = currentAct(this._gameState)
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+
+    // ── Fissure zones — aftershock DoT + slow on heroes inside ──
+    const zones = this._fissureZones ?? []
+    if (zones.length > 0) {
+      this._fissureZones = zones.filter(z => z.until > now)
+      const dot = Math.max(1, Math.round(this._bedrock() * (Balance.GOLEM_FISSURE_DOT_PER_ROOM ?? 0.6)))
+      for (const z of this._fissureZones) {
+        const room = rooms.find(r => r.instanceId === z.roomId)
+        if (!room) continue
+        if (now - (z._tickAt ?? 0) >= (Balance.GOLEM_FISSURE_TICK_MS ?? 1000)) {
+          z._tickAt = now
+          for (const a of (this._gameState?.adventurers?.active ?? [])) {
+            if ((a.resources?.hp ?? 0) <= 0 || !_advInsideRoom(a, room)) continue
+            a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dot)
+            const next = now + (Balance.GOLEM_FISSURE_SLOW_MS ?? 1400)
+            if (!a._slowUntil || a._slowUntil < next) a._slowUntil = next
+            a._slowMult = Math.min(a._slowMult ?? 1, Balance.GOLEM_FISSURE_SLOW_MULT ?? 0.6)
+            EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dot, damageType: 'earthquake' })
+            if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Fissure', roomId: room.instanceId, damageType: 'earthquake' })
+          }
+        }
+      }
+    }
+
+    // ── Aftershock (T2+) — periodic tremor; T3 hits all occupied rooms, T4 roots ──
+    if (tier < 2 || (this._gameState?.meta?.phase ?? '') !== 'day') return
+    this._aftershockAt ??= 0
+    if (now - this._aftershockAt < (Balance.GOLEM_AFTERSHOCK_INTERVAL_MS ?? 4500)) return
+    this._aftershockAt = now
+    const advs = (this._gameState?.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0)
+    if (advs.length === 0) return
+    // occupied rooms (by adv presence)
+    const occupied = rooms.filter(r => advs.some(a => _advInsideRoom(a, r)))
+    if (occupied.length === 0) return
+    let targets
+    if (tier >= 3) targets = occupied                                   // Tremor Network — all
+    else { // most-occupied single room
+      let best = occupied[0], bestN = -1
+      for (const r of occupied) { const n = advs.filter(a => _advInsideRoom(a, r)).length; if (n > bestN) { bestN = n; best = r } }
+      targets = [best]
+    }
+    const chip = Math.max(1, Math.round(this._bedrock() * (Balance.GOLEM_AFTERSHOCK_DMG_PER_ROOM ?? 0.18)))
+    const TS = Balance.TILE_SIZE
+    for (const room of targets) {
+      for (const a of advs) {
+        if (!_advInsideRoom(a, room)) continue
+        a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - chip)
+        if (tier >= 4) a._rootedUntil = Math.max(a._rootedUntil ?? 0, now + (Balance.GOLEM_AFTERSHOCK_ROOT_MS ?? 700))
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: chip, damageType: 'earthquake' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Aftershock', roomId: room.instanceId, damageType: 'earthquake' })
+      }
+      const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+      AbilityVfx?.seismicSlamFx?.(this._scene, cx, cy, { tier: 1, rectW: room.width * TS, rectH: room.height * TS, small: true })
+    }
   }
 
   // ── BEHOLDER: Petrify Gaze ──────────────────────────────────────────────
@@ -1706,6 +1785,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickBrimstoneFight(),
       })
     }
+    if (this._archId() === 'golem') {
+      this._stopFortressFightTimer()
+      this._collapseFinaleDone = false
+      this._fortressFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickFortressFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -1721,6 +1809,66 @@ export class BossArchetypeSystem {
     }
     if (this._archId() === 'myconid') this._stopBloomFightTimer()
     if (this._archId() === 'demon') this._stopBrimstoneFightTimer()
+    if (this._archId() === 'golem') this._stopFortressFightTimer()
+  }
+
+  _stopFortressFightTimer() {
+    this._fortressFightTimer?.remove?.(false)
+    this._fortressFightTimer = null
+  }
+
+  // Golem throne fight — THE FORTRESS (timer hazards over the baseline melee).
+  // T1 Slam → T2 Raise Pillars → T3 Bulwark (DR window) → T4 Collapse finale.
+  _tickFortressFight() {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return
+    const now = this._scene?.time?.now ?? 0
+    const TS  = Balance.TILE_SIZE
+    const atk = boss.attack ?? 0
+    const fighters = (this._gameState?.adventurers?.active ?? [])
+      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const hurt = (a, frac, label) => {
+      const dmg = Math.max(1, Math.floor(atk * frac))
+      a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'earthquake' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: label, roomId: bossRoom.instanceId, damageType: 'earthquake' })
+    }
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+
+    // T4 finale — once below 30% HP, the arena collapses (Bedrock-scaled).
+    if (tier >= 4 && !this._collapseFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._collapseFinaleDone = true
+      AbilityVfx?.collapseFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      const dmg = Math.max(1, Math.round(this._bedrock() * (Balance.GOLEM_FIGHT_COLLAPSE_DMG_PER_ROOM ?? 1.4)))
+      for (const a of fighters) {
+        a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+        a._petrifiedUntil = Math.max(a._petrifiedUntil ?? 0, now + 1800)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'earthquake' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Collapse', roomId: bossRoom.instanceId, damageType: 'earthquake' })
+      }
+      return
+    }
+
+    if (tier >= 3) {
+      // Bulwark — encase in stone (a damage-reduction window) + a slam.
+      boss._bulwarkUntil = now + (Balance.GOLEM_FIGHT_BULWARK_MS ?? 2600)
+      AbilityVfx?.bulwarkFx?.(this._scene, boss.worldX, boss.worldY, { tier })
+      for (const a of fighters) hurt(a, Balance.GOLEM_FIGHT_SLAM_FRAC ?? 0.5, 'The Living Fortress')
+    } else if (tier >= 2) {
+      // Raise Pillars — stone pillars erupt under the fighters (telegraphed dmg + knockback feel).
+      for (const a of fighters) {
+        if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.risePillarFx?.(this._scene, a.worldX, (a.worldY ?? 0) + 2, { tier })
+        hurt(a, Balance.GOLEM_FIGHT_PILLAR_FRAC ?? 0.75, 'Stone Pillars')
+      }
+    } else {
+      // T1 Slam — AoE ground-slam.
+      AbilityVfx?.seismicSlamFx?.(this._scene, cx, cy, { tier: 2, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) hurt(a, Balance.GOLEM_FIGHT_SLAM_FRAC ?? 0.5, 'Ground Slam')
+    }
   }
 
   _stopBrimstoneFightTimer() {
@@ -2284,6 +2432,8 @@ export class BossArchetypeSystem {
     // lingering burning-ground zones left by Infernal Pact.
     this._tickDemonBrimstone(delta)
     this._tickDemonHellfire(this._scene?.time?.now ?? 0)
+    // Golem THE LIVING FORTRESS — Aftershock + lingering fissure zones.
+    this._tickGolem(this._scene?.time?.now ?? 0)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return

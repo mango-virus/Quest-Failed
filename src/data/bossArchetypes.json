@@ -208,13 +208,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Living Architecture",
-      "summary": "Every room you place permanently grows the boss's HP and DEF.",
+      "name": "The Living Fortress",
+      "summary": "The dungeon IS its body. Every room you build permanently grows its HP and DEF — and makes the earth hit harder when it moves. The bigger your fortress, the more unkillable the Golem.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Earthquake — once per day, slam a room. Damage scales with how many rooms you've built.",
+        "text": "Seismic Slam (day active) — arm, click a room: damage scales with how many rooms you've built. Higher acts add a lingering Fissure (DoT + slow), Collapse that buries heroes, and a Cataclysm that shakes adjacent rooms too.",
+        "implemented": true
+      },
+      {
+        "text": "Aftershock (Act II+) — periodic tremors chip the most-occupied room; Tremor Network (Act III+) quakes every occupied room; Tectonic Upheaval (Act IV) also briefly roots. Constant, dungeon-wide seismic pressure.",
+        "implemented": true
+      },
+      {
+        "text": "Living Architecture — every placed room permanently adds HP and DEF to the boss (the fortress grows as you build).",
         "implemented": true
       }
     ],

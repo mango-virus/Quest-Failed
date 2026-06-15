@@ -2265,6 +2265,8 @@ export class BossSystem {
     if (lf.suddenDeath)  dmg = Math.round(dmg * (Balance.MECHANIC_SUDDEN_DEATH_DMG_MULT ?? 5))
     // Orc Veteran — Shield Bash brace: heavily reduced damage while braced.
     if (boss?._braceUntil && now < boss._braceUntil) dmg = Math.round(dmg * 0.4)
+    // Golem — Bulwark: encased in stone, takes reduced damage for the window.
+    if (boss?._bulwarkUntil && now < boss._bulwarkUntil) dmg = Math.round(dmg * (Balance.GOLEM_FIGHT_BULWARK_DR ?? 0.45))
     const hpBefore = boss?.hp ?? 0
     if (this._archIdForBoss() === 'slime' && Array.isArray(boss.slimes) && boss.slimes.length > 0) {
       const alive = boss.slimes.filter(s => (s.hp ?? 0) > 0)

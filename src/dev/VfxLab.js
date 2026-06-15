@@ -67,6 +67,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
   { label: 'Boss·Myconid (The Bloom)', fx: ['bloomFx', 'sporeBurstFx', 'sporeVentFx', 'creepingRotFx', 'bloomFinaleFx'] },
   { label: 'Boss·Demon (Brimstone)', fx: ['infernalPactFx', 'brimstoneMeteorFx', 'pactFinaleFx', 'combustFx', 'infernoFx'] },
+  { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'bulwarkFx', 'collapseFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -404,6 +405,19 @@ export class VfxLab {
           { label: 'Bloom Finale (T4)', fire: () => AbilityVfx.bloomFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }) },
         ]
       }
+      if (entity.archId === 'golem') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Bedrock',  fire: aura(0.3) },
+          { label: 'Aura: Mid Bedrock',  fire: aura(0.65) },
+          { label: 'Aura: High Bedrock', fire: aura(1) },
+          { label: 'Seismic Slam (room)', fire: () => AbilityVfx.seismicSlamFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
+          { label: 'Fissure', fire: () => AbilityVfx.fissureFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200 }) },
+          { label: 'Raise Pillar', fire: () => AbilityVfx.risePillarFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Bulwark', fire: () => AbilityVfx.bulwarkFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier() }) },
+          { label: 'Collapse (T4)', fire: () => AbilityVfx.collapseFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }) },
+        ]
+      }
       if (entity.archId === 'demon') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x5a1e08, hi: 0xff7a1e, durationMs: 3600 })
         return [
@@ -677,6 +691,12 @@ export class VfxLab {
         case 'infernalPactFx':   AbilityVfx.infernalPactFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX - 50, fromY: e.worldY + 20, demonX: e.worldX, demonY: e.worldY }); break
         case 'brimstoneMeteorFx': AbilityVfx.brimstoneMeteorFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
         case 'pactFinaleFx':     AbilityVfx.pactFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }); break
+        // Boss · Golem (The Living Fortress) — tier cycles 1→4.
+        case 'seismicSlamFx':  AbilityVfx.seismicSlamFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
+        case 'fissureFx':      AbilityVfx.fissureFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200 }); break
+        case 'risePillarFx':   AbilityVfx.risePillarFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
+        case 'bulwarkFx':      AbilityVfx.bulwarkFx(s, e.worldX, e.worldY, { tier: this._orcTier() }); break
+        case 'collapseFx':     AbilityVfx.collapseFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

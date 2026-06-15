@@ -167,6 +167,9 @@ export class BossRenderer {
     // Demon Lord — pulsing orange/hellfire Glow-outline aura; intensity reads
     // the Brimstone saturation (how much Infernal Power is banked).
     this._updateBrimstoneAura()
+    // Golem — body grows + a stone Glow-outline aura, both reading Bedrock
+    // (the dungeon's room count).
+    this._updateFortressAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -641,6 +644,30 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._brimGlow) } catch (e) {}
     }
     this._brimGlow = null
+  }
+
+  _updateFortressAura() {
+    const isGolem = this._gameState?.player?.bossArchetypeId === 'golem'
+    if (!isGolem || !this._container || !this._sprite) { this._clearFortressAura(); return }
+    const rooms = this._gameState?.dungeon?.rooms?.length ?? 0
+    const sat = Math.max(0, Math.min(1, rooms / Math.max(1, Balance.GOLEM_BEDROCK_CAP_ROOMS ?? 20)))
+    const now = this._scene?.time?.now ?? 0
+    // Body grows with the dungeon (on top of the tier scale).
+    const baseScale = BOSS_SPRITE_SCALE * this._tierScale(this._tier)
+    this._sprite.setScale?.(baseScale * (1 + sat * (Balance.GOLEM_BODY_SIZE_BONUS ?? 0.4)))
+    // Stone-grey → warm amber glow outline.
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x4a4036, 0xd8a24a)
+      if (!this._fortressGlow) { try { this._fortressGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._fortressGlow = true } }
+      else if (this._fortressGlow !== true) { try { this._fortressGlow.color = p.color; this._fortressGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearFortressAura() {
+    if (this._fortressGlow && this._fortressGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._fortressGlow) } catch (e) {}
+    }
+    this._fortressGlow = null
   }
 
   _build(boss) {

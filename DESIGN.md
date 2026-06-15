@@ -883,6 +883,53 @@ kills all run) — no fixed magnitudes; T4 execute is threshold-based, finale sc
 - ☑ Bespoke infernal VFX (infernalPactFx/brimstoneMeteorFx/pactFinaleFx + reuse inferno/combust), lab-wired; lint-vfx clean; live-verified (room eruption + meteors + finale cataclysm).
 - ☑ SaveSystem persists brimstone + restores Ascendance atk baseline (burn zones transient on system); node --check; new harness `demon-brimstone-check.mjs` green; soak clean; bossArchetypes.json text; live preview verified.
 
+### Boss #7 — Golem → **THE LIVING FORTRESS** (the dungeon is its body) (LOCKED 2026-06-15)
+
+**Fantasy:** the Golem IS the dungeon you build — the bigger/deeper your fortress, the mightier and more
+unkillable it gets, and the harder the earth hits when it moves.
+
+**Core resource — BEDROCK** = your built dungeon (room count; tracked via `_golem.roomsCounted`). Drives
+Living Architecture (each placed room → permanent +HP/+DEF, existing) + seismic damage + body size + aura.
+The snowball that stays useful all run (no fixed magnitudes — seismic dmg = rooms × per-room).
+
+**Day active — SEISMIC SLAM** (elevated Earthquake; arm → click a room; uses/day scale w/ boss level).
+Damage = rooms × per-room (scales w/ dungeon, room-wide). Riders by act: T1 **Quake** (AoE, existing) →
+T2 **Fissure** (lingering crack: aftershock DoT + slow for a few s) → T3 **Collapse** (+ heroes BURIED:
+brief can't-act, `_petrifiedUntil`, reads as rubble/stone) → T4 **Cataclysm** (room + adjacent rooms
+convulse; harder Bedrock scaling; longer burial).
+
+**Dungeon kit — escalates by act (verbs):** T1 **Living Architecture** (rooms → +HP/+DEF, existing) → T2
+**Aftershock** (every few s a tremor chips the most-occupied room, scales w/ dungeon size) → T3 **Tremor
+Network** (aftershocks hit ALL occupied rooms) → T4 **Tectonic Upheaval** (aftershocks also briefly root +
+bigger). A constant escalating seismic presence.
+
+**Throne fight — THE FORTRESS** (rooted wall reshaping the arena; entry HP/DEF already scale w/ rooms):
+T1 **Slam** (AoE ground-slam) → T2 **Raise Pillars** (stone pillars erupt, telegraphed, dmg + knockback)
+→ T3 **Bulwark** (encases in stone — a damage-reduction window via `boss._bulwarkUntil`, read in
+`BossSystem._applyDamageToBoss` like `_braceUntil`) → T4 **Collapse finale** (<low HP: arena ceiling caves
+— room-wide rubble cataclysm scaling w/ Bedrock + buries the party).
+
+**Tells:** body grows + armors with room count (BossRenderer scale); stone-grey/amber Glow-outline aura
+reading Bedrock saturation; "BEDROCK · N rooms" panel readout (+ live +HP/+DEF granted).
+
+**VFX (seismic, high bar, bespoke):** `seismicSlamFx` (radiating ground cracks + dust + flying rubble +
+heavy shake), `fissureFx` (jagged crack tears open w/ a glowing seam, lingers), `risePillarFx` (stone
+pillar heaves up + debris), `bulwarkFx` (stone plates slam around the boss), `collapseFx` (ceiling rubble
+rains + dust pall + big shake). Lab-wired.
+
+**Always-useful:** seismic dmg scales w/ rooms (snowball), Aftershock/Fissure %-based, Bulwark %-DR,
+burial time-based CC, finale Bedrock-scaled. **Build note:** Bulwark lives in the throne fight (DR only
+matters there); dungeon-kit T3 is the Tremor Network aftershock escalation.
+
+**Acceptance checklist (Living Fortress):**
+- ☑ BEDROCK = room count drives Living Architecture (+HP/+DEF, existing) + seismic dmg + body size + aura; `_renderBedrockStatus` panel readout.
+- ☑ Day SEISMIC SLAM (`_seismicHitRoom`/`_fireEarthquake`): dmg = rooms × per-room; T2 Fissure zone (DoT+slow, ticked in `_tickGolem`), T3 Collapse burial (`_petrifiedUntil`), T4 Cataclysm (adjacent rooms + longer). Button "SEISMIC SLAM · N"; uses/day scale w/ level.
+- ☑ Dungeon kit by act (`_tickGolem`): T2 Aftershock (most-occupied room chip), T3 Tremor Network (all occupied rooms), T4 Tectonic Upheaval (+root).
+- ☑ Throne fight tier-gated (`_tickFortressFight`): Slam / Raise Pillars / Bulwark (DR window `boss._bulwarkUntil` read in `BossSystem._applyDamageToBoss`) / Collapse finale (Bedrock-scaled).
+- ☑ Tells: body grows w/ rooms + stone glow-outline aura (`BossRenderer._updateFortressAura`); BEDROCK panel readout.
+- ☑ Bespoke seismic VFX (seismicSlamFx/fissureFx/risePillarFx/bulwarkFx/collapseFx + `_spawnRubble`), lab-wired; lint-vfx clean; live-verified (cracks+dust+rubble, magma fissures, rising pillars, stone plates, collapse rain).
+- ☑ SaveSystem strips `_bulwarkUntil` (fissure zones transient on system); node --check; new harness `golem-fortress-check.mjs` green; soak clean (120/0); bossArchetypes.json text; live preview verified.
+
 ---
 
 ## Personality combos

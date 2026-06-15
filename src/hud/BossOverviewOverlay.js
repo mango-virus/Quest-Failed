@@ -420,6 +420,8 @@ export class BossOverviewOverlay {
       this._renderBloomStatus(),
       // Brimstone readout (Demon — The Brimstone Pact)
       this._renderBrimstoneStatus(),
+      // Bedrock readout (Golem — The Living Fortress)
+      this._renderBedrockStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -719,6 +721,30 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `phase: ${phase}. Banked from sacrifices + every kill; the Infernal Pact spends it for hellfire (bigger reserve = bigger blast) and the Demon regenerates while it burns.`),
+    ])
+  }
+
+  _renderBedrockStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'golem') return null
+    const boss = this._gameState.boss ?? {}
+    const rooms = this._gameState.dungeon?.rooms?.length ?? 0
+    const g = boss._golem ?? {}
+    const tier = currentAct(this._gameState)
+    const cap = Balance.GOLEM_BEDROCK_CAP_ROOMS ?? 20
+    const C = '#d8a24a'
+    const pct = Math.max(0, Math.min(100, (rooms / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'Tectonic Upheaval' : tier >= 3 ? 'Tremor Network' : tier >= 2 ? 'Aftershock' : 'Living Architecture'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'BEDROCK'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, `${rooms} rooms`),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#1c160e', border: '1px solid #3a2e1c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#7a5a2a,#d8a24a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `phase: ${phase}. The dungeon IS its body — +${Math.round(g.hpApplied ?? 0)} HP, +${Math.round(g.defApplied ?? 0)} DEF from your rooms; Seismic Slam hits harder the more you build.`),
     ])
   }
 

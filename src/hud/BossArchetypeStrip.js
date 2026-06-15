@@ -55,7 +55,7 @@ export class BossArchetypeStrip {
         className: 'qf-archstrip-btn qf-archstrip-earthquake',
         ref: el => { this._golemBtn = el },
         on: { click: () => this._onGolemClick() },
-      }, 'EARTHQUAKE'),
+      }, 'SEISMIC SLAM'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-sacrifice',
         ref: el => { this._demonBtn = el },
@@ -192,8 +192,8 @@ export class BossArchetypeStrip {
     if (this._golemBtn) {
       this._golemBtn.style.display = golemActive ? '' : 'none'
       this._golemBtn.classList.toggle('armed', !!this._golemArmed)
-      this._golemBtn.textContent = this._golemArmed ? 'PICK A ROOM' : 'EARTHQUAKE'
       const usesLeft = this._gs?.boss?._golem?.earthquakeUsesLeft ?? 0
+      this._golemBtn.textContent = this._golemArmed ? 'PICK A ROOM' : `SEISMIC SLAM · ${usesLeft}`
       this._golemBtn.disabled = !(usesLeft > 0)
     }
     if (this._demonBtn) {

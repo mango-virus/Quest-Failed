@@ -135,6 +135,29 @@ export const Balance = {
   GOLEM_DEF_PER_ROOM:         1,   // +1 defense per placed room
   GOLEM_EARTHQUAKE_DMG_PER_ROOM: 2, // adv damage = (rooms placed × 2)
   GOLEM_EARTHQUAKE_USES_PER_DAY: 1,
+  // THE LIVING FORTRESS (overhaul) — Bedrock (room count) drives everything.
+  GOLEM_EQ_USES_PER_BOSS_LV:   0.25,  // +1 Seismic Slam use per 4 boss levels
+  GOLEM_BEDROCK_CAP_ROOMS:     20,    // reference room count for aura/size saturation
+  GOLEM_BODY_SIZE_BONUS:       0.4,   // sprite scale ×(1 + sat × this) with Bedrock
+  // Seismic Slam tier riders:
+  GOLEM_FISSURE_DOT_PER_ROOM:  0.6,   // T2 fissure aftershock DoT/tick = rooms × this
+  GOLEM_FISSURE_TICK_MS:       1000,
+  GOLEM_FISSURE_DURATION_MS:   4000,  // lingering crack lasts this long
+  GOLEM_FISSURE_SLOW_MS:       1400,
+  GOLEM_FISSURE_SLOW_MULT:     0.6,
+  GOLEM_COLLAPSE_BURY_MS:      1600,  // T3 burial (can't-act) window
+  GOLEM_COLLAPSE_BURY_PER_ACT: 400,   // +ms per act (T4 longer)
+  GOLEM_CATACLYSM_ADJ_FRAC:    0.6,   // T4 adjacent-room dmg = main × this
+  // Aftershock (dungeon kit T2+):
+  GOLEM_AFTERSHOCK_INTERVAL_MS: 4500,
+  GOLEM_AFTERSHOCK_DMG_PER_ROOM: 0.18,// chip per tremor = rooms × this (flat, small)
+  GOLEM_AFTERSHOCK_ROOT_MS:    700,   // T4 Tectonic brief root
+  // Throne fight:
+  GOLEM_FIGHT_SLAM_FRAC:       0.5,   // Slam AoE dmg = boss.attack × this
+  GOLEM_FIGHT_PILLAR_FRAC:     0.75,  // Raise Pillars dmg
+  GOLEM_FIGHT_BULWARK_MS:      2600,  // T3 damage-reduction window length
+  GOLEM_FIGHT_BULWARK_DR:      0.45,  // boss takes ×this damage while bulwarked
+  GOLEM_FIGHT_COLLAPSE_DMG_PER_ROOM: 1.4, // T4 finale dmg = rooms × this
 
   // --- Phase 1b.3: Beholder Tyrant ---
   BEHOLDER_PETRIFY_INTERVAL_MS:    6000,  // gaze fires every 6 s during boss fight
