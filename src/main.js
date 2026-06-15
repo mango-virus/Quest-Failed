@@ -37,6 +37,7 @@ import { EndOfDay }        from './scenes/EndOfDay.js'
 import { HudScene }        from './scenes/HudScene.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { installCustomCursor } from './hud/CustomCursor.js'
+import { installFocusMute } from './hud/focusMute.js'
 // PerfHud — Ctrl+Shift+P toggles a per-system tick-time overlay.
 // Importing here just installs the key listener (idempotent); the
 // overlay itself only mounts when toggled on. Zero-cost when hidden.
@@ -111,6 +112,10 @@ window.__game = new Phaser.Game(config)
 // mousedown. Top-level install so it's active across every scene and
 // the DOM HUD without per-scene wiring.
 installCustomCursor()
+
+// Mute all audio while the window is unfocused, when the OPTIONS toggle
+// "MUTE WHEN UNFOCUSED" is on (default). Idempotent; reads the live setting.
+installFocusMute()
 
 // On window resize, debounce a layout pass — UI scenes get restarted so their
 // create() can re-run applyUiCamera and rebuild element positions for the new

@@ -49,6 +49,16 @@ export class Overlay {
       frame:    opts.frame    ?? 'ornate',
       scrollLock: opts.scrollLock ?? false,
       closeOnBackdrop: opts.closeOnBackdrop ?? true,
+      // ── "Crypt" shell (front-end redesign) — opt-in, additive ──
+      // When `eyebrow` or `atmosphere` is set, the modal renders the redesign
+      // shell: a centered ◆ eyebrow + title head, faint brick-wall + vignette +
+      // accent-hairline atmosphere, corner rivets, and a footer slot. The
+      // close-✕ moves to the top-right corner. Legacy overlays (no eyebrow /
+      // atmosphere) are unaffected.
+      eyebrow:  opts.eyebrow  ?? null,
+      sub:      opts.sub      ?? null,
+      footer:   opts.footer   ?? null,
+      atmosphere: opts.atmosphere ?? false,
     }
     this._body = opts.body ?? null
     this._open = false
@@ -62,6 +72,8 @@ export class Overlay {
 
   _build() {
     const o = this._opts
+    const crypt = !!o.eyebrow || !!o.atmosphere
+    if (crypt) return this._buildCrypt()
     const plain = o.frame === 'plain'
     const root = h('div', {
       className: 'overlay',
@@ -125,6 +137,58 @@ export class Overlay {
       ]),
     ])
     return root
+  }
+
+  // The redesign "Crypt" shell — centered ◆ eyebrow + title, brick/vignette
+  // atmosphere, corner rivets, close-✕ top-right, optional footer. The dim
+  // backdrop is semi-transparent so the throne-room (menu) behind shows faintly.
+  _buildCrypt() {
+    const o = this._opts
+    return h('div', {
+      className: 'overlay qf-cov-layer',
+      on: o.closeOnBackdrop ? {
+        click: (e) => { if (e.target === e.currentTarget) this.close() },
+      } : {},
+    }, [
+      h('div', {
+        className: 'qf-cov',
+        ref: el => { this._refs.modal = el },
+        style: {
+          '--cov-acc': o.accent,
+          width: `${o.width}px`, height: `${o.height}px`,
+          maxWidth: '94%', maxHeight: '92%',
+        },
+      }, [
+        // subtle edge vignette only — the brick wall + torch glow are the
+        // title screen's signature, deliberately NOT carried into overlays.
+        h('div', { className: 'qf-cov-atmo' }, [
+          h('div', { className: 'qf-cov-vig' }),
+        ]),
+        // No ✕ button by design — overlays close on Esc + backdrop click.
+        // header
+        (o.title || o.eyebrow) && h('div', { className: 'qf-cov-head' }, [
+          o.eyebrow && h('div', { className: 'sil qf-cov-eyebrow' }, [
+            h('span', { className: 'ln' }), o.eyebrow, h('span', { className: 'ln r' }),
+          ]),
+          o.title && h('div', { className: 'pix qf-cov-title' }, o.title),
+          o.sub && h('div', { className: 'qf-cov-sub' }, o.sub),
+        ]),
+        // body
+        h('div', {
+          className: 'qf-cov-body',
+          ref: el => { this._refs.body = el },
+          style: { overflow: o.scrollLock ? 'hidden' : 'auto' },
+        }, this._body),
+        // footer
+        o.footer && h('div', { className: 'qf-cov-foot', ref: el => { this._refs.foot = el } }, o.footer),
+      ]),
+    ])
+  }
+
+  // Replace the footer content of a crypt-shell overlay in place.
+  setFooter(node) {
+    this._opts.footer = node
+    if (this._refs?.foot) mount(this._refs.foot, node)
   }
 
   setBody(node) {

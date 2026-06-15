@@ -280,7 +280,7 @@ export class ArchetypeDecorOverlay {
     this._lastBlipAt = now
     try {
       const snd = window.__game?.sound
-      if (snd) snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL })
+      if (snd) snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL * userSettings.voiceVolume() })
     } catch {}
   }
 

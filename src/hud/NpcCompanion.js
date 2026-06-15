@@ -346,7 +346,7 @@ export class NpcCompanion {
     try {
       const snd = window.__game?.sound
       if (!snd) return
-      snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL })
+      snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL * userSettings.voiceVolume() })
     } catch {}
   }
 

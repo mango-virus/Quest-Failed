@@ -72,9 +72,27 @@ export const userSettings = {
     return _readBool(KEY.tutorials) ?? DEFAULT_BOOL.tutorials
   },
   // Per-letter speech blip while the companion NPC types out a line
-  // (RPG-style). Default on.
+  // (RPG-style). Now driven by the VOICE fader (OPTIONS) — enabled when the
+  // voice volume is above ~zero. Falls back to the legacy speechSfx boolean.
   isNpcSpeechEnabled() {
-    return _readBool(KEY.speechSfx) ?? DEFAULT_BOOL.speechSfx
+    return this.voiceVolume() > 0.02
+  },
+  // Companion speech-blip volume, 0..1 (VOICE fader / qf.audio.voice, default
+  // 0.65). Blip play sites multiply their SFX volume by this.
+  voiceVolume() {
+    try {
+      const raw = localStorage.getItem('qf.audio.voice')
+      if (raw == null) {
+        // Legacy: honour an old speechSfx=false (muted) before the VOICE fader.
+        return (_readBool(KEY.speechSfx) === false) ? 0 : 0.65
+      }
+      return Math.max(0, Math.min(1, Number(raw) / 100))
+    } catch { return 0.65 }
+  },
+  // Mute all audio when the tab/window loses focus (qf.audio.muteUnfocused,
+  // default on). Honoured by the focusMute installer.
+  muteUnfocused() {
+    return _readBool('qf.audio.muteUnfocused') ?? true
   },
 
   // Companion NPC visibility + chattiness.

@@ -382,7 +382,7 @@ export class NemesisPortrait {
       if (now - (this._lastBlipAt ?? 0) < BLIP_GAP_MS) return
       this._lastBlipAt = now
       const snd = window.__game?.sound
-      if (snd) snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL })
+      if (snd) snd.play('sfx-speech', { volume: SfxVolume.getVolume() * BLIP_VOL * userSettings.voiceVolume() })
     } catch {}
   }
 

@@ -1,34 +1,39 @@
-// SettingsOverlay — DOM port of the design's options screen (moments.jsx ~1886).
+// SettingsOverlay — OPTIONS, redesigned to the "Crypt" front-end (2026-06-15).
 //
-// Four-tab settings panel: AUDIO (master/music/sfx/ambient sliders),
-// VIDEO (display toggles + particles + palette radio), CONTROLS (read-only
-// keybinding list), GAMEPLAY (3 toggles). Footer with RESET DEFAULTS /
-// CANCEL / APPLY.
+// Layout (options-overlay.jsx): an IDENTITY bar at top (rename the dark lord +
+// swap equipped title), a left rail of CATEGORY buttons (AUDIO / VIDEO /
+// GAMEPLAY / THEME / CONTROLS) revealing one panel at a time, and a GAME
+// REQUESTS button in the rail (moved off the main menu). Footer = RESET /
+// CANCEL / APPLY. Hosted in the shared crypt Overlay shell.
 //
-// Behaviour wired in this first cut:
-//   * PALETTE radio toggles the existing `.palette-necro` / `.palette-hellfire`
-//     classes on #hud-root (already defined in styles.css), live-previewing
-//     the theme. APPLY persists; CANCEL reverts.
-//   * AUDIO sliders write to localStorage keys `qf.audio.{master,music,sfx,ambient}`
-//     on APPLY. The existing Phaser AudioControls / SfxVolume system reads
-//     from there. Live preview on slider drag.
-//   * Everything else (video toggles, gameplay toggles, controls) is
-//     stored in the same localStorage namespace but not yet consumed by
-//     the gameplay layer — wiring those is a follow-up once each
-//     subsystem is identified.
+// Plumbing preserved from the prior version:
+//   * PALETTE toggles `.palette-necro` / `.palette-hellfire` on #hud-root (live
+//     preview; APPLY persists, CANCEL reverts).
+//   * AUDIO faders write `qf.audio.{master,music,sfx,voice,ambient}`; master is
+//     a multiplier folded into music + SFX (SfxVolume / TitleMusic).
+//   * VIDEO flags (scanlines / vignette / dungeon-vignette / fullscreen) apply
+//     live; shake / particles read lazily.
+// New this redesign (wired): VOICE fader → companion speech-blip volume
+//   (userSettings.voiceVolume), MUTE WHEN UNFOCUSED → focusMute installer.
+//   COMBAT SUBTITLES / DYNAMIC RANGE were intentionally NOT added (no backing
+//   system yet — would be dead controls).
 
-import { h, mount } from './dom.js'
+import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
 import { TitleMusic } from '../systems/TitleMusic.js'
 import { EventBus } from '../systems/EventBus.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { GameRequests } from '../systems/GameRequests.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
   music:     'qf.audio.music',
   sfx:       'qf.audio.sfx',
+  voice:     'qf.audio.voice',
   ambient:   'qf.audio.ambient',
-  speechSfx: 'qf.audio.speechSfx',
+  speechSfx: 'qf.audio.speechSfx',          // derived (voice > 0) — kept for back-compat reads
+  muteUnfocused: 'qf.audio.muteUnfocused',
   scanlines: 'qf.video.scanlines',
   vignette:  'qf.video.vignette',
   shake:     'qf.video.shake',
@@ -38,69 +43,69 @@ const STORE_KEYS = {
   dungeonVignette: 'qf.video.dungeonVignette',
   confirmRun: 'qf.gameplay.confirmRun',
   autosave:   'qf.gameplay.autosave',
-  hotkeys:    'qf.gameplay.hotkeys',
   tutorials:  'qf.gameplay.tutorials',
   companion:  'qf.gameplay.companion',
 }
 
 const DEFAULTS = {
-  master: 70, music: 20, sfx: 80, ambient: 45, speechSfx: true,
+  master: 70, music: 20, sfx: 80, voice: 65, ambient: 45,
+  speechSfx: true, muteUnfocused: true,
   scanlines: true, vignette: true, dungeonVignette: true,
   shake: true, particles: 'high',
   palette: 'crypt', fullscreen: false,
-  confirmRun: true, autosave: true, hotkeys: true, tutorials: true,
+  confirmRun: true, autosave: true, tutorials: true,
   companion: 'normal',
 }
 
-const TABS = [
-  { id: 'audio',    label: 'AUDIO',    icon: '♪', color: 'var(--rumor)' },
-  { id: 'video',    label: 'VIDEO',    icon: '◈', color: 'var(--gold)' },
-  { id: 'controls', label: 'CONTROLS', icon: '◇', color: 'var(--poison)' },
-  { id: 'gameplay', label: 'GAMEPLAY', icon: '★', color: 'var(--blood)' },
+const CATS = [
+  { id: 'audio',    label: 'AUDIO',    glyph: '♪', color: 'var(--rumor)', sub: 'Volume & mix' },
+  { id: 'video',    label: 'VIDEO',    glyph: '◈', color: 'var(--gold)',  sub: 'Display & FX' },
+  { id: 'gameplay', label: 'GAMEPLAY', glyph: '★', color: 'var(--blood)', sub: 'Rules & helpers' },
+  { id: 'theme',    label: 'THEME',    glyph: '◐', color: '#ff5fb0',      sub: 'Dungeon palette' },
+  { id: 'controls', label: 'CONTROLS', glyph: '◇', color: 'var(--poison)', sub: 'Keybindings' },
+]
+
+const THEMES = [
+  { v: 'crypt',    l: 'CRYPT',    sw: ['#c8334a', '#d4a648', '#e8dcc8', '#14101a'] },
+  { v: 'necro',    l: 'NECROTIC', sw: ['#5cd862', '#c8e848', '#d8e8c8', '#0e1812'] },
+  { v: 'hellfire', l: 'HELLFIRE', sw: ['#e85820', '#ffcc40', '#f0e0c0', '#160e08'] },
 ]
 
 const KEYBINDS = [
-  { a: 'PLACE / BUILD',    k: 'B' },
-  { a: 'MOVE',             k: 'M' },
-  { a: 'SELL',             k: 'X' },
-  { a: 'BEGIN DAY',        k: 'SPACE' },
-  { a: 'SPEED 1× / 2× / 4× / 8×', k: '1 · 2 · 3 · 4' },
-  { a: 'KNOWLEDGE MAP',    k: 'K' },
-  { a: 'ADV INTEL',        k: 'I' },
-  { a: 'MINION ROSTER',    k: 'R' },
-  { a: 'PAUSE',            k: 'ESC' },
+  { a: 'PLACE / BUILD', keys: ['B'] }, { a: 'MOVE', keys: ['M'] }, { a: 'SELL', keys: ['X'] },
+  { a: 'BEGIN DAY', keys: ['SPACE'] }, { a: 'GAME SPEED', keys: ['1', '2', '3', '4'] },
+  { a: 'KNOWLEDGE MAP', keys: ['K'] }, { a: 'ADVENTURER INTEL', keys: ['I'] },
+  { a: 'MINION ROSTER', keys: ['R'] }, { a: 'PAUSE', keys: ['ESC'] },
 ]
 
 export class SettingsOverlay {
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
     this._tab = 'audio'
+    this._titleOpen = false
+    this._requests = null
     this._savedState = this._readAll()
     this._draft = { ...this._savedState }
-    // Apply the saved palette + video flags immediately so the live
-    // preview starts at whatever the user last applied — the radio /
-    // toggle would mis-report active state otherwise.
+    // Start live previews at the saved state so toggles report correctly.
     this._applyPalette(this._draft.palette)
     this._applyVideoFlags(this._draft)
     this._overlay = new Overlay({
-      title:   'OPTIONS',
-      // Sized to the tallest tab (CONTROLS, 9 keybinds — the only one
-      // that needs all the vertical room). The previous 920×680 left
-      // ~340px of empty space below the AUDIO tab's five rows. Trimmed
-      // to 860×540 and the internal whitespace was tightened in
-      // .qf-settings-* so every tab fills its frame.
-      width:   860,
-      height:  540,
-      accent:  'var(--blood)',
-      frame:   'plain',   // subtle main-menu edge instead of the accent frame
-      onClose: () => this._onCancel(),
-      body:    this._renderBody(),
+      eyebrow:    "THE DARK LORD'S WILL",
+      title:      'OPTIONS',
+      width:      1104,
+      height:     812,
+      accent:     'var(--blood)',
+      atmosphere: true,
+      onClose:    () => this._onCancel(),
+      footer:     this._renderFooter(),
+      body:       this._renderBody(),
     })
   }
 
   open()  { this._overlay.open() }
   close() { this._overlay.close() }
 
+  // ─── persistence ───────────────────────────────────────────────────────
   _readAll() {
     const out = { ...DEFAULTS }
     for (const k of Object.keys(STORE_KEYS)) {
@@ -116,11 +121,14 @@ export class SettingsOverlay {
   }
 
   _persistAll(state) {
+    // speechSfx is derived from the VOICE fader (0 → speech off).
+    const derived = { ...state, speechSfx: (state.voice ?? 0) > 0 }
     for (const k of Object.keys(STORE_KEYS)) {
-      try { localStorage.setItem(STORE_KEYS[k], String(state[k])) } catch {}
+      try { localStorage.setItem(STORE_KEYS[k], String(derived[k])) } catch {}
     }
   }
 
+  // ─── live-apply helpers (unchanged behaviour) ──────────────────────────
   _applyPalette(name) {
     const root = document.getElementById('hud-root')
     if (!root) return
@@ -129,298 +137,313 @@ export class SettingsOverlay {
     if (name === 'hellfire') root.classList.add('palette-hellfire')
   }
 
-  // Apply video-side flags (scanlines / vignette / fullscreen) live so
-  // CANCEL can revert them just as easily as palette. Screen-shake and
-  // particles read their flags lazily — no DOM mutation needed.
   _applyVideoFlags(s) {
     const root = document.getElementById('hud-root')
     if (root) {
       root.classList.toggle('scanlines',     !!s.scanlines)
       root.classList.toggle('crt-vignette',  !!s.vignette)
-      // Dungeon viewport vignette — applied to hud-stage so the
-      // darkening only covers the in-game play area (the FX layer
-      // sits inside hud-stage), not menus mounted under hud-root.
       root.classList.toggle('dungeon-vignette', !!s.dungeonVignette)
     }
-    // Fullscreen — fire-and-forget; the browser may reject if not
-    // user-initiated, in which case we revert the flag silently.
     const wantFs = !!s.fullscreen
     const inFs = !!document.fullscreenElement
     if (wantFs && !inFs) {
-      document.documentElement.requestFullscreen?.().catch(() => {
-        // Browser rejected — most commonly because the slider click
-        // wasn't a direct user gesture (we're inside a CANCEL/APPLY
-        // button click chain, which IS a gesture — so this usually
-        // succeeds — but tabs without focus etc. can block).
-        s.fullscreen = false
-      })
+      document.documentElement.requestFullscreen?.().catch(() => { s.fullscreen = false })
     } else if (!wantFs && inFs) {
       document.exitFullscreen?.().catch(() => {})
     }
   }
 
-  // Apply audio sliders. Master is a multiplier on both music + SFX —
-  // since TitleMusic / SfxVolume only expose a single 0..1 volume, fold
-  // the master in client-side.
   _applyAudio(s) {
     const master = (s.master ?? 70) / 100
-    const music  = (s.music  ?? 22) / 100
+    const music  = (s.music  ?? 20) / 100
     const sfx    = (s.sfx    ?? 80) / 100
     SfxVolume.setVolume(master * sfx)
     TitleMusic.setVolume(master * music)
-    // Ambient — no canonical channel yet; persisted but inert until an
-    // ambient mixer ships.
+    // VOICE (companion speech-blip volume) + AMBIENT are read live from
+    // localStorage at play time — they take effect on APPLY (persist).
   }
 
+  // ─── state mutation ────────────────────────────────────────────────────
   _set(k, v) {
     this._draft[k] = v
-    // Tutorials are delivered by the companion. HIDING her would leave
-    // hints with no speaker, so picking HIDDEN also turns hints off; and
-    // turning hints back ON auto-unhides her so they have somewhere to go.
     if (k === 'companion' && v === 'off')         this._draft.tutorials = false
     if (k === 'tutorials' && v === true && this._draft.companion === 'off') {
       this._draft.companion = 'normal'
     }
-    // Live previews — palette / scanlines / vignette / fullscreen swap
-    // immediately so the player sees the effect before committing.
     if (k === 'palette') this._applyPalette(v)
     if (k === 'scanlines' || k === 'vignette' || k === 'fullscreen' || k === 'dungeonVignette') {
       this._applyVideoFlags(this._draft)
     }
-    // Audio live-preview too — drag the slider, hear the change.
     if (k === 'master' || k === 'music' || k === 'sfx' || k === 'ambient') {
       this._applyAudio(this._draft)
     }
     this._rerender()
   }
 
-  _rerender() {
-    this._overlay.setBody(this._renderBody())
-  }
+  _rerender() { this._overlay.setBody(this._renderBody()) }
 
-  _selectTab(id) {
-    this._tab = id
-    this._rerender()
-  }
+  _selectTab(id) { this._tab = id; this._titleOpen = false; this._rerender() }
 
-  // True when the active tab changed since the last render — drives the
-  // qf-tab-swap fade so it fires on tab switches, not on in-tab edits.
   _consumeTabSwap() {
     const changed = this._tab !== this._lastRenderedTab
     this._lastRenderedTab = this._tab
     return changed
   }
 
+  // ─── footer actions ────────────────────────────────────────────────────
   _onApply() {
     this._persistAll(this._draft)
     this._savedState = { ...this._draft }
-    // Apply effects (live previews already match; this is the "make it
-    // stick" step + the audio bridge that hasn't fired during slider
-    // drag).
     this._applyAudio(this._draft)
     this._applyVideoFlags(this._draft)
     this._applyPalette(this._draft.palette)
-    // Let live HUD listeners (e.g. the companion NPC) react to changed
-    // settings without polling localStorage.
     EventBus.emit('SETTINGS_CHANGED')
     this._overlay.close()
   }
 
   _onCancel() {
-    // Revert all live previews (palette / video flags / audio) to the
-    // saved state, then close.
     this._applyPalette(this._savedState.palette)
     this._applyVideoFlags(this._savedState)
     this._applyAudio(this._savedState)
     this._draft = { ...this._savedState }
+    this._requests?.close?.(); this._requests = null
     this._onClose?.()
   }
 
   _onReset() {
+    // Keep audio + video keys reset; identity (name/title) is NOT a setting.
     this._draft = { ...DEFAULTS }
     this._applyPalette(this._draft.palette)
+    this._applyVideoFlags(this._draft)
+    this._applyAudio(this._draft)
     this._rerender()
   }
 
+  // ─── render ────────────────────────────────────────────────────────────
+  _renderFooter() {
+    return [
+      h('button', { className: 'qf-pbtn ghost', on: { click: () => this._onReset() } }, 'RESET DEFAULTS'),
+      h('div', { style: { display: 'flex', gap: '12px' } }, [
+        h('button', { className: 'qf-pbtn', on: { click: () => this._onCancel() } }, 'CANCEL'),
+        h('button', { className: 'qf-pbtn primary', on: { click: () => this._onApply() } }, 'APPLY'),
+      ]),
+    ]
+  }
+
   _renderBody() {
-    return h('div', { className: 'qf-settings-body' }, [
-      h('div', { className: 'qf-settings-main' }, [
-        // Tab rail
-        h('div', { className: 'qf-settings-tabs' },
-          TABS.map(t => {
-            const active = this._tab === t.id
-            return h('button', {
-              className: 'btn qf-settings-tab',
-              dataset: { active: active ? 'true' : 'false' },
-              style: { '--tab-color': t.color },
-              on: { click: () => this._selectTab(t.id) },
+    return h('div', { className: 'qf-op' }, [
+      this._identityBar(),
+      h('div', { className: 'qf-op-body2' }, [
+        h('div', { className: 'qf-op-nav' }, [
+          ...CATS.map(c => this._catBtn(c)),
+          this._gameRequestsBtn(),
+        ]),
+        this._panel(),
+      ]),
+    ])
+  }
+
+  // identity — rename + equipped-title swap
+  _identityBar() {
+    const name = PlayerProfile.getName()
+    const active = PlayerProfile.getActiveTitle()
+    const titles = PlayerProfile.getUnlockedTitles()
+    return h('div', { className: 'qf-op-id' }, [
+      h('div', { className: 'qf-op-idf' }, [
+        h('span', { className: 'l' }, '⚔ DARK LORD’S NAME'),
+        h('input', {
+          className: 'qf-op-name', value: name, maxLength: 18,
+          on: {
+            change: (e) => this._commitName(e.currentTarget.value),
+            blur:   (e) => this._commitName(e.currentTarget.value),
+            keydown: (e) => { if (e.key === 'Enter') e.currentTarget.blur() },
+          },
+        }),
+      ]),
+      h('div', { className: 'qf-op-idf' }, titles.length
+        ? [
+            h('span', { className: 'l' }, '✦ EQUIPPED TITLE'),
+            h('button', {
+              className: 'qf-op-titlesel',
+              on: { click: () => { this._titleOpen = !this._titleOpen; this._rerender() } },
             }, [
-              h('span', { className: 'pix qf-settings-tab-icon' }, t.icon),
-              h('span', { className: 'qf-settings-tab-label' }, t.label),
-            ])
-          })
-        ),
-        // Content panel — fades on tab CHANGE only (not on in-tab option
-        // toggles, which also _rerender), so adjusting a slider doesn't flash.
-        h('div', { className: `qf-settings-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, this._renderTabContent()),
-      ]),
-      // Footer
-      h('div', { className: 'qf-settings-footer' }, [
-        h('button', {
-          className: 'btn qf-settings-reset',
-          on: { click: () => this._onReset() },
-        }, 'RESET DEFAULTS'),
-        h('div', { className: 'qf-settings-footer-r' }, [
-          h('button', {
-            className: 'btn',
-            on: { click: () => this._onCancel() || this.close() },
-          }, 'CANCEL'),
-          h('button', {
-            className: 'btn primary lg qf-settings-apply',
-            on: { click: () => this._onApply() },
-          }, 'APPLY'),
-        ]),
+              h('span', null, active ? active.name : 'Choose a title…'),
+              h('span', { className: 'cv' }, `${titles.length} ▾`),
+            ]),
+            this._titleOpen && h('div', { className: 'qf-op-tdrop' },
+              titles.map(t => h('button', {
+                className: 'qf-op-trow' + (active && t.id === active.id ? ' on' : ''),
+                on: { click: () => this._pickTitle(t.id) },
+              }, '✦ ' + t.name))),
+          ]
+        : [
+            h('span', { className: 'l' }, '✦ EQUIPPED TITLE'),
+            h('div', { className: 'qf-op-titlesel empty' }, [
+              h('span', null, 'No titles unlocked yet'),
+              h('span', { className: 'cv' }, '—'),
+            ]),
+          ]),
+    ])
+  }
+
+  _commitName(v) {
+    const n = (v || '').trim()
+    if (!n || n === PlayerProfile.getName().trim()) return
+    PlayerProfile.setName(n)
+    EventBus.emit('NAME_CHANGED')
+    this._rerender()   // titles are per-name → re-resolve the dropdown
+  }
+
+  _pickTitle(id) {
+    PlayerProfile.setActiveTitleId(id)
+    this._titleOpen = false
+    EventBus.emit('NAME_CHANGED')   // any live title-pill surfaces re-sync
+    this._rerender()
+  }
+
+  _catBtn(c) {
+    const on = this._tab === c.id
+    return h('button', {
+      className: 'qf-op-catbtn' + (on ? ' on' : ''),
+      style: { '--cc': c.color },
+      on: { click: () => this._selectTab(c.id) },
+    }, [
+      h('span', { className: 'g' }, c.glyph),
+      h('span', { className: 'tx' }, [
+        h('span', { className: 'cl' }, c.label),
+        h('span', { className: 'cs' }, c.sub),
       ]),
     ])
   }
 
-  _renderTabContent() {
-    if (this._tab === 'audio') return this._renderAudio()
-    if (this._tab === 'video') return this._renderVideo()
-    if (this._tab === 'controls') return this._renderControls()
-    if (this._tab === 'gameplay') return this._renderGameplay()
-    return null
-  }
-
-  _renderAudio() {
-    return h('div', null, [
-      this._section('AUDIO LEVELS', 'var(--rumor)', [
-        this._slider('MASTER',  'master'),
-        this._slider('MUSIC',   'music'),
-        this._slider('SFX',     'sfx'),
-        this._slider('AMBIENT', 'ambient'),
-      ]),
+  _gameRequestsBtn() {
+    const mail = (GameRequests.getCachedPlayerMail?.() ?? 0) + (GameRequests.getCachedAdminMail?.() ?? 0)
+    return h('button', {
+      className: 'qf-op-extra',
+      on: { click: () => this._openGameRequests() },
+    }, [
+      h('span', { className: 'g' }, '✉'), 'GAME REQUESTS',
+      mail > 0 ? h('span', { className: 'qf-op-mailchip' }, String(mail))
+               : h('span', { className: 'ar' }, '→'),
     ])
   }
 
-  _renderVideo() {
-    return h('div', null, [
-      this._section('DISPLAY', 'var(--gold)', [
-        this._toggle('FULLSCREEN',          'fullscreen'),
-        this._toggle('CRT SCANLINES',       'scanlines'),
-        this._toggle('EDGE VIGNETTE',       'vignette'),
-        this._toggle('DUNGEON VIGNETTE',    'dungeonVignette'),
-        this._toggle('SCREEN SHAKE',        'shake'),
-        this._radio('PARTICLES', 'particles', [
-          { v: 'off', l: 'OFF' }, { v: 'low', l: 'LOW' },
-          { v: 'med', l: 'MED' }, { v: 'high', l: 'HIGH' },
-        ]),
+  _openGameRequests() {
+    if (this._requests) return
+    PlayerProfile.markGameRequestsSeen?.()
+    import('./GameRequestsOverlay.js').then(({ GameRequestsOverlay }) => {
+      this._requests = new GameRequestsOverlay({ onClose: () => { this._requests = null; this._rerender() } })
+      this._requests.open()
+    }).catch(() => {})
+  }
+
+  _panel() {
+    const cat = CATS.find(c => c.id === this._tab)
+    return h('div', { className: 'qf-op-panel', style: { '--cc': cat.color } }, [
+      h('div', { className: 'qf-op-phd' }, [
+        h('span', { className: 'g' }, cat.glyph),
+        h('span', { className: 't' }, cat.label),
+        h('span', { className: 's' }, cat.sub),
       ]),
-      this._section('PALETTE', 'var(--gold)', [
-        this._radio('THEME', 'palette', [
-          { v: 'crypt',    l: 'CRYPT',    c: '#c8334a' },
-          { v: 'necro',    l: 'NECROTIC', c: '#5cd862' },
-          { v: 'hellfire', l: 'HELLFIRE', c: '#e85820' },
-        ]),
-      ]),
+      h('div', { className: 'qf-op-panel-in' + (this._consumeTabSwap() ? ' qf-op-swap' : '') },
+        this._panelContent()),
     ])
   }
 
-  _renderControls() {
-    return this._section('KEYBINDINGS', 'var(--poison)',
-      KEYBINDS.map(b => h('div', { className: 'qf-keybind' }, [
-        h('span', { className: 'qf-keybind-action' }, b.a),
-        h('span', { className: 'pix qf-keybind-key' }, b.k),
-      ]))
-    )
-  }
-
-  _renderGameplay() {
-    // HOTKEY HINTS toggle removed at user request — the strip itself
-    // is no longer mounted in HudRoot, so this control has nothing
-    // to toggle. The `hotkeys` key + isHotkeysEnabled() helper remain
-    // in userSettings.js so legacy reads stay safe.
-    return this._section('GAMEPLAY', 'var(--blood)', [
-      this._toggle('CONFIRM ABANDON RUN', 'confirmRun'),
-      this._toggle('AUTOSAVE',            'autosave'),
-      this._toggle('GAMEPLAY HINTS',      'tutorials'),
-      this._radio('COMPANION', 'companion', [
-        { v: 'normal', l: 'NORMAL' },
-        { v: 'quiet',  l: 'SAY LESS' },
-        { v: 'mute',   l: 'MUTE' },
-        { v: 'off',    l: 'HIDDEN' },
+  _panelContent() {
+    if (this._tab === 'audio') return [
+      h('div', { className: 'qf-op-mixer' }, [
+        this._fader('MASTER', 'master'), this._fader('MUSIC', 'music'), this._fader('SFX', 'sfx'),
+        this._fader('VOICE', 'voice'), this._fader('AMBIENT', 'ambient'),
       ]),
-    ])
+      h('div', { className: 'qf-op-asub' }, [this._lever('MUTE WHEN UNFOCUSED', 'muteUnfocused')]),
+    ]
+    if (this._tab === 'video') return [
+      this._lever('FULLSCREEN', 'fullscreen'),
+      this._lever('CRT SCANLINES', 'scanlines'),
+      this._lever('EDGE VIGNETTE', 'vignette'),
+      this._lever('DUNGEON VIGNETTE', 'dungeonVignette'),
+      this._lever('SCREEN SHAKE', 'shake'),
+      this._seg('PARTICLES', 'particles', [
+        { v: 'off', l: 'OFF' }, { v: 'low', l: 'LOW' }, { v: 'med', l: 'MED' }, { v: 'high', l: 'HIGH' },
+      ]),
+    ]
+    if (this._tab === 'gameplay') return [
+      this._lever('CONFIRM ABANDON RUN', 'confirmRun'),
+      this._lever('AUTOSAVE', 'autosave'),
+      this._lever('GAMEPLAY HINTS', 'tutorials'),
+      this._seg('COMPANION', 'companion', [
+        { v: 'normal', l: 'NORMAL' }, { v: 'quiet', l: 'LESS' }, { v: 'mute', l: 'MUTE' }, { v: 'off', l: 'HIDE' },
+      ]),
+    ]
+    if (this._tab === 'theme') return [this._themeTiles()]
+    return [this._keys()]
   }
 
-  _section(title, color, children) {
-    return h('div', { className: 'qf-settings-section' }, [
-      h('div', {
-        className: 'pix qf-settings-section-title',
-        style: { color, borderBottom: `1px dashed ${color}55` },
-      }, title),
-      h('div', { className: 'qf-settings-section-body' }, children),
-    ])
-  }
-
-  _slider(label, key) {
+  // ─── control widgets ───────────────────────────────────────────────────
+  _fader(label, key) {
     const value = this._draft[key]
-    return h('div', { className: 'qf-settings-row qf-settings-slider' }, [
-      h('span', { className: 'pix qf-settings-label' }, label),
+    return h('div', { className: 'qf-op-fader' }, [
       h('div', {
-        className: 'qf-slider-track',
+        className: 'track',
         on: { click: (e) => {
           const r = e.currentTarget.getBoundingClientRect()
-          // Account for stage scaling: clientX is in viewport pixels, but
-          // the track's bounding rect is also in viewport pixels (post-
-          // CSS-transform), so the ratio works correctly without manual
-          // scale correction.
-          const pct = Math.max(0, Math.min(100, Math.round(((e.clientX - r.left) / r.width) * 100)))
+          const pct = Math.max(0, Math.min(100, Math.round((1 - (e.clientY - r.top) / r.height) * 100)))
           this._set(key, pct)
         } },
       }, [
-        h('div', { className: 'qf-slider-fill', style: { width: `${value}%` } }),
+        h('div', { className: 'fill', style: { height: value + '%' } }),
+        h('div', { className: 'knob', style: { bottom: `calc(${value}% - 9px)` } }),
       ]),
-      h('span', { className: 'pix qf-slider-value' }, String(value)),
+      h('div', { className: 'val' }, String(value)),
+      h('div', { className: 'lbl' }, label),
     ])
   }
 
-  _toggle(label, key) {
-    const value = this._draft[key]
-    return h('div', { className: 'qf-settings-row' }, [
-      h('span', { className: 'pix qf-settings-label' }, label),
+  _lever(label, key) {
+    const v = this._draft[key]
+    return h('div', { className: 'qf-op-row' }, [
+      h('span', { className: 'qf-op-lbl' }, label),
       h('button', {
-        className: 'qf-toggle',
-        dataset: { on: value ? 'true' : 'false' },
-        on: { click: () => this._set(key, !value) },
+        className: 'qf-op-lever', dataset: { on: v ? 'true' : 'false' },
+        on: { click: () => this._set(key, !v) },
       }, [
-        h('div', { className: 'qf-toggle-thumb' }),
+        h('span', { className: 'slot' }, [h('span', { className: 'handle' })]),
+        h('span', { className: 'st' }, v ? 'ON' : 'OFF'),
       ]),
     ])
   }
 
-  _radio(label, key, options) {
-    const value = this._draft[key]
-    return h('div', { className: 'qf-settings-row' }, [
-      h('span', { className: 'pix qf-settings-label' }, label),
-      h('div', { className: 'qf-radio' },
-        options.map(o => {
-          const active = value === o.v
-          const c = o.c || 'var(--gold)'
-          return h('button', {
-            className: 'qf-radio-opt',
-            dataset: { active: active ? 'true' : 'false' },
-            style: {
-              '--opt-color': c,
-              background: active ? c : 'var(--bg-0)',
-              borderColor: active ? c : 'var(--line-2)',
-              color: active ? '#1a0a04' : 'var(--text-mute)',
-              boxShadow: active ? `0 0 8px ${c}55` : 'none',
-            },
-            on: { click: () => this._set(key, o.v) },
-          }, o.l)
-        })
-      ),
+  _seg(label, key, options) {
+    const v = this._draft[key]
+    return h('div', { className: 'qf-op-row' }, [
+      h('span', { className: 'qf-op-lbl' }, label),
+      h('div', { className: 'qf-op-seg' },
+        options.map(o => h('button', {
+          className: 'opt' + (v === o.v ? ' on' : ''),
+          on: { click: () => this._set(key, o.v) },
+        }, o.l))),
     ])
+  }
+
+  _themeTiles() {
+    const v = this._draft.palette
+    return h('div', { className: 'qf-op-themes' },
+      THEMES.map(t => h('button', {
+        className: 'qf-op-theme' + (v === t.v ? ' on' : ''),
+        style: { '--tc': t.sw[0] },
+        on: { click: () => this._set('palette', t.v) },
+      }, [
+        h('div', { className: 'sw' }, t.sw.map(c => h('span', { style: { background: c } }))),
+        h('div', { className: 'nm' }, t.l),
+      ])))
+  }
+
+  _keys() {
+    return h('div', { className: 'qf-op-keys' },
+      KEYBINDS.map(b => h('div', { className: 'qf-op-key' }, [
+        h('span', { className: 'a' }, b.a),
+        h('span', { className: 'caps' }, b.keys.map(k => h('span', { className: 'qf-op-cap' }, k))),
+      ])))
   }
 }

@@ -8360,6 +8360,155 @@ body {
 }
 @keyframes qcm-cm-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
+/* ============================================================
+   Crypt overlay shell (Overlay.js `shell:'crypt'`) — the redesign modal
+   frame shared by the front-end overlays. Centered ◆ eyebrow + title,
+   faint brick + vignette atmosphere, corner rivets, top-right ✕, footer.
+   Tinted by --cov-acc (boss/theme accent). Token aliases let the ported
+   prototype rules (var(--acc)/--mute/etc.) resolve to the game palette.
+   ============================================================ */
+.overlay.qf-cov-layer { background: rgba(5,3,7,0.985); backdrop-filter: blur(5px) saturate(.75); -webkit-backdrop-filter: blur(5px) saturate(.75); }
+.qf-cov {
+  --acc: var(--cov-acc, var(--blood));
+  --accDk: color-mix(in srgb, var(--cov-acc, var(--blood)) 48%, #000);
+  --emb: var(--gold); --goldB: var(--gold-bright); --bone: var(--text);
+  --mute: var(--text-mute); --line2: var(--line-2);
+  position: relative; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
+  background: radial-gradient(120% 96% at 50% 0%, #1a1622 0%, #120c16 42%, #0a070e 100%);
+  border: 1px solid color-mix(in srgb, var(--acc) 30%, #2e2632);
+  box-shadow: 0 32px 90px rgba(0,0,0,.74), 0 0 0 1px #0a0710, inset 0 1px 0 rgba(255,255,255,.05),
+    0 0 70px color-mix(in srgb, var(--acc) 16%, transparent);
+  animation: qf-cov-in .42s cubic-bezier(.2,.8,.2,1) both;
+}
+.qf-cov * { box-sizing: border-box; }
+@keyframes qf-cov-in { from { transform: translateY(16px) scale(.985); opacity: .4; } to { transform: none; opacity: 1; } }
+.qf-cov::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 6; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb,var(--acc) 80%,transparent) 22%, color-mix(in srgb,var(--acc) 80%,transparent) 78%, transparent); }
+.qf-cov-atmo { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+/* The title screen's brick wall + torch glow are deliberately NOT carried into
+   overlays (they read as "main menu only"); the shell keeps just a subtle edge
+   vignette over its own dark panel gradient. */
+.qf-cov-vig { position: absolute; inset: 0; background: radial-gradient(120% 100% at 50% 44%, transparent 56%, rgba(0,0,0,.5) 100%); }
+.qf-cov-head { position: relative; z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 56px 16px; flex: 0 0 auto; }
+.qf-cov-eyebrow { display: flex; align-items: center; gap: 13px; font-size: 11px; letter-spacing: .32em; color: var(--acc); text-transform: uppercase; }
+.qf-cov-eyebrow .ln { width: 46px; height: 2px; background: linear-gradient(90deg, transparent, color-mix(in srgb,var(--acc) 75%,transparent)); }
+.qf-cov-eyebrow .ln.r { transform: scaleX(-1); }
+.qf-cov-title { font-family: var(--pix); font-size: 22px; color: var(--bone); letter-spacing: .02em; text-align: center;
+  text-shadow: 0 3px 0 #0a0710, 0 0 24px color-mix(in srgb,var(--acc) 45%,transparent); }
+.qf-cov-sub { font-size: 14px; color: var(--mute); text-align: center; max-width: 60ch; line-height: 1.45; }
+.qf-cov-body { position: relative; z-index: 5; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 28px 8px; }
+.qf-cov-body::-webkit-scrollbar { width: 9px; }
+.qf-cov-body::-webkit-scrollbar-track { background: #0a0710; }
+.qf-cov-body::-webkit-scrollbar-thumb { background: var(--line2); }
+.qf-cov-body::-webkit-scrollbar-thumb:hover { background: var(--line-bright); }
+.qf-cov-foot { position: relative; z-index: 5; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 14px 26px 18px; border-top: 1px solid var(--line); }
+
+/* shared pixel buttons used by crypt-shell footers */
+.qf-pbtn { font-family: var(--pix); font-size: 10px; letter-spacing: .04em; color: var(--bone); cursor: pointer; text-transform: uppercase;
+  padding: 11px 16px; background: linear-gradient(180deg,#1d1726,#12101a); border: 2px solid #342b3d;
+  box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 rgba(0,0,0,.5); transition: transform .1s, border-color .12s, box-shadow .12s; }
+.qf-pbtn:hover { transform: translateY(-2px); border-color: var(--acc, var(--blood)); box-shadow: inset 0 0 0 2px #0a0710, 0 6px 0 rgba(0,0,0,.5); }
+.qf-pbtn:active { transform: translateY(1px); box-shadow: inset 0 0 0 2px #0a0710, 0 2px 0 rgba(0,0,0,.5); }
+.qf-pbtn.ghost { background: #0b0810; border-color: var(--line-2); color: var(--text-mute); }
+.qf-pbtn.ghost:hover { color: var(--text); }
+.qf-pbtn.primary { color: #0a0710; border-color: color-mix(in srgb, var(--cov-acc, var(--blood)) 60%, #fff);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cov-acc, var(--blood)) 92%, #fff), var(--cov-acc, var(--blood)));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cov-acc, var(--blood)) 40%, #0a0710), 0 4px 0 color-mix(in srgb, var(--blood-deep) 80%, #000); }
+.qf-pbtn.primary:hover { border-color: #fff; }
+
+/* ============================================================
+   OPTIONS body (SettingsOverlay) — identity bar + category rail + panels.
+   Ported from options-overlay.jsx; uses the crypt-shell token aliases.
+   ============================================================ */
+.qf-op { font-family: var(--body); color: var(--text); display: flex; flex-direction: column; gap: 16px; padding-top: 2px; }
+/* identity bar */
+.qf-op-id { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; padding: 15px 16px;
+  border: 1px solid color-mix(in srgb, var(--acc) 35%, var(--line-2));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 12%, #15111c), #0e0b14); box-shadow: inset 0 0 0 1px #0a0710; }
+.qf-op-idf { display: flex; flex-direction: column; gap: 7px; position: relative; }
+.qf-op-idf .l { font-family: var(--sil); font-size: 9px; letter-spacing: .14em; color: var(--acc); text-transform: uppercase; }
+.qf-op-name { font-family: var(--pix); font-size: 14px; color: var(--text); background: #0a0710; border: 2px solid var(--line-2);
+  padding: 11px 13px; outline: none; transition: border-color .12s; }
+.qf-op-name:focus { border-color: var(--acc); }
+.qf-op-titlesel { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+  font-family: var(--pix); font-size: 12px; color: var(--gold); background: #0a0710; border: 2px solid var(--gold); padding: 11px 13px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 22%, transparent); }
+.qf-op-titlesel .cv { font-family: var(--sil); font-size: 9px; color: var(--text-mute); }
+.qf-op-titlesel.empty { color: var(--text-mute); border-color: var(--line-2); box-shadow: none; cursor: default; }
+.qf-op-tdrop { position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; z-index: 20; background: #0e0b14; border: 2px solid var(--gold);
+  box-shadow: 0 16px 36px rgba(0,0,0,.7); max-height: 200px; overflow: auto; }
+.qf-op-trow { display: block; width: 100%; text-align: left; padding: 10px 13px; cursor: pointer; background: transparent; border: none;
+  border-bottom: 1px solid var(--line); color: var(--gold-bright); font-family: var(--pix); font-size: 9px; }
+.qf-op-trow:last-child { border-bottom: none; }
+.qf-op-trow:hover { background: #1a1622; }
+.qf-op-trow.on { background: color-mix(in srgb, var(--gold) 16%, transparent); }
+/* body: nav rail + content */
+.qf-op-body2 { display: grid; grid-template-columns: 232px 1fr; gap: 16px; align-items: stretch; }
+.qf-op-nav { display: flex; flex-direction: column; gap: 7px; }
+.qf-op-catbtn { display: flex; align-items: center; gap: 12px; padding: 10px 13px; cursor: pointer; text-align: left; width: 100%;
+  background: #0b0810; border: 2px solid var(--line-2); box-shadow: inset 0 0 0 2px #0a0710; transition: background .12s, border-color .12s; }
+.qf-op-catbtn .g { font-size: 17px; color: var(--cc); width: 22px; text-align: center; flex: 0 0 auto; text-shadow: 0 0 8px color-mix(in srgb,var(--cc) 45%,transparent); }
+.qf-op-catbtn .tx { min-width: 0; }
+.qf-op-catbtn .cl { display: block; font-family: var(--pix); font-size: 10px; color: var(--text); }
+.qf-op-catbtn .cs { display: block; font-size: 12px; color: var(--text-mute); margin-top: 4px; }
+.qf-op-catbtn:hover { background: #15111c; }
+.qf-op-catbtn.on { border-color: var(--cc); box-shadow: inset 0 0 0 2px #0a0710, inset 3px 0 0 var(--cc), 0 0 14px color-mix(in srgb, var(--cc) 24%, transparent); }
+.qf-op-catbtn.on .cl { color: var(--cc); }
+.qf-op-extra { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 11px 13px; cursor: pointer; text-align: left; width: 100%;
+  font-family: var(--pix); font-size: 9px; color: var(--rumor); background: #0a0710; border: 2px dashed color-mix(in srgb,var(--rumor) 55%,var(--line-2)); transition: background .12s, border-color .12s; }
+.qf-op-extra .g { font-size: 15px; } .qf-op-extra .ar { margin-left: auto; }
+.qf-op-extra:hover { background: color-mix(in srgb, var(--rumor) 12%, #0a0710); border-color: var(--rumor); }
+.qf-op-extra .qf-op-mailchip { margin-left: auto; font-family: var(--sil); font-size: 8px; color: #0b0810; background: var(--rumor); padding: 2px 5px; }
+/* content panel */
+.qf-op-panel { border: 1px solid var(--line-2); background: linear-gradient(180deg,#15111c,#0e0b14); box-shadow: inset 0 0 0 1px #0a0710; padding: 16px 18px; min-height: 300px; display: flex; flex-direction: column; }
+.qf-op-phd { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.qf-op-phd .g { font-size: 16px; color: var(--cc); } .qf-op-phd .t { font-family: var(--pix); font-size: 11px; color: var(--bone); }
+.qf-op-phd .s { font-family: var(--sil); font-size: 9px; letter-spacing: .1em; color: var(--text-mute); margin-left: auto; text-transform: uppercase; }
+.qf-op-panel-in { flex: 1; display: flex; flex-direction: column; animation: qf-cov-in .3s ease both; }
+.qf-op-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; }
+.qf-op-row + .qf-op-row { border-top: 1px solid var(--line); }
+.qf-op-lbl { font-family: var(--pix); font-size: 9px; color: var(--text); }
+/* mixer / faders */
+.qf-op-mixer { display: flex; align-items: flex-end; justify-content: center; gap: 34px; padding: 8px 4px 4px; }
+.qf-op-fader { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.qf-op-fader .track { position: relative; width: 16px; height: 132px; background: #0a0710; border: 1px solid var(--line-2); cursor: pointer;
+  background-image: repeating-linear-gradient(0deg, transparent 0 14px, rgba(255,255,255,.04) 14px 15px); box-shadow: inset 0 0 8px rgba(0,0,0,.7); }
+.qf-op-fader .fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, var(--acc), var(--accDk)); box-shadow: 0 0 10px color-mix(in srgb,var(--acc) 50%,transparent); }
+.qf-op-fader .knob { position: absolute; left: 50%; transform: translateX(-50%); width: 32px; height: 18px; background: linear-gradient(180deg,#4a4150,#241d2c);
+  border: 1px solid #0a0710; box-shadow: 0 2px 4px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12); pointer-events: none; }
+.qf-op-fader .knob::after { content: ''; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; transform: translateY(-50%); background: var(--acc); box-shadow: 0 0 5px var(--acc); }
+.qf-op-fader .val { font-family: var(--pix); font-size: 11px; color: var(--acc); }
+.qf-op-fader .lbl { font-family: var(--sil); font-size: 9px; letter-spacing: .1em; color: var(--text-mute); }
+.qf-op-asub { margin-top: 12px; padding-top: 4px; border-top: 1px solid var(--line); }
+/* lever (toggle) */
+.qf-op-lever { display: flex; align-items: center; gap: 9px; cursor: pointer; background: none; border: none; padding: 0; }
+.qf-op-lever .slot { position: relative; width: 46px; height: 22px; background: #0a0710; border: 2px solid var(--line-2); box-shadow: inset 0 0 6px rgba(0,0,0,.7); transition: border-color .15s, background .15s; }
+.qf-op-lever .handle { position: absolute; top: 1px; left: 1px; width: 18px; height: 16px; background: linear-gradient(180deg,#5a5160,#2a2330); border: 1px solid #0a0710; box-shadow: 0 1px 2px rgba(0,0,0,.6); transition: transform .15s, background .15s; }
+.qf-op-lever[data-on="true"] .slot { border-color: var(--acc); background: color-mix(in srgb,var(--acc) 26%,#0a0710); }
+.qf-op-lever[data-on="true"] .handle { transform: translateX(22px); background: linear-gradient(180deg, var(--acc), var(--accDk)); }
+.qf-op-lever .st { font-family: var(--sil); font-size: 8px; letter-spacing: .12em; color: var(--text-mute); width: 24px; text-align: left; }
+.qf-op-lever[data-on="true"] .st { color: var(--acc); }
+/* segmented */
+.qf-op-seg { display: flex; gap: 5px; }
+.qf-op-seg .opt { font-family: var(--pix); font-size: 8px; padding: 9px 11px; cursor: pointer; color: var(--text-mute); background: #0a0710; border: 2px solid var(--line-2); transition: all .12s; }
+.qf-op-seg .opt.on { color: #0a0710; background: var(--acc); border-color: var(--acc); box-shadow: 0 0 8px color-mix(in srgb,var(--acc) 45%,transparent); }
+/* theme tiles */
+.qf-op-themes { display: flex; gap: 14px; padding-top: 6px; }
+.qf-op-theme { flex: 1; cursor: pointer; padding: 14px; background: #0a0710; border: 2px solid var(--line-2); text-align: center; transition: border-color .12s, box-shadow .12s, transform .1s; }
+.qf-op-theme:hover { transform: translateY(-2px); }
+.qf-op-theme.on { border-color: var(--tc); box-shadow: 0 0 16px color-mix(in srgb,var(--tc) 40%,transparent); }
+.qf-op-theme .sw { display: flex; height: 44px; margin-bottom: 11px; border: 1px solid #0a0710; }
+.qf-op-theme .sw span { flex: 1; }
+.qf-op-theme .nm { font-family: var(--pix); font-size: 9px; color: var(--text-mute); }
+.qf-op-theme.on .nm { color: var(--tc); }
+/* keycaps */
+.qf-op-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.qf-op-key { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: #0a0710; border: 1px solid var(--line); }
+.qf-op-key .a { font-size: 13px; color: var(--text); }
+.qf-op-key .caps { display: flex; gap: 4px; flex: 0 0 auto; }
+.qf-op-cap { font-family: var(--pix); font-size: 9px; color: var(--bone); background: linear-gradient(180deg,#231d2c,#161019); border: 1px solid var(--line-2); border-bottom: 3px solid #0a0710; padding: 5px 7px; min-width: 22px; text-align: center; }
+
 /* ---------- LeaderboardOverlay ---------- */
 .qf-lb-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 12px; }
 .qf-lb-tabstrip {
