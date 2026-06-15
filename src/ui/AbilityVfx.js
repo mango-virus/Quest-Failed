@@ -322,6 +322,30 @@ function _drawRockShard(g, s, color) {
   g.lineStyle(Math.max(0.5, s * 0.08), dark, 0.7); g.beginPath(); g.moveTo(0.12 * s, -s); g.lineTo(-0.05 * s, 0.2 * s); g.strokePath()                    // crack
 }
 
+// A chunky BEVELLED STONE BLOCK (centred at 0, cyOff) — lit top/left bevels, dark
+// bottom/right, an inset face with cracks + embedded specks. The hero silhouette
+// of the Golem's bulwark plates + pillars. `cyOff` shifts the block vertically
+// (e.g. -h/2 to root a pillar's base at local y=0 so it grows from the floor).
+function _drawStoneSlab(g, w, h, color, cyOff = 0) {
+  const dark = _lerpColor(color, 0x000000, 0.5), edge = _lerpColor(color, 0x000000, 0.3)
+  const lite = _lerpColor(color, 0xffffff, 0.3), pale = _lerpColor(color, 0xffffff, 0.12)
+  const hw = w / 2, hh = h / 2, b = Math.min(w, h) * 0.2, cy = cyOff
+  g.fillStyle(0x14110c, 0.4); g.fillRect(-hw + 2, -hh + cy + 2, w, h)                      // drop shadow
+  g.fillStyle(edge, 1); g.fillRect(-hw, -hh + cy, w, h)                                    // dark base block
+  g.fillStyle(lite, 0.95); g.beginPath(); g.moveTo(-hw, -hh + cy); g.lineTo(hw, -hh + cy); g.lineTo(hw - b, -hh + b + cy); g.lineTo(-hw + b, -hh + b + cy); g.closePath(); g.fillPath()  // top bevel
+  g.fillStyle(pale, 0.95); g.beginPath(); g.moveTo(-hw, -hh + cy); g.lineTo(-hw + b, -hh + b + cy); g.lineTo(-hw + b, hh - b + cy); g.lineTo(-hw, hh + cy); g.closePath(); g.fillPath()  // left bevel
+  g.fillStyle(color, 1); g.fillRect(-hw + b, -hh + b + cy, w - 2 * b, h - 2 * b)           // main face
+  g.fillStyle(dark, 0.92); g.beginPath(); g.moveTo(hw, -hh + cy); g.lineTo(hw, hh + cy); g.lineTo(hw - b, hh - b + cy); g.lineTo(hw - b, -hh + b + cy); g.closePath(); g.fillPath()      // right bevel
+  g.fillStyle(dark, 0.8); g.beginPath(); g.moveTo(-hw, hh + cy); g.lineTo(hw, hh + cy); g.lineTo(hw - b, hh - b + cy); g.lineTo(-hw + b, hh - b + cy); g.closePath(); g.fillPath()       // bottom bevel
+  // face cracks
+  g.lineStyle(1, dark, 0.6); g.beginPath(); g.moveTo(-hw * 0.34, -hh + b + cy); g.lineTo(-hw * 0.08, cy); g.lineTo(hw * 0.22, hh - b + cy); g.strokePath()
+  g.lineStyle(0.8, dark, 0.5); g.beginPath(); g.moveTo(hw * 0.42, -hh * 0.2 + cy); g.lineTo(hw - b, hh * 0.12 + cy); g.strokePath()
+  // embedded specks
+  g.fillStyle(lite, 0.5); g.fillRect(-hw * 0.42, hh * 0.32 + cy, 2, 2)
+  g.fillStyle(dark, 0.6); g.fillRect(hw * 0.12, -hh * 0.42 + cy, 2, 2)
+  g.lineStyle(1.2, 0x1c1610, 0.85); g.strokeRect(-hw, -hh + cy, w, h)                      // outline
+}
+
 // A spectral WAIL-FACE — a ghostly hollow visage (lobed teardrop head tapering to
 // a wispy chin, two dark hollow eye-sockets, an elongated wailing mouth). The hero
 // silhouette of the Ghost FEAR kit; drawn additive so it reads as cold light.
@@ -6603,11 +6627,8 @@ export const AbilityVfx = {
   // ── GOLEM · The Living Fortress — seismic VFX ────────────────────────────
   // A flung chunk of rubble (shaded irregular polygon) used across the set.
   _spawnRubble(scene, x, y, depth, size, vx, vy, life) {
-    const g = scene.add.graphics().setPosition(x, y).setDepth(depth); const s = size
-    const dark = 0x3a3026, mid = 0x6a5a44, lite = 0x9a8460
-    g.fillStyle(dark, 1); g.beginPath(); g.moveTo(-s, s * 0.4); g.lineTo(-s * 0.5, -s); g.lineTo(s * 0.7, -s * 0.6); g.lineTo(s, s * 0.5); g.lineTo(0, s); g.closePath(); g.fillPath()
-    g.fillStyle(mid, 1); g.beginPath(); g.moveTo(-s * 0.5, -s); g.lineTo(s * 0.7, -s * 0.6); g.lineTo(s * 0.2, 0); g.closePath(); g.fillPath()
-    g.fillStyle(lite, 0.8); g.fillRect(-s * 0.3, -s * 0.5, s * 0.3, s * 0.3)
+    const g = scene.add.graphics().setPosition(x, y).setDepth(depth)
+    _drawRockShard(g, size, [0x6a5a44, 0x554835, 0x7a6a4a][Math.floor(Math.random() * 3)])
     scene.tweens.add({ targets: g, x: x + vx, y: y + vy, rotation: (Math.random() - 0.5) * 6, duration: life, ease: 'Quad.easeOut' })
     scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.4, delay: life * 0.6, onComplete: () => g.destroy() })
     return g
@@ -6688,13 +6709,14 @@ export const AbilityVfx = {
     const base = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 0.5).setAlpha(0.6); made.push(base)
     base.fillStyle(0x8a7a60, 0.4); base.fillEllipse(0, 0, w * 2.2, w * 0.9)
     scene.tweens.add({ targets: base, scale: 1.4, alpha: 0, duration: o.durationMs * 0.6, onComplete: () => base.destroy() })
-    // the pillar (rocky trapezoid) heaves up from below the floor line
+    // the pillar — a detailed bevelled stone block rooted at the floor, with a
+    // jagged broken cap, heaving up from below.
     const p = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(p)
-    p.fillStyle(0x554835, 1); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.5, 0); p.closePath(); p.fillPath()
-    p.fillStyle(0x77654a, 1); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(-w * 0.1, -h); p.lineTo(-w * 0.16, 0); p.closePath(); p.fillPath()  // lit face
-    p.fillStyle(0x9a8460, 0.9); p.beginPath(); p.moveTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.2, -h * 0.78); p.lineTo(-w * 0.2, -h * 0.78); p.closePath(); p.fillPath()  // top cap
-    p.lineStyle(1.5, 0x2a221a, 0.8); p.beginPath(); p.moveTo(-w * 0.5, 0); p.lineTo(-w * 0.42, -h); p.lineTo(w * 0.42, -h); p.lineTo(w * 0.5, 0); p.strokePath()
-    p.setScale(1, 0).setY(y)
+    _drawStoneSlab(p, w, h, 0x6a5a44, -h / 2)   // base at local 0 → grows from floor
+    // broken/cracked top edge — a couple of jagged chips off the cap
+    p.fillStyle(_lerpColor(0x6a5a44, 0xffffff, 0.3), 0.9)
+    p.beginPath(); p.moveTo(-w * 0.5, -h); p.lineTo(-w * 0.2, -h - 5); p.lineTo(w * 0.1, -h); p.lineTo(w * 0.5, -h - 3); p.lineTo(w * 0.5, -h + 3); p.lineTo(-w * 0.5, -h + 3); p.closePath(); p.fillPath()
+    p.setScale(1, 0)
     scene.tweens.add({ targets: p, scaleY: 1, duration: 150, ease: 'Back.easeOut',
       onComplete: () => scene.tweens.add({ targets: p, scaleY: 0.9, alpha: 0, y: y + 4, duration: o.durationMs * 0.4, delay: o.durationMs * 0.3, ease: 'Quad.easeIn', onComplete: () => p.destroy() }) })
     // debris kicked out at the base
@@ -6703,31 +6725,47 @@ export const AbilityVfx = {
     return made
   },
 
-  // BULWARK — stone plates slam in from around the boss to form a shell.
-  bulwarkFx(scene, x, y, opts = {}) {
+  // BULWARK (boss) — detailed bevelled stone slabs slam in from all sides and
+  // interlock into a fortress shell around the Golem: each locks with a chip-spall,
+  // the boss flashes stone-grey (hardened), then the shell crumbles at window-end.
+  // Named golemBulwarkFx so it doesn't clobber the minion `bulwarkFx`.
+  golemBulwarkFx(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { tier: 1, depth: 9, durationMs: 2600, ...opts }
-    const tier = Math.max(1, Math.min(4, o.tier)), made = []
-    const n = 6, R = 30 + tier * 2
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const STONE = 0x6a5a44
+    const n = 7 + tier, R = 28 + tier * 3
+    const plates = []
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2
-      const plate = scene.add.graphics().setPosition(x + Math.cos(a) * R * 2.2, y + Math.sin(a) * R * 1.3).setDepth(o.depth).setRotation(a + Math.PI / 2); made.push(plate)
-      const pw = 16 + tier * 2, ph = 22 + tier * 2
-      plate.fillStyle(0x554835, 1); plate.fillRect(-pw / 2, -ph / 2, pw, ph)
-      plate.fillStyle(0x77654a, 1); plate.fillRect(-pw / 2, -ph / 2, pw * 0.45, ph)
-      plate.lineStyle(1.5, 0x2a221a, 0.9); plate.strokeRect(-pw / 2, -ph / 2, pw, ph)
-      plate.setAlpha(0)
-      // slam inward to the shell radius
-      scene.tweens.add({ targets: plate, x: x + Math.cos(a) * R, y: y + Math.sin(a) * R * 0.7, alpha: 0.95, duration: 160, ease: 'Quad.easeIn',
-        onComplete: () => scene.tweens.add({ targets: plate, alpha: 0, scale: 0.9, duration: 300, delay: o.durationMs - 460, onComplete: () => plate.destroy() }) })
+      // depth-sort: plates at the top of the ring sit BEHIND the boss, bottom in front.
+      const plate = scene.add.graphics().setDepth(o.depth + (Math.sin(a) > 0 ? 0.5 : -0.5)).setRotation(a + Math.PI / 2)
+      _drawStoneSlab(plate, 13 + tier * 1.5, 24 + tier * 2.5, STONE)
+      const sx = x + Math.cos(a) * R * 2.4, sy = y + Math.sin(a) * R * 1.5
+      plate.setPosition(sx, sy).setAlpha(0).setScale(0.7)
+      made.push(plate); plates.push({ plate, a })
+      scene.tweens.add({ targets: plate, x: x + Math.cos(a) * R, y: y + Math.sin(a) * R * 0.62, alpha: 0.98, scale: 1, duration: 150 + i * 8, ease: 'Quad.easeIn',
+        onComplete: () => {
+          scene.tweens.add({ targets: plate, scaleX: 1.08, duration: 70, yoyo: true })   // lock-in overshoot
+          for (let k = 0; k < 2; k++) {   // chips spall at the seam
+            const g2 = scene.add.graphics().setPosition(plate.x, plate.y).setDepth(o.depth + 1); _drawRockShard(g2, 2 + Math.random() * 1.5, STONE); made.push(g2)
+            const ca = a + (Math.random() - 0.5)
+            scene.tweens.add({ targets: g2, x: plate.x + Math.cos(ca) * 14, y: plate.y + Math.sin(ca) * 14 + 8, angle: (Math.random() - 0.5) * 200, alpha: 0, duration: 340, ease: 'Quad.easeIn', onComplete: () => g2.destroy() })
+          }
+        } })
     }
-    // dust puff + a stone flash as they lock
-    scene.time.delayedCall(160, () => {
-      const puff = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.3).setAlpha(0.6); made.push(puff)
-      puff.fillStyle(0x8a7a60, 0.4); puff.fillCircle(0, 0, R * 1.1); puff.setScale(0.4)
-      scene.tweens.add({ targets: puff, scale: 1.3, alpha: 0, duration: 400, onComplete: () => puff.destroy() })
+    // hardening flash on the boss + a dust ring as the shell locks
+    scene.time.delayedCall(190, () => {
+      const flash = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.6).setBlendMode(Phaser.BlendModes.ADD); made.push(flash)
+      flash.fillStyle(0xb8b0a0, 0.45); flash.fillCircle(0, 0, R * 0.9); flash.setScale(0.5)
+      scene.tweens.add({ targets: flash, scale: 1.3, alpha: 0, duration: 320, onComplete: () => flash.destroy() })
+      if (mult > 0) { const em = scene.add.particles(x, y + R * 0.5, _softDotTexture(scene), { lifespan: { min: 400, max: 800 }, speedX: { min: -60, max: 60 }, speedY: { min: -10, max: 24 }, x: { min: -R, max: R }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x9a8460, 0x6a5a44], emitting: false }); em.setDepth(o.depth - 0.5); em.explode(Math.round((10 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} }) }
     })
-    scene.cameras?.main?.shake?.(180, 0.003)
+    // crumble: the shell falls apart as the DR window ends
+    scene.time.delayedCall(Math.max(420, o.durationMs - 380), () => {
+      for (const { plate, a } of plates) { if (!plate.active) continue; scene.tweens.add({ targets: plate, y: plate.y + 26, x: plate.x + Math.cos(a) * 6, angle: (Math.random() - 0.5) * 60, alpha: 0, duration: 360, ease: 'Quad.easeIn', onComplete: () => plate.destroy() }) }
+    })
+    scene.cameras?.main?.shake?.(200, 0.004)
     return made
   },
 
@@ -6750,8 +6788,7 @@ export const AbilityVfx = {
         if (!_validXY(tx, ty)) return
         const rock = scene.add.graphics().setPosition(tx, ty - 120).setDepth(o.depth); made.push(rock)
         const s = 3 + Math.random() * 4
-        rock.fillStyle(0x3a3026, 1); rock.beginPath(); rock.moveTo(-s, s * 0.4); rock.lineTo(-s * 0.4, -s); rock.lineTo(s * 0.7, -s * 0.6); rock.lineTo(s, s * 0.5); rock.closePath(); rock.fillPath()
-        rock.fillStyle(0x6a5a44, 1); rock.fillRect(-s * 0.3, -s * 0.4, s * 0.4, s * 0.5)
+        _drawRockShard(rock, s, [0x6a5a44, 0x554835, 0x7a6a4a][Math.floor(Math.random() * 3)])
         scene.tweens.add({ targets: rock, y: ty, rotation: (Math.random() - 0.5) * 4, duration: 240, ease: 'Quad.easeIn',
           onComplete: () => {
             const d = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.2).setAlpha(0.6); made.push(d)

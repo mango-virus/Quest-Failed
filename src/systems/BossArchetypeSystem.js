@@ -1856,7 +1856,7 @@ export class BossArchetypeSystem {
     if (tier >= 3) {
       // Bulwark — encase in stone (a damage-reduction window) + a slam.
       boss._bulwarkUntil = now + (Balance.GOLEM_FIGHT_BULWARK_MS ?? 2600)
-      AbilityVfx?.bulwarkFx?.(this._scene, boss.worldX, boss.worldY, { tier })
+      AbilityVfx?.golemBulwarkFx?.(this._scene, boss.worldX, boss.worldY, { tier })
       for (const a of fighters) hurt(a, Balance.GOLEM_FIGHT_SLAM_FRAC ?? 0.5, 'The Living Fortress')
     } else if (tier >= 2) {
       // Raise Pillars — stone pillars erupt under the fighters (telegraphed dmg + knockback feel).

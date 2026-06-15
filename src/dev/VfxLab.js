@@ -67,7 +67,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
   { label: 'Boss·Myconid (The Bloom)', fx: ['bloomFx', 'sporeBurstFx', 'sporeVentFx', 'creepingRotFx', 'bloomFinaleFx'] },
   { label: 'Boss·Demon (Brimstone)', fx: ['infernalPactFx', 'brimstoneMeteorFx', 'pactFinaleFx', 'combustFx', 'infernoFx'] },
-  { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'bulwarkFx', 'collapseFx'] },
+  { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'golemBulwarkFx', 'collapseFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -414,7 +414,7 @@ export class VfxLab {
           { label: 'Seismic Slam (room)', fire: () => AbilityVfx.seismicSlamFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
           { label: 'Fissure', fire: () => AbilityVfx.fissureFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200 }) },
           { label: 'Raise Pillar', fire: () => AbilityVfx.risePillarFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
-          { label: 'Bulwark', fire: () => AbilityVfx.bulwarkFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier() }) },
+          { label: 'Bulwark', fire: () => AbilityVfx.golemBulwarkFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier() }) },
           { label: 'Collapse (T4)', fire: () => AbilityVfx.collapseFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }) },
         ]
       }
@@ -695,7 +695,7 @@ export class VfxLab {
         case 'seismicSlamFx':  AbilityVfx.seismicSlamFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
         case 'fissureFx':      AbilityVfx.fissureFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200 }); break
         case 'risePillarFx':   AbilityVfx.risePillarFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
-        case 'bulwarkFx':      AbilityVfx.bulwarkFx(s, e.worldX, e.worldY, { tier: this._orcTier() }); break
+        case 'golemBulwarkFx': AbilityVfx.golemBulwarkFx(s, e.worldX, e.worldY, { tier: this._orcTier() }); break
         case 'collapseFx':     AbilityVfx.collapseFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
