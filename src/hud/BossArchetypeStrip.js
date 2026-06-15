@@ -101,6 +101,11 @@ export class BossArchetypeStrip {
         ref: el => { this._wraithBtn = el },
         on: { click: () => this._onWraithClick() },
       }, 'NIGHT TERROR'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-hunt',
+        ref: el => { this._gnollBtn = el },
+        on: { click: () => this._onGnollClick() },
+      }, 'SOUND THE HUNT'),
     ])
   }
 
@@ -150,6 +155,10 @@ export class BossArchetypeStrip {
     sub('WRAITH_TERROR_ARMED',    () => { this._wraithArmed = true;  this._refresh() })
     sub('WRAITH_TERROR_DISARMED', () => { this._wraithArmed = false; this._refresh() })
     sub('WRAITH_TERROR_FIRED',    () => { this._wraithArmed = false; this._refresh() })
+    // Gnoll Sound the Hunt.
+    sub('GNOLL_HUNT_ARMED',    () => { this._gnollArmed = true;  this._refresh() })
+    sub('GNOLL_HUNT_DISARMED', () => { this._gnollArmed = false; this._refresh() })
+    sub('GNOLL_HUNT_FIRED',    () => { this._gnollArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -206,6 +215,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._wraithArmed ? 'WRAITH_TERROR_DISARM' : 'WRAITH_TERROR_ARM')
   }
 
+  _onGnollClick() {
+    if (this._gnollBtn?.disabled) return
+    EventBus.emit(this._gnollArmed ? 'GNOLL_HUNT_DISARM' : 'GNOLL_HUNT_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -221,6 +235,7 @@ export class BossArchetypeStrip {
     const isLizardman = archId === 'lizardman'
     const isVampire = archId === 'vampire'
     const isWraith = archId === 'wraith'
+    const isGnoll = archId === 'gnoll'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
@@ -231,8 +246,9 @@ export class BossArchetypeStrip {
     const lizardActive = isLizardman && isDay
     const vampActive = isVampire && isDay
     const wraithActive = isWraith && isDay
+    const gnollActive = isGnoll && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive || wraithActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive || wraithActive || gnollActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -309,6 +325,13 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._wraithTerror?.usesLeft ?? 0
       this._wraithBtn.textContent = this._wraithArmed ? 'PICK A ROOM' : `NIGHT TERROR · ${uses}`
       this._wraithBtn.disabled = !(uses > 0)
+    }
+    if (this._gnollBtn) {
+      this._gnollBtn.style.display = gnollActive ? '' : 'none'
+      this._gnollBtn.classList.toggle('armed', !!this._gnollArmed)
+      const uses = this._gs?.boss?._gnollHunt?.usesLeft ?? 0
+      this._gnollBtn.textContent = this._gnollArmed ? 'PICK A ROOM' : `SOUND THE HUNT · ${uses}`
+      this._gnollBtn.disabled = !(uses > 0)
     }
   }
 

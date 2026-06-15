@@ -1090,6 +1090,55 @@ contagion + Pall scale with crowd; DREAD snowballs. No single-target fixed-magni
 
 ---
 
+## Boss overhaul #11 — Gnoll Alpha → THE BLOOD HUNT (locked 2026-06-15)
+
+**Fantasy:** an apex pack-leader who turns the dungeon into a hunting ground. The pack's carnage banks FEROCITY,
+which whips them into a frenzy and fuels coordinated hunts the Alpha leads in person. Builds on the canon
+Bloodlust + Hunters Pack. Burst/swarm + pursuit boss — deliberately NO bleed-DoT (stays distinct from the
+Lizardman plague; reads as savage physical carnage). No heal-block.
+
+**FEROCITY — banked resource (`boss.ferocity`, persists, caps by act):** banks from every kill + a cut of all
+damage the pack/Alpha deal to heroes. Drives a pack-wide FRENZY — all Hunters Pack gnolls gain attack AND move
+speed by Ferocity saturation (captured baselines), visibly FRENZIED above a threshold; also fuels the day-active
++ throne finale. No falloff. Canon **Bloodlust** (per-kill daily ATK ramp) stays as the T1 baseline underneath.
+
+**Dungeon kit by act:** T1 **Bloodlust + Pack** (existing) → T2 **Frenzy** (high Ferocity = pack atk+speed surge)
+→ T3 **Pack Tactics** (gnolls focus-fire: extra dmg to a hero already engaged by another gnoll) → T4 **The Great
+Hunt** (whole party is quarry; pack roams aggressively dungeon-wide; Ferocity gain amplified).
+
+**Day active — SOUND THE HUNT** (`GNOLL_HUNT_*` events; strip button + Phaser room-pick; uses/day scale w/ level,
+refill nightly): the Alpha howls, the Hunters Pack re-homes to the target room and swarms it + a crowd-wide
+%maxHP rend. T1 converge+rend → T2 harder + sustained swarm → T3 + the Alpha LEAPS in for a heavy rend on the
+most-wounded → T4 + survivors stay marked and the pack pursues room-to-room. Banks Ferocity from the carnage.
+
+**Throne fight — the Alpha leads (`_tickHuntFight`):** T1 **Rend** (top-aggro hero %maxHP) → T2 **Pack Tactics**
+(manifested pack multi-strikes a focused hero) → T3 **Frenzy** (rends hit all engaged + bonus vs wounded) → T4
+**Blood Hunt finale** (<30% HP: a leaping rend flurry across ALL fighters, %maxHP, scales with Ferocity).
+
+**Tells:** savage blood-red FEROCITY glow-outline aura on the Alpha (fiercer pure red — distinct from vampire
+pink-crimson + demon orange); frenzied gnolls get a rage tint/pulse; FEROCITY gauge + FRENZIED state + pack count
+in the boss panel.
+
+**VFX (new, won't clobber gnoll minion `bleedSlashFx`/`bleedingAuraFx`/`bloodTrailFx`/`ruptureFx`/`bloodFrenzyFx`):**
+`soundHuntFx` (howl ring + converging claw-streaks + blood spray), `packRendFx` (overlapping claw-slashes + blood
+burst on a hero), `alphaLeapFx` (pounce arc → slam + dust + claws), `frenzyHowlFx` (howl + rage-pulse on the pack),
+`bloodHuntFinaleFx` (room-wide claw-rake flurry + blood + shake). Small `_drawClaw` helper; reuse `_drawBloodDroplet`/
+`_drawBloodClot`. NO `Balance` ref inside AbilityVfx.
+
+**Always-useful:** frenzy (atk+speed) + Hunt rend + finale are all crowd-wide / %maxHP; Ferocity snowballs; pack
+scales with the crowd. No single-target fixed-magnitude, no heal-block.
+
+**Acceptance checklist (Blood Hunt):**
+- ☑ FEROCITY (`boss.ferocity`) banks from kills + dmg; persists; caps/act; drives pack frenzy (atk+speed, captured baselines); gauge + readout.
+- ☑ Dungeon kit: T1 Bloodlust+Pack (kept); T2 Frenzy; T3 Pack Tactics (focus-fire); T4 Great Hunt (dungeon-wide + amplified gain).
+- ☑ Day SOUND THE HUNT: arm→room, pack re-homes + %maxHP rend; T2 sustained, T3 Alpha leap, T4 pursuit; DOM button + Phaser room-pick + events; uses reset on night.
+- ☑ Throne fight tier-gated: Rend / Pack Tactics / Frenzy / Blood Hunt finale (Ferocity-scaled).
+- ☑ Tells: blood-red glow-outline aura (BossRenderer) reading Ferocity; frenzied pack tint (MinionRenderer rage-glow); FEROCITY + frenzied + pack panel readout.
+- ☑ Bespoke animated VFX (soundHunt/packRend/alphaLeap/frenzyHowl/bloodHuntFinale) — built on REAL lunging gnoll sprites (`_makeGnollSprite`) + detailed tapered claw-gashes (`_drawClaw`); lab-wired; lint-vfx clean (incl. dup-key guard); live-verified (detail-polish pass per user).
+- ☑ SaveSystem (ferocity + hunt uses plain-persist; pack baselines self-heal via `_tickGnoll`); node --check; gnoll-bloodhunt-check.mjs green; soak clean (120/0); bossArchetypes.json text; live preview verified.
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

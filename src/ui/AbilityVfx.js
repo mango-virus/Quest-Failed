@@ -185,6 +185,34 @@ function _drawBloodDroplet(g, s) {
   g.fillStyle(0xe2606a, 0.85); g.fillCircle(-s * 0.28, -s * 0.32, s * 0.38) // wet shine
 }
 
+// A CLAW RAKE — three lens-tapered GASHES along +x from the local origin (length
+// `len`): a dark torn wound, a crimson body, and a white-hot leading edge, slightly
+// fanned + curved so it reads as a raked slash, not three flat lines. Caller sets
+// position/rotation. `color` is the hot edge tint. Used by the Gnoll Blood Hunt.
+function _drawClaw(g, len, color = 0xffd0c0, scale = 1) {
+  const half = len * 0.5
+  const wound = 0x3a0604, body = 0xb31d18, hot = _lerpColor(color, 0xffffff, 0.4)
+  const gash = (off, thick) => {
+    const seg = 8, top = [], bot = []
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg
+      const cx = -half + len * t
+      const cy = off + (t - 0.5) * len * 0.12 + Math.sin(t * Math.PI) * off * 0.25  // slight diagonal bow
+      const w = thick * (0.5 + 3.4 * Math.sin(t * Math.PI))                          // thick mid, taper to points
+      top.push({ x: cx, y: cy - w }); bot.push({ x: cx, y: cy + w })
+    }
+    return top.concat(bot.reverse())
+  }
+  const claws = [[-len * 0.2, 1.0 * scale], [0, 1.25 * scale], [len * 0.2, 1.0 * scale]]
+  for (const [off, th] of claws) { g.fillStyle(wound, 0.9); g.fillPoints(gash(off, th * 1.5), true) }   // torn wound (widest)
+  for (const [off, th] of claws) { g.fillStyle(body, 0.95); g.fillPoints(gash(off, th), true) }          // crimson body
+  for (const [off, th] of claws) {                                                                        // hot leading edge
+    g.lineStyle(1.2 * scale, hot, 0.9); g.beginPath()
+    for (let i = 0; i <= 8; i++) { const t = i / 8, cx = -half + len * t, cy = off + (t - 0.5) * len * 0.12 + Math.sin(t * Math.PI) * off * 0.25 - th * (0.5 + 3.4 * Math.sin(t * Math.PI)); if (i === 0) g.moveTo(cx, cy); else g.lineTo(cx, cy) }
+    g.strokePath()
+  }
+}
+
 // A small valentine HEART (centred, points down) — two lobes + a triangular base
 // + a glossy highlight. Used by the Sovereign's charm-bind VFX. `s` ≈ half-width.
 function _drawHeart(g, s, color = 0xff3a6a) {
@@ -669,6 +697,22 @@ function _makeSoulSprite(scene, x, y, opts = {}) {
   const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(o.scale * 1.8).setAlpha(o.alpha)
   _drawSoul(g, 9, o.color); _glow(g, o.color, 3, 10)
   return g
+}
+
+// Spawn the real ANIMATED gnoll minion sprite (running or attacking) facing a
+// travel vector — the Blood Hunt's pack unit. Headless-safe (null if no sheet).
+function _makeGnollSprite(scene, x, y, opts = {}) {
+  if (!scene || typeof scene.add?.sprite !== 'function') return null
+  const o = { tint: 0xffb4a0, scale: 0.5, depth: 60, dir: 'right', alpha: 1, anim: 'run', flipX: false, ...opts }
+  const tex = 'minion-gnoll1-' + (o.anim === 'attack' ? 'attack' : 'run')
+  if (!scene.textures || !scene.textures.exists(tex)) return null
+  const sp = scene.add.sprite(x, y, tex).setDepth(o.depth).setScale(o.scale).setAlpha(o.alpha)
+  if (o.tint != null) sp.setTint(o.tint)
+  if (o.flipX) sp.setFlipX(true)
+  const anim = `minion-gnoll1-${o.anim === 'attack' ? 'attack' : 'run'}-${o.dir}`
+  try { if (scene.anims.exists(anim)) sp.play(anim) } catch (e) {}
+  try { sp.postFX.addGlow(0xe83a22, 1.6, 0, false, 0.08, 6) } catch (e) {}
+  return sp
 }
 
 // Pick the ghost idle facing for a travel vector (so a soul faces where it goes).
@@ -7475,6 +7519,202 @@ export const AbilityVfx = {
         scene.tweens.add({ targets: c, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d + 12, alpha: 0, duration: 520 + Math.random() * 180, ease: 'Quad.easeIn', onComplete: () => c.destroy() })
       }
     }
+    return made
+  },
+
+  // ── GNOLL · THE BLOOD HUNT — savage pack VFX ───────────────────────────────
+  // Palette: BLOOD 0x9e0b18 · RAGE 0xe83a22 · CLAW 0xffd0c0 · DUST 0x6a4a30.
+  // The hero unit is the REAL animated gnoll sprite (_makeGnollSprite) lunging in —
+  // not abstract streaks — leaving a dust trail and a detailed claw gash on the hit.
+
+  // One gnoll lunges from→to (run anim → attack on arrival), with a dust trail + a
+  // gash flash where it strikes, then fades. Pushes its objects into `made`.
+  _huntGnollLunge(scene, made, fromX, fromY, toX, toY, opts = {}) {
+    const o = { scale: 0.48, depth: 61, dur: 280, delay: 0, big: false, ...opts }
+    const dir = _soulDir(toX - fromX, toY - fromY)
+    const gh = _makeGnollSprite(scene, fromX, fromY, { scale: o.scale, depth: o.depth, dir, anim: 'run', alpha: 0, flipX: toX < fromX })
+    if (!gh) return null
+    made.push(gh)
+    let tr = null
+    if (_particlesMult() > 0) { try { tr = scene.add.particles(0, 0, _softDotTexture(scene), { follow: gh, lifespan: 260, frequency: 26, quantity: 1, tint: [0x6a4a30, 0x9a7a50], scale: { start: 0.42, end: 0 }, alpha: { start: 0.5, end: 0 } }); tr.setDepth(o.depth - 0.1) } catch (e) {} }
+    scene.tweens.add({ targets: gh, alpha: 1, duration: 90, delay: o.delay })
+    scene.tweens.add({ targets: gh, x: toX, y: toY, duration: o.dur, delay: o.delay, ease: 'Quad.easeIn', onComplete: () => {
+      try { const an = `minion-gnoll1-attack-${dir}`; if (scene.anims.exists(an)) gh.play(an) } catch (e) {}
+      const cl = scene.add.graphics().setPosition(toX, toY).setDepth(o.depth + 1).setRotation(Math.atan2(toY - fromY, toX - fromX)).setBlendMode(Phaser.BlendModes.ADD); made.push(cl)
+      _drawClaw(cl, o.big ? 36 : 26, 0xffd0c0, o.big ? 1.4 : 1); _glow(cl, 0xe83a22, 2, 7)
+      scene.tweens.add({ targets: cl, alpha: 0, scaleX: 1.5, duration: 220, onComplete: () => cl.destroy() })
+      if (tr) { try { tr.stop() } catch (e) {} scene.time.delayedCall(320, () => { try { tr.destroy() } catch (e) {} }) }
+      scene.tweens.add({ targets: gh, alpha: 0, scaleX: o.scale * 0.9, duration: 220, delay: 140, onComplete: () => { try { gh.destroy() } catch (e) {} } })
+    } })
+    return gh
+  },
+
+  // PACK REND: gnolls lunge across a hero and rake it — real sprites diving in +
+  // detailed claw gashes + a blood spurt. `big:true` = the whole pack piles on.
+  packRendFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 60, big: false, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const BLOOD = 0x9e0b18, RAGE = 0xe83a22, CLAW = 0xffd0c0
+    // 1–3 gnolls lunge through the hero from random sides
+    const lungers = (o.big ? 3 : 1) + Math.floor(tier / 3)
+    for (let i = 0; i < lungers; i++) {
+      const a = Math.random() * Math.PI * 2, R = 46 + Math.random() * 18
+      const fromX = x + Math.cos(a) * R, fromY = y + Math.sin(a) * R - 6
+      this._huntGnollLunge(scene, made, fromX, fromY, x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 6, { scale: 0.42, depth: o.depth + 1, dur: 200, delay: i * 90, big: o.big })
+    }
+    // a couple of extra standalone gashes for the rake density
+    for (let i = 0; i < 1 + Math.floor(tier / 2); i++) {
+      const ang = Math.random() * Math.PI - Math.PI / 2
+      const cl = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 10, y + (Math.random() - 0.5) * 8).setDepth(o.depth + 2).setRotation(ang).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(cl)
+      _drawClaw(cl, 24 + Math.random() * 10, CLAW); _glow(cl, RAGE, 2, 6)
+      scene.tweens.add({ targets: cl, alpha: 1, scaleX: 1.4, duration: 70, delay: 200 + i * 60, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, duration: 170, onComplete: () => cl.destroy() }) })
+    }
+    // blood spurt + impact flash (delayed to the first strike)
+    scene.time.delayedCall(180, () => {
+      for (let i = 0; i < 7 + tier; i++) {
+        const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 20
+        const dp = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 2); made.push(dp)
+        _drawBloodDroplet(dp, 1.6 + Math.random() * 1.8)
+        scene.tweens.add({ targets: dp, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d + 8, alpha: 0, scale: 0.4, duration: 340 + Math.random() * 160, ease: 'Quad.easeIn', onComplete: () => dp.destroy() })
+      }
+      const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 3).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+      fl.fillStyle(RAGE, 0.8); fl.fillCircle(0, 0, 5); _glow(fl, BLOOD, 4, 9)
+      scene.tweens.add({ targets: fl, scale: 2.2, alpha: 0, duration: 260, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+      if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 260, max: 600 }, speed: { min: 40, max: 150 }, scale: { start: 0.42, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [BLOOD, RAGE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 2); em.explode(Math.round((8 + tier * 2) * mult)); scene.time.delayedCall(600, () => { try { em.destroy() } catch (e) {} }) }
+    })
+    return made
+  },
+
+  // SOUND THE HUNT: the Alpha howls and the pack DESCENDS — a howl ring + real
+  // gnolls sprinting in from every edge to savage the room centre + blood + dust.
+  soundHuntFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 60, rectW: 200, rectH: 150, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const BLOOD = 0x9e0b18, RAGE = 0xe83a22, CLAW = 0xffd0c0
+    // double howl ring from the Alpha
+    const hx = Number.isFinite(o.fromX) ? o.fromX : x, hy = Number.isFinite(o.fromY) ? o.fromY : y
+    for (let r = 0; r < 3; r++) {
+      const ring = scene.add.graphics().setPosition(hx, hy - 6).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+      ring.lineStyle(3 - r * 0.7, r % 2 ? CLAW : RAGE, 0.8); ring.strokeCircle(0, 0, 12); _glow(ring, RAGE, 2, 7)  // circle-ok: the Alpha's howl rings
+      scene.tweens.add({ targets: ring, scale: 3.2 + r * 0.8, alpha: 0, duration: 460 + r * 120, delay: r * 110, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+    }
+    // the pack sprints in from the room edges and converges on the centre
+    const pack = 5 + tier
+    for (let i = 0; i < pack; i++) {
+      const a = (i / pack) * Math.PI * 2 + Math.random() * 0.4
+      const sx = x + Math.cos(a) * o.rectW * 0.58, sy = y + Math.sin(a) * o.rectH * 0.52
+      const tx = x + (Math.random() - 0.5) * o.rectW * 0.3, ty = y + (Math.random() - 0.5) * o.rectH * 0.25
+      this._huntGnollLunge(scene, made, sx, sy, tx, ty, { scale: 0.4 + Math.random() * 0.08, depth: o.depth + 1, dur: 320 + Math.random() * 120, delay: i * 50 })
+    }
+    // blood + dust kicked up as they hit
+    scene.time.delayedCall(360, () => {
+      for (let i = 0; i < 8 + tier * 2; i++) {
+        const a = Math.random() * Math.PI * 2, d = 12 + Math.random() * 30
+        const dp = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 24).setDepth(o.depth + 2); made.push(dp)
+        _drawBloodClot(dp, 1.8 + Math.random() * 2, BLOOD)
+        scene.tweens.add({ targets: dp, x: dp.x + Math.cos(a) * d, y: dp.y + Math.sin(a) * d * 0.8 + 8, alpha: 0, scale: 0.4, rotation: (Math.random() - 0.5) * 4, duration: 360 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => dp.destroy() })
+      }
+      if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speed: { min: 30, max: 130 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.3, max: o.rectW * 0.3 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [BLOOD, RAGE, 0x6a4a30], emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round((12 + tier * 3) * mult)); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+      scene.cameras?.main?.shake?.(120, 0.003)
+    })
+    return made
+  },
+
+  // ALPHA LEAP: the Alpha itself POUNCES in — the real gnoll sprite arcs down onto
+  // the target (attack anim) → slam (dust ring + big gash + blood burst + shake).
+  alphaLeapFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 3, depth: 62, ...opts }
+    const made = [], BLOOD = 0x9e0b18, RAGE = 0xe83a22, CLAW = 0xffd0c0, mult = _particlesMult()
+    const fromX = x - 64, fromY = y - 78
+    const alpha = _makeGnollSprite(scene, fromX, fromY, { scale: 0.78, depth: o.depth, dir: 'right', anim: 'run', alpha: 0, tint: 0xffa088 })
+    let trail = null
+    if (alpha) {
+      made.push(alpha)
+      if (mult > 0) { try { trail = scene.add.particles(0, 0, _softDotTexture(scene), { follow: alpha, lifespan: 240, frequency: 20, quantity: 1, tint: [RAGE, 0x6a4a30], scale: { start: 0.5, end: 0 }, alpha: { start: 0.6, end: 0 } }); trail.setDepth(o.depth - 0.1) } catch (e) {} }
+      scene.tweens.add({ targets: alpha, alpha: 1, duration: 80 })
+    }
+    let done = false
+    scene.tweens.addCounter({ from: 0, to: 1, duration: 240, ease: 'Quad.easeIn', onUpdate: (tw) => {
+      const f = tw.getValue()
+      const px = fromX + (x - fromX) * f, py = fromY + (y - fromY) * f - Math.sin(f * Math.PI) * 34   // parabolic pounce
+      if (alpha) { alpha.x = px; alpha.y = py; alpha.setScale(0.78 + f * 0.18) }
+    }, onComplete: () => {
+      if (done) return; done = true
+      if (trail) { try { trail.stop() } catch (e) {} scene.time.delayedCall(280, () => { try { trail.destroy() } catch (e) {} }) }
+      if (alpha) { try { const an = `minion-gnoll1-attack-down`; if (scene.anims.exists(an)) alpha.play(an) } catch (e) {} scene.tweens.add({ targets: alpha, alpha: 0, duration: 260, delay: 200, onComplete: () => { try { alpha.destroy() } catch (e) {} } }) }
+      // slam — dust ring + big gash + blood
+      const ring = scene.add.graphics().setPosition(x, y + 5).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+      ring.lineStyle(3, CLAW, 0.85); ring.strokeEllipse(0, 0, 18, 9); _glow(ring, RAGE, 3, 9)  // circle-ok: pounce slam dust ring
+      scene.tweens.add({ targets: ring, scaleX: 3.2, scaleY: 3.2, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+      const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setRotation(Math.random() * 0.8 - 0.4).setBlendMode(Phaser.BlendModes.ADD); made.push(cl)
+      _drawClaw(cl, 40, CLAW, 1.5); _glow(cl, RAGE, 3, 8)
+      scene.tweens.add({ targets: cl, alpha: 0, scaleX: 1.5, duration: 260, onComplete: () => cl.destroy() })
+      for (let i = 0; i < 12; i++) { const a = Math.random() * Math.PI * 2, d = 12 + Math.random() * 26; const dp = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(dp); _drawBloodClot(dp, 1.8 + Math.random() * 2.2, BLOOD); scene.tweens.add({ targets: dp, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8 + 8, alpha: 0, scale: 0.4, duration: 360 + Math.random() * 180, ease: 'Quad.easeOut', onComplete: () => dp.destroy() }) }
+      if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 260, max: 620 }, speed: { min: 50, max: 170 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [BLOOD, RAGE, 0x6a4a30], emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round(16 * mult)); made.push(em); scene.time.delayedCall(620, () => { try { em.destroy() } catch (e) {} }) }
+      scene.cameras?.main?.shake?.(150, 0.0045)
+    } })
+    return made
+  },
+
+  // FRENZY HOWL: the pack tips into frenzy — the Alpha rears with a rage howl: a red
+  // pulse + double ring + a snarling gnoll silhouette + radiating claw gashes.
+  frenzyHowlFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 62, ...opts }
+    const made = [], RAGE = 0xe83a22, CLAW = 0xffd0c0
+    const pulse = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD); made.push(pulse)
+    pulse.fillStyle(RAGE, 0.42); pulse.fillCircle(0, 0, 14); _glow(pulse, RAGE, 4, 11)
+    scene.tweens.add({ targets: pulse, scale: 3.4, alpha: 0, duration: 540, ease: 'Quad.easeOut', onComplete: () => pulse.destroy() })
+    for (let r = 0; r < 2; r++) {
+      const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+      ring.lineStyle(3 - r, r ? CLAW : RAGE, 0.85); ring.strokeCircle(0, 0, 12); _glow(ring, RAGE, 2, 7)  // circle-ok: frenzy howl ring
+      scene.tweens.add({ targets: ring, scale: 3 + r, alpha: 0, duration: 460 + r * 120, delay: r * 80, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+    }
+    // a snarling gnoll rears up at the centre then settles
+    const gh = _makeGnollSprite(scene, x, y + 4, { scale: 0.62, depth: o.depth + 1, dir: 'down', anim: 'attack', alpha: 0, tint: 0xffa088 })
+    if (gh) { made.push(gh); scene.tweens.add({ targets: gh, alpha: 0.95, scaleX: 0.7, scaleY: 0.72, y: y - 4, duration: 150, ease: 'Back.easeOut', yoyo: true, hold: 120, onComplete: () => scene.tweens.add({ targets: gh, alpha: 0, duration: 200, onComplete: () => { try { gh.destroy() } catch (e) {} } }) }) }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2
+      const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setRotation(a).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(cl)
+      _drawClaw(cl, 16, CLAW, 0.8)
+      scene.tweens.add({ targets: cl, x: x + Math.cos(a) * 32, y: y + Math.sin(a) * 32, alpha: 0.9, duration: 220, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, duration: 200, onComplete: () => cl.destroy() }) })
+    }
+    return made
+  },
+
+  // BLOOD HUNT FINALE (fight T4): the whole pack rampages — gnolls crisscross the
+  // arena leaving a flurry of gashes, over a rage wash + heavy blood + shake.
+  bloodHuntFinaleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 62, rectW: 220, rectH: 170, victims: [], ...opts }
+    const made = [], BLOOD = 0x9e0b18, RAGE = 0xe83a22, CLAW = 0xffd0c0, mult = _particlesMult()
+    const wash = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(wash)
+    wash.fillStyle(RAGE, 0.24); wash.fillEllipse(0, 0, o.rectW * 1.5, o.rectH * 1.3)
+    scene.tweens.add({ targets: wash, alpha: 1, duration: 200, yoyo: true, hold: 420, onComplete: () => wash.destroy() })
+    // the pack crisscrosses the room — gnolls streak edge-to-edge
+    const runners = 6
+    for (let i = 0; i < runners; i++) {
+      const a = (i / runners) * Math.PI * 2
+      const fromX = x + Math.cos(a) * o.rectW * 0.55, fromY = y + Math.sin(a) * o.rectH * 0.5
+      const toX = x - Math.cos(a) * o.rectW * 0.4, toY = y - Math.sin(a) * o.rectH * 0.38
+      this._huntGnollLunge(scene, made, fromX, fromY, toX, toY, { scale: 0.44, depth: o.depth + 1, dur: 320, delay: i * 70, big: true })
+    }
+    // extra raining gashes over the whole room
+    for (let i = 0; i < 10; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.5, py = y + (Math.random() * 2 - 1) * o.rectH * 0.45
+      const cl = scene.add.graphics().setPosition(px, py).setDepth(o.depth + 2).setRotation(Math.random() * Math.PI - Math.PI / 2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(cl)
+      _drawClaw(cl, 26 + Math.random() * 12, i % 2 ? CLAW : RAGE); _glow(cl, RAGE, 2, 6)
+      scene.tweens.add({ targets: cl, alpha: 1, scaleX: 1.4, duration: 70, delay: i * 55, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, duration: 160, onComplete: () => cl.destroy() }) })
+    }
+    for (const v of (o.victims || [])) {
+      if (!_validXY(v.x, v.y)) continue
+      for (let i = 0; i < 5; i++) { const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 16; const dp = scene.add.graphics().setPosition(v.x, v.y).setDepth(o.depth + 2); made.push(dp); _drawBloodClot(dp, 1.6 + Math.random() * 1.8, BLOOD); scene.tweens.add({ targets: dp, x: v.x + Math.cos(a) * d, y: v.y + Math.sin(a) * d + 8, alpha: 0, scale: 0.4, duration: 360 + Math.random() * 160, delay: 220, ease: 'Quad.easeOut', onComplete: () => dp.destroy() }) }
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 400, max: 900 }, speed: { min: 40, max: 160 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.45, max: o.rectW * 0.45 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.75, end: 0 }, tint: [BLOOD, RAGE, CLAW], emitting: false }); em.setDepth(o.depth); em.explode(Math.round(26 * mult)); made.push(em); scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(240, 0.005)
     return made
   },
 }

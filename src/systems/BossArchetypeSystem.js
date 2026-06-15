@@ -273,6 +273,20 @@ export class BossArchetypeSystem {
       this._gameState.boss.dread     ??= 0
       this._gameState.boss._wraithTerror ??= { usesLeft: uses }
     }
+    // Gnoll THE BLOOD HUNT — banked FEROCITY economy + SOUND THE HUNT (day active)
+    this._huntArmed     = false
+    this._huntFightTimer = null
+    this._huntMark      = null     // { roomId, until } — active hunt the pack swarms/pursues
+    this._gnollFrenzyAt = 0        // frenzy-recompute cadence stamp
+    EventBus.on('GNOLL_HUNT_ARM',    this._armHunt,    this)
+    EventBus.on('GNOLL_HUNT_DISARM', this._disarmHunt, this)
+    EventBus.on('GNOLL_HUNT_TARGET', this._fireHunt,   this)
+    if (this._archId() === 'gnoll' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.GNOLL_HUNT_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.GNOLL_HUNT_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.ferocity   ??= 0
+      this._gameState.boss._gnollHunt ??= { usesLeft: uses }
+    }
     if (this._archId() === 'myconid' && this._gameState?.boss) {
       const bLv = this._gameState.boss.level ?? 1
       const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
@@ -362,6 +376,9 @@ export class BossArchetypeSystem {
     EventBus.off('WRAITH_TERROR_ARM',    this._armTerror,    this)
     EventBus.off('WRAITH_TERROR_DISARM', this._disarmTerror, this)
     EventBus.off('WRAITH_TERROR_TARGET', this._fireTerror,   this)
+    EventBus.off('GNOLL_HUNT_ARM',    this._armHunt,    this)
+    EventBus.off('GNOLL_HUNT_DISARM', this._disarmHunt, this)
+    EventBus.off('GNOLL_HUNT_TARGET', this._fireHunt,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -373,6 +390,7 @@ export class BossArchetypeSystem {
     this._stopPlagueFightTimer()
     this._stopBloodFightTimer()
     this._stopDreadFightTimer()
+    this._stopHuntFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -463,6 +481,13 @@ export class BossArchetypeSystem {
         (killerId === 'boss' || !!this._findMinion(killerId))
       if (isMinionOrBoss) {
         this._applyBloodlustStack()
+      }
+      // THE BLOOD HUNT — every hero death feeds FEROCITY (level-scaled); T4 The
+      // Great Hunt amplifies the take (the pack is whipped into a killing frenzy).
+      const dead = payload?.adventurer
+      if (dead) {
+        const t4 = currentAct(this._gameState) >= 4 ? (Balance.GNOLL_GREAT_HUNT_FEROCITY_MULT ?? 1.5) : 1
+        this._bankFerocity(((Balance.GNOLL_FEROCITY_PER_KILL ?? 7) + (dead.level ?? 1) * (Balance.GNOLL_FEROCITY_PER_KILL_PER_LV ?? 0.6)) * t4)
       }
     }
     // MYCONID: Corpse Bloom — drop a 3-day fungal corpse at the death tile.
@@ -1677,11 +1702,19 @@ export class BossArchetypeSystem {
       if (need > 0) this._spawnHellgateImps(need)
     }
     // Gnoll: refresh Hunters Pack to its boss-level cap and reset Bloodlust.
+    // Refill the SOUND THE HUNT uses + drop any active hunt-mark. FEROCITY persists.
     if (this._archId() === 'gnoll') {
       this._resetBloodlust()
       this._refillHuntersPack()
       this._captureBloodlustBaselines()
+      if (this._gameState?.boss) {
+        const bLv = this._gameState.boss.level ?? 1
+        const uses = (Balance.GNOLL_HUNT_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.GNOLL_HUNT_USES_PER_BOSS_LV ?? 0.25))
+        this._gameState.boss._gnollHunt = { usesLeft: uses }
+      }
+      this._huntMark = null
     }
+    this._disarmHunt()
   }
 
   _isLizardmanMinion(m) {
@@ -2075,6 +2108,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickDreadFight(),
       })
     }
+    if (this._archId() === 'gnoll') {
+      this._stopHuntFightTimer()
+      this._bloodHuntFinaleDone = false
+      this._huntFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickHuntFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -2094,6 +2136,7 @@ export class BossArchetypeSystem {
     if (this._archId() === 'lizardman') this._stopPlagueFightTimer()
     if (this._archId() === 'vampire') this._stopBloodFightTimer()
     if (this._archId() === 'wraith') this._stopDreadFightTimer()
+    if (this._archId() === 'gnoll') this._stopHuntFightTimer()
   }
 
   _stopFortressFightTimer() {
@@ -2702,6 +2745,8 @@ export class BossArchetypeSystem {
     this._tickDemonImps(this._scene?.time?.now ?? 0)
     // Vampire charm-conversion + thrall roaming.
     this._tickVampire(this._scene?.time?.now ?? 0)
+    // Gnoll THE BLOOD HUNT — frenzy recompute (pack atk+speed) + hunt pursuit.
+    this._tickGnoll(delta)
     // Succubus shapeshifter+seductress: trigger + bat flight + charm.
     this._tickSuccubus(delta, this._scene?.time?.now ?? 0)
     // Orc Loot+Warband live recompute.
@@ -3095,6 +3140,18 @@ export class BossArchetypeSystem {
               amount: healed,
             })
           }
+        }
+      }
+    }
+
+    // GNOLL — THE BLOOD HUNT. A cut of all damage the pack/Alpha deal to heroes
+    // feeds FEROCITY (the carnage that fuels the frenzy + the hunts).
+    if (this._archId() === 'gnoll') {
+      const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.targetId)
+      if (adv) {
+        const m = this._findMinion(payload?.sourceId)
+        if (payload?.sourceId === 'boss' || this._isGnollMinion(m)) {
+          this._bankFerocity(dmg * (Balance.GNOLL_FEROCITY_PER_DMG_FRAC ?? 0.25))
         }
       }
     }
@@ -3617,6 +3674,7 @@ export class BossArchetypeSystem {
     for (const m of (gs.minions ?? [])) {
       if (!this._isGnollMinion(m)) continue
       m._baselineAttack = m.stats?.attack ?? 1
+      m._baselineSpeed  = m.stats?.speed ?? 1
     }
   }
 
@@ -3661,6 +3719,161 @@ export class BossArchetypeSystem {
         m.stats ??= {}
         m.stats.attack = m._baselineAttack
       }
+    }
+  }
+
+  // ── GNOLL: THE BLOOD HUNT — banked FEROCITY economy ────────────────────────
+  _ferocityCap() { return (Balance.GNOLL_FEROCITY_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.GNOLL_FEROCITY_CAP_PER_ACT ?? 50) }
+  _ferocitySat() { return Math.max(0, Math.min(1, (this._gameState?.boss?.ferocity ?? 0) / Math.max(1, this._ferocityCap()))) }
+  _isFrenzied() { return this._ferocitySat() >= (Balance.GNOLL_FRENZY_THRESHOLD ?? 0.5) }
+
+  _bankFerocity(amount) {
+    const boss = this._gameState?.boss
+    if (!boss || !(amount > 0)) return
+    const before = boss.ferocity ?? 0
+    boss.ferocity = Math.min(this._ferocityCap(), before + amount)
+    const gained = boss.ferocity - before
+    if (gained > 0) EventBus.emit('GNOLL_FEROCITY_BANKED', { amount: gained, total: boss.ferocity })
+  }
+
+  // Per-frame: FRENZY recompute (pack ATK + move SPEED scale with FEROCITY, atop
+  // the daily Bloodlust ramp) + hunt pursuit (keep the pack swarming the mark).
+  _tickGnoll(delta) {
+    if (this._archId() !== 'gnoll') return
+    const now = this._scene?.time?.now ?? 0
+    if (now - (this._gnollFrenzyAt ?? 0) < 250) return
+    this._gnollFrenzyAt = now
+    const gs = this._gameState
+    const sat = this._ferocitySat()
+    const stacks = gs?._gnoll?.bloodlustStacks ?? 0
+    const atkFrenzy = 1 + sat * (Balance.GNOLL_FRENZY_ATK_MAX ?? 0.6)
+    const spdFrenzy = 1 + sat * (Balance.GNOLL_FRENZY_SPEED_MAX ?? 0.5)
+    const bloodMult = 1 + (Balance.GNOLL_BLOODLUST_PCT_PER_KILL ?? 0.03) * stacks
+    for (const m of (gs?.minions ?? [])) {
+      if (!this._isGnollMinion(m)) continue
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      m.stats ??= {}
+      if (m._baselineAttack == null) m._baselineAttack = m.stats.attack ?? 1
+      if (m._baselineSpeed  == null) m._baselineSpeed  = m.stats.speed ?? 1
+      m.stats.attack = Math.max(1, Math.round(m._baselineAttack * bloodMult * atkFrenzy))
+      m.stats.speed  = m._baselineSpeed * spdFrenzy
+      m._frenzied    = sat >= (Balance.GNOLL_FRENZY_THRESHOLD ?? 0.5)   // MinionRenderer rage-glow tell
+    }
+    // Frenzy edge — howl once when FEROCITY first crosses the frenzy threshold.
+    const frenziedNow = this._isFrenzied()
+    if (frenziedNow && !this._wasFrenzied) {
+      const boss = gs?.boss
+      if (this._scene && Number.isFinite(boss?.worldX)) AbilityVfx?.frenzyHowlFx?.(this._scene, boss.worldX, (boss.worldY ?? 0) - 8, {})
+      EventBus.emit('GNOLL_FRENZY_BEGAN', {})
+    }
+    this._wasFrenzied = frenziedNow
+    // Pursuit — while a hunt-mark is live, keep the pack homed on the quarry room.
+    if (this._huntMark && now < this._huntMark.until) {
+      const room = (gs?.dungeon?.rooms ?? []).find(r => r.instanceId === this._huntMark.roomId)
+      if (room) {
+        const cx = room.gridX + Math.floor(room.width / 2), cy = room.gridY + Math.floor(room.height / 2)
+        for (const m of (gs?.minions ?? [])) {
+          if (!this._isHuntersPackGnoll(m) || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+          m.assignedRoomId = room.instanceId; m.homeTileX = cx; m.homeTileY = cy
+        }
+      } else { this._huntMark = null }
+    } else if (this._huntMark) { this._huntMark = null }
+  }
+
+  // ── SOUND THE HUNT (day active) ────────────────────────────────────────────
+  _huntUsesLeft() { return this._gameState?.boss?._gnollHunt?.usesLeft ?? 0 }
+  _huntAvailable() { return this._archId() === 'gnoll' && (this._gameState?.meta?.phase ?? '') === 'day' && this._huntUsesLeft() > 0 }
+  _armHunt() { if (!this._huntAvailable()) return; this._huntArmed = true; EventBus.emit('GNOLL_HUNT_ARMED', {}) }
+  _disarmHunt() { this._huntArmed = false; EventBus.emit('GNOLL_HUNT_DISARMED', {}) }
+  _fireHunt(payload) {
+    if (!this._huntArmed) return
+    if (!this._huntAvailable()) { this._disarmHunt(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState), TS = Balance.TILE_SIZE
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    const gcx = room.gridX + Math.floor(room.width / 2), gcy = room.gridY + Math.floor(room.height / 2)
+    // the pack converges — re-home every Hunters Pack gnoll onto the room
+    for (const m of (this._gameState?.minions ?? [])) {
+      if (!this._isHuntersPackGnoll(m) || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      m.assignedRoomId = room.instanceId; m.homeTileX = gcx; m.homeTileY = gcy
+    }
+    // crowd-wide %maxHP rend on everyone in the room
+    const pct = (Balance.GNOLL_HUNT_REND_PCT ?? 0.07) + (tier - 1) * (Balance.GNOLL_HUNT_REND_PCT_PER_ACT ?? 0.02)
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    let lowest = null
+    for (const a of advsIn) {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      this._bankFerocity(dmg * (Balance.GNOLL_FEROCITY_PER_DMG_FRAC ?? 0.25))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'physical' })
+      if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.packRendFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, { tier })
+      if (a.resources.hp <= 0) { EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Hunt', roomId: room.instanceId, damageType: 'physical' }); continue }
+      if (!lowest || (a.resources.hp / (a.resources.maxHp ?? 1)) < (lowest.resources.hp / (lowest.resources.maxHp ?? 1))) lowest = a
+    }
+    // T3 — the Alpha leaps in for a heavy rend on the most-wounded hero
+    if (tier >= 3 && lowest) {
+      const big = Math.max(1, Math.floor((lowest.resources?.maxHp ?? 0) * (Balance.GNOLL_HUNT_LEAP_PCT ?? 0.1)))
+      lowest.resources.hp = Math.max(0, lowest.resources.hp - big)
+      this._bankFerocity(big * (Balance.GNOLL_FEROCITY_PER_DMG_FRAC ?? 0.25))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: lowest.instanceId, damage: big, damageType: 'physical' })
+      if (this._scene && Number.isFinite(lowest.worldX)) AbilityVfx?.alphaLeapFx?.(this._scene, lowest.worldX, (lowest.worldY ?? 0) - 16, { tier })
+      if (lowest.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: lowest, killerId: 'boss', killerName: 'The Alpha', roomId: room.instanceId, damageType: 'physical' })
+    }
+    // T2 sustained swarm / T4 relentless pursuit — keep the pack on the quarry room
+    if (tier >= 2) {
+      const ms = (tier >= 4 ? (Balance.GNOLL_HUNT_PURSUIT_MS ?? 8000) : (Balance.GNOLL_HUNT_SUSTAIN_MS ?? 4000))
+      this._huntMark = { roomId: room.instanceId, until: (this._scene?.time?.now ?? 0) + ms }
+    }
+    AbilityVfx?.soundHuntFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS, fromX: boss.worldX, fromY: boss.worldY })
+    if (boss._gnollHunt) boss._gnollHunt.usesLeft = Math.max(0, (boss._gnollHunt.usesLeft ?? 0) - 1)
+    this._huntArmed = false
+    EventBus.emit('GNOLL_HUNT_FIRED', { roomId: room.instanceId, room, tier, victims: advsIn.length })
+  }
+
+  _stopHuntFightTimer() { this._huntFightTimer?.remove?.(false); this._huntFightTimer = null }
+
+  // Throne fight — Rend → Pack Tactics → Frenzy → Blood Hunt finale. The Alpha
+  // leads; every special is a %maxHP physical rend (no bleed-DoT — burst carnage).
+  _tickHuntFight() {
+    const boss = this._gameState?.boss; if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber'); if (!bossRoom) return
+    const TS = Balance.TILE_SIZE
+    const fighters = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+    const rend = (a, pct) => {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      this._bankFerocity(dmg * (Balance.GNOLL_FEROCITY_PER_DMG_FRAC ?? 0.25))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'physical' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Gnoll Alpha', roomId: bossRoom.instanceId, damageType: 'physical' })
+    }
+    const woundedFirst = (arr) => arr.slice().sort((a, b) => (a.resources.hp / (a.resources.maxHp ?? 1)) - (b.resources.hp / (b.resources.maxHp ?? 1)))
+
+    // T4 Blood Hunt finale (<30% HP) — a leaping rend flurry across ALL fighters.
+    if (tier >= 4 && !this._bloodHuntFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._bloodHuntFinaleDone = true
+      AbilityVfx?.bloodHuntFinaleFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS, victims: fighters.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+      const pct = (Balance.GNOLL_FIGHT_FINALE_PCT ?? 0.1) + this._ferocitySat() * (Balance.GNOLL_FIGHT_FINALE_FEROCITY ?? 0.1)
+      for (const a of fighters) rend(a, pct)
+      return
+    }
+    if (tier >= 3) {
+      // Frenzy — rend everyone, harder on the wounded
+      for (const a of fighters) { const w = (a.resources.hp / (a.resources.maxHp ?? 1)) < 0.5 ? 1.6 : 1; rend(a, (Balance.GNOLL_FIGHT_FRENZY_PCT ?? 0.05) * w); if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.packRendFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, { tier }) }
+    } else if (tier >= 2) {
+      // Pack Tactics — the pack piles on the most-wounded hero (multi-strike)
+      const t = woundedFirst(fighters)[0]
+      AbilityVfx?.packRendFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { tier, big: true })
+      rend(t, Balance.GNOLL_FIGHT_PACK_PCT ?? 0.1)
+    } else {
+      // Rend — savage the top-aggro hero
+      const t = fighters[0]
+      if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.packRendFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { tier })
+      rend(t, Balance.GNOLL_FIGHT_REND_PCT ?? 0.06)
     }
   }
 

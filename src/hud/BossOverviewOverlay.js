@@ -428,6 +428,8 @@ export class BossOverviewOverlay {
       this._renderBloodStatus(),
       // Dread readout (Wraith — The Dread Harvest)
       this._renderDreadStatus(),
+      // Ferocity readout (Gnoll — The Blood Hunt)
+      this._renderFerocityStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -824,6 +826,32 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${breaking} breaking · phase: ${phase}. Every fright feeds DREAD, which amplifies fear and drops the break thresholds — terror cashes out as panic, friendly-fire, and heart-stops.`),
+    ])
+  }
+
+  _renderFerocityStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'gnoll') return null
+    const boss = this._gameState.boss ?? {}
+    const fero = Math.floor(boss.ferocity ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.GNOLL_FEROCITY_CAP_BASE ?? 60) + tier * (Balance.GNOLL_FEROCITY_CAP_PER_ACT ?? 50)
+    const sat = fero / Math.max(1, cap)
+    const frenzied = sat >= (Balance.GNOLL_FRENZY_THRESHOLD ?? 0.5)
+    const pack = (this._gameState.minions ?? []).filter(m => m._isHuntersPackGnoll && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0).length
+    const C = '#ff5a3a'
+    const pct = Math.max(0, Math.min(100, sat * 100))
+    const phase = tier >= 4 ? 'The Great Hunt' : tier >= 3 ? 'Pack Tactics' : tier >= 2 ? 'Frenzy' : 'Bloodlust'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'FEROCITY'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, frenzied ? `${fero} · FRENZIED` : String(fero)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#240c08', border: '1px solid #3a1810', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#7a1a0e,#ff5a3a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${pack} in the pack · phase: ${phase}. Carnage banks FEROCITY, which whips the pack into a faster, fiercer frenzy and fuels the Hunt.`),
     ])
   }
 

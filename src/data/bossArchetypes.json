@@ -179,13 +179,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Hunter's Pack",
-      "summary": "Free gnolls live in your boss room and respawn each dawn. They don't count toward your minion cap.",
+      "name": "The Blood Hunt",
+      "summary": "Carnage banks FEROCITY, whipping the free Hunter's Pack into a faster, fiercer frenzy and fuelling coordinated hunts the Alpha leads in person.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Bloodlust — every kill in your dungeon stacks ATK on every gnoll for the day.",
+        "text": "FEROCITY — every kill + the pack's damage banks FEROCITY; high FEROCITY frenzies the pack (more attack + move speed).",
+        "implemented": true
+      },
+      {
+        "text": "Sound the Hunt (day) — the pack converges on a room and savages everyone (%maxHP rend); the Alpha leaps in and, late, the hunt pursues survivors room to room.",
+        "implemented": true
+      },
+      {
+        "text": "Hunter's Pack + Bloodlust — free gnolls respawn each dawn (no cap) and stack ATK per kill for the day.",
         "implemented": true
       }
     ],

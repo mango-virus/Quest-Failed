@@ -371,6 +371,13 @@ export class BossArchetypeUI {
     })
     this._on('WRAITH_TERROR_DISARMED', () => this._removeTerrorRoomPick())
     this._on('WRAITH_TERROR_FIRED', () => this._removeTerrorRoomPick())
+    // Gnoll SOUND THE HUNT room-targeting.
+    this._on('GNOLL_HUNT_ARMED', () => {
+      this._installHuntRoomPick()
+      showToast(this._scene, 'SOUND THE HUNT armed — click a room to hunt', { type: 'info', duration: 3000 })
+    })
+    this._on('GNOLL_HUNT_DISARMED', () => this._removeHuntRoomPick())
+    this._on('GNOLL_HUNT_FIRED', () => this._removeHuntRoomPick())
 
     // Beholder: "SILENCED" floater above an adv whose class ability was
     // suppressed by an Anti-Magic room. Throttled by ClassAbilitySystem.
@@ -892,6 +899,28 @@ export class BossArchetypeUI {
     this._terrorPickGame    = null
   }
 
+  // Gnoll SOUND THE HUNT room-pick.
+  _installHuntRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._huntPickHandler) return
+    this._huntPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('GNOLL_HUNT_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('GNOLL_HUNT_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._huntPickHandler)
+    this._huntPickGame = game
+  }
+
+  _removeHuntRoomPick() {
+    if (!this._huntPickHandler || !this._huntPickGame) return
+    this._huntPickGame.input.off('pointerdown', this._huntPickHandler)
+    this._huntPickHandler = null
+    this._huntPickGame    = null
+  }
+
   // Demon INFERNAL PACT room-pick.
   _installPactRoomPick() {
     const game = this._scene.scene.get('Game')
@@ -973,6 +1002,7 @@ export class BossArchetypeUI {
     this._removeSpitRoomPick()
     this._removeRiteRoomPick()
     this._removeTerrorRoomPick()
+    this._removeHuntRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

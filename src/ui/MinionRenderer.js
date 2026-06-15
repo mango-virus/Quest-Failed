@@ -505,7 +505,7 @@ export class MinionRenderer {
       // throbbing feral red Glow on the sprite, so the SOURCE of the carnage reads (not
       // just the gore on the heroes).
       if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
-        const frenzied = !isDead && m._forceScentUntil && now < m._forceScentUntil
+        const frenzied = !isDead && (m._frenzied || (m._forceScentUntil && now < m._forceScentUntil))
         if (frenzied) {
           const str = 3 + 1.7 * Math.sin(now / 85)                                   // throbbing feral pulse
           if (!s._frenzyGlow) { try { s._frenzyGlow = s.sprite.postFX.addGlow(0xe0201a, str, 0, false, 0.06, 8) } catch (e) { s._frenzyGlow = null } }

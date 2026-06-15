@@ -176,6 +176,8 @@ export class BossRenderer {
     this._updateBloodAura()
     // Wraith — cold spectral-indigo Glow-outline aura reading banked DREAD.
     this._updateDreadAura()
+    // Gnoll — savage blood-red Glow-outline aura reading banked FEROCITY.
+    this._updateFerocityAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -737,6 +739,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._dreadGlow) } catch (e) {}
     }
     this._dreadGlow = null
+  }
+
+  _updateFerocityAura() {
+    const isGnoll = this._gameState?.player?.bossArchetypeId === 'gnoll'
+    if (!isGnoll || !this._container || !this._sprite) { this._clearFerocityAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.GNOLL_FEROCITY_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.GNOLL_FEROCITY_CAP_PER_ACT ?? 50)
+    const sat = Math.max(0, Math.min(1, (boss?.ferocity ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x3a0e0a, 0xe83a22)
+      if (!this._ferocityGlow) { try { this._ferocityGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._ferocityGlow = true } }
+      else if (this._ferocityGlow !== true) { try { this._ferocityGlow.color = p.color; this._ferocityGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearFerocityAura() {
+    if (this._ferocityGlow && this._ferocityGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._ferocityGlow) } catch (e) {}
+    }
+    this._ferocityGlow = null
   }
 
   _build(boss) {

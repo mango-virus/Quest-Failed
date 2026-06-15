@@ -436,6 +436,32 @@ export const Balance = {
   GNOLL_HUNTERS_PACK_MAX_PER_BOSS_LV: 0.5, // +0.5 pack-max per boss-lv (floor)
   GNOLL_BLOODLUST_PCT_PER_KILL:    0.03,  // +3% ATK per kill, no cap, resets at dawn
 
+  // --- Boss overhaul #11: THE BLOOD HUNT — banked FEROCITY economy ---
+  GNOLL_FEROCITY_PER_KILL:        7,      // FEROCITY banked per hero kill
+  GNOLL_FEROCITY_PER_KILL_PER_LV: 0.6,
+  GNOLL_FEROCITY_PER_DMG_FRAC:    0.25,   // + a cut of all pack/Alpha damage to heroes
+  GNOLL_FEROCITY_CAP_BASE:        60,     // cap = BASE + act*PER_ACT
+  GNOLL_FEROCITY_CAP_PER_ACT:     50,
+  GNOLL_GREAT_HUNT_FEROCITY_MULT: 1.5,    // T4 The Great Hunt amplifies kill-Ferocity
+  // FRENZY — pack attack + move-speed scale with FEROCITY saturation.
+  GNOLL_FRENZY_THRESHOLD:         0.5,    // sat at/above this = visibly FRENZIED
+  GNOLL_FRENZY_ATK_MAX:           0.6,    // +60% pack ATK at full FEROCITY (atop Bloodlust)
+  GNOLL_FRENZY_SPEED_MAX:         0.5,    // +50% pack move speed at full FEROCITY
+  // SOUND THE HUNT (day active) — pack converges + crowd %maxHP rend.
+  GNOLL_HUNT_USES_PER_DAY:        1,
+  GNOLL_HUNT_USES_PER_BOSS_LV:    0.25,
+  GNOLL_HUNT_REND_PCT:            0.07,   // T1 rend %maxHP to all in room
+  GNOLL_HUNT_REND_PCT_PER_ACT:    0.02,
+  GNOLL_HUNT_LEAP_PCT:            0.10,   // T3 Alpha leap heavy rend on the most-wounded
+  GNOLL_HUNT_SUSTAIN_MS:          4000,   // T2 sustained swarm on the hunted room
+  GNOLL_HUNT_PURSUIT_MS:          8000,   // T4 relentless pursuit duration
+  // Throne fight — tier-gated %maxHP rends.
+  GNOLL_FIGHT_REND_PCT:           0.06,   // T1 Rend (top-aggro)
+  GNOLL_FIGHT_PACK_PCT:           0.10,   // T2 Pack Tactics (most-wounded)
+  GNOLL_FIGHT_FRENZY_PCT:         0.05,   // T3 Frenzy (all; ×1.6 on the wounded)
+  GNOLL_FIGHT_FINALE_PCT:         0.10,   // T4 Blood Hunt finale base %maxHP
+  GNOLL_FIGHT_FINALE_FEROCITY:    0.10,   // + this × FEROCITY saturation
+
   // --- Phase 1b.12 (post-spec): Orc Veteran second ability — Warband ---
   // Orcs in the same room buff every other orc in that room. Stacks per ally.
   ORC_WARBAND_ATK_PCT_PER_ALLY:    0.05,  // +5% ATK per other orc in same room

@@ -71,6 +71,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Lizardman (Plague)', fx: ['plagueSpitFx', 'contagionFx', 'outbreakFx', 'miasmaSpewFx'] },
   { label: 'Boss·Vampire (Blood Court)', fx: ['bloodRiteFx', 'sanguinePoolFx', 'charmBindFx', 'bloodEruptFx', 'crimsonLanceFx', 'sanguineEmbraceFx', 'bloodTempestFx', 'bloodMoonFx'] },
   { label: 'Boss·Wraith (Dread)', fx: ['nightTerrorFx', 'dreadZoneFx', 'frightDeathFx', 'dreadPulseFx', 'phantomAssaultFx', 'massHysteriaFx', 'panicBreakFx'] },
+  { label: 'Boss·Gnoll (Blood Hunt)', fx: ['soundHuntFx', 'packRendFx', 'alphaLeapFx', 'frenzyHowlFx', 'bloodHuntFinaleFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -454,6 +455,20 @@ export class VfxLab {
           { label: 'Panic Break (flee)', fire: () => AbilityVfx.panicBreakFx(this._scene, tX(), tY(), { gold: true }) },
         ]
       }
+      if (entity.archId === 'gnoll') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x3a0e0a, hi: 0xe83a22, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Ferocity',  fire: aura(0.3) },
+          { label: 'Aura: Mid Ferocity',  fire: aura(0.65) },
+          { label: 'Aura: High Ferocity', fire: aura(1) },
+          { label: 'Sound the Hunt (room)', fire: () => AbilityVfx.soundHuntFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX, fromY: e.worldY }) },
+          { label: 'Pack Rend', fire: () => AbilityVfx.packRendFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Pack Rend (big)', fire: () => AbilityVfx.packRendFx(this._scene, tX(), tY(), { tier: this._orcTier(), big: true }) },
+          { label: 'Alpha Leap', fire: () => AbilityVfx.alphaLeapFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Frenzy Howl', fire: () => AbilityVfx.frenzyHowlFx(this._scene, e.worldX, e.worldY - 8, {}) },
+          { label: 'Blood Hunt Finale (T4)', fire: () => AbilityVfx.bloodHuntFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: tX(), y: tY() }] }) },
+        ]
+      }
       if (entity.archId === 'golem') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
         return [
@@ -768,6 +783,12 @@ export class VfxLab {
         case 'phantomAssaultFx': AbilityVfx.phantomAssaultFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 160, rectH: 120, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
         case 'massHysteriaFx':   AbilityVfx.massHysteriaFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 170, rectH: 130 }); break
         case 'panicBreakFx':     AbilityVfx.panicBreakFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { gold: true }); break
+        // Boss · Gnoll (The Blood Hunt) — tier cycles 1→4.
+        case 'soundHuntFx':       AbilityVfx.soundHuntFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX, fromY: e.worldY }); break
+        case 'packRendFx':        AbilityVfx.packRendFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
+        case 'alphaLeapFx':       AbilityVfx.alphaLeapFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
+        case 'frenzyHowlFx':      AbilityVfx.frenzyHowlFx(s, e.worldX, e.worldY - 8, {}); break
+        case 'bloodHuntFinaleFx': AbilityVfx.bloodHuntFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
