@@ -60,7 +60,7 @@ export class BossArchetypeStrip {
         className: 'qf-archstrip-btn qf-archstrip-sacrifice',
         ref: el => { this._demonBtn = el },
         on: { click: () => this._onDemonClick() },
-      }, 'SACRIFICE'),
+      }, 'INFERNAL PACT'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-channel',
         ref: el => { this._lichBtn = el },
@@ -199,12 +199,10 @@ export class BossArchetypeStrip {
     if (this._demonBtn) {
       this._demonBtn.style.display = demonActive ? '' : 'none'
       this._demonBtn.classList.toggle('armed', !!this._demonArmed)
-      this._demonBtn.textContent = this._demonArmed ? 'PICK A MINION' : 'SACRIFICE'
       const usesLeft = this._gs?.boss?._demon?.sacrificeUsesLeft
                     ?? this._gs?._demon?.sacrificeUsesLeft ?? 0
-      const haveMinion = (this._gs?.minions ?? []).some(m =>
-        m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon')
-      this._demonBtn.disabled = !(usesLeft > 0 && haveMinion)
+      this._demonBtn.textContent = this._demonArmed ? 'PICK A ROOM' : `INFERNAL PACT · ${usesLeft}`
+      this._demonBtn.disabled = !(usesLeft > 0)
     }
     if (this._lichBtn) {
       this._lichBtn.style.display = lichActive ? '' : 'none'

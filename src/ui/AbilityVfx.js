@@ -6529,4 +6529,74 @@ export const AbilityVfx = {
     scene.cameras?.main?.shake?.(400, 0.005)
     return made
   },
+
+  // ── DEMON · The Brimstone Pact — infernal VFX ────────────────────────────
+  // INFERNAL PACT: the sacrificed imp erupts, a stream of fire arcs to the
+  // Demon, then hellfire rains on the room (reuses the inferno room-eruption).
+  infernalPactFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 13, rectW: 220, rectH: 150, durationMs: 1300, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    // 1) the fuel-imp combusts at (fromX,fromY).
+    if (_validXY(o.fromX, o.fromY)) { const m = this.combustFx(scene, o.fromX, o.fromY, { depth: o.depth }); if (m) made.push(...m) }
+    // 2) a fire-stream arcs from the imp to the Demon (the soul feeds the pact).
+    if (_validXY(o.fromX, o.fromY) && _validXY(o.demonX, o.demonY) && mult > 0) {
+      const stream = scene.add.particles(o.fromX, o.fromY, _softDotTexture(scene), { lifespan: 360, frequency: 18, quantity: 2, tint: [0xffcc44, 0xff5511], scale: { start: 0.5, end: 0.1 }, alpha: { start: 0.95, end: 0 }, blendMode: 'ADD', moveToX: o.demonX, moveToY: o.demonY - 8 })
+      stream.setDepth(o.depth + 1); made.push(stream)
+      scene.time.delayedCall(420, () => { try { stream.stop() } catch (e) {} ; scene.time.delayedCall(400, () => { try { stream.destroy() } catch (e) {} }) })
+    }
+    // 3) after a beat, the room ERUPTS in hellfire (reuse the inferno ULT).
+    scene.time.delayedCall(260, () => {
+      const m = this.infernoFx(scene, x, y, { depth: o.depth, rectW: o.rectW, rectH: o.rectH, durationMs: o.durationMs, count: 8 + tier * 2 })
+      if (Array.isArray(m)) made.push(...m)
+    })
+    return made
+  },
+
+  // BRIMSTONE METEOR: a fiery rock plummets from above with a trail, then
+  // detonates on impact.
+  brimstoneMeteorFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 14, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const sx = x - 40, sy = y - 150 - tier * 10
+    const rock = scene.add.graphics().setPosition(sx, sy).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(rock)
+    const r = 5 + tier
+    rock.fillStyle(0x3a1604, 1); rock.fillCircle(0, 0, r)
+    rock.fillStyle(0xff6a1e, 0.9); rock.fillCircle(-r * 0.3, -r * 0.3, r * 0.6)
+    rock.fillStyle(0xffe89a, 0.9); rock.fillCircle(-r * 0.4, -r * 0.4, r * 0.3)
+    _glow(rock, 0xff7722, 5, 12)
+    let trail = null
+    if (mult > 0) { trail = scene.add.particles(0, 0, _softDotTexture(scene), { follow: rock, lifespan: 280, frequency: 16, quantity: 1, tint: [0xffcc44, 0xff4411], scale: { start: 0.5, end: 0 }, alpha: { start: 0.85, end: 0 }, blendMode: 'ADD' }); trail.setDepth(o.depth); made.push(trail) }
+    scene.tweens.add({ targets: rock, x, y, duration: 280, ease: 'Quad.easeIn',
+      onComplete: () => {
+        rock.destroy(); if (trail) { try { trail.stop() } catch (e) {} ; scene.time.delayedCall(320, () => { try { trail.destroy() } catch (e) {} }) }
+        const m = this.combustFx(scene, x, y, { depth: o.depth + 1 }); if (m) made.push(...m)
+      } })
+    return made
+  },
+
+  // THE PACT FULFILLED (T4 finale): the arena becomes an inferno — a giant
+  // hellfire eruption + a ring of meteor impacts + a hot screen flash + shake.
+  pactFinaleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 14, rectW: 300, rectH: 220, durationMs: 1600, ...opts }
+    const made = []
+    const m0 = this.infernoFx(scene, x, y, { depth: o.depth, rectW: o.rectW * 1.1, rectH: o.rectH * 1.1, durationMs: o.durationMs, count: 16 })
+    if (Array.isArray(m0)) made.push(...m0)
+    const n = 8
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, d = o.rectW * 0.3 * (0.4 + Math.random() * 0.6)
+      const bx = x + Math.cos(a) * d, by = y + Math.sin(a) * d * 0.7
+      scene.time.delayedCall(i * 80 + Math.random() * 60, () => { const m = this.brimstoneMeteorFx(scene, bx, by, { tier: 4 }); if (Array.isArray(m)) made.push(...m) })
+    }
+    // hot screen flash
+    const cam = scene.cameras?.main
+    if (cam) {
+      const flash = scene.add.rectangle(cam.midPoint.x, cam.midPoint.y, cam.width / cam.zoom, cam.height / cam.zoom, 0xff5511, 0.32).setScrollFactor(0).setDepth(o.depth + 5).setBlendMode(Phaser.BlendModes.ADD); made.push(flash)
+      scene.tweens.add({ targets: flash, alpha: 0, duration: 520, ease: 'Quad.easeOut', onComplete: () => flash.destroy() })
+    }
+    scene.cameras?.main?.shake?.(600, 0.008)
+    return made
+  },
 }

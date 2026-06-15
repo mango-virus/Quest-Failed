@@ -155,6 +155,8 @@ export class BossArchetypeSystem {
     // Beholder Petrify Gaze — active timer reference + per-fight VFX layer.
     this._petrifyTimer       = null
     this._bloomFightTimer    = null
+    this._brimstoneFightTimer = null
+    this._hellfireZones      = []   // [{ roomId, until }] — Pact burning ground
     this._petrifyFxGraphics  = null
     // Beholder Anti-Magic Aura — graphics layer for the daily purple glow.
     this._antiMagicFx        = null
@@ -248,13 +250,13 @@ export class BossArchetypeSystem {
     // Demon: re-render the Hellgate portal in the boss room corner if a
     // save was loaded mid-run.
     this._renderHellgatePortal()
-    // Demon: ensure daily-uses counter exists.
+    // Demon: ensure daily-uses counter + Brimstone bank exist.
     if (this._archId() === 'demon') {
-      // +0.333 uses per boss-lv (floor adds ~1 every 3 lv).
       const bossLv = this._gameState?.boss?.level ?? 1
-      const dailyUses = Balance.DEMON_SACRIFICE_USES_PER_DAY
-        + Math.floor(bossLv * Balance.DEMON_SACRIFICE_USES_PER_BOSS_LV)
+      const dailyUses = (Balance.DEMON_PACT_USES_PER_DAY ?? 1)
+        + Math.floor(bossLv * (Balance.DEMON_PACT_USES_PER_BOSS_LV ?? 0.25))
       this._gameState._demon ??= { sacrificeUsesLeft: dailyUses }
+      if (this._gameState?.boss) this._gameState.boss.brimstone ??= 0
     }
     // Orc: capture pristine baselines for every existing orc on save-load /
     // scene boot. Without this, _tickOrc would treat the post-buff stats as
@@ -314,6 +316,7 @@ export class BossArchetypeSystem {
     this._clearSoulOrbit()
     this._stopPetrifyTimer()
     this._stopBloomFightTimer()
+    this._stopBrimstoneFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -354,6 +357,11 @@ export class BossArchetypeSystem {
     // for the day-phase CHANNEL SOULS ability, and its throne-fight reserve.
     if (this._archId() === 'lich') {
       this._harvestSoul(payload?.adventurer)
+    }
+    // DEMON: THE BRIMSTONE PACT — every adventurer death anywhere banks Infernal
+    // Power (the engine). T3 Soul Harvest doubles the take (the snowball).
+    if (this._archId() === 'demon') {
+      this._bankBrimstoneFromDeath(payload?.adventurer)
     }
     // WRAITH: Fear bump for any adv who watched a same-party member die,
     // plus Haunting ghost spawn at the death tile.
@@ -473,6 +481,12 @@ export class BossArchetypeSystem {
       }
       // No early-return — we still let downstream orc/etc. handlers run
       // in case a future archetype layer wants to react to the same death.
+    }
+
+    // DEMON: Volatile Legion (T2) — a Hellgate imp killed by a hero EXPLODES
+    // in hellfire on its slayer. (Sacrifice-burned imps don't explode.)
+    if (this._archId() === 'demon') {
+      this._onDemonMinionDied(m, payload?.killerId)
     }
 
     if (!Array.isArray(m.tags) || !m.tags.includes(MINION_TAG_ORC)) return
@@ -1542,10 +1556,10 @@ export class BossArchetypeSystem {
     // reach the N-slot ceiling, so total count never grows past N.
     if (this._archId() === 'demon') {
       this._gameState._demon ??= { sacrificeUsesLeft: 0 }
-      // +0.333 uses per boss-lv (lv10 = +3 → 4 uses/day).
       const _demonBossLv = this._gameState?.boss?.level ?? 1
-      this._gameState._demon.sacrificeUsesLeft = Balance.DEMON_SACRIFICE_USES_PER_DAY
-        + Math.floor(_demonBossLv * Balance.DEMON_SACRIFICE_USES_PER_BOSS_LV)
+      this._gameState._demon.sacrificeUsesLeft = (Balance.DEMON_PACT_USES_PER_DAY ?? 1)
+        + Math.floor(_demonBossLv * (Balance.DEMON_PACT_USES_PER_BOSS_LV ?? 0.25))
+      this._hellfireZones = []   // burning ground doesn't persist overnight
       // Disarm via the proper API so the UI hears DEMON_SACRIFICE_DISARMED
       // and snaps the button back to SACRIFICE — silent state mutation here
       // was the source of the "stuck on PICK A MINION" bug.
@@ -1683,6 +1697,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickBloomFight(),
       })
     }
+    if (this._archId() === 'demon') {
+      this._stopBrimstoneFightTimer()
+      this._pactFinaleDone = false
+      this._brimstoneFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickBrimstoneFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -1697,6 +1720,83 @@ export class BossArchetypeSystem {
       }
     }
     if (this._archId() === 'myconid') this._stopBloomFightTimer()
+    if (this._archId() === 'demon') this._stopBrimstoneFightTimer()
+  }
+
+  _stopBrimstoneFightTimer() {
+    this._brimstoneFightTimer?.remove?.(false)
+    this._brimstoneFightTimer = null
+  }
+
+  // Demon throne fight — Brimstone-fueled hellfire caster (timer hazards over the
+  // baseline melee, like the Beholder/Myconid). T1 Hellbolt → T2 Immolation
+  // (sacrifice an imp in the chamber for a bigger nova + bank) → T3 Brimstone
+  // Rain (meteors scale w/ Brimstone) → T4 Pact-Fulfilled finale at low HP.
+  _tickBrimstoneFight() {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return
+    const TS  = Balance.TILE_SIZE
+    const atk = boss.attack ?? 0
+    const fighters = (this._gameState?.adventurers?.active ?? [])
+      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const hurt = (a, frac) => {
+      const dmg = Math.max(1, Math.floor(atk * frac))
+      a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'fire' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Demon Lord', roomId: bossRoom.instanceId, damageType: 'fire' })
+    }
+
+    // T4 finale — once below 30% HP, dump ALL Brimstone in one cataclysm + heal.
+    if (tier >= 4 && !this._pactFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._pactFinaleDone = true
+      const spend = boss.brimstone ?? 0
+      boss.brimstone = 0
+      const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+      AbilityVfx?.pactFinaleFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) {
+        const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * Math.min(0.9, (Balance.DEMON_PACT_BASE_DMG_PCT ?? 0.1) + spend * (Balance.DEMON_FIGHT_FINALE_DMG_PER_BRIMSTONE ?? 0.002))))
+        a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'fire' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Pact Fulfilled', roomId: bossRoom.instanceId, damageType: 'fire' })
+      }
+      const heal = Math.floor((boss.maxHp ?? 0) * (Balance.DEMON_FIGHT_FINALE_HEAL_FRAC ?? 0.0008) * spend)
+      if (heal > 0) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
+      return
+    }
+
+    if (tier >= 3) {
+      // Brimstone Rain — meteors across the arena (count + dmg scale w/ Brimstone).
+      const sat = this._brimstoneSat()
+      const meteors = 1 + Math.round(sat * (1 + tier))
+      for (let i = 0; i < meteors; i++) {
+        const rx = bossRoom.gridX + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.width - 2))
+        const ry = bossRoom.gridY + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.height - 2))
+        const px = rx * TS + TS / 2, py = ry * TS + TS / 2
+        AbilityVfx?.brimstoneMeteorFx?.(this._scene, px, py, { tier })
+        for (const a of fighters) {
+          if (Math.hypot((a.worldX ?? 0) - px, (a.worldY ?? 0) - py) <= TS * 1.6) hurt(a, Balance.DEMON_FIGHT_METEOR_FRAC ?? 0.55)
+        }
+      }
+    } else if (tier >= 2) {
+      // Immolation — consume an imp in the chamber for a bigger nova + bank.
+      const imp = (this._gameState?.minions ?? []).find(m => m._isDemonImp && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && _advInsideRoom(m, bossRoom))
+      if (imp) {
+        imp.resources.hp = 0; imp.aiState = 'dead'
+        EventBus.emit('MINION_DIED', { minion: imp, killerId: 'sacrifice_pact' })
+        this._gameState.minions = (this._gameState.minions ?? []).filter(x => x.instanceId !== imp.instanceId)
+        boss.brimstone = Math.min(this._brimstoneCap(), (boss.brimstone ?? 0) + (Balance.DEMON_BRIMSTONE_PER_SACRIFICE ?? 18))
+        if (this._scene && Number.isFinite(imp.worldX)) AbilityVfx?.combustFx?.(this._scene, imp.worldX, imp.worldY)
+      }
+      for (const a of fighters) hurt(a, Balance.DEMON_FIGHT_IMMOLATION_FRAC ?? 0.8)
+      AbilityVfx?.hellfireAuraFx?.(this._scene, boss.worldX, boss.worldY)
+    } else {
+      // T1 Hellbolt — AoE hellfire on the party.
+      for (const a of fighters) { hurt(a, Balance.DEMON_FIGHT_HELLBOLT_FRAC ?? 0.45); if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.combustFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16) }
+    }
   }
 
   _stopPetrifyTimer() {
@@ -2180,6 +2280,10 @@ export class BossArchetypeSystem {
     this._tickSoulOrbit()
     // Slime MITOSIS — day-phase budding / coalesce / acidic trail.
     this._tickSlimeDay(delta)
+    // Demon THE BRIMSTONE PACT — passive regen lifeline + Ascendance + the
+    // lingering burning-ground zones left by Infernal Pact.
+    this._tickDemonBrimstone(delta)
+    this._tickDemonHellfire(this._scene?.time?.now ?? 0)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return
@@ -3405,128 +3509,201 @@ export class BossArchetypeSystem {
   }
 
   _sacrificeAvailable() {
-    if (this._archId() !== 'demon') return false
-    if (this._sacrificeUsesLeft() <= 0) return false
-    // Need at least one minion to burn.
-    return (this._gameState?.minions ?? []).some(m =>
-      m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon',
-    )
+    // The Pact spends Brimstone + auto-burns an imp if one exists; it does NOT
+    // require a minion (works on banked Brimstone alone).
+    return this._archId() === 'demon'
+      && (this._gameState?.meta?.phase ?? '') === 'day'
+      && this._sacrificeUsesLeft() > 0
   }
 
-  // The SACRIFICE button fires immediately — no minion-pick step. The
-  // minion to burn is auto-chosen by _pickSacrificeMinion(); we flip the
-  // transient _sacrificeArmed flag on so the shared _fireSacrifice() guard
-  // passes for this synchronous call. DEMON_SACRIFICE_ARMED is intentionally
-  // NOT emitted, so the UI never enters a "PICK A MINION" state.
-  _armSacrifice() {
-    if (!this._sacrificeAvailable()) return
-    const m = this._pickSacrificeMinion()
-    if (!m) { this._disarmSacrifice(); return }
-    this._sacrificeArmed = true
-    this._fireSacrifice({ minionId: m.instanceId })
-  }
+  // INFERNAL PACT (day active) — arm, then the UI picks a ROOM.
+  _armSacrifice() { if (!this._sacrificeAvailable()) return; this._sacrificeArmed = true; EventBus.emit('DEMON_SACRIFICE_ARMED', {}) }
+  _disarmSacrifice() { this._sacrificeArmed = false; EventBus.emit('DEMON_SACRIFICE_DISARMED', {}) }
 
-  // Auto-pick the minion the Sacrifice Pact burns. 50% chance to prefer an
-  // expendable Hellgate Imp (this archetype's other ability spawns Imps for
-  // free), so on average half of all sacrifices cost only a free imp rather
-  // than a minion the player paid for. Falls back to the other pool when
-  // the preferred one is empty.
+  // Auto-pick the expendable minion the Pact burns as fuel. Prefers a free
+  // Hellgate Imp; falls back to any dungeon minion; null if none.
   _pickSacrificeMinion() {
     const alive = (this._gameState?.minions ?? []).filter(m =>
       m && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon')
     if (alive.length === 0) return null
-    const imps    = alive.filter(m => m._isDemonImp)
-    const nonImps = alive.filter(m => !m._isDemonImp)
-    const preferImp = Math.random() < 0.5
-    let pool = preferImp
-      ? (imps.length    ? imps    : nonImps)
-      : (nonImps.length ? nonImps : imps)
-    if (pool.length === 0) pool = alive
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  // Always emits DEMON_SACRIFICE_DISARMED, even if we believed we were
-  // already disarmed. The UI may be holding stale armed state (e.g. if the
-  // night reset cleared us silently in the past) — broadcasting the event
-  // unconditionally lets the UI self-heal back to the SACRIFICE label.
-  _disarmSacrifice() {
-    this._sacrificeArmed = false
-    EventBus.emit('DEMON_SACRIFICE_DISARMED', {})
+    const imps = alive.filter(m => m._isDemonImp)
+    return (imps.length ? imps : alive)[Math.floor(Math.random() * (imps.length ? imps.length : alive.length))]
   }
 
   // Solo Leveling — Sung Jinwoo can't be killed by boss ABILITIES (only the
   // boss duel itself). Returns the minimum HP a damage tick may leave him at
-  // (10% of max); 0 for everyone else. Used as the floor in
-  // `Math.max(this._shadowFloor(adv), before - dmg)` so the subsequent
-  // `hp <= 0` death emit naturally skips him.
+  // (10% of max); 0 for everyone else.
   _shadowFloor(adv) {
-    // Also floors Light Party members — every boss-ability damage path that
-    // routes through this helper (golem quake, venom, spores, miasma, tremors)
-    // now spares them as well as Jinwoo. They may only die in the boss duel.
     return (adv?._shadowMonarch || adv?._lightParty)
       ? Math.max(1, Math.ceil((adv.resources?.maxHp ?? 1) * 0.10))
       : 0
   }
 
-  // payload: { minionId } — fired by the UI when the player clicks one of
-  // their own minions while the sacrifice is armed.
+  // ── Brimstone economy helpers ──────────────────────────────────────────
+  _brimstoneCap() {
+    return (Balance.DEMON_BRIMSTONE_CAP_BASE ?? 80) + currentAct(this._gameState) * (Balance.DEMON_BRIMSTONE_CAP_PER_ACT ?? 60)
+  }
+  _brimstoneSat() {
+    return Math.max(0, Math.min(1, (this._gameState?.boss?.brimstone ?? 0) / Math.max(1, this._brimstoneCap())))
+  }
+  // Every adventurer death banks Infernal Power (T3 Soul Harvest doubles it).
+  _bankBrimstoneFromDeath(adv) {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    let gain = (Balance.DEMON_BRIMSTONE_PER_KILL ?? 4) + (adv?.level ?? 1) * (Balance.DEMON_BRIMSTONE_KILL_PER_LV ?? 0.4)
+    if (currentAct(this._gameState) >= 3) gain *= 2
+    boss.brimstone = Math.min(this._brimstoneCap(), (boss.brimstone ?? 0) + gain)
+  }
+
+  // INFERNAL PACT — payload { roomId }. Burns an expendable imp as fuel, spends
+  // banked Brimstone, and rains hellfire on the room (dmg scales with spend).
   _fireSacrifice(payload) {
     if (!this._sacrificeArmed) return
     if (!this._sacrificeAvailable()) { this._disarmSacrifice(); return }
-    const m = this._gameState?.minions?.find(x => x.instanceId === payload?.minionId)
-    if (!m || m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) {
-      this._disarmSacrifice()
-      return
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState)
+    const now  = this._scene?.time?.now ?? 0
+    const TS   = Balance.TILE_SIZE
+
+    // Auto-burn one expendable minion as ritual fuel → banks a big Brimstone chunk.
+    const fuel = this._pickSacrificeMinion()
+    let burnX = boss.worldX, burnY = boss.worldY
+    if (fuel) {
+      burnX = fuel.worldX; burnY = fuel.worldY
+      fuel.resources.hp = 0; fuel.aiState = 'dead'
+      EventBus.emit('MINION_DIED', { minion: fuel, killerId: 'sacrifice_pact' })
+      EventBus.emit('DEMON_SACRIFICE_BURN_VFX', { x: burnX, y: burnY })
+      this._gameState.minions = (this._gameState.minions ?? []).filter(x => x.instanceId !== fuel.instanceId)
+      const mt = (fuel.tier ?? 1)
+      boss.brimstone = Math.min(this._brimstoneCap(), (boss.brimstone ?? 0)
+        + (Balance.DEMON_BRIMSTONE_PER_SACRIFICE ?? 18) * (1 + (mt - 1) * (Balance.DEMON_BRIMSTONE_SAC_PER_TIER ?? 0.5)))
     }
-    // Pick a random alive adv in the dungeon. Sung Jinwoo AND the Light Party
-    // are exempt — the sacrifice (an instant-kill boss ability) can't take
-    // them; they die only to normal combat / the boss duel itself.
-    const advs = (this._gameState?.adventurers?.active ?? [])
-      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 &&
-        !a._shadowMonarch && !a._lightParty)
-    if (advs.length === 0) {
-      this._disarmSacrifice()
-      EventBus.emit('DEMON_SACRIFICE_NO_TARGETS', {})
-      return
+
+    // Spend a fraction of the bank → bigger the reserve, bigger the hellfire.
+    const spend = Math.floor((boss.brimstone ?? 0) * (Balance.DEMON_PACT_SPEND_FRAC ?? 0.6))
+    boss.brimstone = Math.max(0, (boss.brimstone ?? 0) - spend)
+
+    const advsIn = (this._gameState.adventurers?.active ?? [])
+      .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room) && !a._shadowMonarch && !a._lightParty)
+    let refund = 0
+    for (const a of advsIn) {
+      const frac = (Balance.DEMON_PACT_BASE_DMG_PCT ?? 0.10) + spend * (Balance.DEMON_PACT_DMG_PER_BRIMSTONE ?? 0.0015)
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * frac))
+      a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
+      if (tier >= 3) a._noHealUntil = Math.max(a._noHealUntil ?? 0, now + (Balance.DEMON_PACT_HEALBLOCK_MS ?? 2000))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'fire' })
+      // T4 Soulfire Execute — heroes dragged below the threshold are consumed + refund Brimstone.
+      if (a.resources.hp > 0 && tier >= 4
+          && a.resources.hp <= (a.resources.maxHp ?? 0) * (Balance.DEMON_PACT_EXECUTE_PCT ?? 0.18)) {
+        a.resources.hp = 0
+        refund += (Balance.DEMON_PACT_EXECUTE_REFUND ?? 10)
+      }
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'sacrifice_pact', killerName: 'Infernal Pact', roomId: room.instanceId, damageType: 'fire' })
     }
-    const victim = advs[Math.floor(Math.random() * advs.length)]
+    if (refund > 0) boss.brimstone = Math.min(this._brimstoneCap(), (boss.brimstone ?? 0) + refund)
 
-    // Burn the minion (permanent — flag stops the night respawn).
-    const burnX = m.worldX, burnY = m.worldY
-    m._sacrificeBurned = true   // (defensive marker; we drop the entity below)
-    m.resources.hp = 0
-    m.aiState = 'dead'
-    EventBus.emit('MINION_DIED', { minion: m, killerId: 'sacrifice_pact' })
-    EventBus.emit('DEMON_SACRIFICE_BURN_VFX', { x: burnX, y: burnY })
-    // Permadeath: strip from gameState.minions so the night respawn pass
-    // doesn't revive it.
-    this._gameState.minions = (this._gameState.minions ?? [])
-      .filter(x => x.instanceId !== m.instanceId)
+    // T2+ — the room keeps burning (lingering hellfire ground).
+    if (tier >= 2) {
+      this._hellfireZones = (this._hellfireZones ?? []).filter(z => z.roomId !== room.instanceId)
+      this._hellfireZones.push({ roomId: room.instanceId, until: now + (Balance.DEMON_PACT_BURN_DURATION_MS ?? 5000), _tickAt: now })
+    }
 
-    // Instakill the chosen victim.
-    victim.resources.hp = 0
-    EventBus.emit('COMBAT_HIT', {
-      sourceId: 'sacrifice_pact',
-      targetId: victim.instanceId,
-      damage:   victim.resources?.maxHp ?? 9999,
-      damageType: 'fire',
-    })
-    EventBus.emit('ADVENTURER_DIED', {
-      adventurer: victim,
-      killerId:   'sacrifice_pact',
-      killerName: 'Sacrifice Pact',
-      roomId:     this._scene?.dungeonGrid?.getRoomAtTile?.(victim.tileX, victim.tileY)?.instanceId ?? null,
-      damageType: 'fire',
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.infernalPactFx?.(this._scene, cx, cy, {
+      tier, rectW: room.width * TS, rectH: room.height * TS,
+      fromX: burnX, fromY: burnY, demonX: boss.worldX, demonY: boss.worldY,
     })
 
-    // Burn the daily use, disarm.
     this._gameState._demon ??= { sacrificeUsesLeft: 0 }
     this._gameState._demon.sacrificeUsesLeft = Math.max(0, this._gameState._demon.sacrificeUsesLeft - 1)
     this._sacrificeArmed = false
-    EventBus.emit('DEMON_SACRIFICE_FIRED', {
-      burnedMinionId: m.instanceId,
-      victimAdvId:    victim.instanceId,
-    })
+    EventBus.emit('DEMON_SACRIFICE_FIRED', { roomId: room.instanceId, room, tier, spend, victims: advsIn.length })
+  }
+
+  // Volatile Legion (T2) — a Hellgate imp killed by a hero erupts in hellfire.
+  _onDemonMinionDied(m, killerId) {
+    if (currentAct(this._gameState) < 2 || !m?._isDemonImp) return
+    if (!killerId || killerId === 'sacrifice_pact') return
+    const killer = (this._gameState?.adventurers?.active ?? []).find(a => a.instanceId === killerId)
+    if (!killer) return
+    const TS = Balance.TILE_SIZE, R = (Balance.DEMON_IMP_EXPLODE_RADIUS_TS ?? 1.6) * TS
+    const ex = m.worldX ?? killer.worldX, ey = m.worldY ?? killer.worldY
+    for (const a of (this._gameState?.adventurers?.active ?? [])) {
+      if ((a.resources?.hp ?? 0) <= 0 || a._shadowMonarch || a._lightParty) continue
+      if (Math.hypot((a.worldX ?? 0) - ex, (a.worldY ?? 0) - ey) > R) continue
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.DEMON_IMP_EXPLODE_DMG_PCT ?? 0.10)))
+      a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'fire' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Volatile Imp', roomId: null, damageType: 'fire' })
+    }
+    if (this._scene && Number.isFinite(ex)) AbilityVfx?.combustFx?.(this._scene, ex, ey)
+  }
+
+  // Passive Brimstone HP regen (lifeline) + T4 Infernal Ascendance minion buff.
+  _tickDemonBrimstone(dt) {
+    if (this._archId() !== 'demon') return
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const bs = boss.brimstone ?? 0
+    if (bs > 0 && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 0)) {
+      const nearCap = currentAct(this._gameState) >= 4 && bs >= this._brimstoneCap() * (Balance.DEMON_ASCEND_NEAR_CAP_FRAC ?? 0.75)
+      const surge = nearCap ? (Balance.DEMON_BRIMSTONE_REGEN_SURGE ?? 3) : 1
+      boss.hp = Math.min(boss.maxHp, boss.hp + (boss.maxHp ?? 0) * (Balance.DEMON_BRIMSTONE_REGEN_PCT ?? 0.003) * surge * (dt / 1000))
+    }
+    this._tickInfernalAscendance()
+  }
+
+  // T4 Infernal Ascendance — while Brimstone is near cap, every dungeon minion's
+  // attacks sear (modeled as an ATK surge, captured-baseline, restored when it
+  // lapses / on save). `_ascendBaseAtk`/`_ascendApplied` stripped on save.
+  _tickInfernalAscendance() {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const on = currentAct(this._gameState) >= 4
+      && (boss.brimstone ?? 0) >= this._brimstoneCap() * (Balance.DEMON_ASCEND_NEAR_CAP_FRAC ?? 0.75)
+    for (const m of (this._gameState?.minions ?? [])) {
+      if (m.faction !== 'dungeon' || m.aiState === 'dead') continue
+      if (on && !m._ascendApplied && m.stats) {
+        m._ascendBaseAtk = m.stats.attack ?? 0
+        m.stats.attack = Math.round((m.stats.attack ?? 0) * (1 + (Balance.DEMON_ASCEND_BURN_PCT ?? 0.2)))
+        m._ascendApplied = true
+      } else if (!on && m._ascendApplied) {
+        if (m.stats && m._ascendBaseAtk != null) m.stats.attack = m._ascendBaseAtk
+        m._ascendApplied = false; delete m._ascendBaseAtk
+      }
+    }
+  }
+
+  // Lingering Pact burning-ground zones (transient, scene-time; not saved).
+  _tickDemonHellfire(now) {
+    if (this._archId() !== 'demon') return
+    const zones = this._hellfireZones ?? []
+    if (zones.length === 0) return
+    const tier = currentAct(this._gameState)
+    this._hellfireZones = zones.filter(z => z.until > now)
+    for (const z of this._hellfireZones) {
+      const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === z.roomId)
+      if (!room) continue
+      if (now - (z._tickAt ?? 0) >= (Balance.DEMON_PACT_BURN_TICK_MS ?? 1000)) {
+        z._tickAt = now
+        for (const a of (this._gameState?.adventurers?.active ?? [])) {
+          if ((a.resources?.hp ?? 0) <= 0 || a._shadowMonarch || a._lightParty || !_advInsideRoom(a, room)) continue
+          const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.DEMON_PACT_BURN_PCT_PER_TICK ?? 0.02)))
+          a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
+          if (tier >= 3) a._noHealUntil = Math.max(a._noHealUntil ?? 0, now + (Balance.DEMON_PACT_HEALBLOCK_MS ?? 2000))
+          EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'fire' })
+          if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'sacrifice_pact', killerName: 'Hellfire', roomId: room.instanceId, damageType: 'fire' })
+        }
+      }
+      if (this._scene?.add && Math.random() < 0.5) {
+        const TS = Balance.TILE_SIZE
+        const fx = (room.gridX + 0.5 + Math.random() * (room.width - 1)) * TS
+        const fy = (room.gridY + 0.5 + Math.random() * (room.height - 1)) * TS
+        AbilityVfx?.flameLickFx?.(this._scene, fx, fy, { h: 18 + Math.random() * 8, w: 5 + Math.random() * 2, embers: true })
+      }
+    }
   }
 
   // Permanent infernal portal placed in the top-left corner of the boss

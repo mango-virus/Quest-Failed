@@ -304,6 +304,39 @@ export const Balance = {
   DEMON_SACRIFICE_USES_PER_BOSS_LV: 0.333, // +0.333 uses per boss-lv → floor adds ~1 every 3 lv
   DEMON_HELLGATE_BASE_STAT_FRAC:   0.10, // imps spawn at 10% of imp1 base stats at lvl 1
   DEMON_HELLGATE_STAT_PER_LV:      0.10, // +10% per boss level (no cap)
+  // THE BRIMSTONE PACT (overhaul) — Infernal Power economy + tiered hellfire.
+  DEMON_BRIMSTONE_PER_SACRIFICE:   18,   // banked when a minion is sacrificed (× value mult below)
+  DEMON_BRIMSTONE_SAC_PER_TIER:    0.5,  // sacrifice bank ×(1 + minionTier × this)
+  DEMON_BRIMSTONE_PER_KILL:        4,    // banked per adventurer death anywhere (Soul Harvest base)
+  DEMON_BRIMSTONE_KILL_PER_LV:     0.4,  // + this × adv.level per death
+  DEMON_BRIMSTONE_CAP_BASE:        80,   // saturation cap (aura/scaling reads) base
+  DEMON_BRIMSTONE_CAP_PER_ACT:     60,   // + per act
+  DEMON_BRIMSTONE_REGEN_PCT:       0.003,// passive: boss heals this × maxHP / sec while holding Brimstone
+  DEMON_BRIMSTONE_REGEN_SURGE:     3,    // T4 Infernal Ascendance: regen ×this near cap
+  // Infernal Pact (day active):
+  DEMON_PACT_USES_PER_DAY:         1,
+  DEMON_PACT_USES_PER_BOSS_LV:     0.25, // +1 use per 4 boss levels
+  DEMON_PACT_BASE_DMG_PCT:         0.10, // hellfire floor = this × adv maxHP
+  DEMON_PACT_DMG_PER_BRIMSTONE:    0.0015,// + this × Brimstone-spent × adv maxHP (the scaling knob)
+  DEMON_PACT_SPEND_FRAC:           0.6,  // fraction of banked Brimstone spent per Pact (rest carries)
+  DEMON_PACT_BURN_PCT_PER_TICK:    0.02, // T2 burning ground: % adv maxHP / tick
+  DEMON_PACT_BURN_TICK_MS:         1000,
+  DEMON_PACT_BURN_DURATION_MS:     5000, // burning ground lingers this long
+  DEMON_PACT_HEALBLOCK_MS:         2000, // T3: _noHealUntil refresh while in the burning room
+  DEMON_PACT_EXECUTE_PCT:          0.18, // T4 Soulfire Execute: heroes below this %maxHP are consumed
+  DEMON_PACT_EXECUTE_REFUND:       10,   // Brimstone refunded per execute (chains)
+  // Volatile Legion (T2 dungeon kit):
+  DEMON_IMP_EXPLODE_DMG_PCT:       0.10, // imp death blast = this × adv maxHP (AoE on the killer's tile)
+  DEMON_IMP_EXPLODE_RADIUS_TS:     1.6,  // tiles
+  // Infernal Ascendance (T4 dungeon kit):
+  DEMON_ASCEND_BURN_PCT:           0.20, // dungeon-minion ATK surge (searing attacks) while near cap
+  DEMON_ASCEND_NEAR_CAP_FRAC:      0.75, // "near cap" = brimstone ≥ this × cap
+  // Throne fight:
+  DEMON_FIGHT_HELLBOLT_FRAC:       0.45, // Hellbolt AoE dmg = boss.attack × this
+  DEMON_FIGHT_IMMOLATION_FRAC:     0.80, // Immolation nova (consumes an imp)
+  DEMON_FIGHT_METEOR_FRAC:         0.55, // Brimstone Rain per-meteor dmg
+  DEMON_FIGHT_FINALE_DMG_PER_BRIMSTONE: 0.002, // finale cataclysm: × Brimstone × adv maxHP
+  DEMON_FIGHT_FINALE_HEAL_FRAC:    0.0008,// finale heal = × Brimstone × boss maxHP
 
   // --- Phase 1b.10: Vampire Sovereign ---
   VAMPIRE_THRALL_ROAM_SWAP_MS:    6000,  // thrall reassigns to a random non-boss room every N ms

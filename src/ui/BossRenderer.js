@@ -164,6 +164,9 @@ export class BossRenderer {
     // Predator Myconid — sickly-green Glow-outline aura; intensity reads the
     // Biomass saturation (how grown the colony is).
     this._updateBloomAura()
+    // Demon Lord — pulsing orange/hellfire Glow-outline aura; intensity reads
+    // the Brimstone saturation (how much Infernal Power is banked).
+    this._updateBrimstoneAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -616,6 +619,28 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._bloomGlow) } catch (e) {}
     }
     this._bloomGlow = null
+  }
+
+  _updateBrimstoneAura() {
+    const isDemon = this._gameState?.player?.bossArchetypeId === 'demon'
+    if (!isDemon || !this._container || !this._sprite) { this._clearBrimstoneAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.DEMON_BRIMSTONE_CAP_BASE ?? 80) + currentAct(this._gameState) * (Balance.DEMON_BRIMSTONE_CAP_PER_ACT ?? 60)
+    const sat = Math.max(0, Math.min(1, (boss?.brimstone ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      // hellfire aura: dim ember at low Brimstone → searing orange at full.
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x5a1e08, 0xff7a1e)
+      if (!this._brimGlow) { try { this._brimGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._brimGlow = true } }
+      else if (this._brimGlow !== true) { try { this._brimGlow.color = p.color; this._brimGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearBrimstoneAura() {
+    if (this._brimGlow && this._brimGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._brimGlow) } catch (e) {}
+    }
+    this._brimGlow = null
   }
 
   _build(boss) {

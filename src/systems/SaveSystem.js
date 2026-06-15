@@ -645,6 +645,10 @@ function _rehydrateRunHistory(state) {
     if (m._bloomBaseAtk != null) { if (m.stats) m.stats.attack = m._bloomBaseAtk; m._bloomBaseAtk = null }
     if ('_bloomApplied' in m) m._bloomApplied = false
     if ('_bloomTickAt' in m)  m._bloomTickAt  = 0
+    // Demon Infernal Ascendance — restore the captured ATK baseline (re-applies
+    // on the next tick while Brimstone is near cap).
+    if (m._ascendBaseAtk != null) { if (m.stats) m.stats.attack = m._ascendBaseAtk; m._ascendBaseAtk = null }
+    if ('_ascendApplied' in m) m._ascendApplied = false
     // Orc Warpath — restore base speed + clear the scene-time rampage window.
     if (m._rampageBaseSpeed != null && m.stats) m.stats.speed = m._rampageBaseSpeed
     if ('_rampageUntil' in m)     m._rampageUntil     = 0

@@ -833,6 +833,56 @@ persistent player-seeded bloom system.
 - ☑ Bespoke fungal VFX (bloomFx/sporeBurstFx/sporeVentFx/creepingRotFx/bloomFinaleFx), lab-wired; lint-vfx clean.
 - ☑ SaveSystem persists biomass/bloomedRooms + strips transient riders; node --check; new harness `myconid-bloom-check.mjs` green; soak clean; bossArchetypes.json text; live preview verified (all 5 fungal VFX render, no console errors).
 
+### Boss #6 — Demon Lord → **THE BRIMSTONE PACT** (sacrifice engine) (LOCKED 2026-06-15, v2)
+
+**Fantasy:** death → fuel → hellfire. The more your dungeon kills (and the more you feed it), the more
+catastrophic the Demon's hellfire — a run-long snowball that rewards a strong dungeon and stays scary late.
+
+**Core resource — INFERNAL POWER (Brimstone)** (`boss.brimstone`, persists; gauge; cap scales w/ act).
+Banks from (a) sacrificing your own minions (big chunk, scaled by minion value) and (b) EVERY adventurer
+death anywhere (the engine). Passive: the Demon regenerates HP while holding Brimstone.
+
+**Day active — INFERNAL PACT** (arm → click a room): auto-burns one expendable Hellgate imp AND spends
+banked Brimstone to rain hellfire on the room. **Damage scales with Brimstone spent** (small reserve =
+poke, full reserve = room-wipe); all %-max-HP, room-wide (scales w/ crowd). Riders by act: T1 blast · T2
++burning ground (room keeps burning several seconds — lingering AoE DoT) · T3 +heal-block in the burning
+room · T4 +**Soulfire Execute**: heroes the hellfire/burn drag below a %-HP THRESHOLD are consumed AND
+refund Brimstone (chains into the next Pact). Threshold-based → scales w/ crowd + stays lethal at any HP
+curve. Uses/day = `1 + floor(level × DEMON_PACT_USES_PER_BOSS_LV)`, reset on night.
+*(Deviation: replaces the old no-pick Sacrifice that instakilled a random adv anywhere.)*
+
+**Dungeon kit — escalates by act (verbs, not stat bumps):** T1 **Brimstone** (bank + regen lifeline) →
+T2 **Volatile Legion** (Hellgate imps EXPLODE on death — hellfire AoE on whoever killed them) → T3 **Soul
+Harvest** (every adv death anywhere banks a big Brimstone chunk — the snowball) → T4 **Infernal Ascendance**
+(while Brimstone near cap: every dungeon minion's attacks BURN + boss regen surges). Hellgate retained
+(free imps each dawn; now Pact fuel + Volatile bombs).
+
+**Throne fight — hellfire caster fueled by the bank** (bigger entry/more starting imps the more Brimstone):
+T1 **Hellbolt** (AoE hellfire bolts) → T2 **Immolation** (sacrifices a summoned imp mid-duel for a bigger
+nova + banks Brimstone) → T3 **Brimstone Rain** (hellfire meteors; count+dmg scale w/ Brimstone) → T4
+**The Pact Fulfilled** (finale at low HP: dumps ALL Brimstone in one room-wide cataclysm scaling w/ the
+spent reserve + heals the Demon proportionally).
+
+**Tells:** Brimstone gauge + panel readout; the Demon's existing pulsing ORANGE Glow-outline aura now
+reads Brimstone saturation; Hellgate portal visible.
+
+**VFX:** compose from the existing infernal set (`infernoFx` room-eruption, `combustFx`, `hellfireAuraFx`,
+`emberRiseFx`, `flameLickFx`, `heatShimmerFx`) + new bespoke `infernalPactFx` (sacrificed imp erupts →
+flame streams to the Demon → hellfire rains on the room + burning ground), `brimstoneMeteorFx` (falling
+hellfire meteor + impact), `pactFinaleFx` (the cataclysm). Lab-wired; meet the visual bar.
+
+**Always-useful:** every number is %-max-HP or scales with Brimstone (which snowballs from the dungeon's
+kills all run) — no fixed magnitudes; T4 execute is threshold-based, finale scales with the whole reserve.
+
+**Acceptance checklist (Brimstone Pact):**
+- ☑ BRIMSTONE resource (`boss.brimstone`) banks on sacrifice (big) + every adv death (`_bankBrimstoneFromDeath`, T3 doubles); persists; cap/act; passive HP regen (`_tickDemonBrimstone`); visible gauge.
+- ☑ Day INFERNAL PACT (reworked Sacrifice → arm→room): burns an imp + spends Brimstone → hellfire (dmg scales w/ Brimstone spent), %maxHP room-wide; T2 burning ground (`_tickDemonHellfire` zones), T3 heal-block, T4 %-threshold Soulfire Execute + refund. DOM button (`INFERNAL PACT · N`) + Phaser room-pick (`_installPactRoomPick`) + DEMON_SACRIFICE_* events; uses/day reset on night.
+- ☑ Dungeon kit by act: T2 Volatile Legion (`_onDemonMinionDied` — imps explode on death), T3 Soul Harvest (death-bank ×2), T4 Infernal Ascendance (`_tickInfernalAscendance` — minion ATK surge + regen ×surge near cap).
+- ☑ Throne fight tier-gated (`_tickBrimstoneFight`): Hellbolt / Immolation (consumes a chamber imp → nova + bank) / Brimstone Rain (meteors scale w/ Brimstone) / Pact-Fulfilled finale (dump-all cataclysm + heal at <30% HP).
+- ☑ Tells: BRIMSTONE panel readout (`_renderBrimstoneStatus`); orange glow-outline aura (`BossRenderer._updateBrimstoneAura`) reading Brimstone saturation.
+- ☑ Bespoke infernal VFX (infernalPactFx/brimstoneMeteorFx/pactFinaleFx + reuse inferno/combust), lab-wired; lint-vfx clean; live-verified (room eruption + meteors + finale cataclysm).
+- ☑ SaveSystem persists brimstone + restores Ascendance atk baseline (burn zones transient on system); node --check; new harness `demon-brimstone-check.mjs` green; soak clean; bossArchetypes.json text; live preview verified.
+
 ---
 
 ## Personality combos

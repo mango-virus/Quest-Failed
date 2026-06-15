@@ -152,31 +152,13 @@ export class BossArchetypeUI {
     })
     this._on('ORC_TROPHY_THROW_DISARMED', () => this._removeThrowRoomPick())
     this._on('ORC_TROPHY_THROW_FIRED', () => this._removeThrowRoomPick())
-    // Phase 1b.9 — Demon Sacrifice Pact wiring.
+    // Demon THE BRIMSTONE PACT — arm → click a ROOM → hellfire it.
     this._on('DEMON_SACRIFICE_ARMED', () => {
-      this._sacArmed = true
-      this._setSacrificeArmedVisual(true)
-      this._installMinionPickListener()
-      showToast(this._scene, 'SACRIFICE armed — click one of your minions to burn', { type: 'info', duration: 3000 })
+      this._installPactRoomPick()
+      showToast(this._scene, 'INFERNAL PACT armed — click a room to burn', { type: 'info', duration: 3000 })
     })
-    this._on('DEMON_SACRIFICE_DISARMED', () => {
-      this._sacArmed = false
-      this._setSacrificeArmedVisual(false)
-      this._removeMinionPickListener()
-    })
-    this._on('DEMON_SACRIFICE_FIRED', (payload) => {
-      this._sacArmed = false
-      this._setSacrificeArmedVisual(false)
-      this._removeMinionPickListener()
-      this._playSacrificeVfx(payload)
-      this._refreshVisibility()
-    })
-    this._on('DEMON_SACRIFICE_NO_TARGETS', () => {
-      showToast(this._scene, 'No adventurers in the dungeon to sacrifice for', { type: 'error', duration: 2500 })
-      this._sacArmed = false
-      this._setSacrificeArmedVisual(false)
-      this._removeMinionPickListener()
-    })
+    this._on('DEMON_SACRIFICE_DISARMED', () => this._removePactRoomPick())
+    this._on('DEMON_SACRIFICE_FIRED', () => this._removePactRoomPick())
     this._on('DEMON_HELLGATE_SPAWNED', (payload) => {
       const n = payload?.count ?? 0
       if (n > 0) showToast(this._scene, `Hellgate vomited ${n} imp${n === 1 ? '' : 's'}`, { type: 'success', duration: 2500 })
@@ -823,6 +805,28 @@ export class BossArchetypeUI {
     this._seedPickGame    = null
   }
 
+  // Demon INFERNAL PACT room-pick.
+  _installPactRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._pactPickHandler) return
+    this._pactPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('DEMON_SACRIFICE_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('DEMON_SACRIFICE_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._pactPickHandler)
+    this._pactPickGame = game
+  }
+
+  _removePactRoomPick() {
+    if (!this._pactPickHandler || !this._pactPickGame) return
+    this._pactPickGame.input.off('pointerdown', this._pactPickHandler)
+    this._pactPickHandler = null
+    this._pactPickGame    = null
+  }
+
   // Camera shake on the Game scene + a small "EARTHQUAKE" floater above the
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
@@ -878,6 +882,7 @@ export class BossArchetypeUI {
     this._removeGazeRoomPick()
     this._removeThrowRoomPick()
     this._removeSeedRoomPick()
+    this._removePactRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

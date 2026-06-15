@@ -51,13 +51,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Sacrifice Pact",
-      "summary": "Once per day, burn a minion (often a free imp) to instakill a random adventurer.",
+      "name": "The Brimstone Pact",
+      "summary": "Death is fuel. Sacrifices and every adventurer kill bank INFERNAL POWER (which also regenerates the Demon); the Infernal Pact spends it to rain hellfire on a room — the bigger the reserve, the bigger the cataclysm.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Hellgate — a portal in the boss room spawns free Imps every dawn. They roam the dungeon and don't count toward your minion cap.",
+        "text": "Infernal Pact (day active) — arm, click a room: burn an expendable imp + spend banked Brimstone to hellfire the room (damage scales with the reserve). Higher acts add burning ground, heal-block, and a %-HP Soulfire Execute that refunds Brimstone.",
+        "implemented": true
+      },
+      {
+        "text": "Volatile Legion (Act II+) — Hellgate imps EXPLODE in hellfire when a hero kills them. Soul Harvest (Act III+) doubles the Brimstone every death banks. Infernal Ascendance (Act IV) — while the reserve is near full, your whole legion's attacks sear.",
+        "implemented": true
+      },
+      {
+        "text": "Hellgate — a portal in the boss room spawns free Imps every dawn (Pact fuel + Volatile bombs); they roam the dungeon and don't count toward your minion cap.",
         "implemented": true
       }
     ],

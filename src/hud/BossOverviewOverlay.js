@@ -418,6 +418,8 @@ export class BossOverviewOverlay {
       this._renderEyesOpen(),
       // Biomass / Bloom readout (Myconid — The Bloom)
       this._renderBloomStatus(),
+      // Brimstone readout (Demon — The Brimstone Pact)
+      this._renderBrimstoneStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -694,6 +696,29 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${bloomed} room${bloomed === 1 ? '' : 's'} bloomed · phase: ${phase}. Biomass spreads the colony, fuels bloomed terrain, and feeds the throne.`),
+    ])
+  }
+
+  _renderBrimstoneStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'demon') return null
+    const boss = this._gameState.boss ?? {}
+    const brim = Math.floor(boss.brimstone ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.DEMON_BRIMSTONE_CAP_BASE ?? 80) + tier * (Balance.DEMON_BRIMSTONE_CAP_PER_ACT ?? 60)
+    const C = '#ff8a3a'
+    const pct = Math.max(0, Math.min(100, (brim / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'Ascendance' : tier >= 3 ? 'Soul Harvest' : tier >= 2 ? 'Volatile Legion' : 'Brimstone'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'BRIMSTONE'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(brim)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#1f1006', border: '1px solid #3a2410', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#a8401a,#ff8a3a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `phase: ${phase}. Banked from sacrifices + every kill; the Infernal Pact spends it for hellfire (bigger reserve = bigger blast) and the Demon regenerates while it burns.`),
     ])
   }
 

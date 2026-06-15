@@ -66,6 +66,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Slime (Mitosis)', fx: ['slimeSplitFx', 'slimeMergeFx', 'acidPuddleFx', 'slimeSurgeFx', 'slimeEngulfFx'] },
   { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
   { label: 'Boss·Myconid (The Bloom)', fx: ['bloomFx', 'sporeBurstFx', 'sporeVentFx', 'creepingRotFx', 'bloomFinaleFx'] },
+  { label: 'Boss·Demon (Brimstone)', fx: ['infernalPactFx', 'brimstoneMeteorFx', 'pactFinaleFx', 'combustFx', 'infernoFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -403,6 +404,18 @@ export class VfxLab {
           { label: 'Bloom Finale (T4)', fire: () => AbilityVfx.bloomFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }) },
         ]
       }
+      if (entity.archId === 'demon') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x5a1e08, hi: 0xff7a1e, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Brimstone',  fire: aura(0.3) },
+          { label: 'Aura: Mid Brimstone',  fire: aura(0.65) },
+          { label: 'Aura: High Brimstone', fire: aura(1) },
+          { label: 'Infernal Pact (room)', fire: () => AbilityVfx.infernalPactFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX - 50, fromY: e.worldY + 20, demonX: e.worldX, demonY: e.worldY }) },
+          { label: 'Brimstone Meteor', fire: () => AbilityVfx.brimstoneMeteorFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Immolation (combust)', fire: () => AbilityVfx.combustFx(this._scene, e.worldX, e.worldY) },
+          { label: 'Pact Fulfilled (T4)', fire: () => AbilityVfx.pactFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }) },
+        ]
+      }
       if (entity.archId !== 'orc') return []
       return [
         { label: 'Claim Trophy', fire: () => AbilityVfx.trophyClaimFx(this._scene, tX(), tY(), { color: 0xd0d4dc, toX: e.worldX, toY: e.worldY - 20, isNew: true }) },
@@ -660,6 +673,10 @@ export class VfxLab {
         case 'sporeVentFx':   AbilityVfx.sporeVentFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
         case 'creepingRotFx': AbilityVfx.creepingRotFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
         case 'bloomFinaleFx': AbilityVfx.bloomFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }); break
+        // Boss · Demon (The Brimstone Pact) — tier cycles 1→4.
+        case 'infernalPactFx':   AbilityVfx.infernalPactFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX - 50, fromY: e.worldY + 20, demonX: e.worldX, demonY: e.worldY }); break
+        case 'brimstoneMeteorFx': AbilityVfx.brimstoneMeteorFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
+        case 'pactFinaleFx':     AbilityVfx.pactFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break
