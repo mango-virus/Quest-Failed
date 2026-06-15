@@ -72,6 +72,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Vampire (Blood Court)', fx: ['bloodRiteFx', 'sanguinePoolFx', 'charmBindFx', 'bloodEruptFx', 'crimsonLanceFx', 'sanguineEmbraceFx', 'bloodTempestFx', 'bloodMoonFx'] },
   { label: 'Boss·Wraith (Dread)', fx: ['nightTerrorFx', 'dreadZoneFx', 'frightDeathFx', 'dreadPulseFx', 'phantomAssaultFx', 'massHysteriaFx', 'panicBreakFx'] },
   { label: 'Boss·Gnoll (Blood Hunt)', fx: ['soundHuntFx', 'packRendFx', 'alphaLeapFx', 'frenzyHowlFx', 'bloodHuntFinaleFx'] },
+  { label: 'Boss·Succubus (Rapture)', fx: ['kissOfRaptureFx', 'raptureBindFx', 'lureFx', 'doppelgangerSplitFx', 'maelstromFx', 'raptureFinaleFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -469,6 +470,21 @@ export class VfxLab {
           { label: 'Blood Hunt Finale (T4)', fire: () => AbilityVfx.bloodHuntFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: tX(), y: tY() }] }) },
         ]
       }
+      if (entity.archId === 'succubus') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a0a30, hi: 0xff4aa0, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Allure',  fire: aura(0.3) },
+          { label: 'Aura: Mid Allure',  fire: aura(0.65) },
+          { label: 'Aura: High Allure', fire: aura(1) },
+          { label: 'Kiss of Rapture (room)', fire: () => AbilityVfx.kissOfRaptureFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX, fromY: e.worldY }) },
+          { label: 'Rapture Bind (enrapture)', fire: () => AbilityVfx.raptureBindFx(this._scene, tX(), tY(), { mode: 'enrapture' }) },
+          { label: 'Rapture Bind (infatuate)', fire: () => AbilityVfx.raptureBindFx(this._scene, tX(), tY(), { mode: 'infatuate' }) },
+          { label: 'Lure', fire: () => AbilityVfx.lureFx(this._scene, tX(), tY(), { toX: e.worldX, toY: e.worldY }) },
+          { label: 'Doppelgänger Split', fire: () => AbilityVfx.doppelgangerSplitFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), scale: this._bossStandIn?.scaleX || 1.4 }) },
+          { label: 'Maelstrom of Desire (T3)', fire: () => AbilityVfx.maelstromFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
+          { label: "Rapture's End (T4)", fire: () => AbilityVfx.raptureFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: tX(), y: tY() }] }) },
+        ]
+      }
       if (entity.archId === 'golem') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
         return [
@@ -789,6 +805,13 @@ export class VfxLab {
         case 'alphaLeapFx':       AbilityVfx.alphaLeapFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
         case 'frenzyHowlFx':      AbilityVfx.frenzyHowlFx(s, e.worldX, e.worldY - 8, {}); break
         case 'bloodHuntFinaleFx': AbilityVfx.bloodHuntFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
+        // Boss · Succubus (The Rapture) — tier cycles 1→4.
+        case 'kissOfRaptureFx':     AbilityVfx.kissOfRaptureFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150, fromX: e.worldX, fromY: e.worldY }); break
+        case 'raptureBindFx':       AbilityVfx.raptureBindFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { mode: this._orcTier() % 2 ? 'enrapture' : 'infatuate' }); break
+        case 'lureFx':              AbilityVfx.lureFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { toX: e.worldX, toY: e.worldY }); break
+        case 'doppelgangerSplitFx': AbilityVfx.doppelgangerSplitFx(s, e.worldX, e.worldY, { tier: this._orcTier(), scale: this._bossStandIn?.scaleX || 1.4 }); break
+        case 'maelstromFx':         AbilityVfx.maelstromFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
+        case 'raptureFinaleFx':     AbilityVfx.raptureFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180, victims: [{ x: (d?.worldX ?? e.worldX + 60), y: (d?.worldY ?? e.worldY) - 16 }] }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

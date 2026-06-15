@@ -438,13 +438,21 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Bat-Form Seduction",
-      "summary": "Shapeshift to a bat-swarm and charm an adventurer (once per boss level per day). They turn on their party until an ally dies.",
+      "name": "The Rapture",
+      "summary": "Banks ALLURE and spends it to mesmerize the party — Infatuated turn on their own, Enraptured freeze defenseless (and take extra damage), Lured walk into your traps.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Doppelgänger — the Queen hides among illusory duplicates that the party must shatter to land a real hit.",
+        "text": "ALLURE — every heart she turns banks ALLURE; it scales how many heroes each mesmerize hits and how long it lasts.",
+        "implemented": true
+      },
+      {
+        "text": "Kiss of Rapture (day) — beguile a whole room: infatuate all, enrapture the wounded, lure survivors, and (late) freeze the room in mass ecstasy.",
+        "implemented": true
+      },
+      {
+        "text": "Doppelgänger — the Queen hides among seductive mirror-images you must shatter to land a real hit.",
         "implemented": true
       }
     ],

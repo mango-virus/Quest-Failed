@@ -287,6 +287,21 @@ export class BossArchetypeSystem {
       this._gameState.boss.ferocity   ??= 0
       this._gameState.boss._gnollHunt ??= { usesLeft: uses }
     }
+    // Succubus THE RAPTURE — banked ALLURE economy + KISS OF RAPTURE (day active)
+    this._kissArmed      = false
+    this._raptureFightTimer = null
+    this._allureTrickleAt = 0      // passive-allure cadence stamp
+    this._entranceAt     = 0       // Entrancing Aura (T2) cadence stamp
+    this._rapturePulseAt = 0       // The Rapture (T4) dungeon-wide pulse stamp
+    EventBus.on('SUCCUBUS_KISS_ARM',    this._armKiss,    this)
+    EventBus.on('SUCCUBUS_KISS_DISARM', this._disarmKiss, this)
+    EventBus.on('SUCCUBUS_KISS_TARGET', this._fireKiss,   this)
+    if (this._archId() === 'succubus' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.SUCCUBUS_KISS_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.SUCCUBUS_KISS_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.allure    ??= 0
+      this._gameState.boss._succubusKiss ??= { usesLeft: uses }
+    }
     if (this._archId() === 'myconid' && this._gameState?.boss) {
       const bLv = this._gameState.boss.level ?? 1
       const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
@@ -379,6 +394,9 @@ export class BossArchetypeSystem {
     EventBus.off('GNOLL_HUNT_ARM',    this._armHunt,    this)
     EventBus.off('GNOLL_HUNT_DISARM', this._disarmHunt, this)
     EventBus.off('GNOLL_HUNT_TARGET', this._fireHunt,   this)
+    EventBus.off('SUCCUBUS_KISS_ARM',    this._armKiss,    this)
+    EventBus.off('SUCCUBUS_KISS_DISARM', this._disarmKiss, this)
+    EventBus.off('SUCCUBUS_KISS_TARGET', this._fireKiss,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -391,6 +409,7 @@ export class BossArchetypeSystem {
     this._stopBloodFightTimer()
     this._stopDreadFightTimer()
     this._stopHuntFightTimer()
+    this._stopRaptureFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -489,6 +508,11 @@ export class BossArchetypeSystem {
         const t4 = currentAct(this._gameState) >= 4 ? (Balance.GNOLL_GREAT_HUNT_FEROCITY_MULT ?? 1.5) : 1
         this._bankFerocity(((Balance.GNOLL_FEROCITY_PER_KILL ?? 7) + (dead.level ?? 1) * (Balance.GNOLL_FEROCITY_PER_KILL_PER_LV ?? 0.6)) * t4)
       }
+    }
+    // SUCCUBUS: THE RAPTURE — every hero death feeds ALLURE (level-scaled).
+    if (this._archId() === 'succubus') {
+      const dead = payload?.adventurer
+      if (dead) this._bankAllure((Balance.SUCCUBUS_ALLURE_PER_KILL ?? 6) + (dead.level ?? 1) * (Balance.SUCCUBUS_ALLURE_PER_KILL_PER_LV ?? 0.5))
     }
     // MYCONID: Corpse Bloom — drop a 3-day fungal corpse at the death tile.
     if (this._archId() === 'myconid') {
@@ -1715,6 +1739,13 @@ export class BossArchetypeSystem {
       this._huntMark = null
     }
     this._disarmHunt()
+    // Succubus: refill Kiss of Rapture uses + disarm. ALLURE persists.
+    if (this._archId() === 'succubus' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.SUCCUBUS_KISS_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.SUCCUBUS_KISS_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss._succubusKiss = { usesLeft: uses }
+    }
+    this._disarmKiss()
   }
 
   _isLizardmanMinion(m) {
@@ -2117,6 +2148,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickHuntFight(),
       })
     }
+    if (this._archId() === 'succubus') {
+      this._stopRaptureFightTimer()
+      this._raptureFinaleDone = false
+      this._raptureFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickRaptureFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -2137,6 +2177,7 @@ export class BossArchetypeSystem {
     if (this._archId() === 'vampire') this._stopBloodFightTimer()
     if (this._archId() === 'wraith') this._stopDreadFightTimer()
     if (this._archId() === 'gnoll') this._stopHuntFightTimer()
+    if (this._archId() === 'succubus') this._stopRaptureFightTimer()
   }
 
   _stopFortressFightTimer() {
@@ -2749,6 +2790,8 @@ export class BossArchetypeSystem {
     this._tickGnoll(delta)
     // Succubus shapeshifter+seductress: trigger + bat flight + charm.
     this._tickSuccubus(delta, this._scene?.time?.now ?? 0)
+    // Succubus THE RAPTURE — ALLURE trickle + Entrancing Aura / Rapture pulses.
+    this._tickRapture(this._scene?.time?.now ?? 0)
     // Orc Loot+Warband live recompute.
     this._tickOrc()
     // Orc Trophy Hunter — Mastery aura (T3+) dungeon-wide passive recompute.
@@ -3877,6 +3920,166 @@ export class BossArchetypeSystem {
     }
   }
 
+  // ── SUCCUBUS: THE RAPTURE — banked ALLURE economy ──────────────────────────
+  _allureCap() { return (Balance.SUCCUBUS_ALLURE_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.SUCCUBUS_ALLURE_CAP_PER_ACT ?? 50) }
+  _allureSat() { return Math.max(0, Math.min(1, (this._gameState?.boss?.allure ?? 0) / Math.max(1, this._allureCap()))) }
+  _mesmerDur() { return (Balance.SUCCUBUS_MESMER_MS_BASE ?? 2500) + this._allureSat() * (Balance.SUCCUBUS_MESMER_MS_PER_ALLURE ?? 3000) }
+  _bankAllure(amount) {
+    const boss = this._gameState?.boss
+    if (!boss || !(amount > 0)) return
+    const before = boss.allure ?? 0
+    boss.allure = Math.min(this._allureCap(), before + amount)
+    const gained = boss.allure - before
+    if (gained > 0) EventBus.emit('SUCCUBUS_ALLURE_BANKED', { amount: gained, total: boss.allure })
+  }
+
+  // Infatuated — turns on their own party (canon charm AI). Player-positive: the
+  // party knifes itself.
+  _infatuate(adv, now) {
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    if (adv._shadowMonarch || adv._lightParty || adv.aiState === 'charmed') return
+    adv.aiState = 'charmed'; adv._charmedAt = now; adv._charmedKills = 0; adv._charmedAloneTimer = 0
+    adv._charmerId = 'succubus'; adv._charmedFormerPartyId = adv.partyId ?? null; adv.partyId = null
+    adv.path = null; adv.pathIndex = 0; adv.goal = { type: 'CHARMED' }; adv.goalStack = []
+    adv._charmedAtkAcc = 0; adv._charmedPathAt = 0
+    this._bankAllure(Balance.SUCCUBUS_ALLURE_PER_MESMER ?? 8)
+    EventBus.emit('SUCCUBUS_CHARM_APPLIED', { targetId: adv.instanceId })
+    if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.raptureBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { mode: 'infatuate' })
+  }
+
+  // Enraptured — frozen defenseless AND takes bonus damage (reuses _petrifiedUntil
+  // freeze + _hexUntil/_hexVulnMul vuln, which CombatSystem + the fight already read
+  // via gazeHexMul). `_raptureUntil` drives the PINK bliss tint (not grey petrify).
+  _enrapture(adv, now) {
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    if (adv._shadowMonarch || adv._lightParty) return
+    const dur = this._mesmerDur()
+    adv._petrifiedUntil = Math.max(adv._petrifiedUntil ?? 0, now + dur)
+    adv._raptureUntil   = Math.max(adv._raptureUntil ?? 0, now + dur)
+    adv._hexUntil       = Math.max(adv._hexUntil ?? 0, now + dur)
+    adv._hexVulnMul     = Math.max(adv._hexVulnMul ?? 1, Balance.SUCCUBUS_RAPTURE_VULN_MULT ?? 1.5)
+    this._bankAllure(Balance.SUCCUBUS_ALLURE_PER_MESMER ?? 8)
+    EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'ENRAPTURED' })
+    if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.raptureBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { mode: 'enrapture' })
+  }
+
+  // Lured — walks helplessly toward a chosen room (into your traps/minions).
+  _lure(adv, now, roomId) {
+    if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
+    if (adv._shadowMonarch || adv._lightParty || adv.aiState === 'charmed') return
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    const dest = rooms.find(r => r.instanceId === roomId) ||
+      rooms.filter(r => r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber')[0]
+    if (!dest) return
+    adv._luredUntil = now + this._mesmerDur()
+    adv.goal = { type: 'EXPLORE_ROOM', roomId: dest.instanceId }; adv.path = null
+    this._bankAllure(Balance.SUCCUBUS_ALLURE_PER_MESMER ?? 8)
+    if (this._scene && Number.isFinite(adv.worldX)) AbilityVfx?.lureFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { toX: (dest.gridX + dest.width / 2) * Balance.TILE_SIZE, toY: (dest.gridY + dest.height / 2) * Balance.TILE_SIZE })
+  }
+
+  // Per-frame (gated): ALLURE trickle while heroes live + Entrancing Aura (T2) +
+  // The Rapture (T4) dungeon-wide pulses.
+  _tickRapture(now) {
+    if (this._archId() !== 'succubus') return
+    if ((this._gameState?.meta?.phase ?? '') !== 'day') return
+    const advs = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+    if (advs.length === 0) return
+    const tier = currentAct(this._gameState)
+    // passive ALLURE trickle (her presence is intoxicating)
+    if (now - (this._allureTrickleAt ?? 0) >= 1000) { this._allureTrickleAt = now; this._bankAllure(Balance.SUCCUBUS_ALLURE_TRICKLE ?? 1.5) }
+    // T2 Entrancing Aura — periodically Enrapture a non-mesmerized explorer
+    if (tier >= 2 && !this._bossFightActive && now - (this._entranceAt ?? 0) >= (Balance.SUCCUBUS_ENTRANCE_INTERVAL_MS ?? 5000)) {
+      this._entranceAt = now
+      const free = advs.filter(a => a.aiState !== 'charmed' && (a._petrifiedUntil ?? 0) <= now)
+      if (free.length) this._enrapture(free[Math.floor(Math.random() * free.length)], now)
+    }
+    // T4 The Rapture — dungeon-wide pulse Enraptures a swathe of the party
+    if (tier >= 4 && !this._bossFightActive && now - (this._rapturePulseAt ?? 0) >= (Balance.SUCCUBUS_RAPTURE_PULSE_MS ?? 7000)) {
+      this._rapturePulseAt = now
+      const n = Math.max(1, Math.round(advs.length * (Balance.SUCCUBUS_RAPTURE_PULSE_FRAC ?? 0.4)))
+      for (let i = 0; i < Math.min(n, advs.length); i++) this._enrapture(advs[i], now)
+    }
+  }
+
+  // ── KISS OF RAPTURE (day active) ───────────────────────────────────────────
+  _kissUsesLeft() { return this._gameState?.boss?._succubusKiss?.usesLeft ?? 0 }
+  _kissAvailable() { return this._archId() === 'succubus' && (this._gameState?.meta?.phase ?? '') === 'day' && this._kissUsesLeft() > 0 }
+  _armKiss() { if (!this._kissAvailable()) return; this._kissArmed = true; EventBus.emit('SUCCUBUS_KISS_ARMED', {}) }
+  _disarmKiss() { this._kissArmed = false; EventBus.emit('SUCCUBUS_KISS_DISARMED', {}) }
+  _fireKiss(payload) {
+    if (!this._kissArmed) return
+    if (!this._kissAvailable()) { this._disarmKiss(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState), TS = Balance.TILE_SIZE, now = this._scene?.time?.now ?? 0
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    if (tier >= 4) {
+      for (const a of advsIn) this._enrapture(a, now)                       // T4 — mass enrapture (kill window)
+    } else {
+      for (const a of advsIn) this._infatuate(a, now)                       // T1 — beguile all into infatuation
+      if (tier >= 2 && advsIn.length) {                                     // T2 — enrapture the most-wounded
+        const low = advsIn.slice().sort((a, b) => (a.resources.hp / (a.resources.maxHp ?? 1)) - (b.resources.hp / (b.resources.maxHp ?? 1)))[0]
+        this._enrapture(low, now)
+      }
+      if (tier >= 3) {                                                      // T3 — lure survivors toward the dungeon
+        const dest = (this._gameState?.dungeon?.rooms ?? []).filter(r => r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber')
+        const pick = dest.length ? dest[Math.floor(Math.random() * dest.length)] : null
+        for (const a of advsIn) if (a.aiState !== 'charmed') this._lure(a, now, pick?.instanceId)
+      }
+    }
+    AbilityVfx?.kissOfRaptureFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS, fromX: boss.worldX, fromY: boss.worldY })
+    if (boss._succubusKiss) boss._succubusKiss.usesLeft = Math.max(0, (boss._succubusKiss.usesLeft ?? 0) - 1)
+    this._kissArmed = false
+    EventBus.emit('SUCCUBUS_KISS_FIRED', { roomId: room.instanceId, room, tier, victims: advsIn.length })
+  }
+
+  _stopRaptureFightTimer() { this._raptureFightTimer?.remove?.(false); this._raptureFightTimer = null }
+
+  // Throne fight — Heartpiercer → Doppelgänger → Maelstrom of Desire → Rapture's End.
+  // The Doppelgänger split itself is the existing BossSystem decoy mechanic; this layers
+  // the mesmerize hazards + the finale on top.
+  _tickRaptureFight() {
+    const boss = this._gameState?.boss; if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber'); if (!bossRoom) return
+    const TS = Balance.TILE_SIZE, now = this._scene?.time?.now ?? 0
+    const fighters = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+    const hit = (a, pct) => {
+      const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * pct * (a._hexUntil > now ? (a._hexVulnMul ?? 1) : 1)))
+      a.resources.hp = Math.max(0, a.resources.hp - dmg)
+      this._bankAllure(dmg * (Balance.SUCCUBUS_ALLURE_PER_DMG_FRAC ?? 0.1))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'unholy' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Succubus Queen', roomId: bossRoom.instanceId, damageType: 'unholy' })
+    }
+    // T4 Rapture's End finale (<30% HP) — the whole party enraptured + drained.
+    if (tier >= 4 && !this._raptureFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._raptureFinaleDone = true
+      AbilityVfx?.raptureFinaleFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS, victims: fighters.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })) })
+      const pct = (Balance.SUCCUBUS_FIGHT_FINALE_PCT ?? 0.08) + this._allureSat() * (Balance.SUCCUBUS_FIGHT_FINALE_ALLURE ?? 0.1)
+      for (const a of fighters) { this._enrapture(a, now); hit(a, pct) }
+      return
+    }
+    if (tier >= 3) {
+      // Maelstrom of Desire — room-wide allure pulse: mesmerize + %maxHP
+      AbilityVfx?.maelstromFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) { hit(a, Balance.SUCCUBUS_FIGHT_MAELSTROM_PCT ?? 0.05); if ((a._petrifiedUntil ?? 0) <= now && Math.random() < 0.5) this._enrapture(a, now); else this._infatuate(a, now) }
+    } else if (tier >= 2) {
+      // Doppelgänger — peel off decoys (visual; the BossSystem decoy mechanic owns
+      // the targeting); entrancing strike on the top hero.
+      AbilityVfx?.doppelgangerSplitFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy), { tier, sprite: null })
+      const t = fighters[0]; hit(t, Balance.SUCCUBUS_FIGHT_HEARTPIERCE_PCT ?? 0.06); this._enrapture(t, now)
+    } else {
+      // Heartpiercer — entrancing strike on the top-aggro hero
+      const t = fighters[0]
+      if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.raptureBindFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { mode: 'enrapture' })
+      hit(t, Balance.SUCCUBUS_FIGHT_HEARTPIERCE_PCT ?? 0.06); this._enrapture(t, now)
+    }
+  }
+
   // ── VAMPIRE: Charm + Blood Tax ─────────────────────────────────────────
 
   _tickVampire(now) {
@@ -4137,6 +4340,7 @@ export class BossArchetypeSystem {
           target.goalStack     = []
           target._charmedAtkAcc  = 0
           target._charmedPathAt  = 0
+          this._bankAllure(Balance.SUCCUBUS_ALLURE_PER_MESMER ?? 8)
           EventBus.emit('SUCCUBUS_CHARM_APPLIED', { targetId: target.instanceId })
         }
         // Return flight — swap from/to so the bat heads back to boss room

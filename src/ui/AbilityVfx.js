@@ -715,6 +715,21 @@ function _makeGnollSprite(scene, x, y, opts = {}) {
   return sp
 }
 
+// Spawn a copy of the Succubus boss sprite (idle anim) — her seductive doppelgänger
+// mirror-image. Headless-safe (null if no sheet). Tinted pink + semi-transparent.
+function _makeSuccubusSprite(scene, x, y, opts = {}) {
+  if (!scene || typeof scene.add?.sprite !== 'function') return null
+  const o = { tint: 0xff8ac0, scale: 1.4, depth: 60, dir: 'down', alpha: 0.6, flipX: false, ...opts }
+  if (!scene.textures || !scene.textures.exists('succubus-idle')) return null
+  const sp = scene.add.sprite(x, y, 'succubus-idle').setDepth(o.depth).setScale(o.scale).setAlpha(o.alpha).setOrigin(0.5, 0.5)
+  if (o.tint != null) sp.setTint(o.tint)
+  if (o.flipX) sp.setFlipX(true)
+  const anim = `succubus-idle-${o.dir}`
+  try { if (scene.anims.exists(anim)) sp.play(anim) } catch (e) {}
+  try { sp.postFX.addGlow(0xff4aa0, 2, 0, false, 0.08, 6) } catch (e) {}
+  return sp
+}
+
 // Pick the ghost idle facing for a travel vector (so a soul faces where it goes).
 function _soulDir(dx, dy) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? 'left' : 'right'
@@ -7715,6 +7730,194 @@ export const AbilityVfx = {
     }
     if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 400, max: 900 }, speed: { min: 40, max: 160 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.45, max: o.rectW * 0.45 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.75, end: 0 }, tint: [BLOOD, RAGE, CLAW], emitting: false }); em.setDepth(o.depth); em.explode(Math.round(26 * mult)); made.push(em); scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} }) }
     scene.cameras?.main?.shake?.(240, 0.005)
+    return made
+  },
+
+  // ── SUCCUBUS · THE RAPTURE — seductive allure VFX ──────────────────────────
+  // Palette: PINK 0xff4aa0 · MAGENTA 0xd24858 · PALE 0xffd0ec · HOT 0xff8ac0.
+  // Hearts (via _drawHeart) are the motif; doppelgängers are real Queen-sprite copies.
+
+  // KISS OF RAPTURE: the Queen blows a kiss and the room blooms with desire — a
+  // lip-print pulse + a rising bloom of hearts + pink allure mist over the victims.
+  kissOfRaptureFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 60, rectW: 200, rectH: 150, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const PINK = 0xff4aa0, PALE = 0xffd0ec, HOT = 0xff8ac0
+    // allure mist haze over the room
+    const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(haze)
+    haze.fillStyle(PINK, 0.16); haze.fillEllipse(0, 0, o.rectW * 1.1, o.rectH * 0.85)
+    scene.tweens.add({ targets: haze, alpha: 1, duration: 260, yoyo: true, hold: 520, onComplete: () => haze.destroy() })
+    // a blown-kiss pulse from the Queen toward the room
+    const hx = Number.isFinite(o.fromX) ? o.fromX : x, hy = Number.isFinite(o.fromY) ? o.fromY : y
+    const kiss = scene.add.graphics().setPosition(hx, hy - 6).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(kiss)
+    _drawHeart(kiss, 7, HOT); _glow(kiss, PINK, 4, 10)
+    scene.tweens.add({ targets: kiss, x, y: y - 4, scale: 1.6, duration: 280, ease: 'Sine.easeIn', onComplete: () => {
+      const burst = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(burst)
+      burst.fillStyle(PALE, 0.9); burst.fillCircle(0, 0, 6); _glow(burst, PINK, 5, 12)
+      scene.tweens.add({ targets: burst, scale: 2.6, alpha: 0, duration: 320, ease: 'Expo.easeOut', onComplete: () => burst.destroy() })
+      kiss.destroy()
+    } })
+    // a rising bloom of hearts across the room
+    const hearts = 8 + tier * 2
+    for (let i = 0; i < hearts; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.45, py = y + (Math.random() * 2 - 1) * o.rectH * 0.35
+      const ht = scene.add.graphics().setPosition(px, py + 6).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.4); made.push(ht)
+      _drawHeart(ht, 4 + Math.random() * 3, i % 2 ? PINK : HOT); _glow(ht, PINK, 2, 6)
+      scene.tweens.add({ targets: ht, y: py - 18 - Math.random() * 14, alpha: 0.95, scale: 1, duration: 300, delay: 200 + i * 35, ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: ht, y: ht.y - 18, alpha: 0, angle: (Math.random() - 0.5) * 40, duration: 420, onComplete: () => ht.destroy() }) })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speedY: { min: -40, max: -10 }, speedX: { min: -40, max: 40 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [PINK, PALE, HOT], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((14 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // RAPTURE BIND: a single hero is mesmerized. `mode:'enrapture'` = hearts spiral
+  // inward + a bliss freeze-shimmer ring; `mode:'infatuate'` = orbiting hearts;
+  // `mote:true` = one drifting heart (the upkeep cue).
+  raptureBindFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 60, mode: 'enrapture', mote: false, ...opts }
+    const made = [], PINK = 0xff4aa0, PALE = 0xffd0ec, HOT = 0xff8ac0
+    if (o.mote) {
+      const ht = scene.add.graphics().setPosition(x + (Math.random() - 0.5) * 14, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 3.4, PINK); _glow(ht, PINK, 2, 6); ht.setScale(0.5)
+      scene.tweens.add({ targets: ht, y: y - 22 - Math.random() * 10, scale: 0.9, alpha: 0, angle: (Math.random() - 0.5) * 30, duration: 760, ease: 'Sine.easeOut', onComplete: () => ht.destroy() })
+      return made
+    }
+    if (o.mode === 'enrapture') {
+      // bliss shimmer ring (the freeze read)
+      const ring = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+      ring.lineStyle(2.5, PALE, 0.85); ring.strokeCircle(0, 0, 20); _glow(ring, PINK, 3, 9)   // circle-ok: bliss shimmer ring
+      scene.tweens.add({ targets: ring, scale: 0.4, alpha: 0, duration: 460, ease: 'Quad.easeIn', onComplete: () => ring.destroy() })
+    }
+    // hearts spiral in (enrapture) or orbit out (infatuate)
+    const N = 6
+    for (let i = 0; i < N; i++) {
+      const a0 = (i / N) * Math.PI * 2, R = o.mode === 'enrapture' ? 28 : 6
+      const ht = scene.add.graphics().setPosition(x + Math.cos(a0) * R, y + Math.sin(a0) * R - 4).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 4 + Math.random() * 1.5, i % 2 ? PINK : HOT); _glow(ht, PINK, 2, 6)
+      const tx = o.mode === 'enrapture' ? x : x + Math.cos(a0) * 26, ty = o.mode === 'enrapture' ? y - 4 : y + Math.sin(a0) * 26 - 4
+      scene.tweens.add({ targets: ht, x: tx, y: ty, scale: o.mode === 'enrapture' ? 0.3 : 0.6, alpha: 0, angle: 180, duration: 460 + i * 16, ease: o.mode === 'enrapture' ? 'Back.easeIn' : 'Quad.easeOut', onComplete: () => ht.destroy() })
+    }
+    const fl = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(fl)
+    fl.fillStyle(PALE, 0.85); fl.fillCircle(0, 0, 5); _glow(fl, PINK, 4, 10)
+    scene.tweens.add({ targets: fl, scale: 2.2, alpha: 0, duration: 320, delay: 200, ease: 'Expo.easeOut', onComplete: () => fl.destroy() })
+    return made
+  },
+
+  // LURE: a wavy ribbon-of-desire tethers the hero and a heart-mote drags them
+  // toward (toX,toY) — they walk helplessly into the dungeon.
+  lureFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { depth: 60, ...opts }
+    const made = [], PINK = 0xff4aa0, PALE = 0xffd0ec
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 80, ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const perp = Math.atan2(ty - y, tx - x) + Math.PI / 2
+    const ribbon = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(ribbon); _glow(ribbon, PINK, 2, 7)
+    let ph = 0
+    const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 540, onUpdate: (c) => {
+      ph += 0.5; ribbon.clear()
+      const draw = (col, w, al) => { ribbon.lineStyle(w, col, al); ribbon.beginPath(); for (let i = 0; i <= 14; i++) { const t = i / 14; const bx = x + (tx - x) * t, by = y + (ty - y) * t, wob = Math.sin(t * 6 + ph) * 7 * Math.sin(t * Math.PI); const px = bx + Math.cos(perp) * wob, py = by + Math.sin(perp) * wob; if (i === 0) ribbon.moveTo(px, py); else ribbon.lineTo(px, py) } ribbon.strokePath() }
+      draw(PINK, 3, 0.6); draw(PALE, 1.2, 0.9)
+    }, onComplete: () => scene.tweens.add({ targets: ribbon, alpha: 0, duration: 200, onComplete: () => ribbon.destroy() }) })
+    made.push(tw)
+    // a heart slides hero→destination (the pull)
+    const ht = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+    _drawHeart(ht, 4.5, PINK); _glow(ht, PINK, 3, 8)
+    scene.tweens.add({ targets: ht, x: tx, y: ty, duration: 520, ease: 'Sine.easeInOut', onComplete: () => ht.destroy() })
+    return made
+  },
+
+  // DOPPELGÄNGER SPLIT: seductive mirror-image copies of the Queen peel off to
+  // either side, shimmer, and fade (real succubus-sprite copies when available).
+  doppelgangerSplitFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 2, depth: 60, ...opts }
+    const made = [], PINK = 0xff4aa0, PALE = 0xffd0ec
+    const decoys = 2 + Math.floor(o.tier / 2)
+    for (let i = 0; i < decoys; i++) {
+      const side = (i % 2 === 0 ? -1 : 1), lane = Math.ceil((i + 1) / 2)
+      const dx = side * (26 * lane)
+      const sp = _makeSuccubusSprite(scene, x, y, { depth: o.depth + 1, dir: 'down', alpha: 0, flipX: side > 0, scale: o.scale || 1.4 })
+      if (sp) {
+        made.push(sp)
+        scene.tweens.add({ targets: sp, alpha: 0.6, duration: 120, delay: i * 50 })
+        scene.tweens.add({ targets: sp, x: x + dx, y: y + (Math.random() - 0.5) * 10, duration: 260, delay: i * 50, ease: 'Quad.easeOut',
+          onComplete: () => scene.tweens.add({ targets: sp, alpha: 0, scaleX: sp.scaleX * 0.85, duration: 420, delay: 180, onComplete: () => { try { sp.destroy() } catch (e) {} } }) })
+      } else {
+        // fallback — a heart-silhouette decoy
+        const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(g)
+        _drawHeart(g, 9, PINK); _glow(g, PINK, 3, 9)
+        scene.tweens.add({ targets: g, x: x + dx, alpha: 0, duration: 520, delay: i * 50, onComplete: () => g.destroy() })
+      }
+      // shimmer flash where each copy splits off
+      const sh = scene.add.graphics().setPosition(x + dx, y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(sh)
+      sh.fillStyle(PALE, 0.7); sh.fillCircle(0, 0, 5); _glow(sh, PINK, 3, 8)
+      scene.tweens.add({ targets: sh, scale: 2, alpha: 0, duration: 360, delay: i * 50 + 120, onComplete: () => sh.destroy() })
+    }
+    return made
+  },
+
+  // MAELSTROM OF DESIRE: a swirling vortex of hearts + pink ribbons sweeps the room.
+  maelstromFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 3, depth: 60, rectW: 180, rectH: 140, ...opts }
+    const made = [], PINK = 0xff4aa0, PALE = 0xffd0ec, HOT = 0xff8ac0, mult = _particlesMult()
+    const R = Math.max(40, Math.min(o.rectW, o.rectH) * 0.5)
+    const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(haze)
+    haze.fillStyle(PINK, 0.18); haze.fillEllipse(0, 0, o.rectW, o.rectH * 0.8)
+    scene.tweens.add({ targets: haze, alpha: 1, duration: 260, yoyo: true, hold: 520, onComplete: () => haze.destroy() })
+    // spiralling ribbons
+    for (let i = 0; i < 4; i++) {
+      const rib = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(rib); _glow(rib, PINK, 2, 6)
+      const base = (i / 4) * Math.PI * 2; let ph = 0
+      const tw = scene.tweens.addCounter({ from: 0, to: 1, duration: 1100, onUpdate: () => {
+        ph += 0.18; rib.clear(); rib.lineStyle(2.4, i % 2 ? HOT : PINK, 0.8); rib.beginPath()
+        for (let k = 0; k <= 16; k++) { const tt = k / 16, ang = base + ph + tt * 3.2, rr = R * tt; const px = x + Math.cos(ang) * rr, py = y + Math.sin(ang) * rr * 0.62; if (k === 0) rib.moveTo(px, py); else rib.lineTo(px, py) }
+        rib.strokePath()
+      }, onComplete: () => scene.tweens.add({ targets: rib, alpha: 0, duration: 220, onComplete: () => rib.destroy() }) })
+      made.push(tw)
+    }
+    // hearts riding the vortex
+    for (let i = 0; i < 9; i++) {
+      const a = Math.random() * Math.PI * 2, d = R * (0.3 + Math.random() * 0.7)
+      const ht = scene.add.graphics().setPosition(x + Math.cos(a) * d * 0.3, y + Math.sin(a) * d * 0.2).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 3.5 + Math.random() * 2, i % 2 ? PINK : PALE)
+      scene.tweens.add({ targets: ht, x: x + Math.cos(a + 2) * d, y: y + Math.sin(a + 2) * d * 0.62, alpha: 0, scale: 0.4, angle: (Math.random() - 0.5) * 90, duration: 700 + Math.random() * 300, ease: 'Sine.easeOut', onComplete: () => ht.destroy() })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1000 }, speed: { min: 30, max: 120 }, angle: { min: 0, max: 360 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.65, end: 0 }, tint: [PINK, PALE, HOT], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth); em.explode(Math.round(20 * mult)); made.push(em); scene.time.delayedCall(1000, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // RAPTURE'S END (fight T4 finale): an overwhelming bloom of ecstasy — a giant
+  // heart blooms, the screen flushes pink, hearts rain, victims burst.
+  raptureFinaleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 61, rectW: 240, rectH: 180, victims: [], ...opts }
+    const made = [], PINK = 0xff4aa0, PALE = 0xffd0ec, HOT = 0xff8ac0, mult = _particlesMult()
+    // a giant heart blooms at the centre
+    const big = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.2).setAlpha(0); made.push(big)
+    _drawHeart(big, 26, PINK); _glow(big, PINK, 6, 16)
+    scene.tweens.add({ targets: big, scale: 1.4, alpha: 0.9, duration: 360, ease: 'Back.easeOut', onComplete: () => scene.tweens.add({ targets: big, scale: 2.2, alpha: 0, duration: 520, ease: 'Quad.easeOut', onComplete: () => big.destroy() }) })
+    // pink screen flush
+    const flush = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 2).setBlendMode(Phaser.BlendModes.ADD); made.push(flush)
+    flush.fillStyle(PINK, 0.45); flush.fillEllipse(0, 0, o.rectW * 1.7, o.rectH * 1.5)
+    scene.tweens.add({ targets: flush, alpha: 0, duration: 700, ease: 'Cubic.easeOut', onComplete: () => flush.destroy() })
+    // rain of hearts
+    for (let i = 0; i < 16; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.5, py0 = y - o.rectH * 0.5 - Math.random() * 30
+      const ht = scene.add.graphics().setPosition(px, py0).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ht)
+      _drawHeart(ht, 3.5 + Math.random() * 2.5, i % 2 ? PINK : HOT); _glow(ht, PINK, 2, 6)
+      scene.tweens.add({ targets: ht, y: y + o.rectH * 0.3, alpha: 0, angle: (Math.random() - 0.5) * 60, duration: 560 + Math.random() * 260, delay: Math.random() * 360, ease: 'Quad.easeIn', onComplete: () => ht.destroy() })
+    }
+    // each victim bursts with hearts
+    for (const v of (o.victims || [])) {
+      if (!_validXY(v.x, v.y)) continue
+      for (let i = 0; i < 4; i++) { const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 16; const ht = scene.add.graphics().setPosition(v.x, v.y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ht); _drawHeart(ht, 3 + Math.random() * 2, PALE); scene.tweens.add({ targets: ht, x: v.x + Math.cos(a) * d, y: v.y + Math.sin(a) * d - 6, alpha: 0, scale: 0.4, duration: 420 + Math.random() * 160, delay: 220, ease: 'Quad.easeOut', onComplete: () => ht.destroy() }) }
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speed: { min: 30, max: 130 }, angle: { min: 0, max: 360 }, x: { min: -o.rectW * 0.45, max: o.rectW * 0.45 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [PINK, PALE, HOT], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round(26 * mult)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(180, 0.004)
     return made
   },
 }

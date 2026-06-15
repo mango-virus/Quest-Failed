@@ -378,6 +378,13 @@ export class BossArchetypeUI {
     })
     this._on('GNOLL_HUNT_DISARMED', () => this._removeHuntRoomPick())
     this._on('GNOLL_HUNT_FIRED', () => this._removeHuntRoomPick())
+    // Succubus KISS OF RAPTURE room-targeting.
+    this._on('SUCCUBUS_KISS_ARMED', () => {
+      this._installKissRoomPick()
+      showToast(this._scene, 'KISS OF RAPTURE armed — click a room to beguile', { type: 'info', duration: 3000 })
+    })
+    this._on('SUCCUBUS_KISS_DISARMED', () => this._removeKissRoomPick())
+    this._on('SUCCUBUS_KISS_FIRED', () => this._removeKissRoomPick())
 
     // Beholder: "SILENCED" floater above an adv whose class ability was
     // suppressed by an Anti-Magic room. Throttled by ClassAbilitySystem.
@@ -921,6 +928,28 @@ export class BossArchetypeUI {
     this._huntPickGame    = null
   }
 
+  // Succubus KISS OF RAPTURE room-pick.
+  _installKissRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._kissPickHandler) return
+    this._kissPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('SUCCUBUS_KISS_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('SUCCUBUS_KISS_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._kissPickHandler)
+    this._kissPickGame = game
+  }
+
+  _removeKissRoomPick() {
+    if (!this._kissPickHandler || !this._kissPickGame) return
+    this._kissPickGame.input.off('pointerdown', this._kissPickHandler)
+    this._kissPickHandler = null
+    this._kissPickGame    = null
+  }
+
   // Demon INFERNAL PACT room-pick.
   _installPactRoomPick() {
     const game = this._scene.scene.get('Game')
@@ -1003,6 +1032,7 @@ export class BossArchetypeUI {
     this._removeRiteRoomPick()
     this._removeTerrorRoomPick()
     this._removeHuntRoomPick()
+    this._removeKissRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

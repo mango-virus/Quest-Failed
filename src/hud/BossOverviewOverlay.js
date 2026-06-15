@@ -430,6 +430,8 @@ export class BossOverviewOverlay {
       this._renderDreadStatus(),
       // Ferocity readout (Gnoll — The Blood Hunt)
       this._renderFerocityStatus(),
+      // Allure readout (Succubus — The Rapture)
+      this._renderAllureStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -852,6 +854,32 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `${pack} in the pack · phase: ${phase}. Carnage banks FEROCITY, which whips the pack into a faster, fiercer frenzy and fuels the Hunt.`),
+    ])
+  }
+
+  _renderAllureStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'succubus') return null
+    const boss = this._gameState.boss ?? {}
+    const allure = Math.floor(boss.allure ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.SUCCUBUS_ALLURE_CAP_BASE ?? 60) + tier * (Balance.SUCCUBUS_ALLURE_CAP_PER_ACT ?? 50)
+    const now = this._gameState._clockNow ?? (window.__game?.scene?.getScene?.('Game')?.time?.now ?? 0)
+    const mesmer = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 &&
+      ((a._raptureUntil ?? 0) > now || (a._luredUntil ?? 0) > now || (a.aiState === 'charmed' && a._charmerId === 'succubus'))).length
+    const C = '#ff5aa8'
+    const pct = Math.max(0, Math.min(100, (allure / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'The Rapture' : tier >= 3 ? 'Fickle Heart' : tier >= 2 ? 'Entrancing Aura' : 'Seduction'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'ALLURE'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(allure)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#260a1c', border: '1px solid #3a1430', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#7a1450,#ff5aa8)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${mesmer} mesmerized · phase: ${phase}. ALLURE banks from every heart she turns; spend it to enrapture, infatuate, and lure the party to their doom.`),
     ])
   }
 

@@ -520,6 +520,31 @@ export const Balance = {
   SUCCUBUS_CHARM_COOLDOWN_RAND_MS:  16000,
   SUCCUBUS_CHARM_COOLDOWN_REDUCTION_PER_LV_MS: 1000,  // -1s base + rand cooldown per boss-lv beyond 1
 
+  // --- Boss overhaul #12: THE RAPTURE — banked ALLURE economy ---
+  SUCCUBUS_ALLURE_PER_MESMER:      8,     // ALLURE banked per hero mesmerized (any state)
+  SUCCUBUS_ALLURE_PER_KILL:        6,     // gulp per hero death
+  SUCCUBUS_ALLURE_PER_KILL_PER_LV: 0.5,
+  SUCCUBUS_ALLURE_PER_DMG_FRAC:    0.1,   // a cut of fight damage banks ALLURE
+  SUCCUBUS_ALLURE_TRICKLE:         1.5,   // passive ALLURE/sec while heroes are alive (her presence)
+  SUCCUBUS_ALLURE_CAP_BASE:        60,    // cap = BASE + act*PER_ACT
+  SUCCUBUS_ALLURE_CAP_PER_ACT:     50,
+  // Mesmerize duration scales with ALLURE saturation.
+  SUCCUBUS_MESMER_MS_BASE:         2500,
+  SUCCUBUS_MESMER_MS_PER_ALLURE:   3000, // + this × allureSat (full = 5.5s)
+  SUCCUBUS_RAPTURE_VULN_MULT:      1.5,  // Enraptured heroes take +50% damage (reuses _hexVulnMul)
+  // Dungeon-kit cadences.
+  SUCCUBUS_ENTRANCE_INTERVAL_MS:   5000, // T2 Entrancing Aura auto-enrapture cadence
+  SUCCUBUS_RAPTURE_PULSE_MS:       7000, // T4 dungeon-wide rapture pulse cadence
+  SUCCUBUS_RAPTURE_PULSE_FRAC:     0.4,  // fraction of the party enraptured per pulse
+  // KISS OF RAPTURE (day active).
+  SUCCUBUS_KISS_USES_PER_DAY:      1,
+  SUCCUBUS_KISS_USES_PER_BOSS_LV:  0.25,
+  // Throne fight — %maxHP (×vuln on enraptured).
+  SUCCUBUS_FIGHT_HEARTPIERCE_PCT:  0.06, // T1/T2 entrancing strike
+  SUCCUBUS_FIGHT_MAELSTROM_PCT:    0.05, // T3 room-wide pulse
+  SUCCUBUS_FIGHT_FINALE_PCT:       0.08, // T4 Rapture's End base
+  SUCCUBUS_FIGHT_FINALE_ALLURE:    0.1,  // + this × allureSat
+
   // --- Phase 1b.8: Dark Wraith ---
   WRAITH_FEAR_MAX:                       100,
   WRAITH_FEAR_PER_CORPSE_SEEN:             5,

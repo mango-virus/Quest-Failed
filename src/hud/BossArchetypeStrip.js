@@ -106,6 +106,11 @@ export class BossArchetypeStrip {
         ref: el => { this._gnollBtn = el },
         on: { click: () => this._onGnollClick() },
       }, 'SOUND THE HUNT'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-kiss',
+        ref: el => { this._succubusBtn = el },
+        on: { click: () => this._onSuccubusClick() },
+      }, 'KISS OF RAPTURE'),
     ])
   }
 
@@ -159,6 +164,10 @@ export class BossArchetypeStrip {
     sub('GNOLL_HUNT_ARMED',    () => { this._gnollArmed = true;  this._refresh() })
     sub('GNOLL_HUNT_DISARMED', () => { this._gnollArmed = false; this._refresh() })
     sub('GNOLL_HUNT_FIRED',    () => { this._gnollArmed = false; this._refresh() })
+    // Succubus Kiss of Rapture.
+    sub('SUCCUBUS_KISS_ARMED',    () => { this._succubusArmed = true;  this._refresh() })
+    sub('SUCCUBUS_KISS_DISARMED', () => { this._succubusArmed = false; this._refresh() })
+    sub('SUCCUBUS_KISS_FIRED',    () => { this._succubusArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -220,6 +229,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._gnollArmed ? 'GNOLL_HUNT_DISARM' : 'GNOLL_HUNT_ARM')
   }
 
+  _onSuccubusClick() {
+    if (this._succubusBtn?.disabled) return
+    EventBus.emit(this._succubusArmed ? 'SUCCUBUS_KISS_DISARM' : 'SUCCUBUS_KISS_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -236,6 +250,7 @@ export class BossArchetypeStrip {
     const isVampire = archId === 'vampire'
     const isWraith = archId === 'wraith'
     const isGnoll = archId === 'gnoll'
+    const isSuccubus = archId === 'succubus'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
@@ -247,8 +262,9 @@ export class BossArchetypeStrip {
     const vampActive = isVampire && isDay
     const wraithActive = isWraith && isDay
     const gnollActive = isGnoll && isDay
+    const succubusActive = isSuccubus && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive || wraithActive || gnollActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive || lizardActive || vampActive || wraithActive || gnollActive || succubusActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -332,6 +348,13 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._gnollHunt?.usesLeft ?? 0
       this._gnollBtn.textContent = this._gnollArmed ? 'PICK A ROOM' : `SOUND THE HUNT · ${uses}`
       this._gnollBtn.disabled = !(uses > 0)
+    }
+    if (this._succubusBtn) {
+      this._succubusBtn.style.display = succubusActive ? '' : 'none'
+      this._succubusBtn.classList.toggle('armed', !!this._succubusArmed)
+      const uses = this._gs?.boss?._succubusKiss?.usesLeft ?? 0
+      this._succubusBtn.textContent = this._succubusArmed ? 'PICK A ROOM' : `KISS OF RAPTURE · ${uses}`
+      this._succubusBtn.disabled = !(uses > 0)
     }
   }
 

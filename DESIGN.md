@@ -1139,6 +1139,62 @@ scales with the crowd. No single-target fixed-magnitude, no heal-block.
 
 ---
 
+## Boss overhaul #12 — Succubus Queen → THE RAPTURE (locked 2026-06-15, FINALE)
+
+**Fantasy:** an irresistible Queen who turns the party's own desire into a weapon — banks ALLURE and spends it
+to mesmerize heroes into helpless rapture, set them on each other, and lure them to their deaths, all while
+hiding behind seductive illusions. Pure crowd-CONTROL, NOT the Vampire's permanent conversion. Builds on the
+canon bat-form charm (`aiState='charmed'` + `_tickCharmedAdv`) + Doppelgänger decoys. No heal-block.
+
+**ALLURE — banked resource (`boss.allure`, persists, caps by act):** banks from each hero mesmerized (per
+application) + a gulp per hero death (level-scaled) + a small passive trickle while heroes are alive. Scales
+how many heroes each mesmerize hits, the mesmerize duration, and the finale magnitude. %-of-party, no falloff.
+
+**The three mesmerize states (player-positive control — every one is a kill opening):**
+- **Infatuated** — turns on their own party (reuses canon `charmed` AI: `_charmerId='succubus'`, `_tickCharmedAdv`).
+- **Enraptured** — frozen defenseless AND takes bonus damage: sets `_petrifiedUntil` (freeze) + `_hexUntil`/
+  `_hexVulnMul`=`RAPTURE_VULN_MULT` (the existing gazeHexMul vuln read by CombatSystem + BossSystem) + a new
+  `_raptureUntil` (drives the PINK bliss tint so it doesn't render as grey petrify). Your minions/traps shred them.
+- **Lured** — walks helplessly toward a chosen room (EXPLORE_ROOM goal, like the wraith flee) into your traps/minions; `_luredUntil` for the tint.
+
+**Dungeon kit by act:** T1 **Seduction** (existing bat-flight → 1 hero Infatuated/cooldown) → T2 **Entrancing
+Aura** (passive allure field periodically Enraptures an explorer, ALLURE-scaled) → T3 **Fickle Heart** (mesmerize
+hits more heroes + lasts longer as ALLURE climbs; Lure unlocks) → T4 **The Rapture** (periodic dungeon-wide
+rapture pulses; much of the party perpetually mesmerized).
+
+**Day active — KISS OF RAPTURE** (`SUCCUBUS_KISS_*` events; strip button + Phaser room-pick; uses/day scale w/
+level, refill nightly): beguile a whole room — T1 Infatuate all inside → T2 + Enrapture the most-wounded → T3 +
+Lure survivors toward the dungeon → T4 mass Enrapture (whole room frozen-in-ecstasy kill window). Banks ALLURE.
+
+**Throne fight — the Queen + illusions (`_tickRaptureFight`, reuses canon names):** T1 **Heartpiercer**
+(entrancing strike on top-aggro, %maxHP + brief Enrapture) → T2 **Doppelgänger** (reuse the decoy split; shatter
+copies to hit the real Queen) → T3 **Maelstrom of Desire** (room-wide allure pulse: Infatuate/Enrapture, %maxHP)
+→ T4 **Rapture's End** finale (<30% HP: whole party enraptured + drained, ALLURE-scaled mass %maxHP).
+
+**Tells:** hot-magenta ALLURE glow-outline aura on the Queen (distinct from vampire crimson); mesmerized heroes
+get a pink rapture tint + floating hearts; ALLURE gauge + mesmerized-count + phase in the boss panel.
+
+**VFX (new; reuse my `_drawHeart` helper + boss sprite for doppelgängers; won't clobber existing succubus/charm
+VFX):** `kissOfRaptureFx` (room beguile — heart bloom + allure mist + blown-kiss pulse), `raptureBindFx` (a hero
+enraptured — hearts spiral + freeze shimmer), `lureFx` (a ribbon-of-desire tether), `doppelgangerSplitFx`
+(mirror-image copies peel off the Queen), `maelstromFx` (heart-vortex room pulse), `raptureFinaleFx` (mass
+ecstasy bloom + flush). NO `Balance` ref inside AbilityVfx.
+
+**Always-useful:** mesmerize is %-of-party (Kiss + aura + pulses hit crowds); enrapture freeze+vuln + infatuate
+friendly-fire + lure-into-hazards are all kill openings; ALLURE snowballs. No single-target fixed-magnitude, no heal-block.
+
+**Acceptance checklist (The Rapture):**
+- ☑ ALLURE (`boss.allure`) banks from mesmerize + death + trickle; persists; caps/act; scales count/duration/finale; gauge + readout.
+- ☑ Mesmerize states: Infatuated (canon charm), Enraptured (freeze + `_hexVulnMul` ×1.5 bonus damage + pink tint), Lured (walk into hazards).
+- ☑ Dungeon kit: T1 Seduction; T2 Entrancing Aura (auto-enrapture); T3 Fickle Heart (more/longer + Lure); T4 Rapture pulses (dungeon-wide).
+- ☑ Day KISS OF RAPTURE: arm→room, tier infatuate/enrapture/lure/mass; DOM button + Phaser room-pick + events; uses reset on night.
+- ☑ Throne fight tier-gated: Heartpiercer / Doppelgänger / Maelstrom / Rapture's End finale (Allure-scaled).
+- ☑ Tells: magenta glow-outline aura (BossRenderer) reading Allure; rapture pink tint + hearts (AdventurerRenderer, petrify-grey suppressed); ALLURE + mesmerized panel readout.
+- ☑ Bespoke animated VFX (kissOfRapture/raptureBind/lure/doppelgangerSplit/maelstrom/raptureFinale) — doppelgängers are real succubus-sprite copies; lab-wired; lint-vfx clean (incl. dup-key guard); user-approved.
+- ☑ SaveSystem persists allure + kiss uses, strips `_raptureUntil`/`_luredUntil` (freeze/hex/charm fields already stripped); node --check; succubus-rapture-check.mjs green; soak clean (120/0); bossArchetypes.json text.
+
+---
+
 ## Personality combos
 
 Also there should be combos with different adventures when they come as a party that cause new things to happen with them. For example:

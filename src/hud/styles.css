@@ -9974,6 +9974,16 @@ body {
   color: #ffd0c0;
 }
 .qf-archstrip-hunt.armed { color: #ffd0c0; border-color: #e83a22; background: #240c08; }
+.qf-archstrip-kiss {
+  border-color: #c0457e;
+  color: #ff9ad0;
+}
+.qf-archstrip-kiss:hover:not(:disabled) {
+  background: #260a1c;
+  border-color: #ff5aa8;
+  color: #ffd0ec;
+}
+.qf-archstrip-kiss.armed { color: #ffd0ec; border-color: #ff5aa8; background: #260a1c; }
 @keyframes archstrip-pulse {
   0%, 100% { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 0 rgba(255, 200, 100, 0); }
   50%      { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6), 0 0 22px rgba(255, 200, 100, 0.5); }

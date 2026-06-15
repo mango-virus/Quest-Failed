@@ -178,6 +178,8 @@ export class BossRenderer {
     this._updateDreadAura()
     // Gnoll — savage blood-red Glow-outline aura reading banked FEROCITY.
     this._updateFerocityAura()
+    // Succubus — hot-magenta Glow-outline aura reading banked ALLURE.
+    this._updateAllureAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -760,6 +762,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._ferocityGlow) } catch (e) {}
     }
     this._ferocityGlow = null
+  }
+
+  _updateAllureAura() {
+    const isSuccubus = this._gameState?.player?.bossArchetypeId === 'succubus'
+    if (!isSuccubus || !this._container || !this._sprite) { this._clearAllureAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.SUCCUBUS_ALLURE_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.SUCCUBUS_ALLURE_CAP_PER_ACT ?? 50)
+    const sat = Math.max(0, Math.min(1, (boss?.allure ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x4a0a30, 0xff4aa0)
+      if (!this._allureGlow) { try { this._allureGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._allureGlow = true } }
+      else if (this._allureGlow !== true) { try { this._allureGlow.color = p.color; this._allureGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearAllureAura() {
+    if (this._allureGlow && this._allureGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._allureGlow) } catch (e) {}
+    }
+    this._allureGlow = null
   }
 
   _build(boss) {

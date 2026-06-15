@@ -810,7 +810,9 @@ export class AdventurerRenderer {
       // (tracked on the sprite) so it doesn't re-stack every frame.
       {
         const pImg = s.lpc?.image ?? s.builder?.image
-        const petrified = (adv._petrifiedUntil ?? 0) > (this._scene.time.now ?? 0)
+        // Enraptured heroes share the _petrifiedUntil freeze but must NOT read as grey
+        // stone — they get the pink rapture tint below instead.
+        const petrified = (adv._petrifiedUntil ?? 0) > (this._scene.time.now ?? 0) && !((adv._raptureUntil ?? 0) > (this._scene.time.now ?? 0))
         if (pImg && pImg.postFX) {
           if (petrified && !s._petrifyFx) {
             try {
@@ -881,6 +883,26 @@ export class AdventurerRenderer {
         if (charmed && Number.isFinite(adv.worldX) && now - (s._vampCharmMoteAt ?? 0) >= 900) {
           s._vampCharmMoteAt = now
           AbilityVfx.charmBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { mote: true })
+        }
+      }
+
+      // Succubus THE RAPTURE — a mesmerized hero (Infatuated/Enraptured/Lured) glows a
+      // hot pink and trails floating hearts. Enraptured (`_raptureUntil`) is the frozen-
+      // in-bliss state; charmed/lured share the tint so the whole Court of the moment reads.
+      {
+        const rImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const mesmer = (adv._raptureUntil ?? 0) > now || (adv._luredUntil ?? 0) > now || (adv.aiState === 'charmed' && adv._charmerId === 'succubus')
+        if (rImg && rImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (mesmer) {
+            const str = 2.4 + 0.9 * Math.sin(now / 200)
+            if (!s._raptureFx) { try { s._raptureFx = rImg.postFX.addGlow(0xff4aa0, str, 0, false, 0.06, 8) } catch (e) { s._raptureFx = null } }
+            else if (s._raptureFx !== true) { try { s._raptureFx.outerStrength = str } catch (e) {} }
+          } else if (s._raptureFx) { try { if (s._raptureFx !== true) rImg.postFX.remove(s._raptureFx) } catch (e) {} s._raptureFx = null }
+        }
+        if (mesmer && Number.isFinite(adv.worldX) && now - (s._raptureMoteAt ?? 0) >= 850) {
+          s._raptureMoteAt = now
+          AbilityVfx.raptureBindFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { mote: true })
         }
       }
 

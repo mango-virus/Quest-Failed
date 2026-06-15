@@ -455,6 +455,9 @@ function _rehydrateRunHistory(state) {
     // Lizardman THE PLAGUE-BEARER — scene-time plague DoT tick stamp; drop on
     // load (`_plagueStacks` persists — the infection lingers all run).
     '_plagueTickAt',
+    // Succubus THE RAPTURE — enrapture/lure tint windows (the freeze/hex/charm
+    // fields they ride on are already stripped above).
+    '_raptureUntil', '_luredUntil',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
     // AI tracking — scene-time based. `lastAttackAt` (no underscore) is
