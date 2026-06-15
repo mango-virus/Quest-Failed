@@ -6427,4 +6427,106 @@ export const AbilityVfx = {
     })
     return made
   },
+
+  // ── MYCONID · The Bloom — fungal terrain VFX ─────────────────────────────
+  // A room COLONIZING: mycelium tendrils creep outward from the centre, a spore
+  // puff swells, and spores rise. Persistent bloom overlay is separate (in
+  // BossArchetypeSystem); this is the one-shot "it just bloomed" animation.
+  bloomFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 2.6, rectW: 200, rectH: 150, durationMs: 1100, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf3d, PALE = 0x9ee870
+    const reach = Math.min(o.rectW, o.rectH) * 0.5
+    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g)
+    const tendrils = 7 + tier, seeds = []
+    for (let i = 0; i < tendrils; i++) seeds.push({ a: (i / tendrils) * Math.PI * 2 + (i % 2 ? 0.3 : -0.2), len: reach * (0.6 + (i % 3) * 0.13) })
+    const draw = (p) => {
+      g.clear(); g.lineStyle(2, GREEN, 0.7)
+      for (const s of seeds) {
+        const L = s.len * p; g.beginPath(); g.moveTo(0, 0)
+        for (let k = 1; k <= 6; k++) { const t = k / 6, wob = Math.sin(t * 8 + s.a * 3) * 4 * t; g.lineTo(Math.cos(s.a) * L * t + Math.cos(s.a + Math.PI / 2) * wob, Math.sin(s.a) * L * t * 0.7 + Math.sin(s.a + Math.PI / 2) * wob) }
+        g.strokePath()
+        g.fillStyle(PALE, 0.8); g.fillCircle(Math.cos(s.a) * L, Math.sin(s.a) * L * 0.7, 2.2)
+      }
+    }
+    scene.tweens.addCounter({ from: 0, to: 1, duration: o.durationMs * 0.6, ease: 'Cubic.easeOut', onUpdate: (tw) => draw(tw.getValue()),
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: o.durationMs * 0.4, onComplete: () => g.destroy() }) })
+    const puff = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.4).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(puff)
+    _drawMiasmaPuff(puff, 16 + tier * 2, GREEN, PALE)
+    scene.tweens.add({ targets: puff, scale: 1.2, alpha: 0.6, duration: o.durationMs * 0.4, yoyo: true, onComplete: () => puff.destroy() })
+    if (mult > 0) { const em = scene.add.particles(x, y + 10, _softDotTexture(scene), { lifespan: { min: 700, max: 1400 }, speedY: { min: -40, max: -14 }, speedX: { min: -30, max: 30 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [GREEN, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((14 + tier * 4) * mult)); made.push(em); scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // A spore-POD erupting: the cap splits, a spore cloud billows out, specks fly.
+  sporeBurstFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 14, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf3d, PALE = 0x9ee870
+    const pod = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(pod)
+    pod.fillStyle(_lerpColor(GREEN, 0x000000, 0.2), 1); pod.fillEllipse(0, 0, 16 + tier * 2, 18 + tier * 2)
+    pod.fillStyle(PALE, 0.6); pod.fillEllipse(-3, -4, 7, 8)
+    scene.tweens.add({ targets: pod, scaleY: 0.2, scaleX: 1.5, alpha: 0, duration: 200, ease: 'Back.easeIn', onComplete: () => pod.destroy() })
+    const cloud = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 0.3).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3).setAlpha(0); made.push(cloud)
+    _drawMiasmaPuff(cloud, 18 + tier * 3, GREEN, PALE)
+    scene.tweens.add({ targets: cloud, scale: 1.6, alpha: 0.7, duration: 260, ease: 'Quad.easeOut', delay: 120,
+      onComplete: () => scene.tweens.add({ targets: cloud, alpha: 0, scale: 2, duration: 400, onComplete: () => cloud.destroy() }) })
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 400, max: 900 }, speed: { min: 40, max: 140 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [GREEN, PALE, 0xffffaa], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((12 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(900, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // A spore VENT on a hero (DoT tell): a cloud puffs up off them and drifts.
+  sporeVentFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 14, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf3d, PALE = 0x9ee870
+    const cloud = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setScale(0.4).setAlpha(0); made.push(cloud)
+    _drawMiasmaPuff(cloud, 12 + tier * 1.5, GREEN, PALE)
+    scene.tweens.add({ targets: cloud, scale: 1.1, alpha: 0.65, y: y - 8, duration: 300, ease: 'Sine.easeOut',
+      onComplete: () => scene.tweens.add({ targets: cloud, alpha: 0, y: cloud.y - 10, scale: 1.4, duration: 380, onComplete: () => cloud.destroy() }) })
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speedY: { min: -30, max: -8 }, speedX: { min: -18, max: 18 }, scale: { start: 0.34, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [GREEN, PALE], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 0.3); em.explode(Math.round(7 * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+    return made
+  },
+
+  // ROT creeping across the floor (fight floor-zone hazard): an irregular
+  // discoloured blotch swells in, bubbles, then fades.
+  creepingRotFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 1.6, radius: 26, durationMs: 1400, ...opts }
+    const mult = _particlesMult(), made = []
+    const ROT = 0x4a6b2a, DARK = 0x243a16, PALE = 0x8fcf5a
+    const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setAlpha(0); made.push(g)
+    let seed = (Math.floor(x * 7 + y * 13) >>> 0) || 1
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+    g.fillStyle(DARK, 0.55); g.beginPath()
+    for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI * 2, r = o.radius * (0.7 + rnd() * 0.5); const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.6; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) }
+    g.closePath(); g.fillPath()
+    g.fillStyle(ROT, 0.5); g.fillEllipse(0, 0, o.radius * 1.1, o.radius * 0.6)
+    g.fillStyle(PALE, 0.3); g.fillEllipse(-o.radius * 0.2, -2, o.radius * 0.4, o.radius * 0.22)
+    g.setScale(0.3)
+    scene.tweens.add({ targets: g, scale: 1, alpha: 0.85, duration: o.durationMs * 0.25, ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: o.durationMs * 0.4, delay: o.durationMs * 0.35, onComplete: () => g.destroy() }) })
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 500, max: 1000 }, speedY: { min: -22, max: -6 }, x: { min: -o.radius, max: o.radius }, scale: { start: 0.28, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [ROT, PALE] }); em.setDepth(o.depth + 0.3); made.push(em); scene.time.delayedCall(o.durationMs * 0.7, () => { try { em.stop() } catch (e) {} ; scene.time.delayedCall(600, () => { try { em.destroy() } catch (e) {} }) }) }
+    return made
+  },
+
+  // The T4 throne FINALE: the arena erupts — a ring of pod-bursts, a swelling
+  // green haze, a wide spore explosion + shake.
+  bloomFinaleFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 4, depth: 16, rectW: 300, rectH: 220, durationMs: 1400, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf3d, PALE = 0x9ee870
+    const n = 6 + tier
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, d = o.rectW * 0.3 * (0.4 + Math.random() * 0.6), bx = x + Math.cos(a) * d, by = y + Math.sin(a) * d * 0.7; scene.time.delayedCall(i * 60, () => { const r = AbilityVfx.sporeBurstFx(scene, bx, by, { tier }); if (Array.isArray(r)) made.push(...r) }) }
+    const haze = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3).setAlpha(0); made.push(haze)
+    haze.fillStyle(GREEN, 0.22); haze.fillEllipse(0, 0, o.rectW, o.rectH * 0.7); haze.fillStyle(PALE, 0.12); haze.fillEllipse(0, 0, o.rectW * 0.6, o.rectH * 0.4)
+    scene.tweens.add({ targets: haze, scale: 1.1, alpha: 1, duration: o.durationMs * 0.3, yoyo: true, hold: o.durationMs * 0.4, onComplete: () => haze.destroy() })
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 800, max: 1600 }, speed: { min: 30, max: 120 }, angle: { min: 0, max: 360 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.7, end: 0 }, tint: [GREEN, PALE, 0xffffaa], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth); em.explode(Math.round(40 * mult)); made.push(em); scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(400, 0.005)
+    return made
+  },
 }

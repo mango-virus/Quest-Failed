@@ -343,15 +343,15 @@ export class BossArchetypeUI {
       })
     })
 
-    // Myconid: center-screen toast when a Spore Day starts so the player
-    // sees that the corridors are dangerous today.
-    this._on('MYCONID_SPORE_DAY_BEGAN', ({ roomIds }) => {
+    // Myconid THE BLOOM — toast each time a room is colonized (seeded or spread).
+    this._on('MYCONID_BLOOM_DAY', ({ bloomed }) => {
+      if (!bloomed) return
       const game = this._scene.scene.get('Game')
       const cam = game?.cameras?.main
       if (!cam) return
       const banner = game.add.text(cam.midPoint.x, cam.midPoint.y - 80,
-        `SPORE DAY · ${(roomIds ?? []).length} corridors fogged`, {
-          fontSize: '20px', color: '#88dd66',
+        `THE BLOOM SPREADS · ${bloomed} room${bloomed === 1 ? '' : 's'} colonized`, {
+          fontSize: '20px', color: '#9ee870',
           fontFamily: 'monospace', fontStyle: 'bold',
           stroke: '#0a2010', strokeThickness: 3,
         }).setOrigin(0.5).setDepth(125).setScrollFactor(0)
@@ -361,6 +361,13 @@ export class BossArchetypeUI {
         onComplete: () => banner.destroy(),
       })
     })
+    // Myconid SEED THE BLOOM room-targeting.
+    this._on('MYCONID_SEED_ARMED', () => {
+      this._installSeedRoomPick()
+      showToast(this._scene, 'SEED THE BLOOM armed — click a room to colonize', { type: 'info', duration: 3000 })
+    })
+    this._on('MYCONID_SEED_DISARMED', () => this._removeSeedRoomPick())
+    this._on('MYCONID_SEED_FIRED', () => this._removeSeedRoomPick())
 
     // Beholder: "SILENCED" floater above an adv whose class ability was
     // suppressed by an Anti-Magic room. Throttled by ClassAbilitySystem.
@@ -794,6 +801,28 @@ export class BossArchetypeUI {
     this._throwPickGame    = null
   }
 
+  // Myconid SEED THE BLOOM room-pick.
+  _installSeedRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._seedPickHandler) return
+    this._seedPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('MYCONID_SEED_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('MYCONID_SEED_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._seedPickHandler)
+    this._seedPickGame = game
+  }
+
+  _removeSeedRoomPick() {
+    if (!this._seedPickHandler || !this._seedPickGame) return
+    this._seedPickGame.input.off('pointerdown', this._seedPickHandler)
+    this._seedPickHandler = null
+    this._seedPickGame    = null
+  }
+
   // Camera shake on the Game scene + a small "EARTHQUAKE" floater above the
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
@@ -848,6 +877,7 @@ export class BossArchetypeUI {
     this._removeSurgeRoomPick()
     this._removeGazeRoomPick()
     this._removeThrowRoomPick()
+    this._removeSeedRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

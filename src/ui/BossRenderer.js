@@ -161,6 +161,9 @@ export class BossRenderer {
     // Beholder Eye Tyrant — pulsing violet Glow-outline aura; intensity reads
     // the act tier (more eyes open = more danger).
     this._updateBeholderAura()
+    // Predator Myconid — sickly-green Glow-outline aura; intensity reads the
+    // Biomass saturation (how grown the colony is).
+    this._updateBloomAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -592,6 +595,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._beholderGlow) } catch (e) {}
     }
     this._beholderGlow = null
+  }
+
+  _updateBloomAura() {
+    const isMyconid = this._gameState?.player?.bossArchetypeId === 'myconid'
+    if (!isMyconid || !this._container || !this._sprite) { this._clearBloomAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.MYCONID_BIOMASS_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.MYCONID_BIOMASS_CAP_PER_ACT ?? 40)
+    const sat = Math.max(0, Math.min(1, (boss?.biomass ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x2e5d28, 0x9ee870)
+      if (!this._bloomGlow) { try { this._bloomGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._bloomGlow = true } }
+      else if (this._bloomGlow !== true) { try { this._bloomGlow.color = p.color; this._bloomGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearBloomAura() {
+    if (this._bloomGlow && this._bloomGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._bloomGlow) } catch (e) {}
+    }
+    this._bloomGlow = null
   }
 
   _build(boss) {

@@ -416,6 +416,8 @@ export class BossOverviewOverlay {
       this._renderSlimeMass(),
       // Eyes-Open readout (Beholder — Eye Tyrant)
       this._renderEyesOpen(),
+      // Biomass / Bloom readout (Myconid — The Bloom)
+      this._renderBloomStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -668,6 +670,30 @@ export class BossOverviewOverlay {
       h('div', { style: { fontSize: '11px', color: C, marginTop: '6px', fontWeight: 'bold' } }, rays.join(' · ')),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '4px' } },
         `${beams} beam${beams === 1 ? '' : 's'}/beat in the throne · Tyrant's Gaze ×${gazeUses} today. More eyes open each act.`),
+    ])
+  }
+
+  _renderBloomStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'myconid') return null
+    const boss = this._gameState.boss ?? {}
+    const biomass = Math.floor(boss.biomass ?? 0)
+    const bloomed = (boss.bloomedRooms ?? []).length
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.MYCONID_BIOMASS_CAP_BASE ?? 60) + tier * (Balance.MYCONID_BIOMASS_CAP_PER_ACT ?? 40)
+    const C = '#9ee870'
+    const pct = Math.max(0, Math.min(100, (biomass / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'Sporestorm' : tier >= 3 ? 'Spread' : tier >= 2 ? 'Rot' : 'Creep'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'BIOMASS'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(biomass)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#0e1a10', border: '1px solid #2a3a2c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#3a8f3a,#9ee870)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${bloomed} room${bloomed === 1 ? '' : 's'} bloomed · phase: ${phase}. Biomass spreads the colony, fuels bloomed terrain, and feeds the throne.`),
     ])
   }
 

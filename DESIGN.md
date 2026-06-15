@@ -783,6 +783,56 @@ gaze (movement matters in exploration, not the pooled auto-fight); the FIGHT use
 - ☑ Bespoke ray VFX (`beholderRayFx` per-kind beam+impact, `beholderEyeChargeFx`, `tyrantGazeSweepFx`); lint-vfx clean; lab-wired (group + stand-in abilities + `_fireRaw`).
 - ☑ Headless harness green (`tools/sim/beholder-eyetyrant-check.mjs`); soak clean (120 games, 0 issues); bossArchetypes.json beholder text updated; live preview verified in VFX Lab (Disintegrate lance+burst, Hex beam+sigil, T4 violet glow-outline aura, Tyrant's Gaze eye+ray-fan sweep all render; no console errors).
 
+### Boss #5 — Predator Myconid → **THE BLOOM** (terrain colonizer) (LOCKED 2026-06-15)
+
+**Core resource — BIOMASS** (`boss.biomass`, persists; visible gauge). Grows from every dungeon death
+(scaled by hero level) + passively per bloomed room per day. Biomass drives spread reach/chance,
+bloomed-terrain potency, and the boss's throne power.
+
+**Bloomed rooms** (`boss.bloomedRooms[]`, persists; visibly overgrown on the map). While a hero stands
+in one: spore **DoT** (% max-HP/tick, reuse the spore-tick pattern), **can't heal** (`_noHealUntil`),
+**slowed** (`_slowUntil`/`_slowMult`); your **minions** inside get **regen + a little ATK** (symbiosis).
+
+**Dungeon Kit — the Bloom escalates by act:** T1 **Creep** (bloomed rooms apply spore DoT — replaces the
+old corridors-gas-every-3rd-day with persistent player-seeded bloom) → T2 **Rot** (+heal-block + slow;
+minion regen) → T3 **Spread** (each day start, every bloomed room has a Biomass-scaled chance to creep
+into an ADJACENT room) → T4 **Sporestorm** (bloomed rooms periodically erupt spore-pods; network pulse;
+bigger minion buff). **Corpse Bloom retained + folded in:** dead heroes leave fungal corpses, and a
+corpse now AUTO-BLOOMS its room (feeds the colony) instead of only adding venom stacks.
+
+**Day-phase active — SEED THE BLOOM** (arm → click a room → colonize it instantly; + at higher tiers an
+immediate spore-burst on heroes inside). Uses/day = `1 + floor(level × 0.25)`, reset on night. Player
+agency = choose where the colony grows. Room-wide → scales with crowd; potency scales with Biomass+tier.
+
+**Throne fight — the colonized arena** (rooted fungal caster; arena hazards scale with bloomedRooms +
+Biomass; bigger entry the more colonized the dungeon): T1 **Spore Vent** (periodic spore-cloud AoE DoT on
+heroes) → T2 **Creeping Rot** (rot zones crawl across the floor; standing = DoT + heal-block, telegraphed)
+→ T3 **Bursting Pods** (fungal pods grow + burst after a windup; more Biomass = more pods) → T4 **The
+Bloom finale** (at low HP the arena erupts: boss channels and the dungeon-wide colony HEALS it — heal
+scales with bloomedRooms count — under a massive room-wide sporestorm).
+
+**Tells:** Biomass gauge + bloomed-room count in the boss panel; bloomed rooms overgrown on the map
+(persistent bloom overlay, extending the spore overlay); pulsing sickly-green **Glow-outline aura** whose
+intensity reads Biomass saturation.
+
+**VFX (bespoke, fungal, lab-wired):** `bloomFx` (mycelium tendrils creep out + spores rise as a room
+colonizes) · `sporeBurstFx` (puffball pod eruption) · `sporeVentFx` (cloud vent on heroes) ·
+`creepingRotFx` (rot crawling across tiles) · `bloomFinaleFx` (arena eruption) — reuse `_drawMiasmaPuff`.
+
+**Scales early→late:** DoT is %max-HP (auto-scales), bloom is room-wide (crowd), Biomass+spread+tier
+compound over the run. **Deviation noted:** replaces the passive corridor-spore-every-3-days with the
+persistent player-seeded bloom system.
+
+**Acceptance checklist (The Bloom):**
+- ☑ BIOMASS resource (`boss.biomass`) banks on death (level-scaled) + per bloomed room/day; persists; visible gauge.
+- ☑ Bloomed rooms (`boss.bloomedRooms[]`) apply spore DoT + (T2) heal-block + slow to heroes; minions inside get regen+ATK (captured-baseline, restored on leave/save); persist; overgrown map overlay (`_renderBloomOverlay`).
+- ☑ Dungeon kit by act: T1 Creep / T2 Rot / T3 auto-Spread to adjacent (`_bloomDayBegan`) / T4 Sporestorm pods (`_tickMyconid`); corpse auto-blooms its room on death.
+- ☑ Day active SEED THE BLOOM: arm→room→colonize (+T2 burst); DOM button (`qf-archstrip-seed`) + Phaser room-pick + `MYCONID_SEED_*` events; uses/day reset on night; `boss._myconidSeed={usesLeft}`.
+- ☑ Throne fight tier-gated (`_tickBloomFight` fight timer): Spore Vent / Creeping Rot / Bursting Pods / Bloom-finale (channel heal scales w/ bloomedRooms count) at <30% HP.
+- ☑ Tells: BIOMASS + bloomed-room panel readout (`_renderBloomStatus`); green glow-outline aura (`BossRenderer._updateBloomAura`) reading Biomass saturation.
+- ☑ Bespoke fungal VFX (bloomFx/sporeBurstFx/sporeVentFx/creepingRotFx/bloomFinaleFx), lab-wired; lint-vfx clean.
+- ☑ SaveSystem persists biomass/bloomedRooms + strips transient riders; node --check; new harness `myconid-bloom-check.mjs` green; soak clean; bossArchetypes.json text; live preview verified (all 5 fungal VFX render, no console errors).
+
 ---
 
 ## Personality combos

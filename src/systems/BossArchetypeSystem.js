@@ -154,6 +154,7 @@ export class BossArchetypeSystem {
 
     // Beholder Petrify Gaze — active timer reference + per-fight VFX layer.
     this._petrifyTimer       = null
+    this._bloomFightTimer    = null
     this._petrifyFxGraphics  = null
     // Beholder Anti-Magic Aura — graphics layer for the daily purple glow.
     this._antiMagicFx        = null
@@ -221,6 +222,18 @@ export class BossArchetypeSystem {
       const bLv = this._gameState?.boss?.level ?? 1
       const uses = (Balance.ORC_THROW_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.ORC_THROW_USES_PER_BOSS_LV ?? 0.25))
       if (this._gameState?.boss) this._gameState.boss._orcThrow ??= { usesLeft: uses }
+    }
+    // Myconid THE BLOOM — Biomass economy + SEED THE BLOOM (active day ability)
+    this._seedArmed = false
+    EventBus.on('MYCONID_SEED_ARM',    this._armSeed,    this)
+    EventBus.on('MYCONID_SEED_DISARM', this._disarmSeed, this)
+    EventBus.on('MYCONID_SEED_TARGET', this._fireSeed,   this)
+    if (this._archId() === 'myconid' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.biomass      ??= 0
+      this._gameState.boss.bloomedRooms ??= []
+      this._gameState.boss._myconidSeed ??= { usesLeft: uses }
     }
 
     // Backfill Living Architecture for the rooms already placed at scene
@@ -292,11 +305,15 @@ export class BossArchetypeSystem {
     EventBus.off('ORC_TROPHY_THROW_ARM',    this._armThrow,    this)
     EventBus.off('ORC_TROPHY_THROW_DISARM', this._disarmThrow, this)
     EventBus.off('ORC_TROPHY_THROW_TARGET', this._fireThrow,   this)
+    EventBus.off('MYCONID_SEED_ARM',    this._armSeed,    this)
+    EventBus.off('MYCONID_SEED_DISARM', this._disarmSeed, this)
+    EventBus.off('MYCONID_SEED_TARGET', this._fireSeed,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
     this._clearSoulOrbit()
     this._stopPetrifyTimer()
+    this._stopBloomFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -376,6 +393,16 @@ export class BossArchetypeSystem {
       const adv = payload?.adventurer
       if (adv && typeof adv.tileX === 'number' && typeof adv.tileY === 'number') {
         const room = this._scene?.dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+        // THE BLOOM — every death feeds Biomass (level-scaled) and a corpse
+        // AUTO-BLOOMS its room (the colony reclaims the fallen). Done before the
+        // corpse-cap gate so the colony grows even when corpses are capped.
+        const boss = this._gameState?.boss
+        if (boss) {
+          boss.biomass = (boss.biomass ?? 0)
+            + (Balance.MYCONID_BIOMASS_PER_DEATH ?? 6)
+            + (adv.level ?? 1) * (Balance.MYCONID_BIOMASS_PER_DEATH_PER_LV ?? 0.5)
+          if (room) this._bloomRoom(room.instanceId)
+        }
         this._gameState.fungalCorpses ??= []
         // Hard cap on simultaneous corpses — without it Myconid snowballs:
         // every adv kill is both gold AND a permanent venom tile AND a free
@@ -1499,10 +1526,13 @@ export class BossArchetypeSystem {
         if (this._isLizardmanMinion(m)) m._camouflaged = true
       }
     }
-    // Myconid: clear yesterday's spore network overlay + active rooms.
-    if (this._gameState?._myconid) {
-      this._gameState._myconid.activeSporeRoomIds = []
+    // Myconid: refill Seed the Bloom uses + disarm; bloomed rooms persist.
+    if (this._archId() === 'myconid' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss._myconidSeed = { usesLeft: uses }
     }
+    this._disarmSeed()
     this._clearSporeFx()
     // Demon: reset daily Sacrifice uses; top the Hellgate roster up to
     // N=bossLevel imps. Killed or sacrificed imps from prior days do NOT
@@ -1633,31 +1663,119 @@ export class BossArchetypeSystem {
       EventBus.emit('SUCCUBUS_FLIGHT_ENDED', {})
     }
 
-    if (this._archId() !== 'beholder') return
-    this._stopPetrifyTimer()
-    // Schedule the gaze every BEHOLDER_PETRIFY_INTERVAL_MS while the fight runs.
-    this._petrifyTimer = this._scene?.time?.addEvent?.({
-      delay:    Balance.BEHOLDER_PETRIFY_INTERVAL_MS,
-      loop:     true,
-      callback: () => this._fireEyeBarrage(),
-    })
+    if (this._archId() === 'beholder') {
+      this._stopPetrifyTimer()
+      // Schedule the gaze every BEHOLDER_PETRIFY_INTERVAL_MS while the fight runs.
+      this._petrifyTimer = this._scene?.time?.addEvent?.({
+        delay:    Balance.BEHOLDER_PETRIFY_INTERVAL_MS,
+        loop:     true,
+        callback: () => this._fireEyeBarrage(),
+      })
+    }
+    if (this._archId() === 'myconid') {
+      this._stopBloomFightTimer()
+      this._bloomFinaleDone = false
+      this._bloomChannelUntil = 0
+      // Tier-gated arena hazards pulse every ~2.6s through the throne fight.
+      this._bloomFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickBloomFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
     this._bossFightActive = false
-    if (this._archId() !== 'beholder') return
-    this._stopPetrifyTimer()
-    // Clear any lingering petrify timestamps so an adv that survived doesn't
-    // stay frozen after the fight ends (defensive — most fight-resolved paths
-    // already drop the fight state, but corpses still keep the field).
-    for (const a of this._gameState?.adventurers?.active ?? []) {
-      if (a._petrifiedUntil) a._petrifiedUntil = 0
+    if (this._archId() === 'beholder') {
+      this._stopPetrifyTimer()
+      // Clear any lingering petrify timestamps so an adv that survived doesn't
+      // stay frozen after the fight ends (defensive — most fight-resolved paths
+      // already drop the fight state, but corpses still keep the field).
+      for (const a of this._gameState?.adventurers?.active ?? []) {
+        if (a._petrifiedUntil) a._petrifiedUntil = 0
+      }
     }
+    if (this._archId() === 'myconid') this._stopBloomFightTimer()
   }
 
   _stopPetrifyTimer() {
     this._petrifyTimer?.remove?.(false)
     this._petrifyTimer = null
+  }
+
+  _stopBloomFightTimer() {
+    this._bloomFightTimer?.remove?.(false)
+    this._bloomFightTimer = null
+  }
+
+  // Myconid throne fight — tier-gated arena hazards (rooted fungal caster):
+  // T1 Spore Vent → T2 +Creeping Rot → T3 +Bursting Pods → T4 Bloom finale
+  // (channel: the dungeon-wide colony heals the boss) at low HP. Effects mutate
+  // the shared adv/boss objects; the BossSystem fight loop reads them.
+  _tickBloomFight() {
+    const boss = this._gameState?.boss
+    if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
+    if (!bossRoom) return
+    const now = this._scene?.time?.now ?? 0
+    const TS  = Balance.TILE_SIZE
+    const atk = boss.attack ?? 0
+    const fighters = (this._gameState?.adventurers?.active ?? [])
+      .filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+
+    const hurt = (a, frac, healBlock) => {
+      const dmg = Math.max(1, Math.floor(atk * frac))
+      a.resources.hp = Math.max(0, (a.resources.hp ?? 0) - dmg)
+      if (healBlock) a._noHealUntil = Math.max(a._noHealUntil ?? 0, now + (Balance.MYCONID_BLOOM_HEALBLOCK_MS ?? 1500))
+      EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'poison' })
+      if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Bloom', roomId: bossRoom.instanceId, damageType: 'poison' })
+    }
+
+    // T4 finale — once boss drops below 30% HP, erupt + start a heal channel
+    // fed by the dungeon-wide colony.
+    if (tier >= 4 && !this._bloomFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._bloomFinaleDone = true
+      this._bloomChannelUntil = now + 4000
+      AbilityVfx?.bloomFinaleFx?.(this._scene, boss.worldX, boss.worldY, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+    }
+    if (this._bloomChannelUntil && now < this._bloomChannelUntil) {
+      const blooms = (boss.bloomedRooms ?? []).length
+      const heal = Math.floor((boss.maxHp ?? 0) * (Balance.MYCONID_FIGHT_FINALE_HEAL_PER_BLOOM ?? 0.04) * blooms)
+      if (heal > 0) boss.hp = Math.min(boss.maxHp ?? boss.hp, (boss.hp ?? 0) + heal)
+      for (const a of fighters) hurt(a, (Balance.MYCONID_FIGHT_VENT_DMG_FRAC ?? 0.45) * 0.6, true)
+      return
+    }
+
+    // T1 Spore Vent — gas the fighters (AoE DoT + vent puff on each).
+    for (const a of fighters) {
+      hurt(a, Balance.MYCONID_FIGHT_VENT_DMG_FRAC ?? 0.45, tier >= 2)
+      if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.sporeVentFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, { tier })
+    }
+    // T3 Bursting Pods — pods erupt around the arena (count scales with biomass).
+    if (tier >= 3) {
+      const sat = this._biomassSat()
+      const pods = 1 + Math.round(sat * (1 + tier))
+      for (let i = 0; i < pods; i++) {
+        const rx = bossRoom.gridX + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.width - 2))
+        const ry = bossRoom.gridY + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.height - 2))
+        const px = rx * TS + TS / 2, py = ry * TS + TS / 2
+        AbilityVfx?.sporeBurstFx?.(this._scene, px, py, { tier })
+        for (const a of fighters) {
+          if (Math.hypot((a.worldX ?? 0) - px, (a.worldY ?? 0) - py) <= TS * 1.6) hurt(a, Balance.MYCONID_FIGHT_POD_DMG_FRAC ?? 0.7, false)
+        }
+      }
+    } else if (tier >= 2) {
+      // T2 Creeping Rot — a rot zone crawls in; fighters near it take rot dmg.
+      const rx = bossRoom.gridX + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.width - 2))
+      const ry = bossRoom.gridY + 1 + Math.floor(Math.random() * Math.max(1, bossRoom.height - 2))
+      const px = rx * TS + TS / 2, py = ry * TS + TS / 2
+      AbilityVfx?.creepingRotFx?.(this._scene, px, py, { tier })
+      for (const a of fighters) {
+        if (Math.hypot((a.worldX ?? 0) - px, (a.worldY ?? 0) - py) <= TS * 2) hurt(a, Balance.MYCONID_FIGHT_ROT_DMG_FRAC ?? 0.3, true)
+      }
+    }
   }
 
   // The throne-fight Eye Barrage. Fired by the fight timer every
@@ -1796,8 +1914,8 @@ export class BossArchetypeSystem {
     // network if today is a multiple of MYCONID_SPORE_INTERVAL_DAYS.
     if (this._archId() === 'myconid') {
       this._tickFungalCorpseDay()
-      this._rollSporeNetwork()
-      this._renderSporeOverlay()
+      this._bloomDayBegan()
+      this._renderBloomOverlay()
     }
     // Succubus: refresh daily charm uses. One use per boss level (L1=1,
     // L2=2, L3=3, ... L10=10). Stamp a random delay before the FIRST
@@ -2577,21 +2695,103 @@ export class BossArchetypeSystem {
     return false
   }
 
-  _rollSporeNetwork() {
-    if (this._archId() !== 'myconid') return
-    const today = this._gameState?.meta?.dayNumber ?? 1
-    this._gameState._myconid ??= { activeSporeRoomIds: [] }
-    if (today % Balance.MYCONID_SPORE_INTERVAL_DAYS !== 0) {
-      this._gameState._myconid.activeSporeRoomIds = []
-      return
-    }
+  // THE BLOOM — colony bookkeeping.
+  _bloomRoom(roomId) {
+    const boss = this._gameState?.boss
+    if (!boss || !roomId) return false
+    boss.bloomedRooms ??= []
+    if (boss.bloomedRooms.includes(roomId)) return false
+    boss.bloomedRooms.push(roomId)
+    EventBus.emit('MYCONID_ROOM_BLOOMED', { roomId, total: boss.bloomedRooms.length })
+    return true
+  }
+  _isBloomed(room) {
+    return !!room && (this._gameState?.boss?.bloomedRooms ?? []).includes(room.instanceId)
+  }
+  _bloomedRoomObjs() {
+    const ids = this._gameState?.boss?.bloomedRooms ?? []
+    if (ids.length === 0) return []
     const rooms = this._gameState?.dungeon?.rooms ?? []
-    const ids = []
-    for (const r of rooms) {
-      if (this._isCorridorRoom(r)) ids.push(r.instanceId)
+    return rooms.filter(r => ids.includes(r.instanceId))
+  }
+  _biomassCap() {
+    return (Balance.MYCONID_BIOMASS_CAP_BASE ?? 60) + currentAct(this._gameState) * (Balance.MYCONID_BIOMASS_CAP_PER_ACT ?? 40)
+  }
+  _biomassSat() {
+    return Math.max(0, Math.min(1, (this._gameState?.boss?.biomass ?? 0) / Math.max(1, this._biomassCap())))
+  }
+  // Rooms within 1 tile of `room` (bounding-box adjacency) — where the Bloom creeps.
+  _adjacentRooms(room) {
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    const ax0 = room.gridX - 1, ay0 = room.gridY - 1
+    const ax1 = room.gridX + room.width, ay1 = room.gridY + room.height
+    return rooms.filter(r => {
+      if (r === room || r.instanceId === room.instanceId) return false
+      const bx1 = r.gridX + r.width - 1, by1 = r.gridY + r.height - 1
+      return ax0 <= bx1 && ax1 >= r.gridX && ay0 <= by1 && ay1 >= r.gridY
+    })
+  }
+
+  _bloomDayBegan() {
+    if (this._archId() !== 'myconid') return
+    const boss = this._gameState?.boss
+    if (!boss) return
+    boss.bloomedRooms ??= []
+    boss.biomass = (boss.biomass ?? 0) + boss.bloomedRooms.length * (Balance.MYCONID_BIOMASS_PER_BLOOM_PER_DAY ?? 3)
+    // T3 Spread — each bloomed room may creep into an adjacent room overnight.
+    if (currentAct(this._gameState) >= 3) {
+      const chance = Math.min(Balance.MYCONID_SPREAD_CHANCE_CAP ?? 0.75,
+        (Balance.MYCONID_SPREAD_CHANCE_BASE ?? 0.25) + (boss.biomass ?? 0) * (Balance.MYCONID_SPREAD_CHANCE_PER_BIOMASS ?? 0.004))
+      for (const id of boss.bloomedRooms.slice()) {
+        if (Math.random() >= chance) continue
+        const room = (this._gameState.dungeon?.rooms ?? []).find(r => r.instanceId === id)
+        if (!room) continue
+        const open = this._adjacentRooms(room).filter(r => !boss.bloomedRooms.includes(r.instanceId))
+        if (open.length === 0) continue
+        this._bloomRoom(open[Math.floor(Math.random() * open.length)].instanceId)
+      }
     }
-    this._gameState._myconid.activeSporeRoomIds = ids
-    EventBus.emit('MYCONID_SPORE_DAY_BEGAN', { roomIds: ids, day: today })
+    EventBus.emit('MYCONID_BLOOM_DAY', { bloomed: boss.bloomedRooms.length, biomass: Math.floor(boss.biomass ?? 0) })
+  }
+
+  // ── SEED THE BLOOM (active day ability) — arm → click a room → colonize it ──
+  _seedUsesLeft() { return this._gameState?.boss?._myconidSeed?.usesLeft ?? 0 }
+  _seedAvailable() {
+    return this._archId() === 'myconid' && (this._gameState?.meta?.phase ?? '') === 'day' && this._seedUsesLeft() > 0
+  }
+  _armSeed() { if (!this._seedAvailable()) return; this._seedArmed = true; EventBus.emit('MYCONID_SEED_ARMED', {}) }
+  _disarmSeed() { this._seedArmed = false; EventBus.emit('MYCONID_SEED_DISARMED', {}) }
+
+  _fireSeed(payload) {
+    if (!this._seedArmed) return
+    if (!this._seedAvailable()) { this._disarmSeed(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState)
+    const now  = this._scene?.time?.now ?? 0
+    const TS   = Balance.TILE_SIZE
+
+    this._bloomRoom(room.instanceId)
+    // T2+ — an immediate spore-burst on whoever's caught in the new bloom.
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    if (tier >= 2) {
+      for (const a of advsIn) {
+        const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.MYCONID_SEED_BURST_DMG_PCT ?? 0.08)))
+        a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
+        a._noHealUntil = Math.max(a._noHealUntil ?? 0, now + (Balance.MYCONID_BLOOM_HEALBLOCK_MS ?? 1500))
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'poison' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Bloom', roomId: room.instanceId, damageType: 'poison' })
+      }
+    }
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.bloomFx?.(this._scene, cx, cy, { tier, rectW: room.width * TS, rectH: room.height * TS })
+    if (tier >= 2) AbilityVfx?.sporeBurstFx?.(this._scene, cx, cy, { tier })
+    this._renderBloomOverlay()   // include the newly-bloomed room
+
+    if (boss._myconidSeed) boss._myconidSeed.usesLeft = Math.max(0, (boss._myconidSeed.usesLeft ?? 0) - 1)
+    this._seedArmed = false
+    EventBus.emit('MYCONID_SEED_FIRED', { roomId: room.instanceId, room, tier })
   }
 
   _clearSporeFx() {
@@ -2601,16 +2801,16 @@ export class BossArchetypeSystem {
     this._sporeFx = null
   }
 
-  _renderSporeOverlay() {
+  _renderBloomOverlay() {
     if (this._archId() !== 'myconid') return
     const s = this._scene
     if (!s?.add?.container) return
 
-    // Tear down any previous-day VFX so we never leak particles between
-    // spore-network days.
+    // Tear down any previous overlay so we never leak particles when the
+    // bloom set changes.
     this._clearSporeFx()
 
-    const ids = this._gameState?._myconid?.activeSporeRoomIds ?? []
+    const ids = this._gameState?.boss?.bloomedRooms ?? []
     if (ids.length === 0) return
 
     const TS    = Balance.TILE_SIZE
@@ -3735,44 +3935,79 @@ export class BossArchetypeSystem {
     // Animate the drifting spore particles + cloud puffs every frame.
     this._tickSporeVfx(deltaMs)
     const now = this._scene?.time?.now ?? 0
+    const tier = currentAct(this._gameState)
     const advs = this._gameState?.adventurers?.active ?? []
-    const bossLv = this._gameState?.boss?.level ?? 1
+    const bloomed = this._bloomedRoomObjs()
+    const tickMs = Balance.MYCONID_BLOOM_TICK_MS ?? 1000
 
-    // Spore Network damage.
-    const sporeIds = this._gameState?._myconid?.activeSporeRoomIds ?? []
-    if (sporeIds.length > 0) {
-      const rooms = this._gameState?.dungeon?.rooms ?? []
-      const sporeRooms = rooms.filter(r => sporeIds.includes(r.instanceId))
+    if (bloomed.length > 0) {
+      // ── Heroes in a bloomed room — spore DoT (+T2 heal-block + slow) ──
       for (const adv of advs) {
         if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
         let inside = false
-        for (const r of sporeRooms) {
-          if (_advInsideRoom(adv, r)) { inside = true; break }
-        }
+        for (const r of bloomed) { if (_advInsideRoom(adv, r)) { inside = true; break } }
         if (!inside) continue
-        adv._sporeLastTickAt ??= 0
-        if (now - adv._sporeLastTickAt < Balance.MYCONID_SPORE_TICK_INTERVAL_MS) continue
-        adv._sporeLastTickAt = now
-        // Switched to % maxHP per tick so spores keep biting through late-game
-        // adv HP curves. MYCONID_SPORE_DMG_PER_BOSS_LV (above) is superseded
-        // and left in place only for save / lookup compat.
-        const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * Balance.MYCONID_SPORE_DMG_PCT_PER_TICK))
+        if (tier >= 2) {
+          adv._noHealUntil = Math.max(adv._noHealUntil ?? 0, now + (Balance.MYCONID_BLOOM_HEALBLOCK_MS ?? 1500))
+          const next = now + 1200
+          if (!adv._slowUntil || adv._slowUntil < next) adv._slowUntil = next
+          adv._slowMult = Math.min(adv._slowMult ?? 1, Balance.MYCONID_BLOOM_SLOW_MULT ?? 0.6)
+        }
+        adv._bloomLastTickAt ??= 0
+        if (now - adv._bloomLastTickAt < tickMs) continue
+        adv._bloomLastTickAt = now
+        const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * (Balance.MYCONID_BLOOM_DOT_PCT_PER_TICK ?? 0.018)))
         const before = adv.resources.hp
         adv.resources.hp = Math.max(this._shadowFloor(adv), before - dmg)
-        EventBus.emit('COMBAT_HIT', {
-          sourceId:   'spores',
-          targetId:   adv.instanceId,
-          damage:     dmg,
-          damageType: 'poison',
-        })
+        EventBus.emit('COMBAT_HIT', { sourceId: 'spores', targetId: adv.instanceId, damage: dmg, damageType: 'poison' })
         if (adv.resources.hp <= 0) {
-          EventBus.emit('ADVENTURER_DIED', {
-            adventurer: adv,
-            killerId:   'spores',
-            killerName: 'Spore Cloud',
-            roomId:     null,
-            damageType: 'poison',
-          })
+          EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'spores', killerName: 'The Bloom', roomId: null, damageType: 'poison' })
+        }
+      }
+
+      // ── Minions in a bloomed room — symbiosis: regen (+T2 ATK boost) ──
+      // ATK uses a captured-baseline that's restored the instant they leave
+      // (Warband pattern); `_bloomBaseAtk`/`_bloomApplied` stripped on save.
+      for (const m of (this._gameState?.minions ?? [])) {
+        if (m.faction !== 'dungeon' || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        let inside = false
+        for (const r of bloomed) { if (_advInsideRoom(m, r)) { inside = true; break } }
+        if (inside) {
+          m._bloomTickAt ??= 0
+          if (now - m._bloomTickAt >= tickMs) {
+            m._bloomTickAt = now
+            const regen = Math.ceil((m.resources?.maxHp ?? 0) * (Balance.MYCONID_BLOOM_MINION_REGEN_PCT ?? 0.02))
+            if (regen > 0) m.resources.hp = Math.min(m.resources.maxHp ?? m.resources.hp, (m.resources.hp ?? 0) + regen)
+          }
+          if (tier >= 2 && !m._bloomApplied && m.stats) {
+            m._bloomBaseAtk = m.stats.attack ?? 0
+            m.stats.attack = Math.round((m.stats.attack ?? 0) * (1 + (Balance.MYCONID_BLOOM_MINION_ATK_PCT ?? 0.15)))
+            m._bloomApplied = true
+          }
+        } else if (m._bloomApplied) {
+          if (m.stats && m._bloomBaseAtk != null) m.stats.attack = m._bloomBaseAtk
+          m._bloomApplied = false; delete m._bloomBaseAtk
+        }
+      }
+
+      // ── T4 Sporestorm — bloomed rooms periodically erupt a spore-pod that
+      // pulses an AoE on heroes inside ──
+      if (tier >= 4) {
+        this._sporestormAt ??= 0
+        if (now - this._sporestormAt >= (Balance.MYCONID_SPORESTORM_INTERVAL_MS ?? 5000)) {
+          this._sporestormAt = now
+          const TS = Balance.TILE_SIZE
+          for (const r of bloomed) {
+            const cx = (r.gridX + r.width / 2) * TS, cy = (r.gridY + r.height / 2) * TS
+            AbilityVfx?.sporeBurstFx?.(this._scene, cx, cy, { tier })
+            for (const adv of advs) {
+              if (!adv || (adv.resources?.hp ?? 0) <= 0 || !_advInsideRoom(adv, r)) continue
+              const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * (Balance.MYCONID_BLOOM_DOT_PCT_PER_TICK ?? 0.018) * 2))
+              adv.resources.hp = Math.max(this._shadowFloor(adv), adv.resources.hp - dmg)
+              EventBus.emit('COMBAT_HIT', { sourceId: 'spores', targetId: adv.instanceId, damage: dmg, damageType: 'poison' })
+              if (adv.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'spores', killerName: 'The Bloom', roomId: null, damageType: 'poison' })
+            }
+          }
         }
       }
     }

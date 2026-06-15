@@ -81,6 +81,11 @@ export class BossArchetypeStrip {
         ref: el => { this._orcBtn = el },
         on: { click: () => this._onOrcClick() },
       }, 'TROPHY THROW'),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-seed',
+        ref: el => { this._myconidBtn = el },
+        on: { click: () => this._onMyconidClick() },
+      }, 'SEED THE BLOOM'),
     ])
   }
 
@@ -114,6 +119,10 @@ export class BossArchetypeStrip {
     sub('ORC_TROPHY_THROW_ARMED',    () => { this._orcArmed = true;  this._refresh() })
     sub('ORC_TROPHY_THROW_DISARMED', () => { this._orcArmed = false; this._refresh() })
     sub('ORC_TROPHY_THROW_FIRED',    () => { this._orcArmed = false; this._refresh() })
+    // Myconid Seed the Bloom.
+    sub('MYCONID_SEED_ARMED',    () => { this._myconidArmed = true;  this._refresh() })
+    sub('MYCONID_SEED_DISARMED', () => { this._myconidArmed = false; this._refresh() })
+    sub('MYCONID_SEED_FIRED',    () => { this._myconidArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -150,6 +159,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._orcArmed ? 'ORC_TROPHY_THROW_DISARM' : 'ORC_TROPHY_THROW_ARM')
   }
 
+  _onMyconidClick() {
+    if (this._myconidBtn?.disabled) return
+    EventBus.emit(this._myconidArmed ? 'MYCONID_SEED_DISARM' : 'MYCONID_SEED_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -161,14 +175,16 @@ export class BossArchetypeStrip {
     const isSlime  = archId === 'slime'
     const isBeholder = archId === 'beholder'
     const isOrc    = archId === 'orc'
+    const isMyconid = archId === 'myconid'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
     const slimeActive = isSlime && isDay
     const beholderActive = isBeholder && isDay
     const orcActive = isOrc && isDay
+    const myconidActive = isMyconid && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive || myconidActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -219,6 +235,13 @@ export class BossArchetypeStrip {
       // disabled until at least one trophy is claimed (nothing to throw yet)
       this._orcBtn.textContent = this._orcArmed ? 'PICK A ROOM' : `TROPHY THROW · ${uses}`
       this._orcBtn.disabled = !(uses > 0 && claimed > 0)
+    }
+    if (this._myconidBtn) {
+      this._myconidBtn.style.display = myconidActive ? '' : 'none'
+      this._myconidBtn.classList.toggle('armed', !!this._myconidArmed)
+      const uses = this._gs?.boss?._myconidSeed?.usesLeft ?? 0
+      this._myconidBtn.textContent = this._myconidArmed ? 'PICK A ROOM' : `SEED THE BLOOM · ${uses}`
+      this._myconidBtn.disabled = !(uses > 0)
     }
   }
 

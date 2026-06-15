@@ -65,6 +65,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },
   { label: 'Boss·Slime (Mitosis)', fx: ['slimeSplitFx', 'slimeMergeFx', 'acidPuddleFx', 'slimeSurgeFx', 'slimeEngulfFx'] },
   { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
+  { label: 'Boss·Myconid (The Bloom)', fx: ['bloomFx', 'sporeBurstFx', 'sporeVentFx', 'creepingRotFx', 'bloomFinaleFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -389,6 +390,19 @@ export class VfxLab {
           { label: "Tyrant's Gaze sweep", fire: () => AbilityVfx.tyrantGazeSweepFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
         ]
       }
+      if (entity.archId === 'myconid') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x2e5d28, hi: 0x9ee870, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Biomass',  fire: aura(0.3) },
+          { label: 'Aura: Mid Biomass',  fire: aura(0.65) },
+          { label: 'Aura: High Biomass', fire: aura(1) },
+          { label: 'Seed Bloom (room)', fire: () => AbilityVfx.bloomFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 180, rectH: 140 }) },
+          { label: 'Spore Burst (pod)', fire: () => AbilityVfx.sporeBurstFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Spore Vent (hero)', fire: () => AbilityVfx.sporeVentFx(this._scene, tX(), tY() - 16, { tier: this._orcTier() }) },
+          { label: 'Creeping Rot (floor)', fire: () => AbilityVfx.creepingRotFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
+          { label: 'Bloom Finale (T4)', fire: () => AbilityVfx.bloomFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }) },
+        ]
+      }
       if (entity.archId !== 'orc') return []
       return [
         { label: 'Claim Trophy', fire: () => AbilityVfx.trophyClaimFx(this._scene, tX(), tY(), { color: 0xd0d4dc, toX: e.worldX, toY: e.worldY - 20, isNew: true }) },
@@ -640,6 +654,12 @@ export class VfxLab {
         case 'beholderRayFx_silence':      AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'silence', tier: this._orcTier() }); break
         case 'beholderRayFx_slow':         AbilityVfx.beholderRayFx(s, e.worldX, e.worldY - 8, { toX: (d?.worldX ?? e.worldX + 110), toY: (d?.worldY ?? e.worldY) - 16, kind: 'slow', tier: this._orcTier() }); break
         case 'tyrantGazeSweepFx': AbilityVfx.tyrantGazeSweepFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
+        // Boss · Myconid (The Bloom) — tier cycles 1→4.
+        case 'bloomFx':       AbilityVfx.bloomFx(s, e.worldX, e.worldY, { tier: this._orcTier(), rectW: 180, rectH: 140 }); break
+        case 'sporeBurstFx':  AbilityVfx.sporeBurstFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
+        case 'sporeVentFx':   AbilityVfx.sporeVentFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
+        case 'creepingRotFx': AbilityVfx.creepingRotFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
+        case 'bloomFinaleFx': AbilityVfx.bloomFinaleFx(s, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

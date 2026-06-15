@@ -85,13 +85,17 @@
     "spriteFrame": null,
     "portraitAvailable": true,
     "headline": {
-      "name": "Spore Network",
-      "summary": "Every third day, corridors fill with toxic spores that damage anyone inside.",
+      "name": "The Bloom",
+      "summary": "Colonize the dungeon. Bloomed rooms gas heroes with spores (and, as the Bloom matures, block their healing and slow them) while your minions inside gain regen. Biomass — banked from every death — spreads the colony and feeds the throne.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Corpse Bloom — dead adventurers rot into fungal corpses that poison on contact, then bloom into free Vinekin sprouts.",
+        "text": "Seed the Bloom (day active) — arm, click a room, and instantly colonize it (with a spore-burst as the Bloom matures). The colony also creeps into adjacent rooms on its own at higher acts.",
+        "implemented": true
+      },
+      {
+        "text": "Corpse Bloom — dead adventurers rot into fungal corpses that poison on contact AND auto-bloom their room, feeding the colony.",
         "implemented": true
       }
     ],

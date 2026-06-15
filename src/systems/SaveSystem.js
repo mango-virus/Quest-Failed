@@ -450,6 +450,8 @@ function _rehydrateRunHistory(state) {
     '_rootedUntil', '_staggeredUntil', '_slowUntil', '_slowMult',
     // Mushroom HALLUCINATION — scene-time daze window + whiff chance; drop on load.
     '_dazedUntil', '_dazeMissChance',
+    // Myconid THE BLOOM — scene-time spore/bloom DoT tick stamps; drop on load.
+    '_bloomLastTickAt', '_sporeLastTickAt',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
     // AI tracking — scene-time based. `lastAttackAt` (no underscore) is
@@ -637,6 +639,12 @@ function _rehydrateRunHistory(state) {
     if (m._masteryBaseAtk != null)   { if (m.stats) m.stats.attack  = m._masteryBaseAtk;  m._masteryBaseAtk  = null }
     if (m._masteryBaseDef != null)   { if (m.stats) m.stats.defense = m._masteryBaseDef;  m._masteryBaseDef  = null }
     if (m._masteryBaseRange != null) { m.attackRange = m._masteryBaseRange; m._masteryBaseRange = null }
+    // Myconid THE BLOOM — symbiosis ATK buff. Restore the captured baseline so
+    // the +ATK doesn't bank into the saved stat; it re-applies on the next tick
+    // while the minion stands in a bloomed room.
+    if (m._bloomBaseAtk != null) { if (m.stats) m.stats.attack = m._bloomBaseAtk; m._bloomBaseAtk = null }
+    if ('_bloomApplied' in m) m._bloomApplied = false
+    if ('_bloomTickAt' in m)  m._bloomTickAt  = 0
     // Orc Warpath — restore base speed + clear the scene-time rampage window.
     if (m._rampageBaseSpeed != null && m.stats) m.stats.speed = m._rampageBaseSpeed
     if ('_rampageUntil' in m)     m._rampageUntil     = 0

@@ -273,6 +273,31 @@ export const Balance = {
   MYCONID_CORPSE_LIFESPAN_DAYS:       3,    // fungal corpse lingers 3 days then sprouts
   MYCONID_CORPSE_VENOM_STACKS_ADDED:  2,    // stacks added per corpse on first touch
   MYCONID_CORPSE_MAX_ACTIVE:          3,    // hard cap on simultaneous fungal corpses (Myconid was over-tuned otherwise)
+  // THE BLOOM (overhaul) — Biomass economy + persistent bloomed rooms.
+  MYCONID_BIOMASS_PER_DEATH:          6,    // banked per dungeon death (× hero-level scaler below)
+  MYCONID_BIOMASS_PER_DEATH_PER_LV:   0.5,  // + this × adv.level per death
+  MYCONID_BIOMASS_PER_BLOOM_PER_DAY:  3,    // passive biomass per bloomed room each day
+  MYCONID_BIOMASS_CAP_BASE:           60,   // saturation cap (for aura/scaling reads) base
+  MYCONID_BIOMASS_CAP_PER_ACT:        40,   // + per act
+  MYCONID_BLOOM_DOT_PCT_PER_TICK:     0.018,// bloomed-room spore DoT: 1.8% adv maxHP / tick
+  MYCONID_BLOOM_TICK_MS:              1000, // bloom DoT + minion-regen tick rate
+  MYCONID_BLOOM_SLOW_MULT:            0.6,  // T2 Rot: hero movement ×this in a bloomed room
+  MYCONID_BLOOM_HEALBLOCK_MS:         1500, // T2 Rot: _noHealUntil refresh window per tick
+  MYCONID_BLOOM_MINION_REGEN_PCT:     0.02, // symbiosis: minion heals %maxHP/tick in a bloomed room
+  MYCONID_BLOOM_MINION_ATK_PCT:       0.15, // symbiosis: minion +ATK while in a bloomed room (T2+)
+  MYCONID_SPREAD_CHANCE_BASE:         0.25, // T3: per-bloom daily chance to creep to an adjacent room
+  MYCONID_SPREAD_CHANCE_PER_BIOMASS:  0.004,// + this × biomass (capped)
+  MYCONID_SPREAD_CHANCE_CAP:          0.75,
+  MYCONID_SPORESTORM_INTERVAL_MS:     5000, // T4: bloomed rooms erupt a spore-pod this often
+  MYCONID_SEED_USES_PER_DAY:          1,
+  MYCONID_SEED_USES_PER_BOSS_LV:      0.25, // +1 use per 4 boss levels
+  MYCONID_SEED_BURST_DMG_PCT:         0.08, // T2+ seed: immediate spore-burst = this × adv maxHP
+  // Throne fight (THE BLOOM):
+  MYCONID_FIGHT_VENT_DMG_FRAC:        0.45, // Spore Vent: AoE cloud dmg = boss.attack × this
+  MYCONID_FIGHT_ROT_DMG_FRAC:         0.30, // Creeping Rot: per-tick floor dmg
+  MYCONID_FIGHT_POD_DMG_FRAC:         0.70, // Bursting Pod: burst dmg
+  MYCONID_FIGHT_FINALE_HEAL_PER_BLOOM:0.04, // T4 finale: boss heals this × maxHP per bloomed room (per channel tick)
+  MYCONID_FIGHT_ENTRY_HP_PER_BLOOM:   0.03, // bigger entry: +this × maxHP per bloomed room (cosmetic size + minor)
 
   // --- Phase 1b.9: Demon Lord ---
   DEMON_SACRIFICE_USES_PER_DAY:    1,    // Faustian sacrifice — once per day, burn a minion → kill a random adv
