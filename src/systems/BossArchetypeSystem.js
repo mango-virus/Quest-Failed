@@ -159,6 +159,8 @@ export class BossArchetypeSystem {
     this._hellfireZones      = []   // [{ roomId, until }] — Pact burning ground
     this._fortressFightTimer = null
     this._fissureZones       = []   // [{ roomId, until }] — Seismic fissures
+    this._plagueFightTimer   = null
+    this._plagueSpreadAt     = 0    // contagion-spread cadence stamp
     this._petrifyFxGraphics  = null
     // Beholder Anti-Magic Aura — graphics layer for the daily purple glow.
     this._antiMagicFx        = null
@@ -232,6 +234,17 @@ export class BossArchetypeSystem {
     EventBus.on('MYCONID_SEED_ARM',    this._armSeed,    this)
     EventBus.on('MYCONID_SEED_DISARM', this._disarmSeed, this)
     EventBus.on('MYCONID_SEED_TARGET', this._fireSeed,   this)
+    // Lizardman THE PLAGUE-BEARER — Virulence economy + PLAGUE SPIT (day active)
+    this._spitArmed = false
+    EventBus.on('LIZARD_SPIT_ARM',    this._armSpit,    this)
+    EventBus.on('LIZARD_SPIT_DISARM', this._disarmSpit, this)
+    EventBus.on('LIZARD_SPIT_TARGET', this._fireSpit,   this)
+    if (this._archId() === 'lizardman' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.LIZARD_SPIT_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.LIZARD_SPIT_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss.virulence  ??= 0
+      this._gameState.boss._lizSpit   ??= { usesLeft: uses }
+    }
     if (this._archId() === 'myconid' && this._gameState?.boss) {
       const bLv = this._gameState.boss.level ?? 1
       const uses = (Balance.MYCONID_SEED_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.MYCONID_SEED_USES_PER_BOSS_LV ?? 0.25))
@@ -312,6 +325,9 @@ export class BossArchetypeSystem {
     EventBus.off('MYCONID_SEED_ARM',    this._armSeed,    this)
     EventBus.off('MYCONID_SEED_DISARM', this._disarmSeed, this)
     EventBus.off('MYCONID_SEED_TARGET', this._fireSeed,   this)
+    EventBus.off('LIZARD_SPIT_ARM',    this._armSpit,    this)
+    EventBus.off('LIZARD_SPIT_DISARM', this._disarmSpit, this)
+    EventBus.off('LIZARD_SPIT_TARGET', this._fireSpit,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -320,6 +336,7 @@ export class BossArchetypeSystem {
     this._stopBloomFightTimer()
     this._stopBrimstoneFightTimer()
     this._stopFortressFightTimer()
+    this._stopPlagueFightTimer()
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
@@ -365,6 +382,11 @@ export class BossArchetypeSystem {
     // Power (the engine). T3 Soul Harvest doubles the take (the snowball).
     if (this._archId() === 'demon') {
       this._bankBrimstoneFromDeath(payload?.adventurer)
+    }
+    // LIZARDMAN: THE PLAGUE-BEARER — an INFECTED adventurer's death banks Virulence
+    // (the strain proves itself) + (T4 Pandemic) bursts to infect nearby heroes.
+    if (this._archId() === 'lizardman') {
+      this._onPlaguedDeath(payload?.adventurer)
     }
     // WRAITH: Fear bump for any adv who watched a same-party member die,
     // plus Haunting ghost spawn at the death tile.
@@ -1554,6 +1576,13 @@ export class BossArchetypeSystem {
     }
     this._disarmSeed()
     this._clearSporeFx()
+    // Lizardman: refill Plague Spit uses + disarm. Virulence + plague stacks persist.
+    if (this._archId() === 'lizardman' && this._gameState?.boss) {
+      const bLv = this._gameState.boss.level ?? 1
+      const uses = (Balance.LIZARD_SPIT_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.LIZARD_SPIT_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss._lizSpit = { usesLeft: uses }
+    }
+    this._disarmSpit()
     // Demon: reset daily Sacrifice uses; top the Hellgate roster up to
     // N=bossLevel imps. Killed or sacrificed imps from prior days do NOT
     // revive (enforced by the dead-imp filter in MinionAISystem.respawnAll);
@@ -1588,6 +1617,162 @@ export class BossArchetypeSystem {
 
   _isLizardmanMinion(m) {
     return !!(m && Array.isArray(m.tags) && m.tags.includes(MINION_TAG_LIZARDMAN))
+  }
+
+  // ── LIZARDMAN: THE PLAGUE-BEARER ───────────────────────────────────────────
+  _virulenceCap() { return (Balance.LIZARD_VIRULENCE_CAP_BASE ?? 50) + currentAct(this._gameState) * (Balance.LIZARD_VIRULENCE_CAP_PER_ACT ?? 40) }
+  _virulenceSat() { return Math.max(0, Math.min(1, (this._gameState?.boss?.virulence ?? 0) / Math.max(1, this._virulenceCap()))) }
+  _plagueStackCap() { return currentAct(this._gameState) >= 4 ? 999 : (Balance.LIZARD_PLAGUE_STACK_CAP_BASE ?? 6) }
+  _plagueDotFactor() { return 1 + Math.min(Balance.LIZARD_PLAGUE_VIRULENCE_DOT_CAP ?? 1.2, (this._gameState?.boss?.virulence ?? 0) * (Balance.LIZARD_PLAGUE_VIRULENCE_SCALE ?? 0.01)) }
+
+  // Seed/raise plague on one adventurer.
+  _infect(adv, stacks) {
+    if (!adv || (adv.resources?.hp ?? 0) <= 0) return
+    const was = adv._plagueStacks ?? 0
+    adv._plagueStacks = Math.min(this._plagueStackCap(), was + stacks)
+    if (was <= 0) EventBus.emit('STATUS_APPLIED', { targetId: adv.instanceId, label: 'INFECTED' })
+  }
+
+  // An infected adv's death banks Virulence (+ T4 Pandemic corpse-burst).
+  _onPlaguedDeath(adv) {
+    if (!adv) return
+    const stacks = adv._plagueStacks ?? 0
+    if (stacks <= 0) return
+    const boss = this._gameState?.boss
+    if (boss) boss.virulence = Math.min(this._virulenceCap(), (boss.virulence ?? 0)
+      + (Balance.LIZARD_VIRULENCE_PER_INFECTED_KILL ?? 5) + (adv.level ?? 1) * (Balance.LIZARD_VIRULENCE_KILL_PER_LV ?? 0.5))
+    if (currentAct(this._gameState) >= 4 && Number.isFinite(adv.worldX)) {
+      const TS = Balance.TILE_SIZE, R = (Balance.LIZARD_OUTBREAK_RADIUS_TS ?? 2.2) * TS
+      for (const a of (this._gameState?.adventurers?.active ?? [])) {
+        if (a === adv || (a.resources?.hp ?? 0) <= 0) continue
+        if (Math.hypot((a.worldX ?? 0) - adv.worldX, (a.worldY ?? 0) - adv.worldY) > R) continue
+        const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.LIZARD_OUTBREAK_DMG_PCT_PER_STACK ?? 0.03) * stacks))
+        a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
+        this._infect(a, 2)
+        EventBus.emit('COMBAT_HIT', { sourceId: 'venom', targetId: a.instanceId, damage: dmg, damageType: 'poison' })
+        if (a.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'venom', killerName: 'Outbreak', roomId: null, damageType: 'poison' })
+      }
+      AbilityVfx?.outbreakFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, { tier: currentAct(this._gameState) })
+    }
+  }
+
+  // Plague DoT on every carrier + the contagion spread (T2+ / T4 cross-room).
+  _tickPlague(now) {
+    if (this._archId() !== 'lizardman') return
+    const advs = this._gameState?.adventurers?.active ?? []
+    const tier = currentAct(this._gameState)
+    const factor = this._plagueDotFactor()
+    for (const adv of advs) {
+      if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
+      const stacks = adv._plagueStacks ?? 0
+      if (stacks <= 0) continue
+      if (tier >= 3) {   // feverish slow
+        const next = now + 1200
+        if (!adv._slowUntil || adv._slowUntil < next) adv._slowUntil = next
+        adv._slowMult = Math.min(adv._slowMult ?? 1, Balance.LIZARD_PLAGUE_FEVER_SLOW_MULT ?? 0.7)
+      }
+      adv._plagueTickAt ??= 0
+      if (now - adv._plagueTickAt < (Balance.LIZARD_PLAGUE_TICK_MS ?? 1000)) continue
+      adv._plagueTickAt = now
+      const dmg = Math.max(1, Math.floor((adv.resources?.maxHp ?? 0) * (Balance.LIZARD_PLAGUE_DOT_PCT_PER_STACK ?? 0.006) * stacks * factor))
+      adv.resources.hp = Math.max(this._shadowFloor(adv), adv.resources.hp - dmg)
+      EventBus.emit('COMBAT_HIT', { sourceId: 'venom', targetId: adv.instanceId, damage: dmg, damageType: 'poison' })
+      if (adv.resources.hp <= 0) EventBus.emit('ADVENTURER_DIED', { adventurer: adv, killerId: 'venom', killerName: 'Plague', roomId: null, damageType: 'poison' })
+    }
+    if (tier < 2) return
+    if (now - this._plagueSpreadAt < (Balance.LIZARD_SPREAD_INTERVAL_MS ?? 1400)) return
+    this._plagueSpreadAt = now
+    const carriers = advs.filter(a => (a.resources?.hp ?? 0) > 0 && (a._plagueStacks ?? 0) > 0)
+    const uninfected = advs.filter(a => (a.resources?.hp ?? 0) > 0 && (a._plagueStacks ?? 0) <= 0)
+    if (carriers.length === 0 || uninfected.length === 0) return
+    const TS = Balance.TILE_SIZE, R = (Balance.LIZARD_SPREAD_RADIUS_TS ?? 3) * TS
+    const perCarrier = Math.min(Balance.LIZARD_SPREAD_TARGETS_CAP ?? 4,
+      (Balance.LIZARD_SPREAD_TARGETS_BASE ?? 1) + Math.round((this._gameState?.boss?.virulence ?? 0) * (Balance.LIZARD_SPREAD_TARGETS_PER_VIRULENCE ?? 0.02)))
+    const seed = Balance.LIZARD_SPREAD_SEED_STACKS ?? 1
+    const crossRoom = tier >= 4
+    const claimed = new Set()
+    for (const c of carriers) {
+      let n = 0
+      for (const u of uninfected) {
+        if (n >= perCarrier) break
+        if (claimed.has(u.instanceId)) continue
+        if (!crossRoom && Math.hypot((u.worldX ?? 0) - (c.worldX ?? 0), (u.worldY ?? 0) - (c.worldY ?? 0)) > R) continue
+        claimed.add(u.instanceId); n++
+        this._infect(u, seed)
+        if (this._scene && Number.isFinite(c.worldX) && Number.isFinite(u.worldX)) AbilityVfx?.contagionFx?.(this._scene, c.worldX, (c.worldY ?? 0) - 16, { toX: u.worldX, toY: (u.worldY ?? 0) - 16, tier })
+      }
+    }
+  }
+
+  // ── PLAGUE SPIT (day active) — arm → click a room → infect everyone inside ──
+  _spitUsesLeft() { return this._gameState?.boss?._lizSpit?.usesLeft ?? 0 }
+  _spitAvailable() { return this._archId() === 'lizardman' && (this._gameState?.meta?.phase ?? '') === 'day' && this._spitUsesLeft() > 0 }
+  _armSpit() { if (!this._spitAvailable()) return; this._spitArmed = true; EventBus.emit('LIZARD_SPIT_ARMED', {}) }
+  _disarmSpit() { this._spitArmed = false; EventBus.emit('LIZARD_SPIT_DISARMED', {}) }
+  _fireSpit(payload) {
+    if (!this._spitArmed) return
+    if (!this._spitAvailable()) { this._disarmSpit(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState), TS = Balance.TILE_SIZE
+    const dose = (Balance.LIZARD_SPIT_STACKS ?? 3) + (tier - 1) * (Balance.LIZARD_SPIT_STACKS_PER_ACT ?? 1)
+    const advsIn = (this._gameState.adventurers?.active ?? []).filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+    for (const a of advsIn) this._infect(a, dose)
+    const cx = (room.gridX + room.width / 2) * TS, cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.plagueSpitFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, { toX: cx, toY: cy, tier, rectW: room.width * TS, rectH: room.height * TS })
+    if (boss._lizSpit) boss._lizSpit.usesLeft = Math.max(0, (boss._lizSpit.usesLeft ?? 0) - 1)
+    this._spitArmed = false
+    EventBus.emit('LIZARD_SPIT_FIRED', { roomId: room.instanceId, room, tier, victims: advsIn.length })
+  }
+
+  _stopPlagueFightTimer() { this._plagueFightTimer?.remove?.(false); this._plagueFightTimer = null }
+
+  // Throne fight — Infected Bite → Contagion → Miasma Spew → Outbreak finale.
+  // (Plague DoT itself ticks via _tickPlague every frame, fighters included.)
+  _tickPlagueFight() {
+    const boss = this._gameState?.boss; if (!boss) return
+    const tier = currentAct(this._gameState)
+    const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber'); if (!bossRoom) return
+    const TS = Balance.TILE_SIZE
+    const fighters = (this._gameState?.adventurers?.active ?? []).filter(a => a && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, bossRoom))
+    if (fighters.length === 0) return
+    const cx = (bossRoom.gridX + bossRoom.width / 2) * TS, cy = (bossRoom.gridY + bossRoom.height / 2) * TS
+
+    if (tier >= 4 && !this._outbreakFinaleDone && (boss.hp ?? 0) > 0 && (boss.hp ?? 0) < (boss.maxHp ?? 1) * 0.3) {
+      this._outbreakFinaleDone = true
+      AbilityVfx?.miasmaSpewFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS, big: true })
+      for (const a of fighters) {
+        const st = a._plagueStacks ?? 0
+        if (st > 0) {
+          const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.LIZARD_FIGHT_OUTBREAK_DMG_PCT_PER_STACK ?? 0.04) * st))
+          a.resources.hp = Math.max(0, a.resources.hp - dmg)
+          if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.outbreakFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, { tier })
+          EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'poison' })
+          if (a.resources.hp <= 0) { EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'Outbreak', roomId: bossRoom.instanceId, damageType: 'poison' }); continue }
+        }
+        this._infect(a, 3)
+      }
+      return
+    }
+
+    if (tier >= 3) {
+      AbilityVfx?.miasmaSpewFx?.(this._scene, cx, cy, { tier, rectW: bossRoom.width * TS, rectH: bossRoom.height * TS })
+      for (const a of fighters) this._infect(a, Balance.LIZARD_FIGHT_SPEW_STACKS ?? 3)
+    } else if (tier >= 2) {
+      const carriers = fighters.filter(a => (a._plagueStacks ?? 0) > 0)
+      const clean = fighters.filter(a => (a._plagueStacks ?? 0) <= 0)
+      if (carriers.length === 0) this._infect(fighters[0], Balance.LIZARD_FIGHT_BITE_STACKS ?? 2)
+      else {
+        let k = 0
+        for (const u of clean) { if (k >= carriers.length + 1) break; this._infect(u, 2); k++; if (this._scene && Number.isFinite(u.worldX)) AbilityVfx?.contagionFx?.(this._scene, carriers[0].worldX, (carriers[0].worldY ?? 0) - 16, { toX: u.worldX, toY: (u.worldY ?? 0) - 16, tier }) }
+      }
+      for (const a of fighters) if ((a._plagueStacks ?? 0) > 0) this._infect(a, 1)
+    } else {
+      const t = fighters[Math.floor(Math.random() * fighters.length)]
+      this._infect(t, Balance.LIZARD_FIGHT_BITE_STACKS ?? 2)
+      if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.ambushStrikeFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { tier })
+    }
   }
 
   _earthquakeUsesLeft() {
@@ -1794,6 +1979,15 @@ export class BossArchetypeSystem {
         callback: () => this._tickFortressFight(),
       })
     }
+    if (this._archId() === 'lizardman') {
+      this._stopPlagueFightTimer()
+      this._outbreakFinaleDone = false
+      this._plagueFightTimer = this._scene?.time?.addEvent?.({
+        delay:    2600,
+        loop:     true,
+        callback: () => this._tickPlagueFight(),
+      })
+    }
   }
 
   _onBossFightResolved() {
@@ -1810,6 +2004,7 @@ export class BossArchetypeSystem {
     if (this._archId() === 'myconid') this._stopBloomFightTimer()
     if (this._archId() === 'demon') this._stopBrimstoneFightTimer()
     if (this._archId() === 'golem') this._stopFortressFightTimer()
+    if (this._archId() === 'lizardman') this._stopPlagueFightTimer()
   }
 
   _stopFortressFightTimer() {
@@ -2434,6 +2629,8 @@ export class BossArchetypeSystem {
     this._tickDemonHellfire(this._scene?.time?.now ?? 0)
     // Golem THE LIVING FORTRESS — Aftershock + lingering fissure zones.
     this._tickGolem(this._scene?.time?.now ?? 0)
+    // Lizardman THE PLAGUE-BEARER — plague DoT + contagion spread.
+    this._tickPlague(this._scene?.time?.now ?? 0)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return

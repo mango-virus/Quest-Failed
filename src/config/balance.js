@@ -287,6 +287,36 @@ export const Balance = {
   LIZARDMAN_VENOM_TICK_INTERVAL_MS: 1000,
   LIZARDMAN_VENOM_DMG_PER_STACK:    1,
   LIZARDMAN_VENOM_DMG_PER_BOSS_LV:  0.5,  // +0.5 dmg/stack per boss-lv (floor)
+  // THE PLAGUE-BEARER (overhaul) — Virulence economy + contagion.
+  LIZARD_VIRULENCE_PER_INFECTED_KILL: 5,  // banked when an infected adv dies
+  LIZARD_VIRULENCE_KILL_PER_LV:    0.5,   // + this × adv.level per infected kill
+  LIZARD_VIRULENCE_CAP_BASE:       50,    // saturation cap (aura/scaling reads) base
+  LIZARD_VIRULENCE_CAP_PER_ACT:    40,    // + per act
+  LIZARD_PLAGUE_TICK_MS:           1000,  // plague DoT tick rate
+  LIZARD_PLAGUE_DOT_PCT_PER_STACK: 0.006, // DoT/tick = stacks × this × adv maxHP × (1 + Virulence factor)
+  LIZARD_PLAGUE_VIRULENCE_SCALE:   0.010, // DoT factor += Virulence × this (capped)
+  LIZARD_PLAGUE_VIRULENCE_DOT_CAP: 1.2,   // cap on the Virulence DoT bonus factor
+  LIZARD_PLAGUE_STACK_CAP_BASE:    6,     // max stacks (T4 uncaps → big number)
+  LIZARD_PLAGUE_FEVER_SLOW_MULT:   0.7,   // T3 feverish slow on carriers
+  // Contagion spread:
+  LIZARD_SPREAD_INTERVAL_MS:       1400,  // how often carriers try to spread
+  LIZARD_SPREAD_RADIUS_TS:         3.0,   // tiles a carrier can infect within (T4 = whole dungeon)
+  LIZARD_SPREAD_TARGETS_BASE:      1,     // uninfected heroes infected per carrier per cadence
+  LIZARD_SPREAD_TARGETS_PER_VIRULENCE: 0.02, // + this × Virulence (rounded, capped)
+  LIZARD_SPREAD_TARGETS_CAP:       4,
+  LIZARD_SPREAD_SEED_STACKS:       1,     // stacks granted to a newly-infected hero
+  // Plague Spit (day active):
+  LIZARD_SPIT_USES_PER_DAY:        1,
+  LIZARD_SPIT_USES_PER_BOSS_LV:    0.25,  // +1 use per 4 boss levels
+  LIZARD_SPIT_STACKS:              3,     // initial dose to everyone in the room
+  LIZARD_SPIT_STACKS_PER_ACT:      1,     // + per act
+  // T4 Outbreak (death-burst):
+  LIZARD_OUTBREAK_DMG_PCT_PER_STACK: 0.03, // corpse burst = stacks × this × nearby adv maxHP
+  LIZARD_OUTBREAK_RADIUS_TS:       2.2,
+  // Throne fight:
+  LIZARD_FIGHT_BITE_STACKS:        2,     // Infected Bite seeds this many
+  LIZARD_FIGHT_SPEW_STACKS:        3,     // Miasma Spew dose
+  LIZARD_FIGHT_OUTBREAK_DMG_PCT_PER_STACK: 0.04, // finale per-stack burst (× adv maxHP)
 
   // --- Phase 1b.7: Predator Myconid ---
   MYCONID_SPORE_INTERVAL_DAYS:        3,    // every Nth day, corridor rooms gas advs all day

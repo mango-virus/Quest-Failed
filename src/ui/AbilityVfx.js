@@ -235,6 +235,16 @@ function _drawMiasmaPuff(g, r, green, purple) {
   g.fillStyle(_lerpColor(green, 0xffffff, 0.35), 0.42); g.fillCircle(-r * 0.2, -r * 0.46, r * 0.42)         // light wisp top
 }
 
+// A glistening BILE GLOB — a wet venom droplet with a dark rim, body, and a bright
+// specular highlight. The hero element of the Plague-Bearer's spit/contagion.
+function _drawBileGlob(g, s, color) {
+  const dark = _lerpColor(color, 0x0a1f06, 0.55), lite = _lerpColor(color, 0xeaff9a, 0.5)
+  g.fillStyle(dark, 0.95); g.fillEllipse(0, s * 0.4, s * 2.1, s * 2.3)        // dark rim/base
+  g.fillStyle(color, 1);   g.fillEllipse(0, 0, s * 1.7, s * 1.9)             // body
+  g.fillStyle(lite, 0.85); g.fillCircle(-s * 0.42, -s * 0.5, s * 0.55)       // highlight
+  g.fillStyle(0xffffff, 0.7); g.fillCircle(-s * 0.5, -s * 0.62, s * 0.22)    // specular
+}
+
 // An irregular, lobed acid pool (shaded) — a caustic puddle, not a clean ellipse.
 function _drawAcidBlob(g, r, color) {
   const dark = _lerpColor(color, 0x000000, 0.38), lite = _lerpColor(color, 0xffffff, 0.4)
@@ -6800,6 +6810,100 @@ export const AbilityVfx = {
     }
     if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 700, max: 1500 }, speedX: { min: -60, max: 60 }, speedY: { min: -20, max: 40 }, scale: { start: 0.6, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [0x9a8460, 0x6a5a44], emitting: false }); em.setDepth(o.depth); em.explode(Math.round(36 * mult)); made.push(em); scene.time.delayedCall(o.durationMs, () => { try { em.destroy() } catch (e) {} }) }
     scene.cameras?.main?.shake?.(620, 0.009)
+    return made
+  },
+
+  // ── LIZARDMAN · The Plague-Bearer — contagion VFX ────────────────────────
+  // PLAGUE SPIT: a glistening bile glob arcs + wobbles + trails, then splatters
+  // into billowing miasma + a spray of flung droplets.
+  plagueSpitFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 14, rectW: 200, rectH: 150, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf2e, PALE = 0xc8f08a
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 90, ty = Number.isFinite(o.toY) ? o.toY : y
+    const glob = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(glob)
+    _drawBileGlob(glob, 6 + tier, GREEN); _glow(glob, GREEN, 3, 9)
+    const midX = (x + tx) / 2, midY = Math.min(y, ty) - 50 - tier * 8
+    let trail = null
+    if (mult > 0) { trail = scene.add.particles(0, 0, _softDotTexture(scene), { follow: glob, lifespan: 260, frequency: 18, quantity: 1, tint: [GREEN, PALE], scale: { start: 0.4, end: 0 }, alpha: { start: 0.7, end: 0 } }); trail.setDepth(o.depth); made.push(trail) }
+    scene.tweens.add({ targets: glob, x: midX, y: midY, rotation: Math.PI * 2, duration: 200, ease: 'Sine.easeOut',
+      onComplete: () => scene.tweens.add({ targets: glob, x: tx, y: ty, rotation: Math.PI * 4, duration: 180, ease: 'Sine.easeIn',
+        onComplete: () => {
+          glob.destroy(); if (trail) { try { trail.stop() } catch (e) {} ; scene.time.delayedCall(300, () => { try { trail.destroy() } catch (e) {} }) }
+          for (let i = 0; i < 3; i++) { const cl = scene.add.graphics().setPosition(tx + (Math.random() - 0.5) * 20, ty + (Math.random() - 0.5) * 14).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 16 + tier * 3, GREEN, 0x4a7a2a); scene.tweens.add({ targets: cl, scale: 1.1 + Math.random() * 0.4, alpha: 0.6, duration: 300, ease: 'Quad.easeOut', delay: i * 60, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.4, duration: 600, onComplete: () => cl.destroy() }) }) }
+          for (let i = 0; i < 6 + tier; i++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22, dp = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 1); made.push(dp); _drawBileGlob(dp, 2 + Math.random() * 2, GREEN); scene.tweens.add({ targets: dp, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d * 0.7 + 10, alpha: 0, scale: 0.4, duration: 380 + Math.random() * 160, ease: 'Quad.easeIn', onComplete: () => dp.destroy() }) }
+          if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speedY: { min: -30, max: -6 }, speedX: { min: -40, max: 40 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [GREEN, PALE, 0xeaff9a], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((12 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
+        } }) })
+    return made
+  },
+
+  // CONTAGION: a writhing green miasma tendril leaps carrier→host with a traveling
+  // mote, blooming a small puff at the new host (the visible spread).
+  contagionFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 13, ...opts }
+    const made = []
+    const GREEN = 0x7ad13a, PALE = 0xc8f08a
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 40, ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const g = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g); _glow(g, GREEN, 2, 8)
+    const perp = Math.atan2(ty - y, tx - x) + Math.PI / 2
+    const draw = (p, ph) => {
+      g.clear()
+      const stroke = (col, al) => { g.lineStyle(2.2, col, al); g.beginPath(); for (let i = 0; i <= 12; i++) { const t = i / 12; if (t > p) break; const bx = x + (tx - x) * t, by = y + (ty - y) * t, wob = Math.sin(t * 7 + ph) * 6 * (1 - t); const px = bx + Math.cos(perp) * wob, py = by + Math.sin(perp) * wob; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py) } g.strokePath() }
+      stroke(GREEN, 0.5 * p); g.lineStyle(1, PALE, 0.8 * p); stroke(PALE, 0.8 * p)
+    }
+    let ph = 0
+    scene.tweens.addCounter({ from: 0, to: 1, duration: 240, ease: 'Quad.easeOut', onUpdate: (tw) => { ph += 0.6; draw(tw.getValue(), ph) },
+      onComplete: () => {
+        const cl = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.5).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 10, GREEN, 0x4a7a2a)
+        scene.tweens.add({ targets: cl, scale: 1, alpha: 0.6, duration: 200, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.3, duration: 360, onComplete: () => cl.destroy() }) })
+        scene.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() })
+      } })
+    const mote = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(mote)
+    mote.fillStyle(PALE, 0.95); mote.fillCircle(0, 0, 2.6); _glow(mote, GREEN, 3, 8)
+    scene.tweens.add({ targets: mote, x: tx, y: ty, duration: 280, ease: 'Quad.easeIn', onComplete: () => mote.destroy() })
+    return made
+  },
+
+  // OUTBREAK: an infected hero ruptures — a miasma shockwave + bile burst flash +
+  // flung chunky droplets.
+  outbreakFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 15, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf2e, PALE = 0xc8f08a
+    const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 18 + tier * 2, GREEN, 0x4a7a2a)
+    scene.tweens.add({ targets: cl, scale: 1.6, alpha: 0.7, duration: 240, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scale: 2.1, duration: 420, onComplete: () => cl.destroy() }) })
+    const flash = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(flash); flash.fillStyle(PALE, 0.9); flash.fillCircle(0, 0, 6); _glow(flash, GREEN, 5, 12)
+    scene.tweens.add({ targets: flash, scale: 3, alpha: 0, duration: 300, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+    for (let i = 0; i < 8 + tier * 2; i++) { const a = Math.random() * Math.PI * 2, d = 16 + Math.random() * 26, dp = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(dp); _drawBileGlob(dp, 2 + Math.random() * 2.5, GREEN); scene.tweens.add({ targets: dp, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8 + 8, alpha: 0, scale: 0.4, rotation: (Math.random() - 0.5) * 4, duration: 380 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => dp.destroy() }) }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speed: { min: 40, max: 150 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [GREEN, PALE, 0xeaff9a], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round((10 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+    scene.cameras?.main?.shake?.(110, 0.003)
+    return made
+  },
+
+  // MIASMA SPEW: a sweeping fan of overlapping plague puffs across the room + a
+  // lingering haze + drifting motes.
+  miasmaSpewFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 14, rectW: 220, rectH: 160, big: false, ...opts }
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const GREEN = 0x6abf2e, scl = o.big ? 1.3 : 1
+    const pall = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(pall)
+    pall.fillStyle(GREEN, 0.16); pall.fillEllipse(0, 0, o.rectW * scl, o.rectH * 0.75 * scl); pall.fillStyle(0x4a7a2a, 0.12); pall.fillEllipse(0, 4, o.rectW * 0.6 * scl, o.rectH * 0.5 * scl)
+    scene.tweens.add({ targets: pall, alpha: 1, duration: 300, yoyo: true, hold: 500, onComplete: () => pall.destroy() })
+    const n = 6 + tier + (o.big ? 4 : 0)
+    for (let i = 0; i < n; i++) {
+      const px = x + (Math.random() * 2 - 1) * o.rectW * 0.45, py = y + (Math.random() * 2 - 1) * o.rectH * 0.35
+      scene.time.delayedCall(i * 50, () => {
+        if (!_validXY(px, py)) return
+        const cl = scene.add.graphics().setPosition(px, py).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 12 + tier * 2, GREEN, 0x4a7a2a)
+        scene.tweens.add({ targets: cl, scale: 1 + Math.random() * 0.4, alpha: 0.55, y: py - 6, duration: 300, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.3, y: cl.y - 10, duration: 560, onComplete: () => cl.destroy() }) })
+      })
+    }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 600, max: 1300 }, speedX: { min: -70, max: 70 }, speedY: { min: -30, max: 20 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [GREEN, 0xc8f08a], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((16 + tier * 4) * mult * scl)); made.push(em); scene.time.delayedCall(1300, () => { try { em.destroy() } catch (e) {} }) }
     return made
   },
 }

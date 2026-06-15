@@ -930,6 +930,53 @@ matters there); dungeon-kit T3 is the Tremor Network aftershock escalation.
 - ☑ Bespoke seismic VFX (seismicSlamFx/fissureFx/risePillarFx/bulwarkFx/collapseFx + `_spawnRubble`), lab-wired; lint-vfx clean; live-verified (cracks+dust+rubble, magma fissures, rising pillars, stone plates, collapse rain).
 - ☑ SaveSystem strips `_bulwarkUntil` (fissure zones transient on system); node --check; new harness `golem-fortress-check.mjs` green; soak clean (120/0); bossArchetypes.json text; live preview verified.
 
+### Boss #8 — Lizardman (Serpent Captain) → **THE PLAGUE-BEARER** (contagion) (LOCKED 2026-06-15)
+
+**Fantasy:** a swamp-born reptilian warrior whose bite carries a living plague. It doesn't kill one hero
+— it infects the herd, and the sickness spreads body-to-body until the whole raid rots. The more
+adventurers packed in, the faster it cascades. (Rejected v1 snake/ambush + heal-block; this is boss-own,
+crowd-scaling, poison-route.)
+
+**Core resource — VIRULENCE** (`boss.virulence`, persists; gauge). Banks each time an INFECTED adventurer
+dies. Drives spread target-count, spread reach, and plague tick damage — a run-long snowball.
+
+**The plague engine:** infected heroes carry `_plagueStacks` and (a) take DoT = %maxHP × stacks ×
+Virulence factor (never falls off), (b) SPREAD on a cadence — each carrier infects nearby uninfected
+heroes; count + reach scale w/ Virulence + tier. Packed dungeon → chains through the whole party.
+
+**Dungeon kit by act:** T1 **Infection** (carriers take plague DoT) → T2 **Contagion** (carriers spread to
+nearby heroes) → T3 **Virulent Strain** (spread more/farther + harder + feverish SLOW) → T4 **Pandemic**
+(jumps ACROSS rooms, no radius cap; an infected death BURSTS, infecting everyone near the corpse).
+
+**Day active — PLAGUE SPIT** (arm → click a room): bile-bomb infects everyone in the room w/ a heavy dose,
+which then spreads on its own. Scales w/ crowd + Virulence. Uses/day scale w/ level.
+
+**Throne fight — the plague-bearer:** T1 **Infected Bite** (bites stack plague) → T2 **Contagion** (party
+cross-infects each round) → T3 **Miasma Spew** (room-wide heavy infect) → T4 **Outbreak finale** (low HP:
+every infected fighter detonates for a burst scaling w/ stacks, re-infecting survivors).
+
+**Tells:** Virulence gauge + panel readout; sickly-green Glow-outline aura reading Virulence; infected
+heroes get a green plague tint that deepens with stacks (AdventurerRenderer).
+
+**VFX (plague/contagion — DETAILED + ANIMATED, the minimum bar):** `plagueSpitFx` (a glistening bile glob
+arcs+wobbles w/ a trail, then SPLATTERS into a roiling billowing miasma + droplet spray), `contagionFx` (a
+writhing green miasma TENDRIL leaps carrier→carrier w/ a traveling mote + puff at the new host),
+`outbreakFx` (an infected hero RUPTURES — bile burst + miasma shockwave + chunky droplets), `miasmaSpewFx`
+(a sweeping FAN of overlapping miasma puffs + droplets + lingering haze). New `_drawBileGlob`; reuse
+`_drawMiasmaPuff`; particle-driven + onUpdate motion; lab-wired; lint-clean; unique names.
+
+**Always-useful:** plague reaches the WHOLE herd (spreads to all), DoT %maxHP×Virulence (no falloff), Spit
++ Outbreak crowd-wide, Virulence snowballs. No single-target, no heal-block.
+
+**Acceptance checklist (Plague-Bearer):**
+- ☑ VIRULENCE (`boss.virulence`) banks on infected-adv death; persists; drives spread/tick; gauge + readout.
+- ☑ Plague engine (`_tickPlague`): `_plagueStacks` DoT (%maxHP×stacks×Virulence) + contagion spread (T2+) + T3 feverish slow + T4 cross-room + death-burst.
+- ☑ Day PLAGUE SPIT: arm→room, heavy infect all inside; DOM button + Phaser room-pick + events; uses/day reset on night.
+- ☑ Throne fight tier-gated: Infected Bite / Contagion / Miasma Spew / Outbreak finale.
+- ☑ Tells: green glow-outline aura (BossRenderer) reading Virulence; infected-tint on advs (AdventurerRenderer); Virulence panel readout.
+- ☑ Bespoke animated plague VFX (plagueSpit/contagion/outbreak/miasmaSpew), lab-wired; lint-vfx clean (incl. dup-key guard); meets detail bar (live-verified in VFX lab 2026-06-15).
+- ☑ SaveSystem persists virulence + plague stacks, strips scene-time tick stamps; node --check; new harness green; soak clean (120 games, 0 issues); bossArchetypes.json text; live preview verified.
+
 ---
 
 ## Personality combos

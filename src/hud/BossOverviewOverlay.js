@@ -422,6 +422,8 @@ export class BossOverviewOverlay {
       this._renderBrimstoneStatus(),
       // Bedrock readout (Golem — The Living Fortress)
       this._renderBedrockStatus(),
+      // Virulence readout (Lizardman — The Plague-Bearer)
+      this._renderVirulenceStatus(),
       // Active pacts list
       h('div', { className: 'panel bevel qf-boss-section qf-boss-section-grow' }, [
         h('div', { className: 'pix qf-boss-section-title' },
@@ -745,6 +747,30 @@ export class BossOverviewOverlay {
       ]),
       h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
         `phase: ${phase}. The dungeon IS its body — +${Math.round(g.hpApplied ?? 0)} HP, +${Math.round(g.defApplied ?? 0)} DEF from your rooms; Seismic Slam hits harder the more you build.`),
+    ])
+  }
+
+  _renderVirulenceStatus() {
+    const archId = String(this._gameState.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (archId !== 'lizardman') return null
+    const boss = this._gameState.boss ?? {}
+    const vir = Math.floor(boss.virulence ?? 0)
+    const tier = currentAct(this._gameState)
+    const cap = (Balance.LIZARD_VIRULENCE_CAP_BASE ?? 50) + tier * (Balance.LIZARD_VIRULENCE_CAP_PER_ACT ?? 40)
+    const infected = (this._gameState.adventurers?.active ?? []).filter(a => (a._plagueStacks ?? 0) > 0 && (a.resources?.hp ?? 0) > 0).length
+    const C = '#9ada3a'
+    const pct = Math.max(0, Math.min(100, (vir / Math.max(1, cap)) * 100))
+    const phase = tier >= 4 ? 'Pandemic' : tier >= 3 ? 'Virulent Strain' : tier >= 2 ? 'Contagion' : 'Infection'
+    return h('div', { className: 'panel bevel qf-boss-section' }, [
+      h('div', { className: 'qf-boss-section-head' }, [
+        h('span', { className: 'pix qf-boss-section-title' }, 'VIRULENCE'),
+        h('span', { className: 'pix', style: { fontSize: '12px', fontWeight: 'bold', color: C, textShadow: `0 0 8px ${C}66` } }, String(vir)),
+      ]),
+      h('div', { className: 'bar', style: { marginTop: '6px', height: '10px', background: '#16210c', border: '1px solid #2c3a1c', borderRadius: '4px', overflow: 'hidden' } }, [
+        h('div', { className: 'fill', style: { width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#4a7a2a,#9ada3a)' } }),
+      ]),
+      h('div', { style: { fontSize: '11px', color: 'var(--text-mute)', marginTop: '6px' } },
+        `${infected} infected · phase: ${phase}. The plague spreads body-to-body and ticks harder as Virulence (banked per infected kill) climbs.`),
     ])
   }
 

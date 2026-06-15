@@ -845,6 +845,25 @@ export class AdventurerRenderer {
         }
       }
 
+      // Lizardman THE PLAGUE-BEARER — carriers glow sickly-green, DEEPENING with
+      // their plague-stack count (you can watch the infection worsen + spread).
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const now = this._scene.time.now ?? 0
+        const pstacks = adv._plagueStacks ?? 0
+        if (pImg && pImg.postFX && this._scene.renderer?.type === Phaser.WEBGL) {
+          if (pstacks > 0) {
+            const str = Math.min(5, 1.6 + pstacks * 0.5)
+            if (!s._lzPlagueFx) { try { s._lzPlagueFx = pImg.postFX.addGlow(0x86d62e, str, 0, false, 0.05, 7) } catch (e) { s._lzPlagueFx = null } }
+            else if (s._lzPlagueFx !== true) { try { s._lzPlagueFx.outerStrength = str } catch (e) {} }
+          } else if (s._lzPlagueFx) { try { if (s._lzPlagueFx !== true) pImg.postFX.remove(s._lzPlagueFx) } catch (e) {} s._lzPlagueFx = null }
+        }
+        if (pstacks > 0 && Number.isFinite(adv.worldX) && now - (s._lzPlagueAuraAt ?? 0) >= 800) {
+          s._lzPlagueAuraAt = now
+          AbilityVfx.plagueAuraFx?.(this._scene, adv.worldX, adv.worldY)
+        }
+      }
+
       // Zombie ROT — while rot-infected (`_rotInfectedUntil`), the hero is a walking
       // CORPSE-in-waiting (it rises as YOUR zombie if it dies). Distinct from the
       // slime's bright-green glow: an ASHEN necrotic pallor (partial desaturate + dim

@@ -68,6 +68,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Boss·Myconid (The Bloom)', fx: ['bloomFx', 'sporeBurstFx', 'sporeVentFx', 'creepingRotFx', 'bloomFinaleFx'] },
   { label: 'Boss·Demon (Brimstone)', fx: ['infernalPactFx', 'brimstoneMeteorFx', 'pactFinaleFx', 'combustFx', 'infernoFx'] },
   { label: 'Boss·Golem (Fortress)', fx: ['seismicSlamFx', 'fissureFx', 'risePillarFx', 'golemBulwarkFx', 'collapseFx'] },
+  { label: 'Boss·Lizardman (Plague)', fx: ['plagueSpitFx', 'contagionFx', 'outbreakFx', 'miasmaSpewFx'] },
 ]
 const PALETTE_KEYS = ['fire', 'ice', 'holy', 'shadow', 'poison', 'arcane', 'blood']
 
@@ -405,6 +406,18 @@ export class VfxLab {
           { label: 'Bloom Finale (T4)', fire: () => AbilityVfx.bloomFinaleFx(this._scene, e.worldX, e.worldY, { tier: 4, rectW: 260, rectH: 190 }) },
         ]
       }
+      if (entity.archId === 'lizardman') {
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x2e4a1e, hi: 0x9ada3a, durationMs: 3600 })
+        return [
+          { label: 'Aura: Low Virulence',  fire: aura(0.3) },
+          { label: 'Aura: Mid Virulence',  fire: aura(0.65) },
+          { label: 'Aura: High Virulence', fire: aura(1) },
+          { label: 'Plague Spit (room)', fire: () => AbilityVfx.plagueSpitFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: tX(), toY: tY(), rectW: 200, rectH: 150 }) },
+          { label: 'Contagion (spread)', fire: () => AbilityVfx.contagionFx(this._scene, e.worldX, e.worldY - 16, { tier: this._orcTier(), toX: tX(), toY: tY() - 16 }) },
+          { label: 'Outbreak (rupture)', fire: () => AbilityVfx.outbreakFx(this._scene, tX(), tY() - 16, { tier: this._orcTier() }) },
+          { label: 'Miasma Spew (T3)', fire: () => AbilityVfx.miasmaSpewFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
+        ]
+      }
       if (entity.archId === 'golem') {
         const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x4a4036, hi: 0xd8a24a, durationMs: 3600 })
         return [
@@ -697,6 +710,11 @@ export class VfxLab {
         case 'risePillarFx':   AbilityVfx.risePillarFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier() }); break
         case 'golemBulwarkFx': AbilityVfx.golemBulwarkFx(s, e.worldX, e.worldY, { tier: this._orcTier() }); break
         case 'collapseFx':     AbilityVfx.collapseFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
+        // Boss · Lizardman (The Plague-Bearer) — tier cycles 1→4.
+        case 'plagueSpitFx':  AbilityVfx.plagueSpitFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 90), toY: (d?.worldY ?? e.worldY), rectW: 200, rectH: 150 }); break
+        case 'contagionFx':   AbilityVfx.contagionFx(s, e.worldX, e.worldY - 16, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 60), toY: (d?.worldY ?? e.worldY) - 16 }); break
+        case 'outbreakFx':    AbilityVfx.outbreakFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
+        case 'miasmaSpewFx':  AbilityVfx.miasmaSpewFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break
         case 'coinFlip':     AbilityVfx.coinFlip(s, e.worldX, e.worldY - 20, Math.random() < 0.5, opts); break
         case 'projectileFx': AbilityVfx.projectileFx(s, e.worldX, e.worldY, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), opts); break

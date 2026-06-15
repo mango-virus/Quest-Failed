@@ -291,13 +291,17 @@
     },
     "portraitAvailable": true,
     "headline": {
-      "name": "Camouflage",
-      "summary": "Your minions and traps are invisible until each strikes for the first time.",
+      "name": "The Plague-Bearer",
+      "summary": "Its bite carries a living plague. Infected adventurers spread the sickness body-to-body through the whole raid; banked VIRULENCE (per infected kill) makes it leap to more victims and tick harder all run.",
       "implemented": true
     },
     "mechanics": [
       {
-        "text": "Venom Stack — Lizardman attacks stack poison that lingers for the rest of the run.",
+        "text": "Plague Spit (day active) — arm, click a room: infect everyone inside with a heavy dose, which then spreads on its own. Contagion (Act II+) jumps to nearby heroes; Virulent Strain (Act III+) spreads farther + adds a feverish slow; Pandemic (Act IV) crosses rooms and an infected death bursts to infect the corpse's neighbours.",
+        "implemented": true
+      },
+      {
+        "text": "Venom Stack — Lizardman minion attacks stack poison that lingers for the rest of the run (still in effect alongside the boss's plague).",
         "implemented": true
       }
     ],

@@ -452,6 +452,9 @@ function _rehydrateRunHistory(state) {
     '_dazedUntil', '_dazeMissChance',
     // Myconid THE BLOOM — scene-time spore/bloom DoT tick stamps; drop on load.
     '_bloomLastTickAt', '_sporeLastTickAt',
+    // Lizardman THE PLAGUE-BEARER — scene-time plague DoT tick stamp; drop on
+    // load (`_plagueStacks` persists — the infection lingers all run).
+    '_plagueTickAt',
     '_charmedAloneTimer', '_charmedAtkAcc', '_charmedPathAt',
     '_lootingUntil', '_gloatUntil', '_spawnFadeEnd', '_leaveFadeEnd',
     // AI tracking — scene-time based. `lastAttackAt` (no underscore) is

@@ -170,6 +170,8 @@ export class BossRenderer {
     // Golem — body grows + a stone Glow-outline aura, both reading Bedrock
     // (the dungeon's room count).
     this._updateFortressAura()
+    // Lizardman — sickly-green plague Glow-outline aura reading Virulence.
+    this._updatePlagueAura()
 
     // Succubus shapeshift: while she is in bat-form (flight phase 'going'
     // or 'return') the body sprite is hidden so the bat can stand in for
@@ -668,6 +670,27 @@ export class BossRenderer {
       try { this._sprite.postFX.remove(this._fortressGlow) } catch (e) {}
     }
     this._fortressGlow = null
+  }
+
+  _updatePlagueAura() {
+    const isLizard = this._gameState?.player?.bossArchetypeId === 'lizardman'
+    if (!isLizard || !this._container || !this._sprite) { this._clearPlagueAura(); return }
+    const boss = this._gameState.boss
+    const cap = (Balance.LIZARD_VIRULENCE_CAP_BASE ?? 50) + currentAct(this._gameState) * (Balance.LIZARD_VIRULENCE_CAP_PER_ACT ?? 40)
+    const sat = Math.max(0, Math.min(1, (boss?.virulence ?? 0) / Math.max(1, cap)))
+    const now = this._scene?.time?.now ?? 0
+    if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x2e4a1e, 0x9ada3a)
+      if (!this._plagueGlow) { try { this._plagueGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._plagueGlow = true } }
+      else if (this._plagueGlow !== true) { try { this._plagueGlow.color = p.color; this._plagueGlow.outerStrength = p.strength } catch (e) {} }
+    }
+  }
+
+  _clearPlagueAura() {
+    if (this._plagueGlow && this._plagueGlow !== true && this._sprite?.postFX) {
+      try { this._sprite.postFX.remove(this._plagueGlow) } catch (e) {}
+    }
+    this._plagueGlow = null
   }
 
   _build(boss) {
