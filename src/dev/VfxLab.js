@@ -61,7 +61,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Gambler',   fx: ['diceRoll', 'coinFlip'] },
   { label: 'Champion/Event', fx: ['lastVowFx', 'holyAegisFx', 'shadowAriseFx', 'consecrateFx'] },
   // ── Boss ability VFX (bespoke per archetype) ──
-  { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx'] },
+  { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx', 'trophyThrowFx'] },
   { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },
   { label: 'Boss·Slime (Mitosis)', fx: ['slimeSplitFx', 'slimeMergeFx', 'acidPuddleFx', 'slimeSurgeFx', 'slimeEngulfFx'] },
   { label: 'Boss·Beholder (Eye Tyrant)', fx: ['beholderEyeChargeFx', 'beholderRayFx_petrify', 'beholderRayFx_drain', 'beholderRayFx_hex', 'beholderRayFx_disintegrate', 'beholderRayFx_silence', 'beholderRayFx_slow', 'tyrantGazeSweepFx'] },
@@ -398,6 +398,7 @@ export class VfxLab {
         { label: 'Volley (Hunter)', fire: () => AbilityVfx.volleyFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), targets: [{ x: tX(), y: tY() }, { x: e.worldX - 90, y: e.worldY - 10 }, { x: e.worldX + 60, y: e.worldY + 50 }] }) },
         { label: "Reaver's Smite (Faith)", fire: () => AbilityVfx.reaverSmiteFx(this._scene, tX(), tY(), { fromX: e.worldX, fromY: e.worldY - 10, tier: this._orcTier() }) },
         { label: "Veteran's Armory (T4 ULT)", fire: () => AbilityVfx.veteransArmoryFx(this._scene, e.worldX, e.worldY, { trophies: ['blade', 'heavy', 'arcane', 'hunter', 'faith'] }) },
+        { label: 'Trophy Throw (day)', fire: () => AbilityVfx.trophyThrowFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: tX(), toY: tY(), weapons: [{ id: 'blade', color: 0xd0d4dc }, { id: 'heavy', color: 0xc9a23f }, { id: 'arcane', color: 0x9a6cff }, { id: 'hunter', color: 0x66cc66 }, { id: 'faith', color: 0xffe9a8 }] }) },
       ]
     }
     if (entity.definitionId) {
@@ -615,6 +616,7 @@ export class VfxLab {
         case 'reaverSmiteFx': AbilityVfx.reaverSmiteFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, fromX: e.worldX, fromY: e.worldY - 10, tier: this._orcTier() }); break
         case 'trophyClaimFx': AbilityVfx.trophyClaimFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, toX: e.worldX, toY: e.worldY - 20, isNew: true }); break
         case 'veteransArmoryFx': AbilityVfx.veteransArmoryFx(s, e.worldX, e.worldY, { ...opts, trophies: ['blade', 'heavy', 'arcane', 'hunter', 'faith'] }); break
+        case 'trophyThrowFx': AbilityVfx.trophyThrowFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 120), toY: (d?.worldY ?? e.worldY), weapons: [{ id: 'blade', color: 0xd0d4dc }, { id: 'heavy', color: 0xc9a23f }, { id: 'arcane', color: 0x9a6cff }, { id: 'hunter', color: 0x66cc66 }, { id: 'faith', color: 0xffe9a8 }] }); break
         // Boss · Elder Lich (The Withering)
         case 'soulHarvestWispFx': AbilityVfx.soulHarvestWispFx(s, (d?.worldX ?? e.worldX + 90), (d?.worldY ?? e.worldY), { ...opts, toX: e.worldX, toY: e.worldY - 20 }); break
         case 'soulChannelFx': AbilityVfx.soulChannelFx(s, e.worldX + 40, e.worldY, { ...opts, tier: this._orcTier(), fromX: e.worldX, fromY: e.worldY, victims: [{ x: (d?.worldX ?? e.worldX + 100), y: (d?.worldY ?? e.worldY) }, { x: e.worldX - 40, y: e.worldY + 30 }] }); break

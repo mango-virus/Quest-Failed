@@ -145,6 +145,13 @@ export class BossArchetypeUI {
     })
     this._on('BEHOLDER_GAZE_DISARMED', () => this._removeGazeRoomPick())
     this._on('BEHOLDER_GAZE_FIRED', () => this._removeGazeRoomPick())
+    // Orc TROPHY THROW room-targeting.
+    this._on('ORC_TROPHY_THROW_ARMED', () => {
+      this._installThrowRoomPick()
+      showToast(this._scene, 'TROPHY THROW armed — click a room to hurl the arsenal', { type: 'info', duration: 3000 })
+    })
+    this._on('ORC_TROPHY_THROW_DISARMED', () => this._removeThrowRoomPick())
+    this._on('ORC_TROPHY_THROW_FIRED', () => this._removeThrowRoomPick())
     // Phase 1b.9 — Demon Sacrifice Pact wiring.
     this._on('DEMON_SACRIFICE_ARMED', () => {
       this._sacArmed = true
@@ -765,6 +772,28 @@ export class BossArchetypeUI {
     this._gazePickGame    = null
   }
 
+  // Orc TROPHY THROW room-pick (mirrors the gaze / surge / soul pickers).
+  _installThrowRoomPick() {
+    const game = this._scene.scene.get('Game')
+    if (!game || this._throwPickHandler) return
+    this._throwPickHandler = (pointer) => {
+      if (pointer.rightButtonDown && pointer.rightButtonDown()) { EventBus.emit('ORC_TROPHY_THROW_DISARM'); return }
+      const wp = pointer.positionToCamera(game.cameras.main)
+      const room = game.dungeonGrid?.getRoomAtTile?.(Math.floor(wp.x / 32), Math.floor(wp.y / 32))
+      if (!room) { showToast(this._scene, 'Click on a room', { type: 'error', duration: 1500 }); return }
+      EventBus.emit('ORC_TROPHY_THROW_TARGET', { roomId: room.instanceId })
+    }
+    game.input.on('pointerdown', this._throwPickHandler)
+    this._throwPickGame = game
+  }
+
+  _removeThrowRoomPick() {
+    if (!this._throwPickHandler || !this._throwPickGame) return
+    this._throwPickGame.input.off('pointerdown', this._throwPickHandler)
+    this._throwPickHandler = null
+    this._throwPickGame    = null
+  }
+
   // Camera shake on the Game scene + a small "EARTHQUAKE" floater above the
   // targeted room's center so the player can read what just happened.
   _playEarthquakeVfx(payload) {
@@ -818,6 +847,7 @@ export class BossArchetypeUI {
     this._removeSoulRoomPick()
     this._removeSurgeRoomPick()
     this._removeGazeRoomPick()
+    this._removeThrowRoomPick()
     this._earthquakeBtn?.destroy?.()
     this._hint?.destroy?.()
     for (const { gfx } of this._charmRings ?? []) gfx?.destroy?.()

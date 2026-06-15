@@ -315,6 +315,21 @@ export const Balance = {
   ORC_MASTERY_RANGE_BONUS:         1,     // Hunter → ranged minions +1 reach
   ORC_MASTERY_REGEN_HP_PER_SEC:    0.4,   // Faith  → boss heals %maxHp/sec ×stack
   ORC_MASTERY_PCT_CAP:             0.60,  // cap on the ATK/DEF aura bonus
+  // TROPHY THROW (day-phase active): hurl one claimed weapon per trophy type
+  // into a room. Damage rides boss.attack × frac × stack-bonus; room-wide.
+  ORC_THROW_USES_PER_DAY:          1,
+  ORC_THROW_USES_PER_BOSS_LV:      0.25,  // +1 use per 4 boss levels
+  ORC_THROW_DMG_FRAC:              0.55,  // per-weapon base = boss.attack × this
+  ORC_THROW_BLADE_BONUS:           1.4,   // Blade hits hardest (×this on top)
+  ORC_THROW_WEAPONS_T1:            2,     // tier weapon cap: T1≤2, T2≤3, T3≤4, T4=all
+  ORC_THROW_WEAPONS_PER_TIER:      1,     // +1 cap per act over T1 (T4 lifts to all)
+  ORC_THROW_T4_AMP:                1.3,   // T4 amplifies every weapon's damage
+  ORC_THROW_ROOT_MS:               1400,  // Heavy: knockback + root window
+  ORC_THROW_SLOW_MS:               3500,  // Hunter: slow window
+  ORC_THROW_SLOW_MULT:             0.55,  // Hunter: movement ×this while slowed
+  ORC_THROW_HEX_MS:                5000,  // Arcane: hex window
+  ORC_THROW_HEX_MULT:              1.3,   // Arcane: hexed take ×this damage
+  ORC_THROW_FAITH_HEAL_FRAC:       0.5,   // Faith: boss heals this × damage dealt
 
   // --- Succubus Queen second ability — Doppelgänger (boss-fight only) ---
   // The Queen hides among illusory duplicates during the boss fight. Each

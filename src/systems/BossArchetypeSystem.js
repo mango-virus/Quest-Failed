@@ -212,6 +212,16 @@ export class BossArchetypeSystem {
       const uses = (Balance.BEHOLDER_GAZE_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.BEHOLDER_GAZE_USES_PER_BOSS_LV ?? 0.25))
       if (this._gameState?.boss) this._gameState.boss._beholderGaze ??= { usesLeft: uses }
     }
+    // Orc TROPHY THROW (active day ability)
+    this._throwArmed = false
+    EventBus.on('ORC_TROPHY_THROW_ARM',    this._armThrow,    this)
+    EventBus.on('ORC_TROPHY_THROW_DISARM', this._disarmThrow, this)
+    EventBus.on('ORC_TROPHY_THROW_TARGET', this._fireThrow,   this)
+    if (this._archId() === 'orc') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.ORC_THROW_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.ORC_THROW_USES_PER_BOSS_LV ?? 0.25))
+      if (this._gameState?.boss) this._gameState.boss._orcThrow ??= { usesLeft: uses }
+    }
 
     // Backfill Living Architecture for the rooms already placed at scene
     // boot (boss chamber, plus any rooms restored from a save).
@@ -279,6 +289,9 @@ export class BossArchetypeSystem {
     EventBus.off('BEHOLDER_GAZE_ARM',    this._armGaze,    this)
     EventBus.off('BEHOLDER_GAZE_DISARM', this._disarmGaze, this)
     EventBus.off('BEHOLDER_GAZE_TARGET', this._fireGaze,   this)
+    EventBus.off('ORC_TROPHY_THROW_ARM',    this._armThrow,    this)
+    EventBus.off('ORC_TROPHY_THROW_DISARM', this._disarmThrow, this)
+    EventBus.off('ORC_TROPHY_THROW_TARGET', this._fireThrow,   this)
     this._hellgateFx?.destroy?.()
     this._hellgateFx = null
     this._clearSporeFx()
@@ -909,6 +922,100 @@ export class BossArchetypeSystem {
     EventBus.emit('BEHOLDER_GAZE_FIRED', { roomId: room.instanceId, room, tier, victims })
   }
 
+  // ── TROPHY THROW (active day ability) — arm → click a room → hurl arsenal ──
+  // Hurls one claimed trophy-weapon per type (capped by tier) into a room; each
+  // deals its type's effect to every hero inside. Scales with claimed types,
+  // empower stacks, room crowd, and act tier.
+  _throwUsesLeft() { return this._gameState?.boss?._orcThrow?.usesLeft ?? 0 }
+  _throwAvailable() {
+    return this._archId() === 'orc' && (this._gameState?.meta?.phase ?? '') === 'day' && this._throwUsesLeft() > 0
+  }
+  _armThrow() { if (!this._throwAvailable()) return; this._throwArmed = true; EventBus.emit('ORC_TROPHY_THROW_ARMED', {}) }
+  _disarmThrow() { this._throwArmed = false; EventBus.emit('ORC_TROPHY_THROW_DISARMED', {}) }
+
+  // Claimed trophy types, strongest (most stacks) first.
+  _claimedTrophiesByStacks() {
+    const tro = this._gameState?.boss?.trophies ?? {}
+    return TROPHY_TYPES
+      .filter(t => tro[t.id])
+      .map(t => ({ ...t, stacks: tro[t.id].stacks ?? 1 }))
+      .sort((a, b) => b.stacks - a.stacks)
+  }
+
+  _fireThrow(payload) {
+    if (!this._throwArmed) return
+    if (!this._throwAvailable()) { this._disarmThrow(); return }
+    const boss = this._gameState?.boss
+    const room = (this._gameState?.dungeon?.rooms ?? []).find(r => r.instanceId === payload?.roomId)
+    if (!boss || !room) return
+    const tier = currentAct(this._gameState)
+    const now  = this._scene?.time?.now ?? 0
+    const atk  = boss.attack ?? 0
+    const TS   = Balance.TILE_SIZE
+
+    const claimed = this._claimedTrophiesByStacks()
+    if (claimed.length === 0) {
+      // Nothing claimed yet — still consume nothing, just disarm with a nudge.
+      this._disarmThrow()
+      EventBus.emit('ORC_TROPHY_THROW_FIRED', { roomId: room.instanceId, room, tier, weapons: 0, empty: true })
+      return
+    }
+    const cap = tier >= 4
+      ? claimed.length
+      : (Balance.ORC_THROW_WEAPONS_T1 ?? 2) + (tier - 1) * (Balance.ORC_THROW_WEAPONS_PER_TIER ?? 1)
+    const weapons = claimed.slice(0, Math.max(1, cap))
+
+    const advsIn = (this._gameState.adventurers?.active ?? [])
+      .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
+
+    let totalDmg = 0
+    for (const wpn of weapons) {
+      const stackBonus = 1 + Math.min((wpn.stacks ?? 1) - 1, Balance.ORC_TROPHY_DMG_STACK_CAP ?? 8) * (Balance.ORC_TROPHY_DMG_PER_STACK ?? 0.06)
+      const t4amp = tier >= 4 ? (Balance.ORC_THROW_T4_AMP ?? 1.3) : 1
+      const bladeAmp = wpn.id === 'blade' ? (Balance.ORC_THROW_BLADE_BONUS ?? 1.4) : 1
+      const dmg = Math.max(1, Math.floor(atk * (Balance.ORC_THROW_DMG_FRAC ?? 0.55) * stackBonus * bladeAmp * t4amp))
+      for (const a of advsIn) {
+        const before = a.resources.hp
+        a.resources.hp = Math.max(0, before - dmg)
+        totalDmg += before - a.resources.hp
+        // Per-type rider (AI-respected adv fields).
+        if (wpn.id === 'heavy') {
+          a._rootedUntil = Math.max(a._rootedUntil ?? 0, now + (Balance.ORC_THROW_ROOT_MS ?? 1400))
+        } else if (wpn.id === 'hunter') {
+          const next = now + (Balance.ORC_THROW_SLOW_MS ?? 3500)
+          if (!a._slowUntil || a._slowUntil < next) a._slowUntil = next
+          a._slowMult = Math.min(a._slowMult ?? 1, Balance.ORC_THROW_SLOW_MULT ?? 0.55)
+        } else if (wpn.id === 'arcane') {
+          a._hexUntil   = Math.max(a._hexUntil ?? 0, now + (Balance.ORC_THROW_HEX_MS ?? 5000))
+          a._hexVulnMul = Math.max(a._hexVulnMul ?? 1, Balance.ORC_THROW_HEX_MULT ?? 1.3)
+        }
+        EventBus.emit('COMBAT_HIT', { sourceId: 'boss', targetId: a.instanceId, damage: dmg, damageType: 'physical' })
+        if (a.resources.hp <= 0) {
+          EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Trophy Hunter', roomId: room.instanceId, damageType: 'physical' })
+        }
+      }
+    }
+    // Faith trophy in the volley → the boss drinks a share of the carnage.
+    if (weapons.some(w => w.id === 'faith') && totalDmg > 0) {
+      const heal = Math.floor(totalDmg * (Balance.ORC_THROW_FAITH_HEAL_FRAC ?? 0.5))
+      boss.hp = Math.min(boss.maxHp ?? boss.hp ?? 0, (boss.hp ?? 0) + heal)
+    }
+
+    // VFX — the claimed weapons arc from the throne into the room.
+    const cx = (room.gridX + room.width  / 2) * TS
+    const cy = (room.gridY + room.height / 2) * TS
+    AbilityVfx?.trophyThrowFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, {
+      tier,
+      toX: cx, toY: cy,
+      weapons: weapons.map(w => ({ id: w.id, color: w.color })),
+      victims: advsIn.map(a => ({ x: a.worldX, y: (a.worldY ?? 0) - 16 })),
+    })
+
+    if (boss._orcThrow) boss._orcThrow.usesLeft = Math.max(0, (boss._orcThrow.usesLeft ?? 0) - 1)
+    this._throwArmed = false
+    EventBus.emit('ORC_TROPHY_THROW_FIRED', { roomId: room.instanceId, room, tier, weapons: weapons.length, totalDmg })
+  }
+
   // ── ORC: Warband (live cluster recompute) ──────────────────────────────
 
   // Manhattan room-membership lookup for every alive orc, tallied per
@@ -1374,6 +1481,14 @@ export class BossArchetypeSystem {
       this._gameState.boss._beholderGaze = { usesLeft: uses }
     }
     this._disarmGaze()
+    // Orc: refill Trophy Throw uses + disarm so the button resets.
+    if (this._archId() === 'orc') {
+      const bLv = this._gameState?.boss?.level ?? 1
+      const uses = (Balance.ORC_THROW_USES_PER_DAY ?? 1) + Math.floor(bLv * (Balance.ORC_THROW_USES_PER_BOSS_LV ?? 0.25))
+      this._gameState.boss ??= {}
+      this._gameState.boss._orcThrow = { usesLeft: uses }
+    }
+    this._disarmThrow()
     // Beholder: clear yesterday's anti-magic markings the moment night begins
     // (the new selection happens on DAY_PHASE_BEGAN).
     this._clearAntiMagicMarks()

@@ -629,6 +629,35 @@ then fires outward in sequence. All bespoke `AbilityVfx` primitives, lab-testabl
 - ☐ Bespoke VFX for each attack + claim + Armory, evolving feel by tier; all in the VFX Lab; lint-vfx clean.
 - ☐ Headless harness green; soak clean; bossArchetypes.json headline/mechanics text updated.
 
+#### Orc Trophy Hunter — DAY-PHASE ACTIVE retrofit: **TROPHY THROW** (LOCKED 2026-06-15)
+
+The Orc shipped without a day-phase active ability; every boss needs one. **TROPHY THROW** makes his
+existing trophy arsenal his day weapon. DOM button `TROPHY THROW · N` (uses left) → arm → click a room
+→ he hurls one weapon **per claimed trophy type** into that room (room-wide AoE, hits every hero inside).
+
+Per-weapon effect, tinted its stolen-class color:
+- **⚔ Blade** — heaviest raw damage (no rider, the cleaver).
+- **🛡 Heavy** — knockback + brief **root** (`_rootedUntil`).
+- **🔮 Arcane** — **hex** (`_hexUntil`/`_hexVulnMul`): hexed heroes take more from minions/traps.
+- **🏹 Hunter** — hits + **slows** the room (`_slowUntil`/`_slowMult`).
+- **✚ Faith** — lifesteal: **heals the boss** for a fraction of damage dealt.
+
+Each weapon's damage = `boss.attack × frac × (1 + stack bonus)` (reuses `ORC_TROPHY_DMG_PER_STACK`, so
+empowered trophies hit harder). **Tier gating** (`currentAct`) = how much of the arsenal he hurls at
+once: T1 ≤2 weapons · T2 ≤3 · T3 ≤4 · T4 the ENTIRE claimed arsenal, effects amplified. Weapons thrown
+= `min(claimed types, tier cap)` — early game throw what little is claimed, late game throw everything.
+Scales early→late: damage rides day-scaled `boss.attack`, room-wide (crowd), more trophies = more
+weapons, higher act = bigger. Uses/day = `1 + floor(level × 0.25)`, reset on night. Tell = the existing
+Trophy Wall (claimed types + stacks) + the button's uses count. Bespoke `trophyThrowFx` (claimed weapons
+spin out in an arc from the throne, type-colored impacts), lab-wired.
+
+**Acceptance checklist (Trophy Throw):**
+- ☑ DOM button (`qf-archstrip-throw`) + Phaser room-pick (`_installThrowRoomPick`) + `ORC_TROPHY_THROW_ARM/DISARM/TARGET` (+ `_ARMED/_DISARMED/_FIRED`); uses/day reset on night; `boss._orcThrow={usesLeft}` persists.
+- ☑ Hurls one weapon per CLAIMED trophy type, capped by tier (T1≤2/T2≤3/T3≤4/T4 all); damage = boss.attack × frac × stack bonus (×Blade bonus, ×T4 amp); room-wide.
+- ☑ Per-type riders: Blade raw, Heavy knockback+root (`_rootedUntil`), Arcane hex (`_hexUntil`/`_hexVulnMul`), Hunter slow (`_slowUntil`/`_slowMult`), Faith boss-lifesteal — all AI-respected, already in SaveSystem strip.
+- ☑ Bespoke `trophyThrowFx` (claimed weapons spin out in an arc + per-type impact bursts), lab-wired (orc group + stand-in + `_fireRaw`); lint-vfx clean.
+- ☑ node --check; orc harness green (Trophy Throw section added); live preview verified (weapons arc + impacts, no console errors); soak clean.
+
 ### Boss #2 — Elder Lich → **THE WITHERING** (LOCKED 2026-06-14)
 
 **Core resource — Soul Essence.** Every adventurer who dies anywhere in the dungeon banks **Soul

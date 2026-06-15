@@ -74,5 +74,27 @@ ok(avail(full, 4).length === 5, 'T4 wields all 5')
 ok(claimed({}).length === 1 && claimed({})[0].attack === 'cleave', 'Blade/Cleave is the innate basic with no trophies')
 ok(avail(full, 1)[0].type === 'blade', 'strongest-first ordering puts top-stack Blade first')
 
+// 4) TROPHY THROW (day active) — tier weapon cap, stack-scaled damage, faith heal.
+const bal = readFileSync(resolve(__dir, '../../src/config/balance.js'), 'utf8')
+const num = (k) => { const m = bal.match(new RegExp(k + ':\\s*([0-9.]+)')); return m ? parseFloat(m[1]) : undefined }
+for (const k of ['ORC_THROW_USES_PER_DAY', 'ORC_THROW_USES_PER_BOSS_LV', 'ORC_THROW_DMG_FRAC', 'ORC_THROW_BLADE_BONUS',
+  'ORC_THROW_WEAPONS_T1', 'ORC_THROW_WEAPONS_PER_TIER', 'ORC_THROW_T4_AMP', 'ORC_THROW_ROOT_MS',
+  'ORC_THROW_SLOW_MS', 'ORC_THROW_SLOW_MULT', 'ORC_THROW_HEX_MS', 'ORC_THROW_HEX_MULT', 'ORC_THROW_FAITH_HEAL_FRAC']) {
+  ok(num(k) !== undefined, `${k} = ${num(k)}`)
+}
+// weapon cap per tier (mirrors _fireThrow): T1=2, T2=3, T3=4, T4=all claimed
+const throwCap = (tier, claimedN) => tier >= 4 ? claimedN : (num('ORC_THROW_WEAPONS_T1')) + (tier - 1) * (num('ORC_THROW_WEAPONS_PER_TIER'))
+ok(throwCap(1, 5) === 2 && throwCap(2, 5) === 3 && throwCap(3, 5) === 4, 'throw cap ramps T1=2 → T3=4')
+ok(throwCap(4, 5) === 5, 'T4 hurls the entire claimed arsenal')
+ok(throwCap(2, 1) >= 1, 'early game (1 trophy) still throws what is claimed')
+// per-weapon damage rises with empower stacks (reuses ORC_TROPHY_DMG_PER_STACK)
+const dmg = (atk, stacks, blade, t4) => Math.floor(atk * num('ORC_THROW_DMG_FRAC')
+  * (1 + Math.min(stacks - 1, num('ORC_TROPHY_DMG_STACK_CAP')) * num('ORC_TROPHY_DMG_PER_STACK'))
+  * (blade ? num('ORC_THROW_BLADE_BONUS') : 1) * (t4 ? num('ORC_THROW_T4_AMP') : 1))
+ok(dmg(100, 8, false, false) > dmg(100, 1, false, false), 'empowered trophies throw harder')
+ok(dmg(100, 1, true, false) > dmg(100, 1, false, false), 'Blade weapon hits hardest')
+ok(dmg(100, 1, false, true) > dmg(100, 1, false, false), 'T4 amplifies every thrown weapon')
+ok(num('ORC_THROW_SLOW_MULT') < 1 && num('ORC_THROW_HEX_MULT') > 1, 'Hunter slow <1, Arcane hex >1')
+
 console.log(`\n${fails === 0 ? '✅ ALL PASS' : `❌ ${fails} FAILURE(S)`}`)
 process.exit(fails === 0 ? 0 : 1)

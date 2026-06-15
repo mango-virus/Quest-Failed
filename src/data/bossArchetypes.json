@@ -314,6 +314,10 @@
     },
     "mechanics": [
       {
+        "text": "Trophy Throw (day active) — arm, click a room, and hurl one claimed weapon per trophy type into it: Blade rends, Heavy roots, Arcane hexes, Hunter slows, Faith heals the boss. Empowered trophies hit harder; higher acts throw more of the arsenal (T4 = all of it).",
+        "implemented": true
+      },
+      {
         "text": "Warband — orcs in the same room buff each other's ATK and DEF, and each loots permanent ATK per kill.",
         "implemented": true
       },

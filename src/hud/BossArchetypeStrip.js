@@ -76,6 +76,11 @@ export class BossArchetypeStrip {
         ref: el => { this._beholderBtn = el },
         on: { click: () => this._onBeholderClick() },
       }, "TYRANT'S GAZE"),
+      h('button', {
+        className: 'qf-archstrip-btn qf-archstrip-throw',
+        ref: el => { this._orcBtn = el },
+        on: { click: () => this._onOrcClick() },
+      }, 'TROPHY THROW'),
     ])
   }
 
@@ -105,6 +110,10 @@ export class BossArchetypeStrip {
     sub('BEHOLDER_GAZE_ARMED',    () => { this._beholderArmed = true;  this._refresh() })
     sub('BEHOLDER_GAZE_DISARMED', () => { this._beholderArmed = false; this._refresh() })
     sub('BEHOLDER_GAZE_FIRED',    () => { this._beholderArmed = false; this._refresh() })
+    // Orc Trophy Throw.
+    sub('ORC_TROPHY_THROW_ARMED',    () => { this._orcArmed = true;  this._refresh() })
+    sub('ORC_TROPHY_THROW_DISARMED', () => { this._orcArmed = false; this._refresh() })
+    sub('ORC_TROPHY_THROW_FIRED',    () => { this._orcArmed = false; this._refresh() })
     // Minion roster changes can flip the sacrifice button's enabled state.
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
@@ -136,6 +145,11 @@ export class BossArchetypeStrip {
     EventBus.emit(this._beholderArmed ? 'BEHOLDER_GAZE_DISARM' : 'BEHOLDER_GAZE_ARM')
   }
 
+  _onOrcClick() {
+    if (this._orcBtn?.disabled) return
+    EventBus.emit(this._orcArmed ? 'ORC_TROPHY_THROW_DISARM' : 'ORC_TROPHY_THROW_ARM')
+  }
+
   _refresh() {
     if (!this.el) return
     const phase    = this._gs?.meta?.phase
@@ -146,13 +160,15 @@ export class BossArchetypeStrip {
     const isLich   = archId === 'lich'
     const isSlime  = archId === 'slime'
     const isBeholder = archId === 'beholder'
+    const isOrc    = archId === 'orc'
     const golemActive = isGolem && isDay
     const demonActive = isDemon && isDay
     const lichActive  = isLich && isDay
     const slimeActive = isSlime && isDay
     const beholderActive = isBeholder && isDay
+    const orcActive = isOrc && isDay
 
-    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive
+    const anyActive = golemActive || demonActive || lichActive || slimeActive || beholderActive || orcActive
     this.el.classList.toggle('open', !!anyActive)
     // Let the slot's parent (BottomBar) know whether to leave a gap.
     if (this._slot) this._slot.classList.toggle('has-buttons', !!anyActive)
@@ -194,6 +210,15 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._beholderGaze?.usesLeft ?? 0
       this._beholderBtn.textContent = this._beholderArmed ? 'PICK A ROOM' : `TYRANT'S GAZE · ${uses}`
       this._beholderBtn.disabled = !(uses > 0)
+    }
+    if (this._orcBtn) {
+      this._orcBtn.style.display = orcActive ? '' : 'none'
+      this._orcBtn.classList.toggle('armed', !!this._orcArmed)
+      const uses = this._gs?.boss?._orcThrow?.usesLeft ?? 0
+      const claimed = Object.keys(this._gs?.boss?.trophies ?? {}).length
+      // disabled until at least one trophy is claimed (nothing to throw yet)
+      this._orcBtn.textContent = this._orcArmed ? 'PICK A ROOM' : `TROPHY THROW · ${uses}`
+      this._orcBtn.disabled = !(uses > 0 && claimed > 0)
     }
   }
 

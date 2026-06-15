@@ -6379,4 +6379,52 @@ export const AbilityVfx = {
     }
     return made
   },
+
+  // ── ORC · Trophy Hunter — TROPHY THROW ───────────────────────────────────
+  // The claimed weapons spin out of the throne in an arc and slam into the
+  // target room, each landing with a type-coloured burst. opts.weapons = the
+  // claimed trophy list [{id,color}]; more weapons = bigger barrage.
+  trophyThrowFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { tier: 1, depth: 16, weapons: [], victims: [], ...opts }
+    const tx = Number.isFinite(o.toX) ? o.toX : x + 120, ty = Number.isFinite(o.toY) ? o.toY : y
+    if (!_validXY(tx, ty)) return null
+    const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
+    const weapons = (o.weapons && o.weapons.length) ? o.weapons : [{ id: 'blade', color: 0xd0d4dc }]
+    const drawWeapon = (g, id, color, s) => {
+      if (id === 'heavy') _drawKiteShield(g, s * 1.4, color)
+      else if (id === 'arcane') _drawChainedOrb(g, s * 0.9, color)
+      else if (id === 'faith') {
+        g.fillStyle(0x3a2a18, 1); g.fillRect(-s * 1.4, -s * 0.12, s * 2.2, s * 0.24)                 // haft
+        g.fillStyle(_lerpColor(color, 0x000000, 0.3), 1); g.fillRoundedRect(s * 0.5, -s * 0.72, s * 0.92, s * 1.44, s * 0.18) // maul head
+        g.fillStyle(color, 0.95); g.fillRoundedRect(s * 0.62, -s * 0.56, s * 0.68, s * 1.12, s * 0.14)
+        g.fillStyle(0xffffff, 0.9); g.fillRect(s * 0.9, -s * 0.42, s * 0.13, s * 0.84); g.fillRect(s * 0.68, -s * 0.1, s * 0.54, s * 0.2) // cross
+      } else _drawWarAxe(g, s, color)   // blade + hunter
+    }
+    const n = weapons.length
+    weapons.forEach((wpn, i) => {
+      const col = wpn.color ?? 0xd0d4dc, spread = 30 + tier * 6
+      const dx = tx + (n > 1 ? (i - (n - 1) / 2) : 0) * spread, dy = ty + (Math.random() - 0.5) * spread
+      if (!_validXY(dx, dy)) return
+      const g = scene.add.graphics().setPosition(x, y).setDepth(o.depth); made.push(g)
+      drawWeapon(g, wpn.id, col, 7 + tier * 0.6); _glow(g, col, 2, 8)
+      const ang0 = Math.atan2(dy - y, dx - x); g.setRotation(ang0)
+      const midX = (x + dx) / 2, midY = Math.min(y, dy) - 60 - tier * 8
+      scene.tweens.add({ targets: g, x: midX, y: midY, rotation: ang0 + Math.PI * 4, duration: 180, delay: i * 60, ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, x: dx, y: dy, rotation: g.rotation + Math.PI * 4, duration: 170, ease: 'Sine.easeIn',
+          onComplete: () => {
+            g.destroy()
+            const flash = scene.add.graphics().setPosition(dx, dy).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(flash)
+            flash.fillStyle(_lerpColor(col, 0xffffff, 0.5), 0.9); flash.fillCircle(0, 0, 6); _glow(flash, col, 5, 12)
+            scene.tweens.add({ targets: flash, scale: 3, alpha: 0, duration: 300, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
+            const ring = scene.add.graphics().setPosition(dx, dy).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(ring)
+            ring.lineStyle(2, col, 0.9); ring.strokeCircle(0, 0, 8); ring.setScale(0.4)
+            scene.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 320, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+            for (let k = 0; k < 4; k++) { const a = Math.random() * Math.PI * 2, d = 8 + Math.random() * 16, sh = scene.add.graphics().setPosition(dx, dy).setDepth(o.depth + 1); made.push(sh); sh.fillStyle(_lerpColor(col, 0x000000, 0.2), 0.9); sh.fillRect(-2, -2, 4, 4); scene.tweens.add({ targets: sh, x: dx + Math.cos(a) * d, y: dy + Math.sin(a) * d, alpha: 0, angle: 90 + Math.random() * 120, duration: 300 + Math.random() * 160, ease: 'Quad.easeOut', onComplete: () => sh.destroy() }) }
+            if (mult > 0) { const em = scene.add.particles(dx, dy, _softDotTexture(scene), { lifespan: { min: 200, max: 480 }, speed: { min: 50, max: 160 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [col, 0xffffff], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round((7 + tier * 2) * mult)); made.push(em); scene.time.delayedCall(560, () => { try { em.destroy() } catch (e) {} }) }
+            scene.cameras?.main?.shake?.(90, 0.003)
+          } }) })
+    })
+    return made
+  },
 }
