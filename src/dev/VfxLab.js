@@ -407,14 +407,17 @@ export class VfxLab {
         ]
       }
       if (entity.archId === 'lizardman') {
-        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x2e4a1e, hi: 0x9ada3a, durationMs: 3600 })
+        const aura = (sat) => () => AbilityVfx.bossAuraFx(this._scene, e.worldX, e.worldY, { sat, sprite: this._bossStandIn, lo: 0x2a0e44, hi: 0xb45ce6, durationMs: 3600 })
         return [
           { label: 'Aura: Low Virulence',  fire: aura(0.3) },
           { label: 'Aura: Mid Virulence',  fire: aura(0.65) },
           { label: 'Aura: High Virulence', fire: aura(1) },
           { label: 'Plague Spit (room)', fire: () => AbilityVfx.plagueSpitFx(this._scene, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: tX(), toY: tY(), rectW: 200, rectH: 150 }) },
-          { label: 'Contagion (spread)', fire: () => AbilityVfx.contagionFx(this._scene, e.worldX, e.worldY - 16, { tier: this._orcTier(), toX: tX(), toY: tY() - 16 }) },
-          { label: 'Outbreak (rupture)', fire: () => AbilityVfx.outbreakFx(this._scene, tX(), tY() - 16, { tier: this._orcTier() }) },
+          // boss stand-in is centre-anchored (e.worldY = body centre); tY() already
+          // applies the −16 chest lift, so target it DIRECTLY (no double offset → it
+          // landed on the head). Both endpoints now hit the body centre.
+          { label: 'Contagion (spread)', fire: () => AbilityVfx.contagionFx(this._scene, e.worldX, e.worldY, { tier: this._orcTier(), toX: tX(), toY: tY() }) },
+          { label: 'Outbreak (rupture)', fire: () => AbilityVfx.outbreakFx(this._scene, tX(), tY(), { tier: this._orcTier() }) },
           { label: 'Miasma Spew (T3)', fire: () => AbilityVfx.miasmaSpewFx(this._scene, tX(), tY(), { tier: this._orcTier(), rectW: 200, rectH: 150 }) },
         ]
       }
@@ -712,7 +715,7 @@ export class VfxLab {
         case 'collapseFx':     AbilityVfx.collapseFx(s, e.worldX, e.worldY, { tier: 4, rectW: 240, rectH: 180 }); break
         // Boss · Lizardman (The Plague-Bearer) — tier cycles 1→4.
         case 'plagueSpitFx':  AbilityVfx.plagueSpitFx(s, e.worldX, e.worldY - 8, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 90), toY: (d?.worldY ?? e.worldY), rectW: 200, rectH: 150 }); break
-        case 'contagionFx':   AbilityVfx.contagionFx(s, e.worldX, e.worldY - 16, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 60), toY: (d?.worldY ?? e.worldY) - 16 }); break
+        case 'contagionFx':   AbilityVfx.contagionFx(s, e.worldX, e.worldY, { tier: this._orcTier(), toX: (d?.worldX ?? e.worldX + 60), toY: (d?.worldY ?? e.worldY) - 16 }); break
         case 'outbreakFx':    AbilityVfx.outbreakFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY) - 16, { tier: this._orcTier() }); break
         case 'miasmaSpewFx':  AbilityVfx.miasmaSpewFx(s, (d?.worldX ?? e.worldX + 60), (d?.worldY ?? e.worldY), { tier: this._orcTier(), rectW: 200, rectH: 150 }); break
         case 'diceRoll':     AbilityVfx.diceRoll(s, e.worldX, e.worldY - 30, 1 + Math.floor(Math.random() * 6), opts); break

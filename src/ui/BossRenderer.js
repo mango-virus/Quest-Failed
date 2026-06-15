@@ -680,7 +680,7 @@ export class BossRenderer {
     const sat = Math.max(0, Math.min(1, (boss?.virulence ?? 0) / Math.max(1, cap)))
     const now = this._scene?.time?.now ?? 0
     if (this._scene.renderer?.type === Phaser.WEBGL && this._sprite.postFX) {
-      const p = AbilityVfx.auraGlowParams(sat, now, 0x2e4a1e, 0x9ada3a)
+      const p = AbilityVfx.auraGlowParams(sat, now, 0x2a0e44, 0xb45ce6)
       if (!this._plagueGlow) { try { this._plagueGlow = this._sprite.postFX.addGlow(p.color, p.strength, 0, false, 0.06, 11) } catch (e) { this._plagueGlow = true } }
       else if (this._plagueGlow !== true) { try { this._plagueGlow.color = p.color; this._plagueGlow.outerStrength = p.strength } catch (e) {} }
     }

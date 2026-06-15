@@ -238,7 +238,7 @@ function _drawMiasmaPuff(g, r, green, purple) {
 // A glistening BILE GLOB — a wet venom droplet with a dark rim, body, and a bright
 // specular highlight. The hero element of the Plague-Bearer's spit/contagion.
 function _drawBileGlob(g, s, color) {
-  const dark = _lerpColor(color, 0x0a1f06, 0.55), lite = _lerpColor(color, 0xeaff9a, 0.5)
+  const dark = _lerpColor(color, 0x1a0630, 0.55), lite = _lerpColor(color, 0xf0d0ff, 0.5)
   g.fillStyle(dark, 0.95); g.fillEllipse(0, s * 0.4, s * 2.1, s * 2.3)        // dark rim/base
   g.fillStyle(color, 1);   g.fillEllipse(0, 0, s * 1.7, s * 1.9)             // body
   g.fillStyle(lite, 0.85); g.fillCircle(-s * 0.42, -s * 0.5, s * 0.55)       // highlight
@@ -6820,7 +6820,7 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { tier: 1, depth: 14, rectW: 200, rectH: 150, ...opts }
     const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
-    const GREEN = 0x6abf2e, PALE = 0xc8f08a
+    const GREEN = 0x9b30d6, PALE = 0xd9a6ff   // toxic PURPLE plague palette (var names legacy)
     const tx = Number.isFinite(o.toX) ? o.toX : x + 90, ty = Number.isFinite(o.toY) ? o.toY : y
     const glob = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(glob)
     _drawBileGlob(glob, 6 + tier, GREEN); _glow(glob, GREEN, 3, 9)
@@ -6831,9 +6831,9 @@ export const AbilityVfx = {
       onComplete: () => scene.tweens.add({ targets: glob, x: tx, y: ty, rotation: Math.PI * 4, duration: 180, ease: 'Sine.easeIn',
         onComplete: () => {
           glob.destroy(); if (trail) { try { trail.stop() } catch (e) {} ; scene.time.delayedCall(300, () => { try { trail.destroy() } catch (e) {} }) }
-          for (let i = 0; i < 3; i++) { const cl = scene.add.graphics().setPosition(tx + (Math.random() - 0.5) * 20, ty + (Math.random() - 0.5) * 14).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 16 + tier * 3, GREEN, 0x4a7a2a); scene.tweens.add({ targets: cl, scale: 1.1 + Math.random() * 0.4, alpha: 0.6, duration: 300, ease: 'Quad.easeOut', delay: i * 60, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.4, duration: 600, onComplete: () => cl.destroy() }) }) }
+          for (let i = 0; i < 3; i++) { const cl = scene.add.graphics().setPosition(tx + (Math.random() - 0.5) * 20, ty + (Math.random() - 0.5) * 14).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 16 + tier * 3, GREEN, 0x3d1466); scene.tweens.add({ targets: cl, scale: 1.1 + Math.random() * 0.4, alpha: 0.6, duration: 300, ease: 'Quad.easeOut', delay: i * 60, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.4, duration: 600, onComplete: () => cl.destroy() }) }) }
           for (let i = 0; i < 6 + tier; i++) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 22, dp = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 1); made.push(dp); _drawBileGlob(dp, 2 + Math.random() * 2, GREEN); scene.tweens.add({ targets: dp, x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d * 0.7 + 10, alpha: 0, scale: 0.4, duration: 380 + Math.random() * 160, ease: 'Quad.easeIn', onComplete: () => dp.destroy() }) }
-          if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speedY: { min: -30, max: -6 }, speedX: { min: -40, max: 40 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [GREEN, PALE, 0xeaff9a], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((12 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
+          if (mult > 0) { const em = scene.add.particles(tx, ty, _softDotTexture(scene), { lifespan: { min: 500, max: 1100 }, speedY: { min: -30, max: -6 }, speedX: { min: -40, max: 40 }, scale: { start: 0.4, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [GREEN, PALE, 0xeacbff], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((12 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(1100, () => { try { em.destroy() } catch (e) {} }) }
         } }) })
     return made
   },
@@ -6844,7 +6844,7 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { tier: 1, depth: 13, ...opts }
     const made = []
-    const GREEN = 0x7ad13a, PALE = 0xc8f08a
+    const GREEN = 0xa83ce0, PALE = 0xd9a6ff   // toxic PURPLE plague palette (var names legacy)
     const tx = Number.isFinite(o.toX) ? o.toX : x + 40, ty = Number.isFinite(o.toY) ? o.toY : y
     if (!_validXY(tx, ty)) return null
     const g = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD); made.push(g); _glow(g, GREEN, 2, 8)
@@ -6857,7 +6857,7 @@ export const AbilityVfx = {
     let ph = 0
     scene.tweens.addCounter({ from: 0, to: 1, duration: 240, ease: 'Quad.easeOut', onUpdate: (tw) => { ph += 0.6; draw(tw.getValue(), ph) },
       onComplete: () => {
-        const cl = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.5).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 10, GREEN, 0x4a7a2a)
+        const cl = scene.add.graphics().setPosition(tx, ty).setDepth(o.depth + 0.5).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 10, GREEN, 0x3d1466)
         scene.tweens.add({ targets: cl, scale: 1, alpha: 0.6, duration: 200, onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.3, duration: 360, onComplete: () => cl.destroy() }) })
         scene.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() })
       } })
@@ -6873,13 +6873,13 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { tier: 1, depth: 15, ...opts }
     const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
-    const GREEN = 0x6abf2e, PALE = 0xc8f08a
-    const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 18 + tier * 2, GREEN, 0x4a7a2a)
+    const GREEN = 0x9b30d6, PALE = 0xd9a6ff   // toxic PURPLE plague palette (var names legacy)
+    const cl = scene.add.graphics().setPosition(x, y).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 18 + tier * 2, GREEN, 0x3d1466)
     scene.tweens.add({ targets: cl, scale: 1.6, alpha: 0.7, duration: 240, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scale: 2.1, duration: 420, onComplete: () => cl.destroy() }) })
     const flash = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1).setBlendMode(Phaser.BlendModes.ADD); made.push(flash); flash.fillStyle(PALE, 0.9); flash.fillCircle(0, 0, 6); _glow(flash, GREEN, 5, 12)
     scene.tweens.add({ targets: flash, scale: 3, alpha: 0, duration: 300, ease: 'Expo.easeOut', onComplete: () => flash.destroy() })
     for (let i = 0; i < 8 + tier * 2; i++) { const a = Math.random() * Math.PI * 2, d = 16 + Math.random() * 26, dp = scene.add.graphics().setPosition(x, y).setDepth(o.depth + 1); made.push(dp); _drawBileGlob(dp, 2 + Math.random() * 2.5, GREEN); scene.tweens.add({ targets: dp, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8 + 8, alpha: 0, scale: 0.4, rotation: (Math.random() - 0.5) * 4, duration: 380 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => dp.destroy() }) }
-    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speed: { min: 40, max: 150 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [GREEN, PALE, 0xeaff9a], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round((10 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 300, max: 700 }, speed: { min: 40, max: 150 }, scale: { start: 0.45, end: 0 }, alpha: { start: 0.85, end: 0 }, tint: [GREEN, PALE, 0xeacbff], blendMode: 'ADD', emitting: false }); em.setDepth(o.depth + 1); em.explode(Math.round((10 + tier * 3) * mult)); made.push(em); scene.time.delayedCall(700, () => { try { em.destroy() } catch (e) {} }) }
     scene.cameras?.main?.shake?.(110, 0.003)
     return made
   },
@@ -6890,20 +6890,20 @@ export const AbilityVfx = {
     if (!_validXY(x, y)) return null
     const o = { tier: 1, depth: 14, rectW: 220, rectH: 160, big: false, ...opts }
     const tier = Math.max(1, Math.min(4, o.tier)), mult = _particlesMult(), made = []
-    const GREEN = 0x6abf2e, scl = o.big ? 1.3 : 1
+    const GREEN = 0x9b30d6, scl = o.big ? 1.3 : 1   // toxic PURPLE plague palette (var name legacy)
     const pall = scene.add.graphics().setPosition(x, y).setDepth(o.depth - 1).setAlpha(0); made.push(pall)
-    pall.fillStyle(GREEN, 0.16); pall.fillEllipse(0, 0, o.rectW * scl, o.rectH * 0.75 * scl); pall.fillStyle(0x4a7a2a, 0.12); pall.fillEllipse(0, 4, o.rectW * 0.6 * scl, o.rectH * 0.5 * scl)
+    pall.fillStyle(GREEN, 0.16); pall.fillEllipse(0, 0, o.rectW * scl, o.rectH * 0.75 * scl); pall.fillStyle(0x3d1466, 0.12); pall.fillEllipse(0, 4, o.rectW * 0.6 * scl, o.rectH * 0.5 * scl)
     scene.tweens.add({ targets: pall, alpha: 1, duration: 300, yoyo: true, hold: 500, onComplete: () => pall.destroy() })
     const n = 6 + tier + (o.big ? 4 : 0)
     for (let i = 0; i < n; i++) {
       const px = x + (Math.random() * 2 - 1) * o.rectW * 0.45, py = y + (Math.random() * 2 - 1) * o.rectH * 0.35
       scene.time.delayedCall(i * 50, () => {
         if (!_validXY(px, py)) return
-        const cl = scene.add.graphics().setPosition(px, py).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 12 + tier * 2, GREEN, 0x4a7a2a)
+        const cl = scene.add.graphics().setPosition(px, py).setDepth(o.depth).setScale(0.3).setAlpha(0); made.push(cl); _drawMiasmaPuff(cl, 12 + tier * 2, GREEN, 0x3d1466)
         scene.tweens.add({ targets: cl, scale: 1 + Math.random() * 0.4, alpha: 0.55, y: py - 6, duration: 300, ease: 'Quad.easeOut', onComplete: () => scene.tweens.add({ targets: cl, alpha: 0, scaleY: 1.3, y: cl.y - 10, duration: 560, onComplete: () => cl.destroy() }) })
       })
     }
-    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 600, max: 1300 }, speedX: { min: -70, max: 70 }, speedY: { min: -30, max: 20 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [GREEN, 0xc8f08a], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((16 + tier * 4) * mult * scl)); made.push(em); scene.time.delayedCall(1300, () => { try { em.destroy() } catch (e) {} }) }
+    if (mult > 0) { const em = scene.add.particles(x, y, _softDotTexture(scene), { lifespan: { min: 600, max: 1300 }, speedX: { min: -70, max: 70 }, speedY: { min: -30, max: 20 }, x: { min: -o.rectW * 0.4, max: o.rectW * 0.4 }, scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 }, tint: [GREEN, 0xd9a6ff], emitting: false }); em.setDepth(o.depth + 0.5); em.explode(Math.round((16 + tier * 4) * mult * scl)); made.push(em); scene.time.delayedCall(1300, () => { try { em.destroy() } catch (e) {} }) }
     return made
   },
 }
