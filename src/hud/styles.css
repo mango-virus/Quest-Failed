@@ -3221,8 +3221,10 @@ body {
    open AND closed; the peek handle stays on the screen edge. */
 .qf-wave-dock {
   position: absolute;
-  /* Starts below the top-right minimap so the two don't overlap. */
-  right: 14px; top: 272px; bottom: 96px;
+  /* Starts below the top-right minimap; height shrinks to the panels' content
+     (capped so a long log scrolls rather than running off-screen). */
+  right: 14px; top: 272px; bottom: auto;
+  max-height: calc(100% - 320px);
   display: flex; align-items: stretch;
   pointer-events: auto;
   transition: right .3s cubic-bezier(.3, 1, .4, 1);
@@ -3430,6 +3432,7 @@ body {
 
 /* AdventurerIntel */
 .qf-intel-body { padding: 10px; }
+.qf-intel-empty-state { padding: 8px 4px; font-size: 11px; line-height: 1.4; color: var(--text-mute); font-style: italic; text-align: center; }
 .qf-intel-row {
   display: flex;
   justify-content: space-between;
@@ -3456,7 +3459,7 @@ body {
 
 /* DungeonLog */
 .qf-logpanel {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3489,7 +3492,8 @@ body {
 }
 
 .qf-log-body {
-  flex: 1;
+  flex: 0 1 auto;
+  max-height: 240px;   /* shrink-to-content; long logs scroll within this cap */
   overflow: auto;
   background: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
   position: relative;

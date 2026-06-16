@@ -799,9 +799,8 @@ export class RightPanels {
               f.lvl === 'PARTIAL' ? 'var(--warn)' : 'var(--rumor)' },
           }, f.lvl),
         ]))
-      : Array.from({ length: 6 }, () => h('div', {
-          className: 'qf-intel-row qf-intel-empty',
-        }, '—'))
+      : [h('div', { className: 'qf-intel-empty-state' },
+          'No intel leaked — your halls remain a mystery.')]
 
     mount(body, [
       ...rows,
