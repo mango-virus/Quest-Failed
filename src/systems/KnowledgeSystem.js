@@ -53,6 +53,8 @@ export class KnowledgeSystem {
     EventBus.on('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.on('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.on('MINION_DIED',    this._onMinionMutated, this)
+    // Adaptive learning — every adv in the boss chamber faces the boss.
+    EventBus.on('BOSS_FIGHT_STARTED', this._onBossFightStartedForBestiary, this)
     // Benefit-entity removals — when the player sells a fountain / chest,
     // mark every adv's knowledge of that entity stale so the next day's
     // wave treats it as RUMOR-tier (they walk in expecting it; it's gone).
@@ -87,6 +89,7 @@ export class KnowledgeSystem {
     EventBus.off('TRAP_REMOVED',   this._onTrapMutated,   this)
     EventBus.off('MINION_PLACED',  this._onMinionMutated, this)
     EventBus.off('MINION_DIED',    this._onMinionMutated, this)
+    EventBus.off('BOSS_FIGHT_STARTED', this._onBossFightStartedForBestiary, this)
     EventBus.off('TREASURE_CHEST_REMOVED', this._onTreasureRemoved, this)
     EventBus.off('TREASURE_CHEST_OPENED',  this._onTreasureRemoved, this)
     EventBus.off('KEY_CHEST_REMOVED',      this._onKeyChestRemoved, this)
@@ -329,6 +332,43 @@ export class KnowledgeSystem {
     } else if (existing.stale && !this._fogActive()) {
       existing.stale = false; existing.confirmed = true
     }
+    // Adaptive learning — record that this adv FACED this minion's TYPE
+    // (family). Committed to the kingdom's bestiary only if the adv escapes.
+    this._recordEnemyFaced(adv, this._enemyFamily(minion.definitionId),
+      (minion.abilities ?? []).map(a => a?.type).filter(Boolean), today)
+  }
+
+  // ── Adaptive-learning bestiary feed ───────────────────────────────────────
+  // Enemy TYPE key: a minion family (golem1/2/3 → "golem") or "boss:<archetype>".
+  _enemyFamily(defId) {
+    const id = String(defId ?? '')
+    return id.replace(/\d+$/, '') || id
+  }
+  // Record (on the ADVENTURER, this run) that they faced an enemy type. Reveal
+  // is binary (known=true on first facing); daysFaced increments once per new
+  // day (cumulative exposure → kingdom mastery after they escape). Nothing is
+  // committed to the shared pool here — that happens on escape via
+  // _updateSurvivorRecord → _rebuildSharedPool.
+  _recordEnemyFaced(adv, typeKey, abilities = [], today = this._gs.meta?.dayNumber ?? 0) {
+    if (!adv || !typeKey) return
+    _ensureAdvKnowledge(adv)
+    const e = adv.knowledge.bestiary[typeKey] ??= { type: typeKey, known: true, daysFaced: 0, abilities: {}, lastFacedDay: 0 }
+    e.known = true
+    for (const a of abilities) if (a) e.abilities[a] = true
+    if ((e.lastFacedDay ?? 0) < today) { e.daysFaced = (e.daysFaced ?? 0) + 1; e.lastFacedDay = today }
+  }
+  // Boss-fight start — every adv in the boss chamber is now FACING the boss;
+  // if they survive and escape, the kingdom learns the boss archetype.
+  _onBossFightStartedForBestiary() {
+    const archetype = this._gs.player?.bossArchetypeId
+    if (!archetype) return
+    const today = this._gs.meta?.dayNumber ?? 0
+    const bossRoom = (this._gs.dungeon?.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
+    for (const adv of (this._gs.adventurers?.active ?? [])) {
+      if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
+      if (bossRoom && !this._inRoom(adv, bossRoom.instanceId)) continue
+      this._recordEnemyFaced(adv, `boss:${archetype}`, [], today)
+    }
   }
 
   // ── Trap awareness ────────────────────────────────────────────────────────
@@ -519,6 +559,7 @@ export class KnowledgeSystem {
     const pool = {
       rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
       fountains: {}, treasureChests: {}, keyChests: {}, items: {},
+      bestiary: {},
     }
     // Each pooled entry is stamped with `sharedBy` = the survivor whose
     // intel landed it in the pool. Non-stale entries win on conflict;
@@ -562,6 +603,17 @@ export class KnowledgeSystem {
             pool[bucket][id] = { ...e, sharedBy: name }
           }
         }
+      }
+      // Bestiary — AGGREGATE across survivors: a type is known if any survivor
+      // faced it; mastery SUMS each survivor's days-faced (so the kingdom gets
+      // smarter the more its members have fought-and-survived the type);
+      // abilities union; lastFacedDay = most recent (drives staleness).
+      for (const [type, e] of Object.entries(k.bestiary ?? {})) {
+        const p = pool.bestiary[type] ??= { type, known: false, mastery: 0, abilities: {}, lastFacedDay: 0, sharedBy: name }
+        if (e.known) p.known = true
+        p.mastery     += (e.daysFaced ?? 0)
+        p.lastFacedDay = Math.max(p.lastFacedDay ?? 0, e.lastFacedDay ?? 0)
+        for (const a of Object.keys(e.abilities ?? {})) p.abilities[a] = true
       }
     }
     this._seedTriggeredTraps(pool)
@@ -682,6 +734,7 @@ export class KnowledgeSystem {
       this._gs.knowledge.sharedPool = {
         rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
         fountains: {}, treasureChests: {}, keyChests: {}, items: {},
+        bestiary: {},
       }
       this._gs.knowledge.survivors  = []
       // Sprung traps stay known even through a total party wipe.
@@ -702,6 +755,11 @@ export class KnowledgeSystem {
     if (inheritFraction >= 1) {
       adv.knowledge = _deepCopy(pool)
       _ensureAdvKnowledge(adv)
+      // Per-run bestiary is SCRATCH (this-run facings, committed on escape) —
+      // the kingdom's accumulated doctrine lives in the shared pool, so never
+      // inherit pool-shaped bestiary entries into it (would mis-flag studying +
+      // mis-shape mastery). Start empty.
+      adv.knowledge.bestiary = {}
       return
     }
     const fresh = {
@@ -731,6 +789,10 @@ export class KnowledgeSystem {
   initKnowledgeForSurvivor(adv, survivorRecord) {
     adv.knowledge        = _deepCopy(survivorRecord.knowledge)
     _ensureAdvKnowledge(adv)
+    // Per-run bestiary scratch starts empty; the veteran's ACCUMULATED bestiary
+    // stays in their survivor record and merges (sums days-faced) on re-escape,
+    // so re-facing a type adds to — never double-counts — kingdom mastery.
+    adv.knowledge.bestiary = {}
     adv.flags           ??= {}
     adv.flags.returningVeteran = true
     adv.flags.runsCompleted    = survivorRecord.runCount
@@ -1013,6 +1075,9 @@ export class KnowledgeSystem {
       enemiesPerRoom: {},
       loot:           { ...(sp.loot           ?? {}) },
       items:          { ...(sp.items          ?? {}) },
+      // Committed bestiary (deep copy so the studying-now pass can't mutate the
+      // real pool). Mastery here is the TRUE kingdom knowledge (escaped survivors).
+      bestiary:       Object.fromEntries(Object.entries(sp.bestiary ?? {}).map(([t, e]) => [t, { ...e, abilities: { ...(e.abilities ?? {}) } }])),
     }
     // Deep-copy the per-room enemy lists since we mutate them below.
     for (const [roomId, list] of Object.entries(sp.enemiesPerRoom ?? {})) {
@@ -1051,6 +1116,14 @@ export class KnowledgeSystem {
       for (const [id, e] of Object.entries(k.items ?? {})) {
         const ex = pool.items[id]
         if (!ex || (!e.stale && ex.stale)) pool.items[id] = { ...e }
+      }
+      // Bestiary — types the active wave is CURRENTLY facing (not yet escaped,
+      // so not yet committed). Flag them `studyingNow` so the panel can show
+      // "⟳ studying" without inflating the true (committed) mastery.
+      for (const [type, e] of Object.entries(k.bestiary ?? {})) {
+        const p = pool.bestiary[type] ??= { type, known: false, mastery: 0, abilities: {}, lastFacedDay: 0 }
+        p.studyingNow = true
+        for (const a of Object.keys(e.abilities ?? {})) p.abilities[a] = true
       }
     }
     return pool
@@ -1167,6 +1240,71 @@ export class KnowledgeSystem {
     }
   }
 
+  // ── Bestiary / Kingdom Doctrine report ────────────────────────────────────
+  // What the kingdom has LEARNED about the player's enemy types (per minion
+  // family / boss archetype), from survivors who faced-and-escaped. Single
+  // source of truth for the Doctrine panel — reads the live pool so it shows
+  // committed mastery PLUS types the current wave is studying right now.
+  // masteryTier 0..3 = ★ count; `stale` = not faced in KNOWLEDGE_BESTIARY_STALE_DAYS.
+  getBestiaryReport() {
+    const pool  = this._livePool().bestiary ?? {}
+    const today = this._gs.meta?.dayNumber ?? 0
+    const staleDays = Balance.KNOWLEDGE_BESTIARY_STALE_DAYS ?? 3
+    const T1 = Balance.KNOWLEDGE_BESTIARY_MASTERY_T1 ?? 1
+    const T2 = Balance.KNOWLEDGE_BESTIARY_MASTERY_T2 ?? 3
+    const T3 = Balance.KNOWLEDGE_BESTIARY_MASTERY_T3 ?? 6
+    const entries = []
+    for (const [type, e] of Object.entries(pool)) {
+      const known   = !!e.known
+      const studying = !!e.studyingNow && !known
+      if (!known && !studying) continue
+      const mastery = e.mastery ?? 0
+      const stale   = known && (today - (e.lastFacedDay ?? 0)) > staleDays
+      const masteryTier = mastery >= T3 ? 3 : mastery >= T2 ? 2 : mastery >= T1 ? 1 : 0
+      entries.push({
+        type, label: this._enemyTypeLabel(type), isBoss: type.startsWith('boss:'),
+        known, studyingNow: studying, mastery, masteryTier, stale,
+        lastFacedDay: e.lastFacedDay ?? 0, abilities: Object.keys(e.abilities ?? {}),
+      })
+    }
+    entries.sort((a, b) => (b.masteryTier - a.masteryTier) || (b.mastery - a.mastery) || a.label.localeCompare(b.label))
+    return {
+      entries,
+      knownCount:    entries.filter(e => e.known).length,
+      studyingCount: entries.filter(e => e.studyingNow).length,
+    }
+  }
+  // ── Bestiary COUNTER strength (Phase 4 — adaptive counters) ───────────────
+  // The kingdom's counter strength (0..1) against an enemy TYPE, read by the
+  // combat/AI counters (combat edge, focus-fire, defensive timing). 0 if the
+  // type is UNKNOWN (reveal gate); scales with committed mastery; HALVED when
+  // stale (snaps back the moment the type is re-faced). Pass a minion object,
+  // a boss archetype, or a raw type key.
+  _resolveEnemyType(x) {
+    if (!x) return null
+    if (typeof x === 'string') return x
+    if (x.definitionId) return this._enemyFamily(x.definitionId)
+    return null
+  }
+  getEnemyCounter(typeOrMinion) {
+    const type = this._resolveEnemyType(typeOrMinion)
+    if (!type) return { known: false, strength: 0, stale: false, type: null }
+    const e = this._gs.knowledge?.sharedPool?.bestiary?.[type]
+    if (!e || !e.known) return { known: false, strength: 0, stale: false, type }
+    const today = this._gs.meta?.dayNumber ?? 0
+    const stale = (today - (e.lastFacedDay ?? 0)) > (Balance.KNOWLEDGE_BESTIARY_STALE_DAYS ?? 4)
+    const base  = Math.max(0, Math.min(1, (e.mastery ?? 0) / Math.max(1, Balance.KNOWLEDGE_BESTIARY_MASTERY_T3 ?? 9)))
+    const strength = base * (stale ? (Balance.KNOWLEDGE_COUNTER_STALE_FACTOR ?? 0.4) : 1)
+    return { known: true, strength, stale, type }
+  }
+
+  // Human-readable label for an enemy type key (minion family / "boss:<arch>").
+  _enemyTypeLabel(type) {
+    const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+    if (String(type).startsWith('boss:')) return 'Boss · ' + cap(String(type).slice(5))
+    return String(type).split('_').map(cap).join(' ')
+  }
+
   // 'confirmed' | 'stale' | 'unknown'
   getRoomKnowledgeState(roomId) {
     const e = this._livePool().rooms?.[roomId]
@@ -1224,12 +1362,15 @@ function _ensureState(gs) {
   const empty = () => ({
     rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {}, mimics: {},
     fountains: {}, treasureChests: {}, keyChests: {}, items: {},
+    // Adaptive-learning bestiary: per enemy TYPE (minion family / boss
+    // archetype) the kingdom has faced-and-survived. See § Bestiary learning.
+    bestiary: {},
   })
   gs.knowledge ??= { sharedPool: empty(), survivors: [], partyWipeOccurred: false }
   gs.knowledge.sharedPool ??= empty()
   // Backfill new buckets onto an older save's pool so it doesn't choke
-  // when we read fountains/chests/items from a save that predates this schema.
-  for (const k of ['fountains', 'treasureChests', 'keyChests', 'items']) {
+  // when we read fountains/chests/items/bestiary from a save that predates them.
+  for (const k of ['fountains', 'treasureChests', 'keyChests', 'items', 'bestiary']) {
     gs.knowledge.sharedPool[k] ??= {}
   }
   gs.knowledge.survivors ??= []
@@ -1250,6 +1391,9 @@ function _ensureAdvKnowledge(adv) {
   adv.knowledge.keyChests      ??= {}
   // Generic placed-item intel (phylactery / beacons) keyed by instanceId.
   adv.knowledge.items          ??= {}
+  // Adaptive-learning bestiary: enemy TYPES this adv has faced this run.
+  // Committed to the shared pool only on ESCAPE (survive-and-learn).
+  adv.knowledge.bestiary       ??= {}
 }
 
 function _deepCopy(obj) {
@@ -1290,6 +1434,16 @@ function _mergeKnowledge(base, incoming) {
         merged[bucket][id] = { ...e }
       }
     }
+  }
+  // Bestiary — a returning veteran accumulates: days-faced SUM across their
+  // runs, known OR, abilities union, lastFacedDay max.
+  merged.bestiary ??= {}
+  for (const [type, e] of Object.entries(incoming.bestiary ?? {})) {
+    const m = merged.bestiary[type] ??= { type, known: false, daysFaced: 0, abilities: {}, lastFacedDay: 0 }
+    if (e.known) m.known = true
+    m.daysFaced    = (m.daysFaced ?? 0) + (e.daysFaced ?? 0)
+    m.lastFacedDay = Math.max(m.lastFacedDay ?? 0, e.lastFacedDay ?? 0)
+    for (const a of Object.keys(e.abilities ?? {})) m.abilities[a] = true
   }
   return merged
 }

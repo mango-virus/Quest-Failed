@@ -3879,6 +3879,22 @@ export class BossArchetypeSystem {
 
   // Throne fight — Rend → Pack Tactics → Frenzy → Blood Hunt finale. The Alpha
   // leads; every special is a %maxHP physical rend (no bleed-DoT — burst carnage).
+  // AI competence (Layer A) — pick the smart target for a boss single-target
+  // throne strike: the party's DAMAGE CORE (highest attack — what the "top-aggro
+  // hero" comments intend), ties → the more wounded. The archetype fight timers
+  // only have raw adv objects (boss-fight aggro lives on BossSystem's fight
+  // states), so attack is the self-contained proxy. Replaces arbitrary fighters[0].
+  _bestFightTarget(fighters) {
+    if (!fighters || !fighters.length) return null
+    return fighters.slice().sort((a, b) => {
+      const ta = a?.stats?.attack ?? 0, tb = b?.stats?.attack ?? 0
+      if (tb !== ta) return tb - ta
+      const fa = (a.resources?.hp ?? 0) / (a.resources?.maxHp ?? 1)
+      const fb = (b.resources?.hp ?? 0) / (b.resources?.maxHp ?? 1)
+      return fa - fb
+    })[0]
+  }
+
   _tickHuntFight() {
     const boss = this._gameState?.boss; if (!boss) return
     const tier = currentAct(this._gameState)
@@ -3913,8 +3929,8 @@ export class BossArchetypeSystem {
       AbilityVfx?.packRendFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { tier, big: true })
       rend(t, Balance.GNOLL_FIGHT_PACK_PCT ?? 0.1)
     } else {
-      // Rend — savage the top-aggro hero
-      const t = fighters[0]
+      // Rend — savage the top-aggro hero (party's damage core)
+      const t = this._bestFightTarget(fighters)
       if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.packRendFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { tier })
       rend(t, Balance.GNOLL_FIGHT_REND_PCT ?? 0.06)
     }
@@ -4071,10 +4087,10 @@ export class BossArchetypeSystem {
       // Doppelgänger — peel off decoys (visual; the BossSystem decoy mechanic owns
       // the targeting); entrancing strike on the top hero.
       AbilityVfx?.doppelgangerSplitFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy), { tier, sprite: null })
-      const t = fighters[0]; hit(t, Balance.SUCCUBUS_FIGHT_HEARTPIERCE_PCT ?? 0.06); this._enrapture(t, now)
+      const t = this._bestFightTarget(fighters); hit(t, Balance.SUCCUBUS_FIGHT_HEARTPIERCE_PCT ?? 0.06); this._enrapture(t, now)
     } else {
-      // Heartpiercer — entrancing strike on the top-aggro hero
-      const t = fighters[0]
+      // Heartpiercer — entrancing strike on the top-aggro hero (damage core)
+      const t = this._bestFightTarget(fighters)
       if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.raptureBindFx?.(this._scene, t.worldX, (t.worldY ?? 0) - 16, { mode: 'enrapture' })
       hit(t, Balance.SUCCUBUS_FIGHT_HEARTPIERCE_PCT ?? 0.06); this._enrapture(t, now)
     }
@@ -4274,8 +4290,8 @@ export class BossArchetypeSystem {
       if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.sanguineEmbraceFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, { toX: t.worldX, toY: (t.worldY ?? 0) - 16, tier })
       hit(t, Balance.VAMPIRE_FIGHT_EMBRACE_PCT ?? 0.10, 'unholy')
     } else {
-      // Crimson Lance — blood-bolt at the top-aggro (first) hero.
-      const t = fighters[0]
+      // Crimson Lance — blood-bolt at the top-aggro hero (party's damage core).
+      const t = this._bestFightTarget(fighters)
       if (this._scene && Number.isFinite(t.worldX)) AbilityVfx?.crimsonLanceFx?.(this._scene, boss.worldX ?? cx, (boss.worldY ?? cy) - 8, { toX: t.worldX, toY: (t.worldY ?? 0) - 16, tier })
       hit(t, Balance.VAMPIRE_FIGHT_LANCE_PCT ?? 0.05, 'unholy')
     }

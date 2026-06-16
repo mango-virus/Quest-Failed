@@ -303,6 +303,33 @@ export class CombatSystem {
       }
     }
 
+    // Bestiary COUNTER + VETERAN edge (AI Intelligence, Phase 4/5). Once the
+    // kingdom has STUDIED an enemy type (a survivor faced it and escaped),
+    // adventurers fight that minion type HARDER and take LESS from it (mastery-
+    // scaled, stale → weaker). Returning VETERANS add a small always-on edge of
+    // their own (battle-hardened, per prior run) — killing them removes it AND
+    // drops the kingdom's mastery. Both push the player to keep varying forces.
+    if (finalDmg > 0) {
+      const _boss = this._gameState.boss
+      const isAdv = (e) => !!e?.classId && e?.faction !== 'dungeon'
+      const isMin = (e) => e?.faction === 'dungeon' && e !== _boss && !!e?.definitionId
+      const _ks = this._scene?.knowledgeSystem
+      const vetEdge = (e) => (isAdv(e) && e?.flags?.returningVeteran)
+        ? Math.min(Balance.KNOWLEDGE_VETERAN_EDGE_CAP ?? 0.20, (e.flags.runsCompleted ?? 1) * (Balance.KNOWLEDGE_VETERAN_EDGE_PER_RUN ?? 0.04))
+        : 0
+      if (isAdv(attacker) && isMin(target)) {
+        const c = _ks?.getEnemyCounter?.(target)
+        const studied = c?.known ? (Balance.KNOWLEDGE_COUNTER_DMG_BONUS_MAX ?? 0.25) * c.strength : 0
+        const mult = 1 + studied + vetEdge(attacker)
+        if (mult !== 1) finalDmg = Math.max(1, Math.round(finalDmg * mult))
+      } else if (isMin(attacker) && isAdv(target)) {
+        const c = _ks?.getEnemyCounter?.(attacker)
+        const studied = c?.known ? (Balance.KNOWLEDGE_COUNTER_DR_MAX ?? 0.20) * c.strength : 0
+        const mult = Math.max(0.1, 1 - studied - vetEdge(target))
+        if (mult !== 1) finalDmg = Math.max(1, Math.round(finalDmg * mult))
+      }
+    }
+
     // Lizardman CAMOUFLAGE — a strike FROM concealment is a devastating ambush
     // (×ambushMul); landing it REVEALS the lizardman (clears _camouflaged) so the
     // party gets a window to punish before it can slink back into hiding.

@@ -720,6 +720,25 @@ export const Balance = {
   // size to 4 on every veteran-return day, silently shrinking late-game
   // waves from ~70 to 4 (see DayPhase.js "returningRecord" comment).
   KNOWLEDGE_RETURN_MAX_AGE_DAYS:   3,      // a survivor is only eligible to personally return if they fled within this many days
+  // Adaptive-learning bestiary (AI Intelligence feature). Per enemy TYPE the
+  // kingdom faced-and-survived: mastery = sum of survivors' days-faced; ★ tiers
+  // gate counter strength (wired in a later phase). Stale = not faced recently.
+  KNOWLEDGE_BESTIARY_STALE_DAYS:   4,      // type unfaced this many days → mastery goes stale (counters weaken); snaps back on re-facing
+  KNOWLEDGE_BESTIARY_MASTERY_T1:   1,      // ★   — type revealed / first studies
+  KNOWLEDGE_BESTIARY_MASTERY_T2:   4,      // ★★  — practised
+  KNOWLEDGE_BESTIARY_MASTERY_T3:   9,      // ★★★ — mastered (full counter strength = mastery/T3 capped at 1)
+  // Bestiary COUNTERS (Phase 4) — magnitudes at FULL mastery (strength 1.0),
+  // scaled down by mastery and ×STALE_FACTOR when the type's intel is stale.
+  KNOWLEDGE_COUNTER_STALE_FACTOR:    0.4,  // counter strength while stale (re-facing snaps back to 1.0)
+  KNOWLEDGE_COUNTER_DMG_BONUS_MAX:   0.25, // adv deals up to +25% vs a fully-studied enemy type
+  KNOWLEDGE_COUNTER_DR_MAX:          0.20, // adv takes up to -20% from a fully-studied enemy type
+  KNOWLEDGE_COUNTER_FOCUS_BIAS:      0.6,  // focus-fire: pathing/target preference weight toward studied threats
+  KNOWLEDGE_COUNTER_DEFENSE_TIER:    0.34, // defensive timing arms vs a known threat once strength ≥ this (~★★)
+  // Returning VETERANS are individually sharper (battle-hardened) — a small
+  // always-on combat edge per completed run. Stacks atop the kingdom counters;
+  // killing the veteran removes it AND drops the kingdom's mastery (counterplay).
+  KNOWLEDGE_VETERAN_EDGE_PER_RUN:    0.04, // +dmg dealt / −dmg taken per prior run
+  KNOWLEDGE_VETERAN_EDGE_CAP:        0.20, // capped (≈5 runs)
   KNOWLEDGE_VETERAN_HP_MULT:       1.2,    // returning veterans are tougher than a fresh adventurer
   KNOWLEDGE_VETERAN_ATK_MULT:      1.15,   // ...and hit a little harder
   KNOWLEDGE_CARTOGRAPHER_BOOST:    1.0,    // cartographers share at full accuracy (multiplier on accuracy)

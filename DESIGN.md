@@ -3693,3 +3693,117 @@ mushroom1 is shop-placeable. (See [[minion tier gating]].)
 > (Fortress/DR) · Ghost (Fear/nerve) · Beholder (Gaze/charm-petrify) · Gnoll (Blood Hunt) · Ent (Thorns) · Lich (Soul
 > Harvest) · Lizardman (Camouflage) · Imp (Blink) · Plant (Entangle) · Mushroom (Hallucination). Push still HELD (main
 > would deploy the half-wiped roster); all work is LOCAL.
+
+---
+
+## Adventurer AI Intelligence & Adaptive Learning (locked 2026-06-15, build IN PROGRESS)
+
+> **MAJOR AI FEATURE.** Build it correctly and in full; verify there are no issues as each phase lands AND
+> at completion. Source-of-truth spec — implement from the VERBATIM quotes + the locked model below, tick
+> the acceptance checklist against the actual code, never from memory.
+
+### Verbatim spec (user's exact wording — do not paraphrase)
+
+> "we recently redid all adventurer, boss, and minion abilities. so now i want adventurer ai to know when and
+> where the best time is to use their class abilities. i want them to be smarter basically and to get smarter
+> over time using the knowledge system. this is to make the player have a challenge and have to adapt to the
+> adventurers getting smarter as the game progresses."
+
+> "so i want them to all fully know how their abilities work (minions and bosses should also know their
+> abilities and how they work and when best to use them) and when to use them (and not just spam them for no
+> reason). but for knowledge i want adventurers to gain knowledge of specific enemies and their abilities if
+> they survive them and escape the dungeon. so if the player i building lots of golems, adventures that survive
+> golem attacks and escape the dungeon after surviving should learn exactly how those minions abilities work
+> and how to counter them or fight them better. this pushed the player to use other strategies throughout the game."
+
+> "also, one adventurer escaping after surviving a minion should teach them everything about that minion. the
+> kingdom need to gradually learn minions with the more knowledge they gain about them to make them smarter and
+> smarter over time after fighting them."
+
+> Decisions (locked via Q&A 2026-06-15): counter effects = ALL FOUR (defensive timing, smarter positioning,
+> focus/target priority, combat edge vs known foes); decay = STALE-SNAPS-BACK; legibility = BOTH (a
+> Bestiary/Doctrine panel + in-world tells); veterans = individually smarter. Reveal/mastery reconciliation
+> CONFIRMED (see Layer B).
+
+### The locked model — two layers
+
+**LAYER A — Competence (always on; adventurers, minions, bosses).** Every entity uses its OWN abilities with
+real timing and targeting — fire when it pays off, at the best target, NOT mindless spam. Pure AI quality, NOT
+knowledge-gated. Biggest lift on adventurers (today they fire-ASAP in `ClassAbilitySystem._consider*()`); the
+overhauled boss kit already has tier-gated timing; minions sit in between (audit + tighten each).
+
+**LAYER B — Bestiary learning (adventurers, anti-*player*, fed by survive-and-escape).** A new `bestiary`
+branch of the knowledge shared pool, keyed per enemy **TYPE** (minion family e.g. `golem`, or the boss
+archetype). Two distinct dials:
+- **Reveal — fast/binary.** ONE adventurer who survives an enemy and ESCAPES the dungeon teaches the kingdom
+  *everything* about that type — its abilities become fully KNOWN, basic counters switch on. Death teaches
+  nothing (consistent with knowledge today: death destroys personal knowledge).
+- **Mastery — gradual/scaling.** Beyond knowing it, the kingdom gets BETTER at fighting that type the more they
+  face-and-survive it — a per-type mastery (0→max) that climbs with cumulative successful escapes, making the
+  counters progressively sharper/stronger over the run ("smarter and smarter over time").
+- **Counters (all four, scaled by mastery, gated by reveal+freshness):** (1) **defensive timing** — pre-pop
+  their own defensive/control ability before the known enemy's telegraphed big move; (2) **smarter
+  positioning** — spread vs known AoE, avoid the slam/cluster zone, space a known melee threat; (3)
+  **focus/target priority** — kill the known-dangerous type first; (4) **combat edge** — a modest, mastery-
+  scaled accuracy/damage/damage-reduction bonus vs studied foes.
+- **Decay = stale-snaps-back.** Stop using a type → its mastery goes STALE (counters mis-time/weaken via the
+  existing staleness mechanic), but it re-sharpens FAST if you bring the type back. Never a hard reset.
+- **Persistence.** Bestiary lives in `gameState.knowledge.sharedPool.bestiary` → fed on escape, inherited by
+  fresh waves, carried by veterans (who are individually sharper on BOTH layers). Never fed on death. Party
+  wipe clears it like the rest of the pool.
+
+**Legibility (both).** A **Bestiary / Kingdom Doctrine panel** in the existing knowledge/intel UI (per type:
+*known?* + mastery ★s + which abilities studied) AND **in-world tells** (you visibly see adventurers begin to
+dodge/counter the enemy types they've studied).
+
+**The pressure loop.** Spam one enemy → kingdom reveals it instantly, then masters it → you must diversify;
+rotate away → mastery goes stale → the window reopens. Forces the player to keep changing strategy.
+
+### Phasing (each phase: verify with node --check + lint-content + lint-vfx + the headless sim + a dedicated
+`tools/sim/*-check.mjs` harness + runtime `__qfCheck()`; get user sign-off before the next phase)
+
+- **Phase 1 — Bestiary substrate + Doctrine panel (no behavior change).** Add `bestiary` to the knowledge pool
+  (`empty()`, `_ensureAdvKnowledge`, `_mergeKnowledge`, save backfill). Feed it on survive-and-escape
+  (`_onAdventurerFled`), inherit (`initKnowledgeForSpawn/Survivor`), apply reveal (binary) + mastery (cumulative)
+  + staleness. Expose via `getBestiaryReport()`. Build the Doctrine panel in the knowledge HUD. Watch the kingdom
+  learn before anything acts on it.
+- **Phase 2 — Layer A competence: adventurers.** Rewrite `_consider*()` from "fire-ASAP" to "fire when it pays"
+  + best-target selection, across all classes.
+- **Phase 3 — Layer A competence: minions + bosses.** Audit + tighten their ability timing/targeting.
+- **Phase 4 — Layer B counters wired to the bestiary.** The four counter effects, scaled by mastery + gated by
+  reveal/freshness; flagship classes (Knight/Mage/Cleric/Rogue) first, then all. In-world tells.
+- **Phase 5 — Balance + tuning** via the headless sim; final full-feature verification pass.
+
+### Acceptance checklist (tick each against ACTUAL code; never mark ✅ unverified)
+
+**Layer A — competence** (adventurers ✅ Phase 2; minions/bosses = Phase 3)
+- ✅ Adventurer class abilities fire on a value test, not blind spam — AUDIT of all 15 classes found every ability already cooldown+condition gated (no spam to fix); documented per-class in DESIGN_COVERAGE `ai-P2-comp-adv`.
+- ✅ Adventurer abilities pick the BEST target/position — heal→lowest ally + Barbarian→densest cluster already did; ADDED `_strongestHostileMinion` so Monk Stunning Palm + BeastMaster Tame/Sic'Em hit the SCARIEST foe (was nearest). Mage burst left (amplifies primary + splashes — not a single-target waste).
+- ✅ Minions use their own abilities with sensible timing/targeting — AUDITED competent (onTick cooldown anti-spam + floor/room armed-gate + reactive enrage/kite/fallback + most-wounded heal targeting). No change: remaining "naive" cases would nerf (AoE-on-solo) or are harmless. [Phase 3]
+- ✅ Bosses use their kit with good timing — throne fight-timers are tier-gated, 2.6s cadence, bail on empty room. FIX: 4 single-target strikes (Gnoll/Succubus/Vampire T1–T2) used arbitrary `fighters[0]` despite "top-aggro" comments → now `_bestFightTarget` (damage core, ties→wounded). Day actives are player-triggered (not AI). [Phase 3]
+- ✅ No regression: `class-ability-fire-check.mjs` 27/27 + `competence-targeting-check.mjs` 9/9 + gnoll/vampire boss harnesses + soak 120/0 (Phase 2) + lint clean. (Phase 3 soak running.)
+
+**Layer B — bestiary learning** (substrate ✅ Phase 1, harness `bestiary-check.mjs` 21/21 + soak 120/0)
+- ✅ `knowledge.sharedPool.bestiary[type]` exists; keyed per minion family (`_enemyFamily`) + `boss:<arch>`; old saves backfill (`_ensureState`); every pool literal carries the bucket (incl. the party-wipe reset).
+- ✅ REVEAL: one adventurer surviving an enemy type AND escaping → that type fully KNOWN in the shared pool (abilities revealed).
+- ✅ Death teaches nothing; reveal only commits on escape (`observeMinion`/`BOSS_FIGHT_STARTED` → per-run scratch → `_onAdventurerFled` → `_rebuildSharedPool`).
+- ✅ MASTERY: per-type value SUMS across survivors' days-faced (climbs over time); ★ tiers via `KNOWLEDGE_BESTIARY_MASTERY_T1/2/3`. (Counter SCALING off it = Phase 4.)
+- ✅ Inheritance: kingdom doctrine = the shared pool (consulted by all); veteran accumulation via survivor-record merge. Veterans *individually sharper* = a per-run VETERAN combat edge (Phase 5, `KNOWLEDGE_VETERAN_EDGE_*`): +dmg dealt / −dmg taken = min(cap, runs×0.04); killing them removes it AND drops kingdom mastery. Harness-verified (5-run ×0.80).
+- ✅ STALENESS (data): per-type goes stale after `KNOWLEDGE_BESTIARY_STALE_DAYS`, mastery retained, snaps back on re-facing. (Counter *weakening* off stale = Phase 4.)
+- ✅ Party wipe clears bestiary with the rest of the pool (bucket preserved as `{}`).
+
+**Layer B — counters (each gated by reveal, scaled by mastery, weakened by staleness)** — Phase 4, IN PROGRESS
+- ✅ Defensive timing: `_studiedThreatNear` → Knight raises Bulwark + Gladiator pre-Blocks a STUDIED dangerous minion (strength ≥ DEFENSE_TIER) in range, before its blow. Harness-verified.
+- ✅ Smarter positioning: when a STUDIED AoE-threat minion (`MinionAbilities.isAoeThreat`, area/room ability) shares a room, the party spreads WIDER there (`AISystem._studiedAoeRoomIds` → a scoped 2nd `applyCrowdSeparation` pass incl. stationary fighters, radius 15) so the area attack catches fewer. Verified live (detection) + soak 120/0; reuses the proven separation util. Spread magnitude is a tuning knob.
+- ✅ Focus/target priority: `AISystem._findEngageableMinion` biases toward STUDIED types (FOCUS_BIAS×strength, bounded so it never ignores an adjacent threat). Harness-verified.
+- ✅ Combat edge: `KnowledgeSystem.getEnemyCounter()` → CombatSystem applies +DMG to / −DR from studied minion types, mastery-scaled, reveal-gated; never applies to unknown types (harness-verified 28/28).
+- ✅ Counters weaken when knowledge is STALE (×`KNOWLEDGE_COUNTER_STALE_FACTOR` 0.4, snaps back on re-face) — shared strength, so it covers every counter built on `getEnemyCounter`.
+
+**Legibility**
+- 🟡 Bestiary/Doctrine panel in the knowledge HUD (`KnowledgeMapOverlay._renderDoctrine`, reads `getBestiaryReport()`): per type — known?/⟳studying/stale, mastery ★s, abilities-studied count. BUILT + node-checked; **visual QA pending** (no preview this session).
+- ☐ In-world tells: visible behavior change vs studied enemies (dodging/countering), legible to the player. (Phase 4.)
+
+**Quality / integration**
+- ✅ Veterans: individually smarter — the per-run VETERAN combat edge (above) + they contribute more to the kingdom's bestiary (accumulate days-faced across runs); killing them is doubly rewarded.
+- ✅ Systems-integration: bestiary lives in `gameState.knowledge` (JSON-serializable, persists with the save, party-wipe clears it); KnowledgeSystem listeners off in `destroy()` (no leak); Doctrine panel reads the API; ⚠ balance NOT sim-tunable (sim has 0 escapes → can't build the bestiary) → magnitudes are conservative defaults, play-test for feel.
+- ✅ Per-phase verify done (node --check / lint-content / verify-docs / sim soak ×6 across phases / dedicated harnesses `bestiary`+`counters`+`competence-targeting`+`veteran-edge` / live preview) + this final full-feature pass.

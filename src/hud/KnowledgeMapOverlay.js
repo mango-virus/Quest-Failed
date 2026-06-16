@@ -364,6 +364,49 @@ export class KnowledgeMapOverlay {
         this._renderMap(),
         this._renderLedger(leakedRooms),
       ]),
+      // Adaptive learning — what the kingdom has studied about the player's forces.
+      this._renderDoctrine(),
+    ])
+  }
+
+  _bestiaryReport() {
+    const sys = this._knowledgeSystem()
+    return sys?.getBestiaryReport ? sys.getBestiaryReport() : { entries: [], knownCount: 0, studyingCount: 0 }
+  }
+
+  // KINGDOM DOCTRINE — per enemy type the kingdom has faced-and-survived:
+  // mastery ★s (drives counter strength), known / ⟳ studying / stale state, and
+  // how many of the type's abilities have been studied. Reads getBestiaryReport().
+  _renderDoctrine() {
+    const rep  = this._bestiaryReport()
+    const star = (t) => '★★★'.slice(0, Math.max(0, t)) + '☆☆☆'.slice(0, Math.max(0, 3 - t))
+    const cards = rep.entries.map((e) => {
+      const color = e.stale ? 'var(--rumor)'
+                  : e.known ? (e.isBoss ? 'var(--blood)' : 'var(--warn)')
+                  : 'var(--text-mute)'
+      const state = (e.studyingNow && !e.known) ? '⟳ studying'
+                  : e.stale ? 'stale (counters fading)'
+                  : e.known ? 'known' : ''
+      return h('div', { className: 'panel bevel', style: { padding: '7px 9px', minWidth: '148px', borderLeft: `3px solid ${color}` } }, [
+        h('div', { className: 'pix', style: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' } }, [
+          h('span', { style: { fontWeight: 'bold', color } }, e.label),
+          (e.studyingNow && e.known) ? h('span', { style: { fontSize: '10px', color: 'var(--rumor)' } }, '⟳') : null,
+        ]),
+        h('div', { className: 'pix', style: { color, letterSpacing: '2px', fontSize: '13px' } }, e.known ? star(e.masteryTier) : '— —'),
+        h('div', { className: 'pix', style: { fontSize: '10px', color: 'var(--text-mute)' } },
+          state + (e.abilities.length ? ` · ${e.abilities.length} abilit${e.abilities.length === 1 ? 'y' : 'ies'}` : '')),
+      ])
+    })
+    return h('div', { className: 'panel bevel qf-knowmap-mappanel', style: { marginTop: '10px' } }, [
+      h('div', { className: 'panel-head' }, [
+        h('div', { className: 'title' }, 'KINGDOM DOCTRINE — your forces, studied'),
+        h('div', { className: 'pix', style: { fontSize: '11px', color: 'var(--text-mute)' } },
+          `${rep.knownCount} known${rep.studyingCount ? ` · ${rep.studyingCount} studying` : ''}`),
+      ]),
+      cards.length
+        ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px' } }, cards)
+        : h('div', { className: 'pix', style: { padding: '12px', color: 'var(--text-mute)', fontSize: '12px' } },
+            'The kingdom has not studied your forces yet. When an adventurer survives an enemy and escapes the dungeon, they teach the rest — keep killing them before they flee to stay unknown.'),
     ])
   }
 

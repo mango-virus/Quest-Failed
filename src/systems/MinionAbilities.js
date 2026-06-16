@@ -1399,6 +1399,11 @@ export const MinionAbilities = {
   // dissolves), then reverse-rises. This is that crossfade/decay window.
   REANIM_DECAY_MS: 1300,
   _hasAbility(m, scene, type) { const a = m && _abilitiesFor(m, scene); return !!(a && a.some(x => x.type === type)) },
+  // True if this minion has an AREA/room offensive ability (an "AoE threat") —
+  // used by the bestiary POSITIONING counter so a studied party spreads out near
+  // it (an area attack then catches fewer of them). NEEDS_ENEMY_TICK is the set
+  // of room/radius ticks that only fire with a hero present — the AoE proxy.
+  isAoeThreat(m, scene) { const a = m && _abilitiesFor(m, scene); return !!(a && a.some(x => this.NEEDS_ENEMY_TICK.has(x.type))) },
   _liveRaisedZombies(gameState, roomId) {
     // Counts toward the room cap: living Risen AND ones spawned dead that are
     // mid-decay (pending reverse-rise, `_reanimRiseAt`) — so a burst of kills

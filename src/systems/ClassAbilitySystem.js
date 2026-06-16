@@ -697,7 +697,9 @@ export class ClassAbilitySystem {
     // sheltered behind/beside the Knight (toward the threat) take reduced damage —
     // see CombatSystem._applyBulwark. `_auraActiveUntil` is the stance window.
     const bulwarkDef = ABILITY_DEFS.knight_bulwark
-    if (this._allyInDangerNearby(adv, bulwarkDef.bulwarkRange) || this._hostileMinionWithin(adv, 4)) {
+    // Defensive timing: also raise the wall pre-emptively when a STUDIED threat
+    // is in range (the kingdom has learned this type's blow — brace early).
+    if (this._allyInDangerNearby(adv, bulwarkDef.bulwarkRange) || this._hostileMinionWithin(adv, 4) || this._studiedThreatNear(adv, bulwarkDef.bulwarkRange)) {
       const ready = AbilitySystem.canUse(adv, bulwarkDef, now)
       if (ready.ready) {
         AbilitySystem.markUsed(adv, bulwarkDef, now)
@@ -805,7 +807,11 @@ export class ClassAbilitySystem {
     // (_advBlocking gates every boss→adv damage site + the adv→boss pool).
     const inBossFight = adv.goal?.type === 'AT_BOSS' || adv.aiState === 'fighting'
     const bossPressed = inBossFight && frac < 0.60
-    if (!swarmed && !wounded && !bossPressed) return
+    // Defensive timing: pre-block a STUDIED dangerous minion that's right on top
+    // of him (about to swing) even when not swarmed/wounded — the kingdom knows
+    // this type's hit is coming. Block has a cooldown, so it isn't permanent.
+    const studiedThreat = this._studiedThreatNear(adv, 1.3)
+    if (!swarmed && !wounded && !bossPressed && !studiedThreat) return
     const ready = AbilitySystem.canUse(adv, blockDef, now)
     if (!ready.ready) return
     AbilitySystem.markUsed(adv, blockDef, now)
@@ -1572,6 +1578,52 @@ export class ClassAbilitySystem {
     return best
   }
 
+  // Competence (Layer A) — danger score for picking the BEST target of a
+  // single-target ability: the scariest reachable foe, not merely the nearest.
+  // Heavier attack + bulk + actively-engaging weight it up. (Also the seed for
+  // the Phase-4 bestiary counters' focus-fire.)
+  _minionThreat(m) {
+    return (m?.stats?.attack ?? 0)
+         + (m?.resources?.maxHp ?? 0) * 0.04
+         + ((m?.aiState === 'engaging' || m?.aiState === 'fighting') ? 8 : 0)
+  }
+  // Highest-threat reachable hostile minion in range (ties break to the nearer).
+  // Same filter as _nearestHostileMinion — a drop-in for "use this on the
+  // most dangerous foe, not whoever happens to be closest."
+  _strongestHostileMinion(adv, rangeTiles) {
+    let best = null, bestScore = -Infinity, bestD = Infinity
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || m.resources?.hp <= 0) continue
+      if (m.faction === 'adventurer') continue
+      if (!this._abilityCanReach(adv, m)) continue
+      const d = Math.hypot(m.tileX - adv.tileX, m.tileY - adv.tileY)
+      if (d > rangeTiles + 0.01) continue
+      const s = this._minionThreat(m)
+      if (s > bestScore || (s === bestScore && d < bestD)) { best = m; bestScore = s; bestD = d }
+    }
+    return best
+  }
+
+  // Defensive-timing counter (Layer B) — is a STUDIED enemy type (the kingdom
+  // knows it at strength ≥ DEFENSE_TIER) within `range` of this adv? Lets the
+  // shield classes pre-pop their guard before a known threat's blow lands.
+  // Reveal-gated + mastery-scaled + stale-weakened via getEnemyCounter.
+  _studiedThreatNear(adv, range) {
+    const ks = this._scene?.knowledgeSystem
+    if (!ks?.getEnemyCounter) return false
+    const minStr = Balance.KNOWLEDGE_COUNTER_DEFENSE_TIER ?? 0.34
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction === 'adventurer') continue
+      if (!this._abilityCanReach(adv, m)) continue
+      const d = Math.hypot((m.tileX ?? 0) - adv.tileX, (m.tileY ?? 0) - adv.tileY)
+      if (d > range + 0.01) continue
+      const c = ks.getEnemyCounter(m)
+      if (c.known && c.strength >= minStr) return true
+    }
+    return false
+  }
+
   // ── Monk ──────────────────────────────────────────────────────────────────
 
   _considerMonk(adv, now) {
@@ -1592,7 +1644,8 @@ export class ClassAbilitySystem {
     // Stunning Palm — a periodic melee strike that STUNS one nearby minion
     // (reuses the `_staggeredUntil` skip in MinionAISystem) + a light palm hit.
     const palm = ABILITY_DEFS.monk_palm
-    const target = this._nearestHostileMinion(adv, palm.rangeTiles)
+    // Competence: STUN the most dangerous foe in reach, not whoever's nearest.
+    const target = this._strongestHostileMinion(adv, palm.rangeTiles)
     if (target) {
       const ready = AbilitySystem.canUse(adv, palm, now)
       if (ready.ready) {
@@ -1917,7 +1970,9 @@ export class ClassAbilitySystem {
     const tameDef = ABILITY_DEFS.bm_tame_beast
     const hasCompanion = this._beastMasterCompanion(adv) != null
     if (!hasCompanion) {
-      const target = this._nearestHostileMinion(adv, tameDef.rangeTiles)
+      // Competence: tame the STRONGEST beast in reach — convert the biggest
+      // threat into an ally rather than whichever wanders closest.
+      const target = this._strongestHostileMinion(adv, tameDef.rangeTiles)
       if (target) {
         // Mark the minion as this Beast Master's tame target so the rest
         // of the party leaves it alone while the tame is attempted —
@@ -1954,7 +2009,8 @@ export class ClassAbilitySystem {
     const companion = this._beastMasterCompanion(adv)
     if (companion) {
       const sicDef = ABILITY_DEFS.bm_sic_em
-      const prey = this._nearestHostileMinion(companion, sicDef.rangeTiles)
+      // Competence: maul the most dangerous foe near the beast, not the nearest.
+      const prey = this._strongestHostileMinion(companion, sicDef.rangeTiles)
       if (prey && AbilitySystem.canUse(adv, sicDef, now).ready) {
         AbilitySystem.markUsed(adv, sicDef, now)
         const dmg = Math.max(1, Math.floor((companion.stats?.attack ?? 0) * sicDef.mult) - (prey.stats?.defense ?? 0))

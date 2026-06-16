@@ -1258,6 +1258,43 @@ export class AISystem {
       eligible: (a) =>
         a.aiState === 'idle' && (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
     })
+
+    // Bestiary POSITIONING counter (Layer B) — when a STUDIED AoE-threat minion
+    // shares a room, the party spreads WIDER there so the area attack catches
+    // fewer of them. Scoped to those rooms only (limits blast radius vs the
+    // movement system); FIGHTING advs are stationary while swinging (they
+    // tryAttack+return, no _moveToward), so the nudge sticks — but the
+    // smooth maxPush keeps it from fighting the path on the fighting↔walking edge.
+    const aoeRooms = this._studiedAoeRoomIds()
+    if (aoeRooms.size) {
+      applyCrowdSeparation(active, this._dungeonGrid, {
+        radius: 15,
+        eligible: (a) =>
+          (a.aiState === 'idle' || a.aiState === 'fighting') &&
+          (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS' &&
+          aoeRooms.has(this._dungeonGrid?.getRoomAtTile?.(a.tileX, a.tileY)?.instanceId),
+      })
+    }
+  }
+
+  // Rooms that currently hold a STUDIED AoE-threat minion (known type at
+  // strength ≥ DEFENSE_TIER with an area/room ability). Drives the positioning
+  // counter's wider spread. Reveal-gated + stale-weakened via getEnemyCounter.
+  _studiedAoeRoomIds() {
+    const ks = this._knowledgeSystem
+    const out = new Set()
+    if (!ks?.getEnemyCounter) return out
+    const minStr = Balance.KNOWLEDGE_COUNTER_DEFENSE_TIER ?? 0.34
+    for (const m of this._gameState.minions ?? []) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      const c = ks.getEnemyCounter(m)
+      if (!c.known || c.strength < minStr) continue
+      if (!MinionAbilities.isAoeThreat(m, this._scene)) continue
+      const rid = m.assignedRoomId ?? this._dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)?.instanceId
+      if (rid) out.add(rid)
+    }
+    return out
   }
 
   // Returns true if (tx,ty) is currently occupied by an adventurer other than `selfAdv`.
@@ -3052,7 +3089,7 @@ export class AISystem {
     // the CombatSystem.tryAttack same-room gate. (The retaliator is exempt.)
     const advRoomId = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)?.instanceId ?? null
     if (!retaliateId && advRoomId == null) return null
-    let best = null, bestDist = Infinity
+    let best = null, bestScore = Infinity
     // Manhattan-bounds early-exit BEFORE the per-pair hypot. With `reach`
     // capped at ~6 tiles and minion counts climbing into the dozens on big
     // dungeons, 95%+ of pairs are obviously out of range — the cheap
@@ -3118,7 +3155,15 @@ export class AISystem {
       this._knowledgeSystem?.observeMinion(adv, m)
       // Retaliator wins immediately — fight the thing hitting you over a bystander.
       if (isRetaliator) return m
-      if (d < bestDist) { best = m; bestDist = d }
+      // Bestiary FOCUS-FIRE (counter) — among in-reach foes, prefer a type the
+      // kingdom has STUDIED: a known type feels up to FOCUS_BIAS×strength tiles
+      // "closer", so the party concentrates on the forces it's learned (the
+      // player's spammed type) without ignoring an adjacent threat. Reveal-gated,
+      // mastery-scaled, weakened when stale (all via getEnemyCounter).
+      const c = this._knowledgeSystem?.getEnemyCounter?.(m)
+      const focus = c?.known ? (Balance.KNOWLEDGE_COUNTER_FOCUS_BIAS ?? 0.6) * c.strength : 0
+      const score = d - focus
+      if (score < bestScore) { best = m; bestScore = score }
     }
     return best
   }
