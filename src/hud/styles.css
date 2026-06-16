@@ -8229,7 +8229,9 @@ body {
 
 /* ── title ───────────────────────────────────────────────────── */
 .qf-cm .qcm-title {
-  position: relative; z-index: 4; text-align: center; line-height: 1.04;
+  /* line-height tightened (was 1.04) so QUEST + FAILED stack snug — the pixel
+     font's internal leading was opening a blank "line space" between them. */
+  position: relative; z-index: 4; text-align: center; line-height: 0.86;
   --qf-glow: color-mix(in srgb, var(--acc) 60%, transparent);
   animation: qcm-titleglow 3.4s ease-in-out infinite;
 }
@@ -8237,7 +8239,7 @@ body {
   display: block; font-family: var(--pix); font-size: 78px; letter-spacing: 4px;
 }
 .qf-cm .qcm-t1 { color: var(--bone); text-shadow: 0 5px 0 var(--bgTint), 0 0 30px color-mix(in srgb, var(--emb) 45%, transparent); }
-.qf-cm .qcm-t2 { color: var(--acc); margin-top: 12px; text-shadow: 0 5px 0 var(--accDk), 0 0 40px color-mix(in srgb, var(--acc) 65%, transparent); }
+.qf-cm .qcm-t2 { color: var(--acc); margin-top: 2px; text-shadow: 0 5px 0 var(--accDk), 0 0 40px color-mix(in srgb, var(--acc) 65%, transparent); }
 @keyframes qcm-titleglow {
   0%,100% { filter: drop-shadow(0 0 9px var(--qf-glow)); }
   50%     { filter: drop-shadow(0 0 26px var(--qf-glow)); }

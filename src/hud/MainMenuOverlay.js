@@ -581,6 +581,30 @@ export class MainMenuOverlay {
     this._nameEntry.open()
   }
 
+  // Destructive-action gate for NEW EVIL while a reign is in progress —
+  // starting a new run overwrites the current save. Mirrors the design's
+  // "ABANDON YOUR REIGN?" grave decision (the red `danger` ConfirmPopup, which
+  // MainMenuOverlay already owns + listens for SHOW_CONFIRM). On confirm it
+  // runs the new-run flow; cancel / Esc / backdrop just dismisses.
+  _confirmAbandonReign(onConfirm) {
+    const arch = this._currentArch()
+    // Same reign label the menu crest shows, so the two never disagree.
+    const bossName = String(arch?.name || arch?.id || 'your boss').toUpperCase()
+    const day = this._save?.meta?.dayNumber ?? 1
+    EventBus.emit('SHOW_CONFIRM', {
+      danger:       true,
+      title:        'ABANDON YOUR REIGN?',
+      messageNode: [
+        'Beginning a ', h('b', null, 'NEW EVIL'),
+        ` ends your Day ${day} reign as the `, h('b', null, bossName),
+        '. This cannot be undone.',
+      ],
+      confirmLabel: 'NEW EVIL',
+      cancelLabel:  'KEEP REIGN',
+      onConfirm,
+    })
+  }
+
   // Top-3 leaderboard celebration check — called after Leaderboard.fetchTop
   // resolves on main menu open. Given the fetched rows, looks up the
   // player's most recent finished run by runId; if it's in the top 3
@@ -801,29 +825,33 @@ export class MainMenuOverlay {
         game.scene.start('Game', { gameState: fresh })
         break
       }
-      case 'new':
-        // Gate on having a player name — drives per-name boss-level
-        // progression in PlayerProfile and the leaderboard. The old Phaser
-        // MainMenu's NameEntryPanel gate was lost in the DOM port; this
-        // restores it. If unset, prompt; on confirm, proceed.
-        if (!PlayerProfile.hasName()) {
-          this._promptForName(() => {
-            this.close()
-            // Same cleanup as the continue path — see comment above.
-            _stopAllGameplayScenes(game.scene)
-            // CompanionSelect runs first (pick a companion), then hands off
-            // to ArchetypeSelect (boss picker). Leaderboard cleanup of any
-            // OLD live row happens automatically when the new run's
-            // LiveRunPublisher boots — so backing out of CompanionSelect
-            // here leaves the old row untouched.
-            game.scene.start('CompanionSelect')
-          })
-          return
+      case 'new': {
+        // The new-run flow: name-gate, then CompanionSelect → ArchetypeSelect.
+        // Gating on a player name drives per-name boss-level progression +
+        // the leaderboard. The old Phaser MainMenu's NameEntryPanel gate was
+        // lost in the DOM port; this restores it. Leaderboard cleanup of any
+        // OLD live row happens automatically when the new run's LiveRunPublisher
+        // boots — so backing out of CompanionSelect leaves the old row untouched.
+        const begin = () => {
+          if (!PlayerProfile.hasName()) {
+            this._promptForName(() => {
+              this.close()
+              _stopAllGameplayScenes(game.scene)
+              game.scene.start('CompanionSelect')
+            })
+            return
+          }
+          this.close()
+          _stopAllGameplayScenes(game.scene)
+          game.scene.start('CompanionSelect')
         }
-        this.close()
-        _stopAllGameplayScenes(game.scene)
-        game.scene.start('CompanionSelect')
+        // Beginning a NEW EVIL wipes the current reign's save. When a reign is
+        // in progress, confirm first (design: the "ABANDON YOUR REIGN?" grave
+        // decision). No save → nothing to abandon, so start straight in.
+        if (this._save) this._confirmAbandonReign(begin)
+        else begin()
         break
+      }
       case 'leader':
         this._openLeaderboard()
         break
