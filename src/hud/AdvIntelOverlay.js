@@ -99,7 +99,8 @@ export class AdvIntelOverlay {
     this._pendingSelIdx = null
     this._overlay = new Overlay({
       npcKind: 'intel',
-      title:  'ADVENTURER INTEL',
+      title:   'ADVENTURER INTEL',
+      eyebrow: 'KNOW THY INVADERS',   // → crypt shell (eyebrow + no X)
       width:  1300,
       height: 820,
       accent: 'var(--warn)',

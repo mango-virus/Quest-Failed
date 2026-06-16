@@ -15,6 +15,7 @@
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
+import { Balance } from '../config/balance.js'
 import { animatedBossSprite } from './inGameSnapshot.js'
 import { ascensionInfo, currentAct } from '../config/acts.js'
 import { TROPHY_TYPES } from '../config/orcTrophies.js'
@@ -39,7 +40,8 @@ export class BossOverviewOverlay {
     this._tab = 'overview'
     this._overlay = new Overlay({
       npcKind: 'boss',
-      title:  'BOSS OVERVIEW',
+      title:   'BOSS OVERVIEW',
+      eyebrow: "THE DARK LORD'S DOSSIER",   // → crypt shell (eyebrow + no X)
       width:  1300,
       height: 820,
       accent: 'var(--blood)',

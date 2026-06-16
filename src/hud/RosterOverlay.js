@@ -49,7 +49,8 @@ export class RosterOverlay {
     this._selIdx = 0
     this._overlay = new Overlay({
       npcKind: 'roster',
-      title:  'MINION ROSTER',
+      title:   'MINION ROSTER',
+      eyebrow: 'THE GARRISON OF THE DEEP',   // → crypt shell (eyebrow + no X)
       width:  1300,
       height: 780,
       accent: 'var(--poison)',
