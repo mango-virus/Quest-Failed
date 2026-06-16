@@ -94,7 +94,8 @@ export class KnowledgeMapOverlay {
     this._catFilter = new Set(CATEGORIES)
     this._overlay = new Overlay({
       npcKind: 'knowledge',
-      title:  'KNOWLEDGE MAP',
+      title:   'KNOWLEDGE MAP',
+      eyebrow: 'WHAT THE KINGDOM HAS LEARNED',   // → crypt shell (eyebrow + no X)
       width:  1400,
       height: 840,
       accent: 'var(--rumor)',
