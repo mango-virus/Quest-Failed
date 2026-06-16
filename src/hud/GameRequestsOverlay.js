@@ -66,6 +66,29 @@ const BODY_PLACEHOLDERS = {
 // included with the submission.
 const SUBMIT_NOTE = 'Your current day, boss, and run stats are included automatically so the dev can see what you were doing.'
 
+// Compose category → [short stamp label, sigil glyph] for the stamp grid.
+// Rendered in this order (filtered to GameRequests.CATEGORIES).
+const RQ_STAMP = {
+  difficulty:  ['DIFFICULTY', '⚖'],
+  bug:         ['BUG',        '⚑'],
+  boss:        ['BOSS',       '☠'],
+  item:        ['ITEM',       '◈'],
+  companion:   ['COMPANION',  '♥'],
+  room:        ['ROOM',       '▦'],
+  achievement: ['TROPHY',     '★'],
+  mechanic:    ['FEATURE',    '⚙'],
+  other:       ['OTHER',      '✶'],
+}
+
+// Per-status [label, color] for the wax seals on letters / inbox cards.
+const RQ_STATUS_SEAL = {
+  new:     ['NEW',     'var(--text-mute)'],
+  triaged: ['SEEN',    'var(--rumor)'],
+  planned: ['PLANNED', 'var(--info)'],
+  shipped: ['SHIPPED', 'var(--poison)'],
+  wontfix: ['PASSED',  'var(--text-dim)'],
+}
+
 export class GameRequestsOverlay {
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
@@ -94,15 +117,14 @@ export class GameRequestsOverlay {
     // PATCH or when the inbox is refreshed (server wins on refresh).
     this._unsavedEdits = new Map()
     this._overlay = new Overlay({
-      title:    'GAME REQUESTS',
-      width:    560,
-      height:   640,
-      accent:   'var(--rumor, #5cc0ff)',
-      frame:    'plain',   // subtle main-menu edge instead of the accent frame
-      onClose:  () => this._onClose?.(),
-      scrollLock: false,
-      animation: 'panel',
-      body:     this._buildBody(),
+      eyebrow:    'A WORD TO THE BONEMAKER',
+      title:      'GAME REQUESTS',
+      width:      660,
+      height:     744,
+      accent:     'var(--rumor, #5cc0ff)',
+      atmosphere: true,
+      onClose:    () => this._onClose?.(),
+      body:       this._buildBody(),
     })
   }
 
@@ -148,16 +170,16 @@ export class GameRequestsOverlay {
     const playerMail = GameRequests.getCachedPlayerMail?.() ?? 0
     const adminMail  = GameRequests.getCachedAdminMail?.()  ?? 0
     const tabs = [
-      { id: 'submit', label: '+ NEW REQUEST', count: 0 },
-      { id: 'mymail', label: '✉ MY MAIL',    count: playerMail },
+      { id: 'submit', label: '✒ COMPOSE', count: 0 },
+      { id: 'mymail', label: '✉ SENT',    count: playerMail },
     ]
     if (this._isMango) tabs.push({ id: 'inbox', label: '⌕ INBOX', count: adminMail })
-    return h('div', { className: 'qf-greq-toggle' }, tabs.map(t => h('button', {
-      className: 'qf-greq-toggle-btn' + (this._mode === t.id ? ' active' : ''),
+    return h('div', { className: 'qf-rq-modes' }, tabs.map(t => h('button', {
+      className: 'pix qf-rq-mode' + (this._mode === t.id ? ' on' : ''),
       on: { click: () => this._setMode(t.id) },
     }, [
       t.label,
-      t.count > 0 && h('span', { className: 'qf-greq-toggle-count' }, String(t.count)),
+      t.count > 0 && h('span', { className: 'sil ct' }, String(t.count)),
     ].filter(Boolean))))
   }
 
@@ -174,107 +196,80 @@ export class GameRequestsOverlay {
   _renderSubmit() {
     const f = this._form
     const isDifficulty = f.category === 'difficulty'
-    return h('div', { className: 'qf-greq-form' }, [
-      this._isMango ? null : null, // headernote already in header for non-mango
-      // CATEGORY
-      h('label', { className: 'qf-greq-field' }, [
-        h('span', { className: 'pix qf-greq-label' }, 'WHAT IS THIS?'),
-        h('select', {
-          className: 'qf-greq-input qf-greq-select',
-          on: { change: (e) => {
-            f.category = e.target.value
-            // Reset feeling when leaving difficulty so a stale value
-            // never gets POSTed. Re-render to toggle the radio block.
-            if (f.category !== 'difficulty') f.feeling = null
-            else if (!f.feeling) f.feeling = 'just_right'
-            this._rerenderBody()
-          } },
-        }, GameRequests.CATEGORIES.map(c =>
-          h('option', { value: c, selected: c === f.category ? '' : undefined }, CATEGORY_LABELS[c])
-        )),
+    const cats = Object.keys(RQ_STAMP).filter(c => GameRequests.CATEGORIES.includes(c))
+    return h('div', { className: 'qf-rq' }, [
+      h('div', { className: 'sil qf-rq-to' }, '✦ TO: THE BONEMAKER — keeper of Quest Failed'),
+
+      // CATEGORY — sigil stamp grid
+      h('div', { className: 'qf-rq-field' }, [
+        h('div', { className: 'pix qf-rq-fl' }, 'WHAT IS THIS?'),
+        h('div', { className: 'qf-rq-stamps' }, cats.map(c => {
+          const [label, glyph] = RQ_STAMP[c]
+          return h('button', {
+            className: 'qf-rq-stamp' + (f.category === c ? ' on' : ''),
+            on: { click: () => {
+              f.category = c
+              if (c !== 'difficulty') f.feeling = null
+              else if (!f.feeling)    f.feeling = 'just_right'
+              this._rerenderBody()
+            } },
+          }, [h('span', { className: 'g' }, glyph), h('span', { className: 'l' }, label)])
+        })),
       ]),
 
-      // FEELING — only visible for difficulty
-      isDifficulty && h('div', { className: 'qf-greq-field' }, [
-        h('span', { className: 'pix qf-greq-label' }, 'HOW DOES IT FEEL?'),
-        h('div', { className: 'qf-greq-radios' },
-          GameRequests.FEELINGS.map(fId => h('label', {
-            className: 'qf-greq-radio' + (f.feeling === fId ? ' active' : ''),
-          }, [
-            h('input', {
-              type: 'radio', name: 'qf-greq-feel', value: fId,
-              // h() routes `checked` through `el.checked = v` (direct
-              // property), so we MUST pass a boolean — not '' (falsy).
-              checked: f.feeling === fId ? true : undefined,
-              on: { change: () => { f.feeling = fId; this._rerenderBody() } },
-            }),
-            h('span', { className: 'pix' }, FEELING_LABELS[fId]),
-          ])),
-        ),
+      // FEELING dial — difficulty only
+      isDifficulty && h('div', { className: 'qf-rq-field' }, [
+        h('div', { className: 'pix qf-rq-fl' }, 'HOW DOES IT FEEL?'),
+        h('div', { className: 'qf-rq-dial' },
+          GameRequests.FEELINGS.map(fId => h('button', {
+            className: 'pix qf-rq-notch' + (f.feeling === fId ? ' on' : ''),
+            on: { click: () => { f.feeling = fId; this._rerenderBody() } },
+          }, (FEELING_LABELS[fId] || fId).toUpperCase()))),
       ]),
 
-      // TITLE
-      h('label', { className: 'qf-greq-field' }, [
-        h('div', { className: 'qf-greq-labelrow' }, [
-          h('span', { className: 'pix qf-greq-label' }, 'TITLE'),
-          h('span', {
-            className: 'pix qf-greq-counter',
-            ref: el => { this._titleCounterEl = el },
-          }, `${f.title.length} / 80`),
+      // SUBJECT
+      h('div', { className: 'qf-rq-field' }, [
+        h('div', { className: 'qf-rq-labrow' }, [
+          h('div', { className: 'pix qf-rq-fl' }, 'SUBJECT'),
+          h('span', { className: 'sil qf-rq-count', ref: el => { this._titleCounterEl = el } }, `${f.title.length}/80`),
         ]),
         h('input', {
-          type: 'text',
-          className: 'qf-greq-input',
-          value:     f.title,
-          maxLength: 80,
-          placeholder: 'Short summary',
+          type: 'text', className: 'qf-rq-input', value: f.title, maxLength: 80,
+          placeholder: 'A short heading for your missive',
           on: { input: (e) => {
             f.title = e.target.value
-            if (this._titleCounterEl) this._titleCounterEl.textContent = `${f.title.length} / 80`
+            if (this._titleCounterEl) this._titleCounterEl.textContent = `${f.title.length}/80`
           } },
         }),
       ]),
 
-      // BODY
-      h('label', { className: 'qf-greq-field' }, [
-        h('div', { className: 'qf-greq-labelrow' }, [
-          h('span', { className: 'pix qf-greq-label' }, 'DETAILS'),
-          h('span', {
-            className: 'pix qf-greq-counter',
-            ref: el => { this._bodyCounterEl = el },
-          }, `${f.body.length} / 1500`),
+      // THE LETTER
+      h('div', { className: 'qf-rq-field' }, [
+        h('div', { className: 'qf-rq-labrow' }, [
+          h('div', { className: 'pix qf-rq-fl' }, 'THE LETTER'),
+          h('span', { className: 'sil qf-rq-count', ref: el => { this._bodyCounterEl = el } }, `${f.body.length}/1500`),
         ]),
         h('textarea', {
-          className: 'qf-greq-input qf-greq-textarea',
-          rows: 7,
-          maxLength: 1500,
+          className: 'qf-rq-input qf-rq-textarea', maxLength: 1500,
           placeholder: BODY_PLACEHOLDERS[f.category] ?? BODY_PLACEHOLDERS.other,
           on: { input: (e) => {
             f.body = e.target.value
-            if (this._bodyCounterEl) this._bodyCounterEl.textContent = `${f.body.length} / 1500`
+            if (this._bodyCounterEl) this._bodyCounterEl.textContent = `${f.body.length}/1500`
           } },
         }, f.body),
       ]),
 
-      // Context-disclosure note (mango sees it too — useful reminder)
-      h('div', { className: 'qf-greq-note pix' }, [
-        h('span', { className: 'qf-greq-note-icon' }, '▶'),
-        ' Your current day, boss, and run stats are included with the request.',
+      h('div', { className: 'qf-rq-note' }, [
+        h('span', { className: 'ar' }, '▶'),
+        ' Your current day, boss, and run stats ride along with the letter so the dev sees what you were doing.',
       ]),
 
-      // Error / status line — populated by _submit
-      h('div', {
-        className: 'qf-greq-status',
-        ref: el => { this._statusEl = el },
-      }, ''),
-
-      // SUBMIT
-      h('div', { className: 'qf-greq-actions' }, [
+      h('div', { className: 'qf-rq-send' }, [
+        h('span', { className: 'sil qf-rq-status', ref: el => { this._statusEl = el } }, 'DAY · BOSS · RUN STATS ATTACHED'),
         h('button', {
-          className: 'btn primary qf-greq-submit',
-          ref: el => { this._submitBtnEl = el },
+          className: 'pix qf-rq-seal', ref: el => { this._submitBtnEl = el },
           on: { click: () => this._submit() },
-        }, 'SUBMIT REQUEST'),
+        }, [h('span', { className: 'wax' }, '✦'), 'SEND']),
       ]),
     ].filter(Boolean))
   }
@@ -311,7 +306,7 @@ export class GameRequestsOverlay {
         this._rerenderBody()
         if (this._statusEl && msg) {
           this._statusEl.textContent = msg
-          this._statusEl.className = 'qf-greq-status qf-greq-status-ok'
+          this._statusEl.style.color = 'var(--poison)'
         }
       } else {
         HudSfx?.playUi?.('denied')
@@ -326,43 +321,40 @@ export class GameRequestsOverlay {
   _setStatus(text, kind) {
     if (!this._statusEl) return
     this._statusEl.textContent = text
-    this._statusEl.className = 'qf-greq-status' +
-      (kind === 'ok'      ? ' qf-greq-status-ok' :
-       kind === 'err'     ? ' qf-greq-status-err' :
-       kind === 'pending' ? ' qf-greq-status-pending' : '')
+    this._statusEl.style.color =
+      kind === 'ok'      ? 'var(--poison)' :
+      kind === 'err'     ? 'var(--blood-glow)' :
+      kind === 'pending' ? 'var(--gold)' : 'var(--text-mute)'
   }
 
   // ── Inbox (mango only) ─────────────────────────────────────────────
   _renderInbox() {
     const filters = ['all', ...GameRequests.CATEGORIES]
-    return h('div', { className: 'qf-greq-inbox' }, [
-      h('div', { className: 'qf-greq-inbox-filters' }, [
-        h('span', { className: 'pix qf-greq-label' }, 'FILTER'),
+    return h('div', { className: 'qf-rq' }, [
+      h('div', { className: 'sil qf-rq-inboxhead' },
+        `⚙ MANGO ADMIN · ${this._inbox.rows.length} SUBMISSIONS · TRIAGE & REPLY`),
+      h('div', { className: 'qf-rq-inboxbar' }, [
+        h('span', { className: 'pix qf-rq-fl' }, 'FILTER'),
         h('select', {
-          className: 'qf-greq-input qf-greq-select qf-greq-filterselect',
+          className: 'qf-rq-input qf-rq-filtersel',
           on: { change: (e) => { this._inbox.filter = e.target.value; this._renderInboxRows() } },
         }, filters.map(c => h('option', {
           value: c, selected: c === this._inbox.filter ? '' : undefined,
         }, c === 'all' ? 'All categories' : CATEGORY_LABELS[c]))),
-        h('button', {
-          className: 'qf-greq-toggle-btn',
-          on: { click: () => this._loadInbox() },
-        }, '↻ REFRESH'),
+        h('button', { className: 'pix qf-rq-refresh', on: { click: () => this._loadInbox() } }, '↻ REFRESH'),
       ]),
-      h('div', {
-        className: 'qf-greq-inbox-list',
-        ref: el => { this._inboxListEl = el },
-      }, this._renderInboxBodyContent()),
+      h('div', { className: 'qf-rq-list', ref: el => { this._inboxListEl = el } },
+        this._renderInboxBodyContent()),
     ])
   }
 
   _renderInboxBodyContent() {
     const ib = this._inbox
-    if (ib.loading) return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'Loading…')]
-    if (ib.error)   return [h('div', { className: 'qf-greq-inbox-empty pix qf-greq-status-err' }, ib.error)]
+    if (ib.loading) return [h('div', { className: 'sil qf-rq-empty' }, 'Loading…')]
+    if (ib.error)   return [h('div', { className: 'sil qf-rq-empty qf-rq-err' }, ib.error)]
     const rows = ib.filter === 'all' ? ib.rows : ib.rows.filter(r => r.category === ib.filter)
     if (rows.length === 0) {
-      return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'No requests yet.')]
+      return [h('div', { className: 'sil qf-rq-empty' }, 'No requests yet.')]
     }
     return rows.map(r => this._renderInboxCard(r))
   }
@@ -381,30 +373,22 @@ export class GameRequestsOverlay {
     if (ctx.bossArchetype)         ctxParts.push(this._fmtBossName(ctx.bossArchetype) + (ctx.bossLevel ? ` L${ctx.bossLevel}` : ''))
     if (ctx.totalKills != null)    ctxParts.push(`${ctx.totalKills} kills`)
     const created = this._fmtDate(row.created_at)
-    const status  = STATUS_LABELS[row.status] ?? (row.status ?? 'NEW').toUpperCase()
+    const seal    = RQ_STATUS_SEAL[row.status] || RQ_STATUS_SEAL.new
     const isConfirming = this._confirmDelete === row.id
-    return h('div', { className: 'qf-greq-card' }, [
-      h('div', { className: 'qf-greq-card-head' }, [
-        h('span', { className: 'pix qf-greq-card-cat' }, cat.toUpperCase()),
-        feel && h('span', { className: 'pix qf-greq-card-feel' }, feel.toUpperCase()),
-        h('span', { className: 'pix qf-greq-card-status', dataset: { status: row.status ?? 'new' } }, status),
+    return h('div', { className: 'qf-rq-icard' }, [
+      h('div', { className: 'qf-rq-ihead' }, [
+        h('span', { className: 'pix qf-rq-ifrom' }, row.player_name || 'anon'),
+        h('span', { className: 'sil qf-rq-icat' }, cat.toUpperCase()),
+        feel && h('span', { className: 'sil qf-rq-icat' }, feel.toUpperCase()),
+        h('span', { className: 'sil qf-rq-lseal', style: { color: seal[1], borderColor: seal[1] } }, '● ' + seal[0]),
+        h('span', { className: 'sil qf-rq-isent' }, created.toUpperCase()),
       ].filter(Boolean)),
-      h('div', { className: 'pix qf-greq-card-title' }, row.title),
-      h('div', { className: 'qf-greq-card-body' }, row.body),
-      h('div', { className: 'qf-greq-card-foot pix' }, [
-        h('span', { className: 'qf-greq-card-author' }, row.player_name || 'anon'),
-        h('span', { className: 'qf-greq-card-sep' }, '·'),
-        h('span', { className: 'qf-greq-card-time' }, created),
-        ctxParts.length > 0 && h('span', { className: 'qf-greq-card-sep' }, '·'),
-        ctxParts.length > 0 && h('span', { className: 'qf-greq-card-ctx' }, ctxParts.join(' · ')),
-      ].filter(Boolean)),
+      h('div', { className: 'pix qf-rq-ititle' }, row.title),
+      h('div', { className: 'qf-rq-ibody' }, row.body),
+      ctxParts.length > 0 && h('div', { className: 'sil qf-rq-ictx' }, '▶ CONTEXT · ' + ctxParts.join(' · ')),
 
-      // ── ADMIN CONTROLS ─────────────────────────────────────────────
-      // Status dropdown + editable notes + delete + explicit SEND REPLY.
-      // Status / notes edits are staged locally in `_unsavedEdits` and
-      // only land in Supabase when mango clicks SEND REPLY — that way
-      // they can change a few things across cards and commit each one
-      // deliberately, without surprise "save on blur" behavior.
+      // Status dropdown + editable notes + delete + explicit SEND REPLY —
+      // staged in _unsavedEdits, committed only on SEND REPLY.
       this._renderAdminControls(row, { isConfirming }),
     ].filter(Boolean))
   }
@@ -418,66 +402,37 @@ export class GameRequestsOverlay {
     const edits     = this._unsavedEdits.get(row.id) || {}
     const curStatus = edits.status !== undefined ? edits.status : (row.status ?? 'new')
     const curNotes  = edits.notes  !== undefined ? edits.notes  : (row.notes  ?? '')
-    return h('div', { className: 'qf-greq-card-admin' }, [
-      h('div', { className: 'qf-greq-card-adminrow' }, [
-        h('span', { className: 'pix qf-greq-card-adminlabel' }, 'STATUS'),
-        h('select', {
-          className: 'qf-greq-input qf-greq-select qf-greq-card-statussel',
-          disabled: isConfirming || undefined,
-          on: { change: (e) => this._stageEdit(row, { status: e.target.value }) },
-        }, Object.keys(STATUS_LABELS).map(s => h('option', {
-          value: s, selected: s === curStatus ? '' : undefined,
-        }, STATUS_LABELS[s]))),
-        isConfirming
-          ? h('div', { className: 'qf-greq-confirmrow' }, [
-              h('span', { className: 'pix qf-greq-confirmtxt' }, 'Delete?'),
-              h('button', {
-                className: 'qf-greq-card-delconfirm',
-                on: { click: () => this._confirmAndDelete(row) },
-              }, 'YES, DELETE'),
-              h('button', {
-                className: 'qf-greq-card-delcancel',
-                on: { click: () => { this._confirmDelete = null; this._renderInboxRows() } },
-              }, 'CANCEL'),
-            ])
-          : h('button', {
-              className: 'qf-greq-card-del',
-              title: 'Delete this request',
-              on: { click: () => { this._confirmDelete = row.id; this._renderInboxRows() } },
-            }, '🗑 DELETE'),
-      ]),
-      h('div', { className: 'qf-greq-card-adminrow qf-greq-card-adminnotesrow' }, [
-        h('span', { className: 'pix qf-greq-card-adminlabel' }, 'NOTES'),
-        h('textarea', {
-          className: 'qf-greq-input qf-greq-textarea qf-greq-card-notesedit',
-          rows: 2,
-          placeholder: 'Reply to the player (visible in their MY MAIL)',
-          on: {
-            // Stage on every keystroke so the SEND REPLY button can
-            // light up the instant there's something to send. No
-            // re-render here — the typing element stays focused; only
-            // the SEND button's disabled state updates.
-            input: (e) => this._stageEdit(row, { notes: e.target.value }, { skipRerender: true }),
-          },
-        }, curNotes),
-      ]),
-      // Bottom row — explicit save action. Disabled until there's a
-      // diff against the server-side state. Button label flashes to
-      // "✓ SENT" briefly after a successful PATCH so mango sees the
-      // commit actually landed (the dropdown / notes don't move, so
-      // without this the UI is silent on success).
-      h('div', { className: 'qf-greq-card-adminrow qf-greq-card-sendrow' }, [
-        h('span', {
-          className: 'qf-greq-card-dirtyhint pix',
-          ref: el => { this._dirtyHintRefs = this._dirtyHintRefs ?? {}; this._dirtyHintRefs[row.id] = el },
-        }, this._isRowDirty(row) ? 'UNSAVED CHANGES' : ''),
-        h('button', {
-          className: 'qf-greq-card-send',
-          disabled: !this._isRowDirty(row) || undefined,
-          ref: el => { this._sendBtnRefs = this._sendBtnRefs ?? {}; this._sendBtnRefs[row.id] = el },
-          on: { click: () => this._sendReply(row) },
-        }, '✉ SEND REPLY'),
-      ]),
+    return h('div', { className: 'qf-rq-ictrl' }, [
+      h('select', {
+        className: 'pix qf-rq-statussel',
+        disabled: isConfirming || undefined,
+        on: { change: (e) => this._stageEdit(row, { status: e.target.value }) },
+      }, Object.keys(STATUS_LABELS).map(s => h('option', {
+        value: s, selected: s === curStatus ? '' : undefined,
+      }, STATUS_LABELS[s]))),
+      h('input', {
+        type: 'text', className: 'qf-rq-inotes', value: curNotes,
+        placeholder: 'Reply to the player…',
+        // Stage on every keystroke (no re-render so the cursor holds); the
+        // SEND REPLY button's disabled state updates via _stageEdit.
+        on: { input: (e) => this._stageEdit(row, { notes: e.target.value }, { skipRerender: true }) },
+      }),
+      h('button', {
+        className: 'pix qf-rq-isend',
+        disabled: !this._isRowDirty(row) || undefined,
+        ref: el => { this._sendBtnRefs = this._sendBtnRefs ?? {}; this._sendBtnRefs[row.id] = el },
+        on: { click: () => this._sendReply(row) },
+      }, '✉ SEND REPLY'),
+      // Delete (with inline confirm) — preserved from the admin flow.
+      isConfirming
+        ? h('span', { className: 'qf-rq-delconfirm' }, [
+            h('button', { className: 'pix qf-rq-delyes', on: { click: () => this._confirmAndDelete(row) } }, 'DELETE'),
+            h('button', { className: 'pix qf-rq-delno', on: { click: () => { this._confirmDelete = null; this._renderInboxRows() } } }, '✕'),
+          ])
+        : h('button', {
+            className: 'qf-rq-del', title: 'Delete this request',
+            on: { click: () => { this._confirmDelete = row.id; this._renderInboxRows() } },
+          }, '🗑'),
     ])
   }
 
@@ -612,27 +567,22 @@ export class GameRequestsOverlay {
 
   // ── MY MAIL (every player — their own submissions + replies) ───────
   _renderMyMail() {
-    return h('div', { className: 'qf-greq-inbox' }, [
-      h('div', { className: 'qf-greq-inbox-filters' }, [
-        h('span', { className: 'pix qf-greq-label' }, 'YOUR SUBMISSIONS'),
-        h('button', {
-          className: 'qf-greq-toggle-btn',
-          on: { click: () => this._loadMyMail() },
-        }, '↻ REFRESH'),
+    return h('div', { className: 'qf-rq' }, [
+      h('div', { className: 'qf-rq-inboxbar' }, [
+        h('span', { className: 'pix qf-rq-fl' }, 'YOUR SUBMISSIONS'),
+        h('button', { className: 'pix qf-rq-refresh', on: { click: () => this._loadMyMail() } }, '↻ REFRESH'),
       ]),
-      h('div', {
-        className: 'qf-greq-inbox-list',
-        ref: el => { this._mymailListEl = el },
-      }, this._renderMyMailContent()),
+      h('div', { className: 'qf-rq-letters', ref: el => { this._mymailListEl = el } },
+        this._renderMyMailContent()),
     ])
   }
 
   _renderMyMailContent() {
     const mm = this._mymail
-    if (mm.loading) return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'Loading…')]
-    if (mm.error)   return [h('div', { className: 'qf-greq-inbox-empty pix qf-greq-status-err' }, mm.error)]
+    if (mm.loading) return [h('div', { className: 'sil qf-rq-empty' }, 'Loading…')]
+    if (mm.error)   return [h('div', { className: 'sil qf-rq-empty qf-rq-err' }, mm.error)]
     if (mm.rows.length === 0) {
-      return [h('div', { className: 'qf-greq-inbox-empty pix' }, 'You haven’t submitted anything yet. Send your first request from the + NEW REQUEST tab.')]
+      return [h('div', { className: 'sil qf-rq-empty' }, 'You haven’t submitted anything yet. Send your first request from the + NEW REQUEST tab.')]
     }
     return mm.rows.map(r => this._renderMyMailCard(r))
   }
@@ -647,29 +597,23 @@ export class GameRequestsOverlay {
     const created = this._fmtDate(row.created_at)
     const updated = this._fmtDate(row.updated_at ?? row.created_at)
     const status  = STATUS_LABELS[row.status] ?? (row.status ?? 'NEW').toUpperCase()
+    const seal = RQ_STATUS_SEAL[row.status] || RQ_STATUS_SEAL.new
     const hasReply = row.status && row.status !== 'new'
-    return h('div', { className: 'qf-greq-card' + (hasReply ? ' qf-greq-card-hasreply' : '') }, [
-      h('div', { className: 'qf-greq-card-head' }, [
-        h('span', { className: 'pix qf-greq-card-cat' }, cat.toUpperCase()),
-        h('span', { className: 'pix qf-greq-card-status', dataset: { status: row.status ?? 'new' } }, status),
+    return h('div', { className: 'qf-rq-letter' }, [
+      h('div', { className: 'qf-rq-lhead' }, [
+        h('span', { className: 'sil qf-rq-lcat' }, '✉ ' + cat.toUpperCase()),
+        h('span', { className: 'sil qf-rq-lseal', style: { color: seal[1], borderColor: seal[1] } }, '● ' + seal[0]),
       ]),
-      h('div', { className: 'pix qf-greq-card-title' }, row.title),
-      h('div', { className: 'qf-greq-card-body' }, row.body),
-      h('div', { className: 'qf-greq-card-foot pix' }, [
-        h('span', { className: 'qf-greq-card-time' }, `sent ${created}`),
-        hasReply && h('span', { className: 'qf-greq-card-sep' }, '·'),
-        hasReply && h('span', { className: 'qf-greq-card-ctx' }, `updated ${updated}`),
-      ].filter(Boolean)),
-      // Dev reply panel — only shown when status moved past 'new'.
-      // Either explicit notes from mango or a fallback "marked as X"
-      // line based on status alone (so a quick status flip still
-      // gives the player a visible reply).
-      hasReply && h('div', { className: 'qf-greq-card-notes pix' }, [
-        h('span', { className: 'qf-greq-card-notes-label' }, 'DEV REPLY'),
-        ' ',
-        row.notes ? row.notes : this._statusFallbackReply(row.status),
+      h('div', { className: 'pix qf-rq-ltitle' }, row.title),
+      h('div', { className: 'qf-rq-lbody' }, row.body),
+      h('div', { className: 'sil qf-rq-lsent' }, `SENT ${created.toUpperCase()}`),
+      // Dev reply panel — only when status moved past 'new' (explicit notes
+      // or a status-based fallback line).
+      hasReply && h('div', { className: 'qf-rq-reply' }, [
+        h('span', { className: 'sil rl' }, '✦ THE BONEMAKER REPLIES'),
+        h('span', { className: 'rt' }, row.notes ? row.notes : this._statusFallbackReply(row.status)),
       ]),
-    ])
+    ].filter(Boolean))
   }
 
   _statusFallbackReply(status) {
