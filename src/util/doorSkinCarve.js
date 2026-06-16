@@ -1,0 +1,66 @@
+// Carve the enclosed passage opening out of an OPEN door skin's RGBA pixel
+// buffer, in place. Used to build the "frame-only" over-entity copy of a door
+// skin so a character walking out always shows OVER the dark passage and only
+// UNDER the lit frame — emerging from under the door frame, whatever shape the
+// opening is.
+//
+// Naive "make every black pixel transparent" is too blunt: a skin's dark sky
+// behind the arch, its corners, and its mortar detail lines are the SAME black
+// as the passage, so keying all of them punches see-through holes in the frame
+// and at room seams. Instead we FLOOD-FILL the connected near-black region the
+// hero walks through, seeded from the lower-centre (where the doorway always
+// is) and crossing ONLY near-black opaque pixels. The lit stone frame and the
+// already-transparent margins both BOUND the flood, so the passage is carved
+// while the dark sky, corners, and detail lines (all separated from the passage
+// by lit stone) are preserved.
+//
+// `data` is a Uint8ClampedArray/Uint8Array of RGBA bytes (canvas ImageData.data
+// or a sharp raw buffer — same layout). Returns the number of pixels carved
+// (0 = nothing matched → caller can treat the copy as unchanged).
+export function carveDoorOpening(data, w, h, threshold = 24) {
+  if (!data || !(w > 0) || !(h > 0)) return 0
+  const N = w * h
+  const isDarkOpaque = (p) => {
+    const i = p * 4
+    return data[i + 3] > 0 && data[i] <= threshold && data[i + 1] <= threshold && data[i + 2] <= threshold
+  }
+  // Border guard: the door image is authored face-on with the arch/sky/seam at
+  // the TOP and the SIDES, and the room threshold/floor at the BOTTOM. Never
+  // carve into the top/left/right margin, so the outermost frame ring always
+  // stays opaque — that's the edge that meets a room seam / the void, and a
+  // hole there reads as see-through. The opening is interior, so it's
+  // unaffected; the bottom (floor) edge is left open since the passage meets
+  // the floor there and there's no seam below.
+  const mx = Math.max(2, Math.round(w * 0.03))
+  const my = Math.max(2, Math.round(h * 0.03))
+  const inZone = (x, y) => x >= mx && x <= w - 1 - mx && y >= my  // bottom edge allowed
+  const visited = new Uint8Array(N)
+  const stack = []
+  // Seed from the lower-centre band: the passage base is reliably here (the
+  // very bottom is usually transparent, the opening sits just above it), and
+  // staying low avoids seeding upper-centre detail (keystone runes, etc.).
+  const x0 = Math.floor(w * 0.38), x1 = Math.ceil(w * 0.62)
+  const y0 = Math.floor(h * 0.45), y1 = Math.ceil(h * 0.95)
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const p = y * w + x
+      if (!visited[p] && inZone(x, y) && isDarkOpaque(p)) { visited[p] = 1; stack.push(p) }
+    }
+  }
+  // Flood through 4-connected near-black opaque neighbours inside the carve zone
+  // (lit frame, transparent margins, and the border guard all block the spread).
+  const tryN = (pn, nx, ny) => {
+    if (!visited[pn] && inZone(nx, ny) && isDarkOpaque(pn)) { visited[pn] = 1; stack.push(pn) }
+  }
+  while (stack.length) {
+    const p = stack.pop()
+    const x = p % w, y = (p - x) / w
+    if (x > 0)     tryN(p - 1, x - 1, y)
+    if (x < w - 1) tryN(p + 1, x + 1, y)
+    if (y > 0)     tryN(p - w, x, y - 1)
+    if (y < h - 1) tryN(p + w, x, y + 1)
+  }
+  let carved = 0
+  for (let p = 0; p < N; p++) if (visited[p]) { data[p * 4 + 3] = 0; carved++ }
+  return carved
+}

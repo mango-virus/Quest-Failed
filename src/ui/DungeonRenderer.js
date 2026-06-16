@@ -16,6 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
+import { carveDoorOpening } from '../util/doorSkinCarve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -707,31 +708,75 @@ export class DungeonRenderer {
     // Drawn TWICE: a low copy (below entities) + a high copy masked to the
     // OUTER cells (above entities) so a character walking through the open
     // doorway shows over the passage but under the archway/frame.
-    const drawOne = (forRoom, forCp, key, colorRoom) => {
+    const drawOne = (forRoom, forCp, key, colorRoom, state) => {
       const rect = this._doorSkinRect(forRoom, forCp)
       if (!rect) return
       // Natural canonical size: 4 cells along the wall × 3 deep (outer/inner/
       // apron). setAngle rotates it into the dungeon's door orientation.
       const { w: wTiles, h: hTiles } = this._doorSkinSizeTiles(forRoom, forCp)
-      const make = (container) => {
-        const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
+      const make = (container, texKey) => {
+        const img = this._scene.add.image(rect.cx, rect.cy, texKey).setOrigin(0.5)
         img.setDisplaySize(wTiles * TS, hTiles * TS)
         if (rect.rot) img.setAngle(rect.rot)
         this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
         container.add(img)
       }
-      make(this._cDoorSkins)       // low — under entities (inner/passage + apron)
-      make(this._cDoorSkinsHigh)   // high — masked to outer cells, over entities
+      make(this._cDoorSkins, key)  // low — full image, under entities (passage + black opening)
+      // High (over-entity) copy. For an OPEN door, use a black-keyed copy whose
+      // dark opening is transparent, so a character walking out always shows
+      // OVER the dark passage (from the low copy) and UNDER only the lit frame —
+      // emerging from under the door frame whatever shape the opening is. The
+      // outer-cell geometry mask still keeps it to the archway region; the
+      // black-key follows the ART instead of a fixed tile line. Other states
+      // (closed/locked) keep the full image — nobody walks through them.
+      const highKey = state === 'open' ? this._ensureDoorFrameTexture(key) : key
+      make(this._cDoorSkinsHigh, highKey)   // high — masked to outer cells, over entities
     }
     for (const room of rooms) {
       if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
-        const key = this._doorSkinKeyFor(room, this._doorStateFor(cp), cp)
+        const state = this._doorStateFor(cp)
+        const key = this._doorSkinKeyFor(room, state, cp)
         if (!key) continue
         // Per-room doors: a room's skin shows ONLY on its own wall. The paired
         // room renders its own door (skin / theme / default) on its side.
-        drawOne(room, cp, key, room)
+        drawOne(room, cp, key, room, state)
       }
+    }
+  }
+
+  // Bake-once: a "frame-only" copy of an OPEN door skin with its near-black
+  // opening keyed to transparent. The high (over-entity) door-skin copy uses
+  // this so the dark passage never paints over a character walking out — they
+  // always read as emerging from under the lit frame, whatever shape the
+  // opening is (the fixed outer/inner cell split couldn't follow arbitrary
+  // shapes; pixel luminance does). The full (low) copy still supplies the black
+  // BEHIND them. Cached under `<key>__frame`; falls back to the full image on
+  // any canvas failure (preserves the prior look rather than erroring).
+  _ensureDoorFrameTexture(key) {
+    const tex = this._scene.textures
+    if (!key || !tex.exists(key)) return key
+    const frameKey = `${key}__frame`
+    if (tex.exists(frameKey)) return frameKey
+    const src = tex.get(key).getSourceImage()
+    const w = src?.width | 0, h = src?.height | 0
+    if (!w || !h) return key
+    try {
+      const ct = tex.createCanvas(frameKey, w, h)
+      if (!ct) return key
+      const ctx = ct.getContext()
+      ctx.drawImage(src, 0, 0)
+      const img = ctx.getImageData(0, 0, w, h)
+      // Carve ONLY the enclosed passage (flood-fill from the lower-centre), not
+      // every black pixel — so the dark sky, corners, and mortar detail lines
+      // stay opaque (no see-through frame / seam holes). See doorSkinCarve.js.
+      carveDoorOpening(img.data, w, h, Balance.DOOR_SKIN_BLACK_THRESHOLD ?? 24)
+      ctx.putImageData(img, 0, 0)
+      ct.refresh()
+      return frameKey
+    } catch (e) {
+      if (tex.exists(frameKey)) tex.remove(frameKey)
+      return key
     }
   }
 

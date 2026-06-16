@@ -40,6 +40,16 @@ export const Balance = {
   KNOCKBACK_MIN_SPEED:   32,    // px/s — below this the slide ends early
   KNOCKBACK_WALL_IMPACT_MIN: 200, // px/s — wall slams above this emit the heavy-impact event (shake/sfx)
 
+  // --- Door skins ---
+  // An OPEN door skin's passage opening is carved transparent in the over-entity
+  // (high) copy so a character walking out always shows over the black and only
+  // under the lit frame. The carve flood-fills the connected near-black opening
+  // (see util/doorSkinCarve.js); a pixel is "near-black" when R,G,B are all ≤
+  // this (0–255). Flood connectivity (not a global key) keeps the dark sky,
+  // corners, and mortar detail lines opaque. Raise if a skin's opening reads as
+  // not-quite-black; keep low so lit frame detail isn't swallowed.
+  DOOR_SKIN_BLACK_THRESHOLD: 24,
+
   // --- Camera ---
   CAMERA_ZOOM_MIN: 0.25,
   CAMERA_ZOOM_MAX: 2.0,
