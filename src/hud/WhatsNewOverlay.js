@@ -1,20 +1,15 @@
-// WhatsNewOverlay — the main-menu "WHAT'S NEW" panel. Shows the game
-// updates a returning player has missed (entries newer than the highest
-// id they've acknowledged), so they catch up on recent features the next
-// time they open the game.
+// WhatsNewOverlay — the main-menu "WHAT'S NEW" patch browser (crypt redesign).
 //
-// Data: src/data/whatsNew.js (WHATS_NEW, newest entry first, monotonic id).
-// Seen-tracking: a GLOBAL localStorage key (qf.whatsNew.lastSeenId) — not
-//   per-character, since "haven't played in a while" is per-device. On
-//   close we bump it to the newest id so the panel won't re-pop until the
-//   next update ships.
+// Left: a sidebar list of every patch (version · title · date), newest first,
+// with a LATEST badge on the top one. Right: the selected patch's decree card
+// (eyebrow + version + title + feature list + date). Gold-lit crypt shell.
 //
-// Surfaces (wired in MainMenuOverlay):
-//   • Auto-pops once per session on the main menu when there's unseen news.
-//   • A permanent "WHAT'S NEW" menu row (NEW badge while unseen) reopens it.
+// Data: src/data/whatsNew.js (WHATS_NEW, monotonic id). Seen-tracking: a GLOBAL
+//   localStorage key (qf.whatsNew.lastSeenId) — bumped to the newest id on close
+//   so the panel won't re-pop until the next update ships.
 //
-// Styling is inline (no styles.css dependency) on top of the shared
-// Overlay shell, so the panel is fully self-contained.
+// Surfaces (wired in MainMenuOverlay): auto-pops once per session when there's
+// unseen news (default mode), and the version chip reopens the full history.
 
 import { h }       from './dom.js'
 import { Overlay } from './Overlay.js'
@@ -28,8 +23,6 @@ function _lastSeenId() {
 function _setLastSeenId(id) {
   try { localStorage.setItem(SEEN_KEY, String(id)) } catch { /* storage full / blocked — non-fatal */ }
 }
-
-// Newest id across all entries (entries aren't required to be pre-sorted).
 function _latestId() {
   let max = 0
   for (const e of WHATS_NEW) if ((e?.id ?? 0) > max) max = e.id
@@ -45,62 +38,36 @@ export class WhatsNewOverlay {
       .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
   }
 
-  // Is there anything new to show? Drives the menu NEW badge + auto-pop gate.
   static hasUnseen() { return WhatsNewOverlay.unseenEntries().length > 0 }
 
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
-    // `full` mode (menu button) shows the entire changelog history; the
-    // default (auto-pop) shows only what the player missed since last visit.
+    // `full` mode (version chip) defaults the selection to the latest patch;
+    // the default (auto-pop) selects the newest UNSEEN patch.
     this._full = !!opts.full
     this._overlay = null
+    // All patches, newest first — the sidebar always lists the full history.
+    this._entries = WHATS_NEW.slice().sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
+    // Default selection: newest unseen (auto-pop) else the latest entry.
+    const firstUnseen = WhatsNewOverlay.unseenEntries()[0]
+    this._sel = (!this._full && firstUnseen ? firstUnseen.id : this._entries[0]?.id) ?? null
   }
 
   open() {
     if (this._overlay) return false
-
-    // Pick the entries + intro line based on mode.
-    const allNewestFirst = WHATS_NEW.slice().sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
-    let entries, intro
-    if (this._full) {
-      // Menu button: the complete changelog, newest first.
-      entries = allNewestFirst
-      intro   = 'RECENT UPDATES · NEWEST FIRST'
-    } else {
-      // Auto-pop: only the unseen updates. If the player is already caught
-      // up (nothing new), fall back to the latest entry so it's never empty.
-      const unseen = WhatsNewOverlay.unseenEntries()
-      entries = unseen.length ? unseen : allNewestFirst.slice(0, 1)
-      intro   = unseen.length ? 'SINCE YOU WERE LAST HERE' : 'YOU’RE ALL CAUGHT UP — LATEST UPDATE'
-    }
-
-    const body = h('div', {
-      style: { display: 'flex', flexDirection: 'column', gap: '14px', padding: '2px 2px 6px' },
-    }, [
-      h('div', {
-        className: 'pix',
-        style: {
-          fontSize: '10px', letterSpacing: '2px', color: 'var(--text-mute)',
-          textAlign: 'center', marginBottom: '2px',
-        },
-      }, intro),
-      ...entries.map(e => this._renderEntry(e)),
-    ])
-
     this._overlay = new Overlay({
-      title:     '✨  WHAT’S NEW  ✨',
-      width:     560,
-      height:    560,
-      accent:    'var(--gold-bright, #ffd964)',
-      frame:     'plain',   // subtle main-menu edge instead of the gold frame
-      animation: 'unfurl',
+      eyebrow:    "THE BONEMAKER'S LEDGER",
+      title:      "WHAT'S NEW",
+      width:      980,
+      height:     716,
+      accent:     'var(--gold-bright, #ffd964)',
+      atmosphere: true,
       onClose: () => {
-        // Mark everything seen so it won't re-pop until the next update.
-        _setLastSeenId(_latestId())
+        _setLastSeenId(_latestId())   // mark all seen → won't re-pop until next update
         this._overlay = null
         this._onClose?.()
       },
-      body,
+      body: this._renderBody(),
     })
     this._overlay.open()
     return true
@@ -108,38 +75,52 @@ export class WhatsNewOverlay {
 
   close() { this._overlay?.close() }
 
-  _renderEntry(e) {
-    const accent = 'var(--gold-bright, #ffd964)'
-    return h('div', {
-      style: {
-        border: '2px solid color-mix(in srgb, ' + accent + ' 45%, #000)',
-        background: 'linear-gradient(180deg, var(--bg-1), var(--bg-0))',
-        boxShadow: '0 0 0 1px #000, inset 0 0 18px color-mix(in srgb, ' + accent + ' 10%, transparent)',
-        padding: '12px 14px',
-        display: 'flex', flexDirection: 'column', gap: '8px',
-      },
-    }, [
-      // Header: title on the left, version · date chip on the right.
-      h('div', {
-        style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px' },
+  _rerenderBody() { if (this._overlay) this._overlay.setBody(this._renderBody()) }
+  _selectPatch(id) { this._sel = id; this._rerenderBody() }
+
+  _renderBody() {
+    return h('div', { className: 'qf-wn' }, [
+      this._renderSidebar(),
+      this._renderDetail(),
+    ])
+  }
+
+  _renderSidebar() {
+    return h('div', { className: 'qf-wn-side' }, [
+      h('div', { className: 'sil qf-wn-sidehd' }, `◆ ALL PATCHES · ${this._entries.length}`),
+      ...this._entries.map((e, i) => h('button', {
+        className: 'qf-wn-pbtn' + (e.id === this._sel ? ' on' : ''),
+        on: { click: () => this._selectPatch(e.id) },
       }, [
-        h('div', {
-          className: 'pix',
-          style: { fontSize: '14px', letterSpacing: '2px', color: accent, textShadow: '0 0 10px ' + accent },
-        }, e.title ?? 'UPDATE'),
-        h('div', {
-          className: 'pix',
-          style: { fontSize: '8px', letterSpacing: '1px', color: 'var(--text-dim)', whiteSpace: 'nowrap' },
-        }, [e.version ? 'v' + e.version : null, e.version && e.date ? '  ·  ' : null, e.date ?? null]),
+        h('div', { className: 'pix qf-wn-pver' }, [
+          'v' + (e.version ?? '—'),
+          i === 0 && h('span', { className: 'sil qf-wn-platest' }, 'LATEST'),
+        ]),
+        h('div', { className: 'qf-wn-ptitle' }, e.title ?? 'UPDATE'),
+        e.date && h('div', { className: 'sil qf-wn-pdate' }, e.date),
+      ])),
+    ])
+  }
+
+  _renderDetail() {
+    const cur = this._entries.find(e => e.id === this._sel) || this._entries[0]
+    if (!cur) return h('div', { className: 'qf-wn-detail' }, [])
+    const isLatest = cur.id === this._entries[0]?.id
+    return h('div', { className: 'qf-wn-detail' }, [
+      h('div', { className: 'qf-wn-decree' }, [
+        h('div', { className: 'sil qf-wn-eyebrow' },
+          isLatest ? '◆ THE LATEST DECREE · SINCE YOU WERE LAST HERE ◆' : '◆ FROM THE LEDGER ◆'),
+        h('div', { className: 'pix qf-wn-pnum' }, 'v' + (cur.version ?? '—')),
+        h('div', { className: 'qf-wn-dhead' }, [
+          h('div', { className: 'pix qf-wn-dtitle' }, cur.title ?? 'UPDATE'),
+        ]),
+        h('div', { className: 'qf-wn-ditems' },
+          (cur.items ?? []).map(it => h('div', { className: 'qf-wn-item' }, [
+            h('span', { className: 'qf-wn-ic' }, it.icon ?? '•'),
+            h('span', { className: 'qf-wn-tx' }, it.text ?? ''),
+          ]))),
+        cur.date && h('div', { className: 'sil qf-wn-date' }, 'PROCLAIMED · ' + cur.date),
       ]),
-      // Feature bullets.
-      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } },
-        (e.items ?? []).map(it => h('div', {
-          style: { display: 'flex', gap: '9px', alignItems: 'flex-start' },
-        }, [
-          h('span', { style: { fontSize: '15px', lineHeight: '1.3', flex: '0 0 auto' } }, it.icon ?? '•'),
-          h('span', { style: { fontSize: '12.5px', lineHeight: '1.45', color: 'var(--text)' } }, it.text ?? ''),
-        ]))),
     ])
   }
 
