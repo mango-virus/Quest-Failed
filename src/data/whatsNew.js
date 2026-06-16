@@ -15,6 +15,44 @@
 //   • `version` / `date` are display-only labels; `id` is what tracking uses.
 export const WHATS_NEW = [
   {
+    id: 16,
+    version: '0.1.17',
+    date: 'June 2026',
+    title: 'A Darker Throne',
+    items: [
+      { icon: '👁️', text: 'Every boss reworked with a signature power.' },
+      { icon: '⚡', text: 'Fire a boss day-power: gaze a room, hurl trophies, flood gooplings…' },
+      { icon: '🩸', text: 'Bosses bank a resource — Blood, Dread, Ferocity — and spend it.' },
+      { icon: '🐲', text: 'Each boss now has a unique throne-room finale.' },
+      { icon: '✨', text: 'All-new bespoke effects for every boss ability.' },
+    ],
+  },
+  {
+    id: 15,
+    version: '0.1.16',
+    date: 'June 2026',
+    title: 'Minions Reborn',
+    items: [
+      { icon: '💰', text: 'Goblins plunder your gold from fallen heroes.' },
+      { icon: '💀', text: 'Skeletons refuse to stay dead.' },
+      { icon: '🟢', text: 'Slimes split, infect, or melt — three breeds.' },
+      { icon: '👁️', text: 'Beholders dominate minds; Orcs build a killing frenzy.' },
+      { icon: '⬆️', text: 'Every family deepens its one trick as it upgrades.' },
+    ],
+  },
+  {
+    id: 14,
+    version: '0.1.15',
+    date: 'June 2026',
+    title: 'The Heroes Wise Up',
+    items: [
+      { icon: '🧠', text: 'Adventurers use their class abilities tactically now.' },
+      { icon: '📖', text: 'Survivors teach the kingdom your defenses — keep them guessing.' },
+      { icon: '😱', text: 'Morale & nerve: heroes panic, overextend, or flee with your gold.' },
+      { icon: '🎭', text: 'Distinct personalities change how each hero behaves.' },
+    ],
+  },
+  {
     id: 13,
     version: '0.1.14',
     date: 'June 2026',
