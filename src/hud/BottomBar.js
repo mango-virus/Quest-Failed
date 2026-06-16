@@ -92,15 +92,10 @@ export class BottomBar {
 
         h('div', { className: 'qf-bb-divider' }),
 
-        // PHASE STATUS + PRIMARY ACTION (BEGIN DAY or speed control)
+        // PRIMARY ACTION (BEGIN DAY or speed control). The "PHASE · NIGHT/DAY"
+        // readout was dropped per the design — the top-centre phase stamp + the
+        // armed-tool stripe already convey phase/state.
         h('div', { className: 'qf-bb-group qf-bb-phase' }, [
-          h('div', { className: 'qf-bb-phase-col' }, [
-            h('span', { className: 'pix qf-bb-phase-label' }, 'PHASE'),
-            h('span', {
-              className: 'pix qf-bb-phase-status',
-              ref: el => { this._refs.phaseStatus = el },
-            }, 'NIGHT · BUILD'),
-          ]),
           h('button', {
             className: 'btn primary qf-bb-begin',
             ref: el => { this._refs.beginBtn = el },
@@ -421,9 +416,6 @@ export class BottomBar {
     const phase = gs.meta?.phase ?? 'night'
     if (phase !== this._prev.phase) {
       const isNight = phase === 'night'
-      this._refs.phaseStatus.textContent = isNight ? 'NIGHT · BUILD' : 'DAY · INVASION'
-      this._refs.phaseStatus.classList.toggle('phase-night', isNight)
-      this._refs.phaseStatus.classList.toggle('phase-day',   !isNight)
       this._refs.beginBtn.style.display = isNight ? '' : 'none'
       this._refs.speedBox.style.display = isNight ? 'none' : ''
       if (isNight) this._applyReadiness()   // reflect current blocker on the begin button

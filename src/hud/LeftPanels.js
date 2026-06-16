@@ -263,7 +263,7 @@ export class LeftPanels {
   }
 
   // ── Construction drawer ─────────────────────────────────────────
-  _toggleDrawer() { this._setDrawer(!this._drawerOpen) }
+  _toggleDrawer() { this._userToggledDrawer = true; this._setDrawer(!this._drawerOpen) }
   _setDrawer(open) {
     if (open === this._drawerOpen) return
     this._drawerOpen = open
@@ -982,12 +982,14 @@ export class LeftPanels {
       this._tickHandle = requestAnimationFrame(() => this._tick())
       return
     }
-    // One-time: sync the construction drawer to the loaded phase. On a CONTINUE,
-    // GAME_STATE_LOADED can fire before this panel subscribes (and gameState
-    // may not be hydrated at construction), so the constructor default is
-    // unreliable — correct it on the first tick where state is readable.
-    if (!this._drawerInitSynced) {
-      this._drawerInitSynced = true
+    // Keep the construction drawer matching the phase (open at night, closed by
+    // day) UNTIL the player manually toggles it. Robust against the load-time
+    // race: GAME_STATE_LOADED can fire before this panel subscribes, and
+    // gameState may not be hydrated at construction, so neither the constructor
+    // default nor a one-shot sync is reliable. _setDrawer early-outs when the
+    // state already matches, so this is cheap. Manual handle/PLACE toggles set
+    // _userToggledDrawer and stop the auto-sync (phase-change events still fire).
+    if (!this._userToggledDrawer) {
       this._setDrawer((gs.meta?.phase ?? 'night') === 'night')
     }
     // Gold readout removed from the CONSTRUCTION header at user request;

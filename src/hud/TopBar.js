@@ -57,12 +57,6 @@ export class TopBar {
             className: 'qf-boss-sprite',
             ref: el => { this._refs.bossSprite = el },
           }),
-          // LV tab pinned to the portrait's bottom-left corner (crypt-console
-          // design). Relocated from the name row so the name has full width.
-          h('div', {
-            className: 'pix qf-boss-level gold qf-boss-lvtab',
-            ref: el => { this._refs.bossLevel = el },
-          }, 'LV 1'),
         ]),
         h('div', { className: 'qf-boss-info' }, [
           h('div', { className: 'qf-boss-headrow' }, [
@@ -70,6 +64,11 @@ export class TopBar {
               className: 'pix qf-boss-name',
               ref: el => { this._refs.bossName = el },
             }, 'BOSS'),
+            // LV reads in the box's upper-right (space-between in the headrow).
+            h('div', {
+              className: 'pix qf-boss-level gold',
+              ref: el => { this._refs.bossLevel = el },
+            }, 'LV 1'),
           ]),
           // HP chip-bar
           h('div', {
@@ -450,11 +449,10 @@ export class TopBar {
     // hover popover + the boss-overview form badge — kept off the stamp itself so
     // the eyebrow stays clean.
     const asc = ascensionInfo(this._gameState)
-    if (this._refs.dayAct) {
-      this._refs.dayAct.textContent = `ACT ${TopBar._ROMAN[act] || act} — `
-      this._refs.dayAct.style.color = acc
-      this._refs.dayAct.style.textShadow = `3px 3px 0 #0a0610, 0 0 16px ${acc}`
-    }
+    // The "ACT N —" prefix was dropped from the phase stamp per the design — the
+    // stamp reads just "NIGHT N" / "DAY N". The act identity still lives in the
+    // hover popover below + the boss-overview form badge.
+    if (this._refs.dayAct) this._refs.dayAct.textContent = ''
     if (this._refs.dayActPop) {
       this._refs.dayActPop.replaceChildren(
         h('div', { className: 'qf-day-act-pop-name', style: { color: acc } }, name || 'The Kingdom'),
