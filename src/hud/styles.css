@@ -8578,7 +8578,13 @@ body {
 .qf-cov-title { font-family: var(--pix); font-size: 22px; color: var(--bone); letter-spacing: .02em; text-align: center;
   text-shadow: 0 3px 0 #0a0710, 0 0 24px color-mix(in srgb,var(--acc) 45%,transparent); }
 .qf-cov-sub { font-size: 14px; color: var(--mute); text-align: center; max-width: 60ch; line-height: 1.45; }
-.qf-cov-body { position: relative; z-index: 5; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 28px 8px; }
+/* Flex column so full-height overlay bodies that use `flex:1` to stretch (the
+   in-game Knowledge map viewport, Boss/Roster panels, etc.) fill the shell —
+   the legacy frame's body was a flex column, and switching those overlays to
+   the crypt shell collapsed them. `height:100%`-based bodies (the menu
+   overlays) still fill correctly in a flex column. */
+.qf-cov-body { position: relative; z-index: 5; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 28px 8px;
+  display: flex; flex-direction: column; }
 .qf-cov-body::-webkit-scrollbar { width: 9px; }
 .qf-cov-body::-webkit-scrollbar-track { background: #0a0710; }
 .qf-cov-body::-webkit-scrollbar-thumb { background: var(--line2); }
