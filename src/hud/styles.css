@@ -1733,22 +1733,9 @@ body {
 .qf-wave-readout .t { color: var(--text-dim); }
 
 /* ---------- TopBar — right (treasury) ---------- */
-.qf-topbar-right {
-  /* Pulled out of the topbar's 3-column grid and pinned to the right
-     edge so it lines up directly above the Incoming Wave panel — same
-     width + side padding as .qf-rightpanels. Vertically centred within
-     the topbar. */
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: var(--hud-side);
-  padding: 0 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
+/* (Old absolute/column treasury layout removed — the crypt-console floating
+   panel rules above [.qf-topbar-left,.qf-topbar-right + .qf-topbar-right
+   max-content + margin-right] now own the treasury's position/size.) */
 
 .qf-treasury-label {
   font-family: var(--pix);
