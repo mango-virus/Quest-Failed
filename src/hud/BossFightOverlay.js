@@ -160,7 +160,7 @@ export class BossFightOverlay {
       h('div', {
         className: 'qf-bossfight-bar-text',
         ref: el => { this._barText = el },
-      }, `${cur}  /  ${max}`),
+      }, `${Math.round(cur)}  /  ${Math.round(max)}`),
     ]))
     this._bar.classList.add('open')
     this._applyBarFill(cur, max)
@@ -194,7 +194,7 @@ export class BossFightOverlay {
       const cur = Math.max(0, boss.hp ?? 0)
       const max = Math.max(1, boss.maxHp ?? 1)
       this._applyBarFill(cur, max)
-      if (this._barText) this._barText.textContent = `${cur}  /  ${max}`
+      if (this._barText) this._barText.textContent = `${Math.round(cur)}  /  ${Math.round(max)}`
     }
 
     // Shake/flash trigger reads the boss.hp mirror — works the same for
@@ -264,7 +264,7 @@ export class BossFightOverlay {
       const cur = Math.max(0, s.hp ?? 0)
       const max = Math.max(1, s.maxHp ?? 1)
       this._applyBarFillTo(bar, cur, max)
-      if (bar.text) bar.text.textContent = `${cur} / ${max}`
+      if (bar.text) bar.text.textContent = `${Math.round(cur)} / ${Math.round(max)}`
     }
   }
 
@@ -296,7 +296,7 @@ export class BossFightOverlay {
       }, [
         h('div', { className: 'qf-bossfight-bar-ghost', ref: el => { ghostEl = el } }),
         h('div', { className: 'qf-bossfight-bar-fill',  ref: el => { fillEl  = el } }),
-        h('div', { className: 'qf-bossfight-bar-text',  ref: el => { textEl  = el } }, `${cur} / ${max}`),
+        h('div', { className: 'qf-bossfight-bar-text',  ref: el => { textEl  = el } }, `${Math.round(cur)} / ${Math.round(max)}`),
       ])
       stack.appendChild(trackEl)
       this._slimeBars.set(s.id, { track: trackEl, fill: fillEl, ghost: ghostEl, text: textEl })
