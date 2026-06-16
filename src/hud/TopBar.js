@@ -14,12 +14,24 @@
 import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { ascensionInfo } from '../config/acts.js'
+import { SfxVolume } from '../systems/SfxVolume.js'
 
 export class TopBar {
   constructor(gameState) {
     this._gameState = gameState
     this._listeners = []
     this._tweenCancel = null
+    // Treasury count-up state. `_displayGold` is the number actually shown; it
+    // lags `gameState.gold` and is driven UP by flying coins (creditGold) for
+    // positional payouts, or eased by the reconcile in _tick for everything
+    // else. `_coinsIncoming` = gold currently promised by in-flight coins (held
+    // back from the auto-count so it isn't double-counted).
+    this._displayGold   = null
+    this._prevGold      = null
+    this._coinsIncoming = 0
+    this._lastCreditAt  = 0
+    this._lastCoinTickAt = 0
+    this._coinTickStreak = 0
     // Wave-progress bar state — driven by DAY_WAVE_INFO + the kill/flee events.
     this._wave = { total: 0, killed: 0, escaped: 0, label: '', mode: 'none' }
 
@@ -365,6 +377,16 @@ export class TopBar {
       EventBus.on(event, fn)
       this._listeners.push([event, fn])
     }
+    // Treasury coin-fly count-up: CoinFly streams these as coins fly to the
+    // counter. INCOMING holds that gold back from the auto-count; each ARRIVED
+    // bumps the shown total + plays a coin tick — so the number ka-chings up in
+    // lockstep with the coins landing.
+    sub('TREASURY_COINS_INCOMING', ({ amount } = {}) => this._onCoinBurstStart(amount))
+    sub('TREASURY_COIN_ARRIVED',   ({ amount } = {}) => this.creditGold(amount))
+    // Snap the display to the real total on phase change (no lagging coins
+    // straddling a night→day boundary, where the player might spend).
+    sub('DAY_PHASE_BEGAN',   () => this._snapGold())
+    sub('NIGHT_PHASE_BEGAN', () => this._snapGold())
     // Replay the day-stamp slam-in animation on phase change.
     const triggerStamp = () => {
       const el = this._refs.dayNumber
@@ -570,44 +592,108 @@ export class TopBar {
       this._prev.lives = lives
     }
 
-    if (gold !== this._prev.gold) {
-      const from = this._prev.gold ?? gold
-      this._prev.gold = gold
-      if (this._tweenCancel) this._tweenCancel()
-      this._tweenCancel = tween(from, gold, 600, v => {
-        this._refs.gold.textContent = String(v)
-      })
-      // Wealth tier — escalate the coin icon + glow as the hoard grows.
-      this._applyWealthTier(gold)
-      // Tactile bump on ANY change (gain or spend) — the counter "reacts".
-      // Bump the amount wrapper, not the number (whose infinite gold-glow
-      // animation would override a competing .pop on the same element).
-      const amt = this._refs.treasury
-      if (amt) { amt.classList.remove('bump'); void amt.offsetWidth; amt.classList.add('bump') }
-      // Gain feedback — coin spin, brightness flash, floating +Ng, sparkle.
-      if (gold > from) {
-        const coin = this._refs.coin
-        coin.classList.remove('spin')
-        void coin.offsetWidth
-        coin.classList.add('spin')
-        const num = this._refs.gold
-        num.classList.add('gold-pulse')
-        setTimeout(() => num.classList.remove('gold-pulse'), 700)
-        this._spawnGoldGain(gold - from)
-        this._spawnCoinSparkle()
-      } else if (gold < from) {
-        // Spend feedback — red "−Ng" floater + a brief red tint on the digits.
-        this._spawnGoldGain(gold - from)
-        const num = this._refs.gold
-        num.classList.add('qf-gold-spend')
-        setTimeout(() => num.classList.remove('qf-gold-spend'), 440)
-      }
+    // ── Treasury count-up ──────────────────────────────────────────────────
+    // Positional payouts (kills/drops) are delivered by flying coins (CoinFly →
+    // creditGold), which drive `_displayGold` up as each lands. Only the
+    // un-coined remainder (passives, bribes) and spends are eased here.
+    if (this._displayGold == null) { this._displayGold = gold; this._prevGold = gold; this._renderGold() }
+    const goldChanged = gold !== this._prevGold
+    if (gold < this._displayGold - 0.5) {
+      // Spend / any drop — coins are moot; ease the digits down.
+      this._coinsIncoming = 0
+      if (this._tweenCancel) { this._tweenCancel(); this._tweenCancel = null }
+      if (goldChanged) this._onGoldSpendVisual(gold - this._prevGold)
+      this._displayGold += (gold - this._displayGold) * 0.30
+      if (this._displayGold < gold + 0.5) this._displayGold = gold
+      this._renderGold()
+    } else if (this._coinsIncoming <= 0 && this._displayGold < gold - 0.5) {
+      // Un-coined gain (passive/bribe) or leftover after coins — ease the digits up.
+      if (goldChanged) this._onGoldGainVisual(gold - this._prevGold)
+      this._displayGold += Math.max(0.5, (gold - this._displayGold) * 0.16)
+      if (this._displayGold > gold) this._displayGold = gold
+      this._renderGold()
     }
+    // Safety net: if coins were promised but stopped arriving (CoinFly absent /
+    // a lost animation), release the hold so the counter can't stick low.
+    if (this._coinsIncoming > 0 && performance.now() - this._lastCreditAt > 1500) this._coinsIncoming = 0
+    this._applyWealthTier(gold)
+    this._prevGold = gold
 
     this._tickHandle = requestAnimationFrame(() => this._tick())
   }
 
   // ── Treasury juice ──────────────────────────────────────────────────────
+
+  // Render the (rounded) currently-shown total.
+  _renderGold() {
+    if (this._refs?.gold) this._refs.gold.textContent = String(Math.round(this._displayGold ?? 0))
+  }
+
+  // A coin-fly burst started — hold its gold back from the auto-count (coins
+  // will deliver it via creditGold) and fire the burst's gain flourish once.
+  _onCoinBurstStart(amount) {
+    if (!(amount > 0)) return
+    this._coinsIncoming += amount
+    this._onGoldGainVisual(amount)
+  }
+
+  // One flying coin landed: bump the shown total by its share, tick the coin
+  // sound, and give the counter a small tactile bump.
+  creditGold(n) {
+    if (!(n > 0)) return
+    const gold = this._gameState?.player?.gold ?? this._displayGold ?? 0
+    this._coinsIncoming = Math.max(0, this._coinsIncoming - n)
+    this._displayGold = Math.min(gold, (this._displayGold ?? gold) + n)
+    this._lastCreditAt = performance.now()
+    this._renderGold()
+    this._playCoinTick()
+    const amt = this._refs.treasury
+    if (amt) { amt.classList.remove('bump'); void amt.offsetWidth; amt.classList.add('bump') }
+  }
+
+  // Snap the shown total to the real total (phase change) — clears any lagging
+  // coins so the counter is exact when the player can act (night build/spend).
+  _snapGold() {
+    const gold = this._gameState?.player?.gold ?? 0
+    if (this._tweenCancel) { this._tweenCancel(); this._tweenCancel = null }
+    this._coinsIncoming = 0
+    this._displayGold = gold
+    this._prevGold = gold
+    this._renderGold()
+  }
+
+  // The collect-gold tick, throttled + pitch-ramped so a cascade rises in pitch
+  // (a satisfying brr-ring) rather than machine-gunning the wav.
+  _playCoinTick() {
+    if (SfxVolume.isMuted?.()) return
+    const g = window.__game
+    if (!g?.sound) return
+    if (!(g.scene?.scenes ?? []).some(s => s.cache?.audio?.exists?.('sfx-collect-gold'))) return
+    const now = performance.now()
+    if (now - this._lastCoinTickAt < 30) return                       // throttle overlapping bursts
+    if (now - this._lastCoinTickAt > 240) this._coinTickStreak = 0     // reset pitch after a gap
+    this._lastCoinTickAt = now
+    const rate = Math.min(1.9, 1.0 + this._coinTickStreak * 0.045)
+    this._coinTickStreak++
+    try { g.sound.play('sfx-collect-gold', { rate, volume: Math.min(3, 1.5 * (SfxVolume.getVolume?.() ?? 1)) }) } catch (e) {}
+  }
+
+  // Gain flourish — coin spin, digit pulse, floating "+Ng", sparkle.
+  _onGoldGainVisual(delta) {
+    const coin = this._refs.coin
+    if (coin) { coin.classList.remove('spin'); void coin.offsetWidth; coin.classList.add('spin') }
+    const num = this._refs.gold
+    if (num) { num.classList.add('gold-pulse'); setTimeout(() => num.classList.remove('gold-pulse'), 700) }
+    this._spawnGoldGain(delta)
+    this._spawnCoinSparkle()
+  }
+
+  // Spend flourish — red "−Ng" floater + a brief red tint on the digits.
+  _onGoldSpendVisual(delta) {
+    this._spawnGoldGain(delta)
+    const num = this._refs.gold
+    if (num) { num.classList.add('qf-gold-spend'); setTimeout(() => num.classList.remove('qf-gold-spend'), 440) }
+  }
 
   // Escalate the coin icon (single coin → pile → bag) and its glow as the
   // gold total climbs, so being rich visibly reads as rich.

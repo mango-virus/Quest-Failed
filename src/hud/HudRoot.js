@@ -39,6 +39,7 @@ import { TinkererPicker }       from './TinkererPicker.js'
 import { DevMenu }              from './DevMenu.js'
 import { AltarRewardSlot }      from './AltarRewardSlot.js'
 import { DungeonFx }            from './DungeonFx.js'
+import { CoinFly }              from './CoinFly.js'
 import { EventFx }              from './EventFx.js'
 import { BossFightOverlay }     from './BossFightOverlay.js'
 import { EventBanner }          from './EventBanner.js'
@@ -155,6 +156,10 @@ export class HudRoot {
     // it during construction would otherwise be wiped out the moment
     // HudRoot finishes building.
     this._dungeonFx       = new DungeonFx(this._gameState)
+    // Coins fly from kills/payouts up to the treasury counter (count-up + coin
+    // ticks sync to their arrival). Self-mounts into #hud-stage, same post-mount
+    // rule as DungeonFx.
+    this._coinFly         = new CoinFly(this._gameState)
     // Ambient event atmosphere (storm / fog / blood moon …). Self-mounts
     // into #hud-stage, so it must build after the mount() above.
     this._eventFx         = new EventFx(this._gameState)
@@ -398,6 +403,7 @@ export class HudRoot {
     this._altarRewardSlot?.destroy(); this._altarRewardSlot = null
     this._devMenu?.destroy(); this._devMenu = null
     this._dungeonFx?.destroy();      this._dungeonFx = null
+    this._coinFly?.destroy();        this._coinFly = null
     this._eventFx?.destroy();        this._eventFx = null
     this._bossFightOverlay?.destroy(); this._bossFightOverlay = null
     this._eventBanner?.destroy();    this._eventBanner = null
