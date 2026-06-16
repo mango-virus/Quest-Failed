@@ -95,18 +95,18 @@ export class PhaseTransition {
       h('div', { className: 'pt-veil' }),
       h('div', { className: 'pt-rays' }),
       h('div', { className: 'pt-band' }),
-      // Plate — eyebrow + slammed-in DAY/NIGHT stamp + sub-line.
+      // Plate — eyebrow + slammed-in DAY/NIGHT stamp + sub-line, with the
+      // incoming-wave roster ribbon tucked directly beneath the sub (day only,
+      // and only when a Library of Whispers has leaked the roster — otherwise
+      // this._party is empty and the ribbon doesn't render).
       h('div', { className: 'pt-plate' }, [
         h('div', { className: 'sil pt-eye' },
           isDay ? '⸺  The gates open  ⸺' : '⸺  The dungeon stirs  ⸺'),
         h('div', { className: 'pix pt-stamp' }, `${isDay ? 'DAY' : 'NIGHT'} ${day}`),
         h('div', { className: 'pix pt-sub' },
           isDay ? 'THE INVASION BEGINS' : 'FORTIFY THE DEEP'),
-      ]),
-      // Incoming-wave roster ribbon — day only, and only when a Library of
-      // Whispers has leaked the roster (otherwise this._party is empty and
-      // nothing renders).
-      isDay && this._party.length ? this._buildRoster() : null,
+        isDay && this._party.length ? this._buildRoster() : null,
+      ].filter(Boolean)),
     ].filter(Boolean))
   }
 

@@ -6420,10 +6420,11 @@ body {
 }
 @keyframes pt-eye { from { transform: translateY(8px); letter-spacing: .6em; opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* Incoming-roster ribbon (day only) — clean LPC standing-pose tiles. */
+/* Incoming-roster ribbon (day only) — clean LPC standing-pose tiles. Sits in
+   the plate flow, a little under the sub-line. */
 .pt-roster {
-  position: absolute; bottom: 14%; left: 0; right: 0;
-  display: flex; justify-content: center; gap: 14px;
+  display: flex; justify-content: center; flex-wrap: nowrap; gap: 12px;
+  margin-top: 22px;
   animation: pt-eye 1s ease-out 1s both;
 }
 .pt-rtile {

@@ -37,14 +37,21 @@ export function incomingWaveParty(gs) {
   const variants = Array.isArray(preview.spriteVariants) ? preview.spriteVariants : []
   for (let i = 0; i < preview.classIds.length; i++) {
     const id = preview.classIds[i]
+    // Pre-rolled `<class>/vNN` LPC variant (the EXACT sprite that spawns) wins
+    // over the bare classId so the roster shows the real character.
     const tile = { classId: id, spriteVariant: variants[i] ?? null }
-    // Event waves carry pre-rolled creature sprites parallel to classIds —
-    // minionSheets[i] for rival monsters / zombies, bossSkin for the rival boss.
+    // Event waves carry pre-rolled creature sprites parallel to classIds:
+    //   minionSheets[i] — a `minion-<id>` key (rival monsters / zombie horde)
+    //   bossSkins[i]    — per-slot rival-boss archetype skin (Boss Royale /
+    //                     All-Stars: each invader is a DIFFERENT boss)
+    //   bossSkin        — a single rival-boss skin (Rival Dungeon's lone champ)
+    // Mirror AdvIntelOverlay: prefer the per-slot array, fall back to the single.
     if (Array.isArray(preview.minionSheets) && preview.minionSheets[i]) {
       tile._minionSheet = preview.minionSheets[i]
     }
-    if (preview.bossSkin && id === 'rival_boss_invader') {
-      tile._rivalBossSpriteKey = preview.bossSkin
+    if (id === 'rival_boss_invader') {
+      const skin = preview.bossSkins?.[i] ?? preview.bossSkin
+      if (skin) tile._rivalBossSpriteKey = skin
     }
     party.push(tile)
   }
