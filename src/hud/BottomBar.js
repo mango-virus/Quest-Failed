@@ -34,6 +34,16 @@ import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 const SPEED_STEPS_EARLY = [1, 2, 4, 8]
 const SPEED_STEPS_HYPER = [1, 4, 8, 16]
 
+// Armed-tool accent — tints the console's top stripe + the armed button.
+// place=blood, move=rumor(blue), upgrade=gold, sell=warn(orange). Mirrors the
+// design's ARMC map (hud-console.jsx).
+const ARMC = {
+  place:   'var(--blood)',
+  move:    'var(--rumor)',
+  upgrade: 'var(--gold-bright, #ffcb5c)',
+  sell:    'var(--warn)',
+}
+
 function _stepsForDay(day) {
   return day >= (Balance.HYPER_UNLOCK_DAY ?? 30) ? SPEED_STEPS_HYPER : SPEED_STEPS_EARLY
 }
@@ -45,6 +55,11 @@ export class BottomBar {
     this._armedTool = null
     this._currentSpeed = 1
     this._prev = { phase: null }
+    // Dungeon readiness for the BEGIN DAY blocker. Defaults ready; NightPhase
+    // broadcasts DUNGEON_READINESS with a blocker label (e.g. 'PATH OPEN')
+    // when a disconnected room island would stop the day from starting.
+    this._ready   = true
+    this._blocker = null
 
     this.el = this._build()
     this._wireEvents()
@@ -54,14 +69,14 @@ export class BottomBar {
   _build() {
     this._refs = {}
     const modes = [
-      { id: 'place',   label: 'PLACE',   icon: '➕' /* + */ },
+      { id: 'place',   label: 'PLACE',   icon: '✛' /* + */ },
       { id: 'move',    label: 'MOVE',    icon: '⤷' /* ⤷ */ },
       { id: 'upgrade', label: 'UPGRADE', icon: '⬆' /* tier up */ },
-      { id: 'sell',    label: 'SELL',    icon: '␡' /* ⌫ */ },
+      { id: 'sell',    label: 'SELL',    icon: '⌫' /* delete */ },
     ]
 
     const root = h('div', { className: 'qf-bottombar' }, [
-      h('div', { className: 'qf-bottombar-console' }, [
+      h('div', { className: 'qf-bottombar-console', ref: el => { this._refs.console = el } }, [
         // BUILD MODES
         h('div', { className: 'qf-bb-group qf-bb-modes' }, [
           modes.map(m => h('button', {
@@ -89,7 +104,9 @@ export class BottomBar {
           h('button', {
             className: 'btn primary qf-bb-begin',
             ref: el => { this._refs.beginBtn = el },
-            on: { click: () => EventBus.emit('PHASE_TOGGLE_REQUEST') },
+            // Blocked (disconnected dungeon) → clicking is a no-op; the button
+            // itself shows WHY (e.g. "⚠ PATH OPEN"). Readiness drives the label.
+            on: { click: () => { if (this._ready) EventBus.emit('PHASE_TOGGLE_REQUEST') } },
           }, '▶  BEGIN DAY'),
           h('div', {
             className: 'qf-bb-speed',
@@ -125,6 +142,7 @@ export class BottomBar {
             style: { display: 'none' },
             on: { click: () => this._onReviveClick() },
           }, [
+            h('span', { className: 'qf-bb-menu-icon revive' }, '♥'),
             h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE'),
             h('span', { className: 'qf-bb-revive-cost' }, [
               h('span', { className: 'qf-bb-revive-coin' }),
@@ -140,6 +158,7 @@ export class BottomBar {
             style: { display: 'none' },
             on: { click: () => this._onRebuildClick() },
           }, [
+            h('span', { className: 'qf-bb-menu-icon rebuild' }, '⚒'),
             h('span', { ref: el => { this._refs.rebuildLabel = el } }, 'REBUILD'),
             h('span', { className: 'qf-bb-revive-cost' }, [
               h('span', { className: 'qf-bb-revive-coin' }),
@@ -153,11 +172,11 @@ export class BottomBar {
           h('button', {
             className: 'btn qf-bb-menu',
             on: { click: () => EventBus.emit('OPEN_KNOWLEDGE_MAP') },
-          }, [h('span', { className: 'qf-bb-menu-icon muted' }, '◈'), ' KNOWLEDGE']),
+          }, [h('span', { className: 'qf-bb-menu-icon muted' }, '◈'), ' MAP']),
           h('button', {
             className: 'btn qf-bb-menu',
             on: { click: () => EventBus.emit('OPEN_ADV_INTEL') },
-          }, [h('span', { className: 'qf-bb-menu-icon warn' }, '◈'), ' ADV INTEL']),
+          }, [h('span', { className: 'qf-bb-menu-icon warn' }, '◈'), ' INTEL']),
           h('button', {
             className: 'btn qf-bb-menu',
             on: { click: () => EventBus.emit('OPEN_PAUSE_MENU') },
@@ -321,6 +340,24 @@ export class BottomBar {
       if (!el) continue
       el.classList.toggle('active', k === active)
     }
+    // Tint the console's top stripe + the armed button in the armed tool's
+    // accent (place=blood, move=rumor, upgrade=gold, sell=warn).
+    this._refs.console?.style.setProperty('--armc', ARMC[active] ?? ARMC.place)
+  }
+
+  // Repaint the BEGIN DAY button per current readiness. Blocked → warn-tinted
+  // "⚠ <reason>" that doesn't act on click; ready → the pulsing primary.
+  _applyReadiness() {
+    const btn = this._refs.beginBtn
+    if (!btn) return
+    const blocked = !this._ready
+    btn.classList.toggle('blocked', blocked)
+    btn.classList.toggle('primary', !blocked)
+    btn.setAttribute('aria-disabled', blocked ? 'true' : 'false')
+    btn.title = blocked ? 'Resolve this before the day can begin' : ''
+    btn.replaceChildren(...(blocked
+      ? [h('span', { className: 'qf-bb-begin-warn' }, '⚠'), `  ${this._blocker}`]
+      : ['▶  BEGIN DAY']))
   }
 
   _setActiveSpeed(scale) {
@@ -360,6 +397,13 @@ export class BottomBar {
     // unlock day. _rebuildSpeedBtns is a no-op when the set hasn't
     // changed, so this is cheap to fire every day.
     sub('DAY_PHASE_STARTED', () => this._rebuildSpeedBtns())
+    // Dungeon readiness → BEGIN DAY blocker. NightPhase recomputes on every
+    // room add/remove + at night entry.
+    sub('DUNGEON_READINESS', ({ ready, blocker }) => {
+      this._ready   = ready !== false
+      this._blocker = this._ready ? null : (blocker || 'NOT READY')
+      this._applyReadiness()
+    })
     // Also catch the load path — when continuing a save into day 30+,
     // the initial _build ran before SaveSystem rehydrated the day count.
     // Re-check on Game.js's load-completed broadcast.
@@ -380,6 +424,7 @@ export class BottomBar {
       this._refs.phaseStatus.classList.toggle('phase-day',   !isNight)
       this._refs.beginBtn.style.display = isNight ? '' : 'none'
       this._refs.speedBox.style.display = isNight ? 'none' : ''
+      if (isNight) this._applyReadiness()   // reflect current blocker on the begin button
       this._prev.phase = phase
     }
     // Pay-to-revive button — refresh on fallen-count / gold / phase change.

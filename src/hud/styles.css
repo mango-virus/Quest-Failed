@@ -1867,17 +1867,20 @@ body {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: var(--hud-bottom);
-  background: linear-gradient(0deg, var(--bg-2) 0%, var(--bg-1) 100%);
-  border-top: 2px solid var(--line-2);
+  /* Floating console (crypt-console redesign): the bar itself is just a
+     transparent positioning strip; only the centered console pill shows. */
+  background: transparent;
+  border-top: none;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 24px;
   z-index: 10;
-  pointer-events: auto;
+  pointer-events: none;   /* only the console pill is interactive */
 }
 
 .qf-bottombar-console {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1886,8 +1889,18 @@ body {
   box-shadow:
     inset 0 0 0 1px var(--bg-0),
     inset 0 0 0 2px var(--line-2),
-    0 4px 0 rgba(0,0,0,0.4);
+    0 4px 0 rgba(0,0,0,0.45);
+  pointer-events: auto;
 }
+/* Armed-tool top stripe — tinted by --armc (set per armed tool in JS). */
+.qf-bottombar-console::before {
+  content: ''; position: absolute; left: 6px; right: 6px; top: 0; height: 2px;
+  background: var(--armc, transparent); box-shadow: 0 0 8px var(--armc);
+  transition: background .18s ease; pointer-events: none;
+}
+
+/* Skinnier bar buttons than the default .btn (matches the design's action bar). */
+.qf-bottombar .btn { font-size: 9px; letter-spacing: .05em; padding: 9px 13px; }
 
 .qf-bb-group { display: flex; align-items: center; gap: 4px; }
 
@@ -1911,8 +1924,8 @@ body {
   line-height: 1;
 }
 .qf-bb-mode.active {
-  background: var(--blood-deep);
-  border-color: var(--blood);
+  background: color-mix(in srgb, var(--armc, var(--blood)) 40%, var(--bg-0));
+  border-color: var(--armc, var(--blood));
   color: #fff;
 }
 .qf-bb-mode.active .qf-bb-mode-icon { color: #fff; }
@@ -1947,6 +1960,22 @@ body {
   padding: 8px 16px;
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
+/* Blocked BEGIN DAY — the button states WHY the day can't start (e.g. a
+   disconnected room island → "⚠ PATH OPEN"). Warn-tinted, no pulse, inert
+   on click/press. */
+.qf-bb-begin.blocked {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--line-2));
+  cursor: not-allowed;
+  animation: none;
+}
+.qf-bb-begin.blocked:hover {
+  background: color-mix(in srgb, var(--warn) 14%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--line-2));
+}
+.qf-bb-begin.blocked:active { transform: none; filter: none; }
+.qf-bb-begin .qf-bb-begin-warn { font-size: 12px; line-height: 1; color: var(--warn); }
 
 /* Pay-to-revive — a compact GREEN action in the right menu group, next to
    ROSTER (minion-management corner). Inherits .qf-bb-menu sizing; the green
@@ -1955,14 +1984,16 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: linear-gradient(180deg, var(--poison) 0%, #3f6322 100%);
-  border-color: #8fce5a;
+  background: color-mix(in srgb, var(--poison) 42%, var(--bg-0));
+  border-color: var(--poison);
   color: #fff;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 .qf-bb-revive:hover {
-  background: linear-gradient(180deg, #7fb845 0%, var(--poison) 100%);
+  background: color-mix(in srgb, var(--poison) 55%, var(--bg-0));
 }
+/* Heart/hammer glyph rides white on the filled green/blue action. */
+.qf-bb-revive .qf-bb-menu-icon { color: #fff; font-size: 12px; line-height: 1; }
 /* Cost readout: coin sprite + gold number (no "g"), divided from the label. */
 .qf-bb-revive .qf-bb-revive-cost {
   display: inline-flex;
@@ -1998,11 +2029,11 @@ body {
    matching the recoloured TRAPS category). Reuses the .qf-bb-revive cost /
    coin / cant-afford child rules above. */
 .qf-bb-revive.qf-bb-rebuild {
-  background: linear-gradient(180deg, var(--rumor) 0%, #1d6b78 100%);
-  border-color: #7fdce8;
+  background: color-mix(in srgb, var(--rumor) 38%, var(--bg-0));
+  border-color: var(--rumor);
 }
 .qf-bb-revive.qf-bb-rebuild:hover {
-  background: linear-gradient(180deg, #7fdce8 0%, var(--rumor) 100%);
+  background: color-mix(in srgb, var(--rumor) 52%, var(--bg-0));
 }
 
 /* Speed control (day phase) */

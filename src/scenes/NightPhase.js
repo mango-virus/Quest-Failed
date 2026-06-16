@@ -677,9 +677,24 @@ export class NightPhase extends Phaser.Scene {
     // Connectivity highlight auto-refresh — when a room is added or
     // removed, re-check what (if anything) is still disconnected and
     // update the pulse. Clears entirely when the player fixes the issue.
-    const refreshDisc = () => this._refreshDisconnectedHighlight()
+    const refreshDisc = () => { this._refreshDisconnectedHighlight(); this._emitReadiness() }
     on('ROOM_PLACED',  refreshDisc)
     on('ROOM_REMOVED', refreshDisc)
+    // Initial readiness broadcast so the action bar's BEGIN DAY blocker
+    // reflects a disconnected dungeon the moment night begins (e.g. on a
+    // loaded save), not only after the first room edit.
+    this._emitReadiness()
+  }
+
+  // Broadcast whether the dungeon is ready for BEGIN DAY. Drives the action
+  // bar's proactive "⚠ PATH OPEN" blocker (BottomBar). The authoritative gate
+  // still lives in the Begin-Day handler; this just mirrors the main blocker
+  // (a disconnected room island) onto the button so the player sees WHY
+  // before clicking. Cheap — only fired on room add/remove + night entry.
+  _emitReadiness() {
+    const disc = this._dungeonGrid?.getDisconnectedRooms?.() ?? []
+    const ready = disc.length === 0
+    EventBus.emit('DUNGEON_READINESS', { ready, blocker: ready ? null : 'PATH OPEN' })
   }
 
   // Phase 31D — arm/cancel a build-mode tool. Clicking the action-bar tool
