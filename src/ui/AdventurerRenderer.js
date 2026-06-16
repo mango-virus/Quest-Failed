@@ -17,6 +17,7 @@ import { Balance }  from '../config/balance.js'
 import { entryDoorWorldCenter } from '../systems/DungeonGrid.js'
 import { rgbParticleBurst } from '../util/cheaterVfx.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
+import { requestAdvAtkSheet } from '../scenes/AdventurerAtkLoader.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
@@ -460,15 +461,20 @@ export class AdventurerRenderer {
     if (!s.lpc.atkTextureKey && ATK_ANIMS.has(anim)) {
       const atkKey = `${s.lpc.textureKey}-atk`
       if (this._scene.textures.exists(atkKey)) s.lpc.atkTextureKey = atkKey
+      else requestAdvAtkSheet(this._scene, s.lpc.textureKey)   // on-demand stream; falls back until it lands
     }
     const targetDir = anim === 'hurt' ? 'down' : dir
     // Oversize CARRY (dragon/long spear walk): walk/idle/run render from the
     // 128px _walk128 sheet (the carry sheet only ships a `walk` block, so idle
     // uses its idle 1-frame and run reuses walk). Lazily upgrade if it streams
     // in late, like the atk texture.
-    if (s.lpc.carryTextureKey === undefined && CARRY_WALK_ANIMS.has(anim)) {
+    // Re-check while null (not just once) so a _walk128 carry sheet that streams
+    // in on-demand gets picked up the moment it lands. requestAdvAtkSheet is a
+    // cheap no-op once the variant is resolved (or has no carry sheet).
+    if (s.lpc.carryTextureKey == null && CARRY_WALK_ANIMS.has(anim)) {
       const cKey = `${s.lpc.textureKey}-walk128`
-      s.lpc.carryTextureKey = this._scene.textures.exists(cKey) ? cKey : null
+      if (this._scene.textures.exists(cKey)) s.lpc.carryTextureKey = cKey
+      else { s.lpc.carryTextureKey = null; requestAdvAtkSheet(this._scene, s.lpc.textureKey) }
     }
     if (CARRY_WALK_ANIMS.has(anim) && s.lpc.carryTextureKey) {
       const carryAnim = anim === 'run' ? 'walk' : anim // run reuses the walk cycle

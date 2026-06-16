@@ -1,17 +1,17 @@
-// Background loader for adventurer attack spritesheets.
+// On-demand loader for adventurer attack spritesheets.
 //
-// LPC adventurers ship with a separate _atk.png per variant (192×192
-// frames so long weapons render at native scale). That's ~650 file
-// requests — historically the dominant chunk of cold-start load time.
+// LPC adventurers ship with a separate _atk.png per variant (192×192 frames so
+// long weapons render at native scale) + a _walk128.png carry sheet for some
+// polearms. There are ~650 of these across all classes × variants. They used to
+// be bulk-streamed on the title screen (Preload skipped them to keep cold-boot
+// fast), but decoding/GPU-uploading all ~650 on the main thread lagged the menu.
 //
-// To keep the title screen snappy, Preload no longer queues these in
-// its preload phase. Instead, MainMenu calls `kickOffAdventurerAtkLoad`
-// from its create() so the sheets stream in while the player is on the
-// title screen. AdventurerRenderer falls back to the main 64×64 sheet
-// for slash/thrust animations if a particular atk sheet hasn't loaded
-// yet, so an early "Start Run" is visually graceful — combat anims
-// look slightly compressed for a moment, then upgrade once the sheets
-// land in the cache.
+// Now they load ON-DEMAND, a few files at a time: AdventurerRenderer calls
+// `requestAdvAtkSheet(scene, baseKey)` the first time an adventurer of a given
+// variant needs its oversize sheet, so only the handful of variants actually in
+// a run get fetched. Until a sheet lands the renderer falls back to the 64×64
+// base slash/thrust, so it stays visually graceful (anims look slightly
+// compressed for a beat, then upgrade once the sheet + its anims register).
 
 const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
@@ -109,128 +109,196 @@ const ADVENTURER_ANIM_META = {
   thrust: { frameRate: 14, repeat: 0 },
 }
 
-// Idempotent — calling twice on the same scene is harmless because
-// loadingStarted gets set on the scene the first time.
-export function kickOffAdventurerAtkLoad(scene) {
-  if (scene._advAtkLoadStarted) return
-  scene._advAtkLoadStarted = true
+// ── On-demand, throttled per-variant loading ───────────────────────────────
+// Replaces the old bulk title-screen prewarm. That prewarm streamed ~650 sheets
+// the moment you sat on the menu and decoded/GPU-uploaded each on the main
+// thread, which is what made the menu lag. Now the renderer asks for a single
+// variant's atk/carry sheet the first time an adventurer of that variant needs
+// it (requestAdvAtkSheet) — so only the handful of variants actually in play get
+// loaded, a few files at a time. Until a sheet lands the renderer falls back to
+// the 64px base slash/thrust, so it stays visually graceful.
 
-  // Per-variant weapon lookup from the manifest — used to skip atk-sheet
-  // requests for normal-attack weapons (no _atk.png is baked for those).
-  // Defensive: if the manifest isn't cached, weaponOf stays empty and every
-  // variant is requested (the prior behaviour).
+const ATK_MAX_INFLIGHT = 3            // throttle: at most N sheet files fetching at once
+let   _atkScene    = null             // scene whose loader we've wired
+let   _atkInFlight = 0                // files currently downloading
+const _atkPending  = new Set()        // base keys queued / loading (dedupe)
+const _atkDone     = new Set()        // base keys fully resolved (nothing left to fetch)
+const _atkQueue    = []               // [{ id, v, baseKey, needAtk, needCarry }] awaiting a slot
+let   _atkWeaponOf = null             // manifest weapon lookup, cached
+
+function _weaponLookup(scene) {
+  if (_atkWeaponOf) return _atkWeaponOf
+  _atkWeaponOf = {}
   const manifest = scene.cache?.json?.get('adventurerManifest')
-  const weaponOf = {}
   if (manifest?.variants) {
     for (const [cid, list] of Object.entries(manifest.variants)) {
-      for (const vv of list) weaponOf[`${cid}/${vv.id}`] = vv.weapon
+      for (const vv of list) _atkWeaponOf[`${cid}/${vv.id}`] = vv.weapon
     }
   }
-
-  for (const id of ADVENTURER_CLASS_IDS) {
-    if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-    for (let i = 1; i <= advVariantCount(id); i++) {
-      const v   = `v${String(i).padStart(2, '0')}`
-      // No atk sheet on disk for: barehanded variants (no weapon) and
-      // normal-attack weapons (Dagger/Club — contained 64px base slash). Don't
-      // request those (else a 404 per variant); the renderer falls back to the
-      // base slash row. Aldric is a hand-authored named one-off with NO manifest
-      // entry (weaponOf is empty for him) but DOES ship a slash_oversize atk sheet
-      // for every form — so bypass the weapon gate for him.
-      if (id !== 'aldric') {
-        const wpn = weaponOf[`${id}/${v}`]
-        if (!wpn || NORMAL_ATTACK_WEAPONS.has(wpn)) continue
-      }
-      const key = `adv-${id}-${v}-atk`
-      // Skip if already loaded (Phaser's loader would warn otherwise).
-      if (scene.textures.exists(key)) continue
-      scene.load.spritesheet(key,
-        `assets/sprites/adventurers/${id}/${v}_atk.png`,
-        { frameWidth: ADVENTURER_ATK_FRAME, frameHeight: ADVENTURER_ATK_FRAME })
-    }
-  }
-
-  // Oversize CARRY sheets (_walk128) — only for variants fielding a walk_128
-  // polearm (dragon/long spear, trident). Skip otherwise (no file → 404).
-  for (const id of ADVENTURER_CLASS_IDS) {
-    if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-    for (let i = 1; i <= advVariantCount(id); i++) {
-      const v = `v${String(i).padStart(2, '0')}`
-      if (!CARRY_WALK_WEAPONS.has(weaponOf[`${id}/${v}`])) continue
-      const key = `adv-${id}-${v}-walk128`
-      if (scene.textures.exists(key)) continue
-      scene.load.spritesheet(key,
-        `assets/sprites/adventurers/${id}/${v}_walk128.png`,
-        { frameWidth: ADVENTURER_CARRY_FRAME, frameHeight: ADVENTURER_CARRY_FRAME })
-    }
-  }
-
-  // When this batch finishes, register the anims so the renderer can
-  // start using them. Anim registration was historically owned by
-  // Preload.create(), but with deferred loading the textures aren't
-  // there yet at that point — so we own anim registration here too.
-  scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-    registerAdventurerAtkAnims(scene)
-  })
-
-  scene.load.start()
+  return _atkWeaponOf
 }
 
-// Public so Preload's create() can still call it for any sheets that
-// happened to be cached from a previous session — and so the post-load
-// callback in kickOffAdventurerAtkLoad can use the same code path.
-export function registerAdventurerAtkAnims(scene) {
-  for (const id of ADVENTURER_CLASS_IDS) {
-    if (!ADVENTURER_ATK_CLASSES.has(id)) continue
-    for (let i = 1; i <= advVariantCount(id); i++) {
-      const v   = `v${String(i).padStart(2, '0')}`
-      const key = `adv-${id}-${v}-atk`
-      if (!scene.textures.exists(key)) continue
-      const tex = scene.textures.get(key)
-      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+// 'adv-<classId>-<vNN>' → { id, v }. classId uses underscores (beast_master,
+// shadow_monarch, champion_garreth); the variant is always the trailing 'vNN',
+// so split on the LAST hyphen.
+function _parseBaseKey(baseKey) {
+  if (typeof baseKey !== 'string' || !baseKey.startsWith('adv-')) return null
+  const body = baseKey.slice(4)
+  const i = body.lastIndexOf('-')
+  if (i < 0) return null
+  const id = body.slice(0, i), v = body.slice(i + 1)
+  return /^v\d+$/.test(v) ? { id, v } : null
+}
+function _parseAtkKey(key) {
+  const m = /^adv-(.+)-(v\d+)-(?:atk|walk128)$/.exec(key || '')
+  return m ? { id: m[1], v: m[2] } : null
+}
 
-      for (const [animName, cfg] of Object.entries(ADVENTURER_ATK_ANIM_LAYOUT)) {
-        const meta = ADVENTURER_ANIM_META[animName]
-        if (!meta) continue
-        for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
-          const start   = (cfg.startRow + d) * ADVENTURER_ATK_COLS
-          const end     = start + cfg.frames - 1
-          const animKey = `${key}-${animName}-${ADVENTURER_DIRS[d]}`
-          if (scene.anims.exists(animKey)) continue
-          scene.anims.create({
-            key: animKey,
-            frames: scene.anims.generateFrameNumbers(key, { start, end }),
-            frameRate: meta.frameRate,
-            repeat: meta.repeat,
-          })
-        }
+// Whether a variant wants an atk / carry sheet at all (the weapon gates from the
+// old bulk loader — barehanded + Dagger/Club have no _atk.png; only walk_128
+// polearms ship a _walk128). Aldric is a named one-off with no manifest entry
+// but always ships a slash_oversize atk sheet.
+function _wantSheets(scene, id, v) {
+  const wpn = _weaponLookup(scene)[`${id}/${v}`]
+  return {
+    atk:   (id === 'aldric') || (!!wpn && !NORMAL_ATTACK_WEAPONS.has(wpn)),
+    carry: CARRY_WALK_WEAPONS.has(wpn),
+  }
+}
+
+// Called by the renderer when an adventurer needs its oversize sheet. `baseKey`
+// is the variant's base LPC texture key, e.g. 'adv-knight-v03'. Cheap no-op once
+// the variant is resolved (loaded or nothing to load), so per-frame calls are fine.
+export function requestAdvAtkSheet(scene, baseKey) {
+  if (!scene?.load || typeof baseKey !== 'string') return
+  // New scene (a fresh run) — drop stale in-flight bookkeeping and re-wire the
+  // per-file hooks on the new scene's loader. `_atkDone` persists: textures +
+  // anims live at the game level, so a variant resolved last run stays resolved.
+  if (_atkScene !== scene) {
+    _atkScene = scene
+    _atkInFlight = 0
+    _atkPending.clear()
+    _atkQueue.length = 0
+    scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, _onAtkFile)
+    scene.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, _onAtkErr)
+  }
+  if (_atkDone.has(baseKey) || _atkPending.has(baseKey)) return
+  const parsed = _parseBaseKey(baseKey)
+  if (!parsed) { _atkDone.add(baseKey); return }
+  const { id, v } = parsed
+  if (!ADVENTURER_ATK_CLASSES.has(id)) { _atkDone.add(baseKey); return }
+  const want = _wantSheets(scene, id, v)
+  const needAtk   = want.atk   && !scene.textures.exists(`${baseKey}-atk`)
+  const needCarry = want.carry && !scene.textures.exists(`${baseKey}-walk128`)
+  if (!needAtk && !needCarry) {
+    // Nothing to fetch (no oversize sheet for this weapon, or already loaded).
+    // Register whatever's present + mark done so we don't re-check every frame.
+    registerVariantAtkAnims(scene, id, v)
+    _atkDone.add(baseKey)
+    return
+  }
+  _atkPending.add(baseKey)
+  _atkQueue.push({ id, v, baseKey, needAtk, needCarry })
+  _pumpAtk(scene)
+}
+
+function _onAtkFile(key) {
+  const p = _parseAtkKey(key)
+  if (!p || !_atkScene) return
+  registerVariantAtkAnims(_atkScene, p.id, p.v)
+  _atkInFlight = Math.max(0, _atkInFlight - 1)
+  const baseKey = `adv-${p.id}-${p.v}`
+  const want = _wantSheets(_atkScene, p.id, p.v)
+  const atkOk   = !want.atk   || _atkScene.textures.exists(`${baseKey}-atk`)
+  const carryOk = !want.carry || _atkScene.textures.exists(`${baseKey}-walk128`)
+  if (atkOk && carryOk) { _atkDone.add(baseKey); _atkPending.delete(baseKey) }
+  _pumpAtk(_atkScene)
+}
+function _onAtkErr(file) {
+  const p = _parseAtkKey(file?.key || '')
+  if (!p) return
+  _atkInFlight = Math.max(0, _atkInFlight - 1)
+  // A missing file (404) shouldn't wedge the queue or re-request forever.
+  _atkPending.delete(`adv-${p.id}-${p.v}`)
+  _atkDone.add(`adv-${p.id}-${p.v}`)
+  if (_atkScene) _pumpAtk(_atkScene)
+}
+
+function _pumpAtk(scene) {
+  let started = false
+  while (_atkInFlight < ATK_MAX_INFLIGHT && _atkQueue.length) {
+    const job = _atkQueue.shift()
+    const { id, v } = job
+    const atkKey = `adv-${id}-${v}-atk`, carryKey = `adv-${id}-${v}-walk128`
+    let added = 0
+    if (job.needAtk && !scene.textures.exists(atkKey)) {
+      scene.load.spritesheet(atkKey, `assets/sprites/adventurers/${id}/${v}_atk.png`,
+        { frameWidth: ADVENTURER_ATK_FRAME, frameHeight: ADVENTURER_ATK_FRAME }); added++
+    }
+    if (job.needCarry && !scene.textures.exists(carryKey)) {
+      scene.load.spritesheet(carryKey, `assets/sprites/adventurers/${id}/${v}_walk128.png`,
+        { frameWidth: ADVENTURER_CARRY_FRAME, frameHeight: ADVENTURER_CARRY_FRAME }); added++
+    }
+    if (added === 0) {
+      // Already present (raced in) — resolve + don't count against the cap.
+      registerVariantAtkAnims(scene, id, v)
+      _atkDone.add(job.baseKey); _atkPending.delete(job.baseKey)
+      continue
+    }
+    _atkInFlight += added
+    started = true
+  }
+  if (started) scene.load.start()
+}
+
+// Register the slash/thrust (+ carry walk/idle) anims for ONE variant. Idempotent
+// (guarded by textures/anims existence), so it's safe to call repeatedly.
+export function registerVariantAtkAnims(scene, id, v) {
+  const key = `adv-${id}-${v}-atk`
+  if (scene.textures.exists(key)) {
+    const tex = scene.textures.get(key)
+    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    for (const [animName, cfg] of Object.entries(ADVENTURER_ATK_ANIM_LAYOUT)) {
+      const meta = ADVENTURER_ANIM_META[animName]
+      if (!meta) continue
+      for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
+        const start   = (cfg.startRow + d) * ADVENTURER_ATK_COLS
+        const end     = start + cfg.frames - 1
+        const animKey = `${key}-${animName}-${ADVENTURER_DIRS[d]}`
+        if (scene.anims.exists(animKey)) continue
+        scene.anims.create({
+          key: animKey,
+          frames: scene.anims.generateFrameNumbers(key, { start, end }),
+          frameRate: meta.frameRate,
+          repeat: meta.repeat,
+        })
       }
+    }
+  }
 
-      // CARRY sheet (_walk128) anims — a 9-frame walk block per dir + a 1-frame
-      // idle (frame 0). Run reuses the walk anim (renderer maps run→walk).
-      const ckey = `adv-${id}-${v}-walk128`
-      if (scene.textures.exists(ckey)) {
-        const ctex = scene.textures.get(ckey)
-        if (ctex.setFilter) ctex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-        for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
-          const base = d * ADVENTURER_CARRY_COLS
-          const walkKey = `${ckey}-walk-${ADVENTURER_DIRS[d]}`
-          if (!scene.anims.exists(walkKey)) {
-            scene.anims.create({
-              key: walkKey,
-              frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base + ADVENTURER_CARRY_COLS - 1 }),
-              frameRate: 9, repeat: -1,
-            })
-          }
-          const idleKey = `${ckey}-idle-${ADVENTURER_DIRS[d]}`
-          if (!scene.anims.exists(idleKey)) {
-            scene.anims.create({
-              key: idleKey,
-              frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base }),
-              frameRate: 1, repeat: -1,
-            })
-          }
-        }
+  // CARRY sheet (_walk128) anims — a 9-frame walk block per dir + a 1-frame idle
+  // (frame 0). Run reuses the walk anim (renderer maps run→walk).
+  const ckey = `adv-${id}-${v}-walk128`
+  if (scene.textures.exists(ckey)) {
+    const ctex = scene.textures.get(ckey)
+    if (ctex.setFilter) ctex.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    for (let d = 0; d < ADVENTURER_DIRS.length; d++) {
+      const base = d * ADVENTURER_CARRY_COLS
+      const walkKey = `${ckey}-walk-${ADVENTURER_DIRS[d]}`
+      if (!scene.anims.exists(walkKey)) {
+        scene.anims.create({
+          key: walkKey,
+          frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base + ADVENTURER_CARRY_COLS - 1 }),
+          frameRate: 9, repeat: -1,
+        })
+      }
+      const idleKey = `${ckey}-idle-${ADVENTURER_DIRS[d]}`
+      if (!scene.anims.exists(idleKey)) {
+        scene.anims.create({
+          key: idleKey,
+          frames: scene.anims.generateFrameNumbers(ckey, { start: base, end: base }),
+          frameRate: 1, repeat: -1,
+        })
       }
     }
   }

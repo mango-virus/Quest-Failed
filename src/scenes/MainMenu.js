@@ -10,15 +10,16 @@
 // What this scene still owns:
 //   - mounting / unmounting the DOM overlay
 //   - title-screen music (TitleMusic loop; stop GameplayMusic)
-//   - background-streaming the oversize adventurer attack spritesheets
-//     (kickOffAdventurerAtkLoad) + run audio (kickOffDeferredAudioLoad)
+//   - background-streaming the run audio (kickOffDeferredAudioLoad). The
+//     oversize adventurer attack spritesheets are NO LONGER bulk-loaded here
+//     (that ~650-file decode/upload was the source of title-screen lag) — they
+//     now load on-demand per variant from AdventurerRenderer (requestAdvAtkSheet)
 //   - a letterboxed camera so canvas-level right-click suppression etc. work
 //
 // The legacy `?newhud=0` Phaser menu path was removed 2026-05-31.
 
 import { TitleMusic }    from '../systems/TitleMusic.js'
 import { GameplayMusic } from '../systems/GameplayMusic.js'
-import { kickOffAdventurerAtkLoad } from './AdventurerAtkLoader.js'
 import { kickOffDeferredAudioLoad } from './DeferredAudioLoader.js'
 
 // Logical design size — letterboxed inside the actual canvas. Matches the
@@ -62,21 +63,17 @@ export class MainMenu extends Phaser.Scene {
       if (game) game._mainMenuOverlay = null
     })
 
-    // Background-load the oversize attack sheets here. THIS Phaser scene still
-    // owns the loader even though the visible title screen is the DOM overlay —
-    // without it the `_atk` sheets never stream in and every adventurer's
-    // slash/thrust silently falls back to the shrunk 64px row (most glaring on
-    // Jinwoo, whose Scimitar swing is oversize-only). 3s delay + 4-parallel
-    // throttle so the load doesn't compete with title-screen audio decoding.
+    // Background-stream the run audio (boss/stage music + gameplay SFX, ~38MB)
+    // while the player sits on the title screen, so the cold boot didn't have to
+    // block on it. Game.create() re-kicks it in case the player dove into a run
+    // before this pass finished. The oversize adventurer attack sheets are NOT
+    // streamed here anymore — bulk-decoding ~650 of them was what lagged the
+    // menu; they now load on-demand per variant (AdventurerRenderer →
+    // requestAdvAtkSheet), so only the few variants actually in a run get loaded.
     this.time.delayedCall(3000, () => {
       if (!this.scene.isActive()) return
       this.load.maxParallelDownloads = 4
-      // Stream the run audio (boss/stage music + gameplay SFX, ~38MB) and the
-      // adventurer attack sheets while the player sits on the title screen, so
-      // the cold boot didn't have to block on them. Game.create() re-kicks the
-      // audio in case the player dove into a run before this pass finished.
       kickOffDeferredAudioLoad(this)
-      kickOffAdventurerAtkLoad(this)
     })
   }
 
