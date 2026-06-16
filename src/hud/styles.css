@@ -1462,10 +1462,12 @@ body {
   width: max-content;        /* panel hugs its content, doesn't span the cell */
 }
 .qf-topbar-right {
-  display: flex; align-items: center; gap: 11px;
-  padding: 9px 14px;
+  /* TREASURY label centered above the coin+amount, box snug to content. */
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 16px;
   width: max-content; justify-self: end;   /* panel hugs content, sits at the right */
 }
+.qf-treasury-label { align-self: center; }
 
 .boss-portrait-btn {
   padding: 4px;
@@ -1746,10 +1748,10 @@ body {
 
 .qf-treasury-amount {
   position: relative;   /* anchors the +Ng floaters + coin sparks */
-  min-width: 130px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   line-height: 0;
 }
 
