@@ -385,19 +385,52 @@ export class SettingsOverlay {
   // ─── control widgets ───────────────────────────────────────────────────
   _fader(label, key) {
     const value = this._draft[key]
+    let fillEl, knobEl, valEl
+    // Live update WITHOUT rebuilding the whole panel — the old path called
+    // _set() (→ full _rerender) on every click, which made dragging stutter and
+    // can't track a held pointer at all. Now we mutate just this fader's
+    // fill/knob/value + push audio live, and drag via pointer capture. The draft
+    // stays the source of truth for APPLY/CANCEL.
+    const apply = (pct) => {
+      pct = Math.max(0, Math.min(100, Math.round(pct)))
+      if (pct === this._draft[key]) return
+      this._draft[key] = pct
+      if (fillEl) fillEl.style.height = pct + '%'
+      if (knobEl) knobEl.style.bottom = `calc(${pct}% - 9px)`
+      if (valEl)  valEl.textContent = String(pct)
+      if (key === 'master' || key === 'music' || key === 'sfx') this._applyAudio(this._draft)
+    }
+    const pctAt = (track, clientY) => {
+      const r = track.getBoundingClientRect()
+      return r.height ? (1 - (clientY - r.top) / r.height) * 100 : 0
+    }
     return h('div', { className: 'qf-op-fader' }, [
       h('div', {
         className: 'track',
-        on: { click: (e) => {
-          const r = e.currentTarget.getBoundingClientRect()
-          const pct = Math.max(0, Math.min(100, Math.round((1 - (e.clientY - r.top) / r.height) * 100)))
-          this._set(key, pct)
-        } },
+        on: {
+          pointerdown: (e) => {
+            e.preventDefault()
+            const track = e.currentTarget
+            track.setPointerCapture?.(e.pointerId)
+            this._dragFader = key
+            apply(pctAt(track, e.clientY))
+          },
+          pointermove: (e) => {
+            if (this._dragFader !== key) return
+            apply(pctAt(e.currentTarget, e.clientY))
+          },
+          pointerup: (e) => {
+            if (this._dragFader !== key) return
+            this._dragFader = null
+            e.currentTarget.releasePointerCapture?.(e.pointerId)
+          },
+          pointercancel: () => { if (this._dragFader === key) this._dragFader = null },
+        },
       }, [
-        h('div', { className: 'fill', style: { height: value + '%' } }),
-        h('div', { className: 'knob', style: { bottom: `calc(${value}% - 9px)` } }),
+        h('div', { className: 'fill', style: { height: value + '%' }, ref: el => { fillEl = el } }),
+        h('div', { className: 'knob', style: { bottom: `calc(${value}% - 9px)` }, ref: el => { knobEl = el } }),
       ]),
-      h('div', { className: 'val' }, String(value)),
+      h('div', { className: 'val', ref: el => { valEl = el } }, String(value)),
       h('div', { className: 'lbl' }, label),
     ])
   }
