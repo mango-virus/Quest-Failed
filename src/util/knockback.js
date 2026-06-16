@@ -14,8 +14,31 @@ import { Balance } from '../config/balance.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { EventBus } from '../systems/EventBus.js'
+import { TILE } from '../systems/DungeonGrid.js'
 
 const TS = Balance.TILE_SIZE
+
+// Knockback must never leave an entity STANDING on a door tile — doorways are for
+// transit (the single-file funnel), and an entity parked there gets stuck. When a
+// knockback stops on a door, snap it onto the nearest adjacent FLOOR tile (prefer
+// continuing the slide direction). `vx/vy` give the slide heading for that pick.
+function _clearDoorway(entity, grid, vx, vy) {
+  if (!grid || typeof grid.getTileType !== 'function') return
+  const tx = Math.floor((entity.worldX ?? 0) / TS), ty = Math.floor((entity.worldY ?? 0) / TS)
+  if (grid.getTileType(tx, ty) !== TILE.DOOR) return
+  const sx = Math.sign(vx || 0), sy = Math.sign(vy || 0)
+  const cands = [[sx, sy], [sx, 0], [0, sy], [1, 0], [-1, 0], [0, 1], [0, -1]]
+  for (const [ox, oy] of cands) {
+    if (ox === 0 && oy === 0) continue
+    const t = grid.getTileType(tx + ox, ty + oy)
+    if (t !== TILE.DOOR && PathfinderSystem.isWalkable(t)) {
+      entity.worldX = (tx + ox) * TS + TS / 2
+      entity.worldY = (ty + oy) * TS + TS / 2
+      entity.tileX = tx + ox; entity.tileY = ty + oy
+      return
+    }
+  }
+}
 
 // Knockback speed (px/s) for a hit of `damage` on `target`. `heavy` forces a tier
 // regardless of size: 'big' → big, truthy → at least small. Returns 0 = no knockback.
@@ -59,17 +82,20 @@ export function tickKnockback(entity, deltaMs, grid, scene, now) {
     if (Math.hypot(vx, vy) > (Balance.KNOCKBACK_WALL_IMPACT_MIN ?? 6 * TS)) {
       EventBus.emit('KNOCKBACK_WALL_IMPACT', { id: entity.instanceId, x: entity.worldX, y: entity.worldY })
     }
-    entity._kbVx = 0; entity._kbVy = 0; entity._knockbackUntil = 0
     entity.tileX = Math.floor((entity.worldX ?? 0) / TS)
     entity.tileY = Math.floor((entity.worldY ?? 0) / TS)
+    if (realGrid) _clearDoorway(entity, grid, vx, vy)   // never park in a doorway
+    entity._kbVx = 0; entity._kbVy = 0; entity._knockbackUntil = 0
     return true
   }
   entity.tileX = Math.floor(entity.worldX / TS)
   entity.tileY = Math.floor(entity.worldY / TS)
   const decay = Balance.KNOCKBACK_DECAY ?? 0.88
   entity._kbVx *= decay; entity._kbVy *= decay
-  // Ended by decay or the window expiring → settle to a clean stop (zero velocity).
+  // Ended by decay or the window expiring → settle to a clean stop (zero velocity),
+  // and never leave the entity parked on a door tile.
   if (Math.hypot(entity._kbVx, entity._kbVy) < (Balance.KNOCKBACK_MIN_SPEED ?? 1 * TS) || now >= entity._knockbackUntil) {
+    if (realGrid) _clearDoorway(entity, grid, entity._kbVx, entity._kbVy)
     entity._kbVx = 0; entity._kbVy = 0; entity._knockbackUntil = 0
   }
   return true

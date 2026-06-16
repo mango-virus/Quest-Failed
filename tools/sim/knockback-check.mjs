@@ -61,6 +61,24 @@ console.log('\n[3] slide + wall clamp')
   ok(t.tileX === Math.floor(t.worldX / TS), 'tile coords synced to world position')
 }
 
+// ── 3b) Never parked in a doorway ───────────────────────────────────────────
+console.log('\n[3b] knockback never stops on a door tile')
+{
+  // Floor everywhere except a single DOOR tile at tileX 6 (floor beyond it).
+  const doorGrid = { getTileType: (tx) => (tx === 6 ? TILE.DOOR : TILE.FLOOR) }
+  const t = { instanceId: 'd', worldX: 5.5 * TS, worldY: 5.5 * TS, resources: { hp: 100, maxHp: 100 } }
+  // small knockback +x → slides onto the door tile and decays there
+  applyKnockback(t, 4.5 * TS, 5.5 * TS, knockbackSpeedFor(t, 12), 0)
+  let onDoorEver = false
+  for (let i = 0; i < 80 && (t._knockbackUntil ?? 0) > 0; i++) {
+    tickKnockback(t, 16, doorGrid, scene, i * 16)
+    if (Math.floor(t.worldX / TS) === 6) onDoorEver = true
+    if ((t._knockbackUntil ?? 0) === 0) break
+  }
+  ok(onDoorEver, 'slide passed over the door tile (test is exercising the path)')
+  ok(doorGrid.getTileType(Math.floor(t.worldX / TS)) !== TILE.DOOR, 'final resting tile is NOT a door (cleared off the doorway)')
+}
+
 // ── 4) No-op when not knocked back ──────────────────────────────────────────
 console.log('\n[4] inert when idle')
 ok(tickKnockback(tgt(), 16, grid, scene, 5000) === false, 'tickKnockback returns false with no active knockback')

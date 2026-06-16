@@ -1254,10 +1254,16 @@ export class AISystem {
     // STATIONARY only (aiState 'idle'): walking / fleeing / fighting / healing /
     // at-boss advs are excluded (nudging movers backfires; combat is out of
     // scope). Doorway-safe (see crowdSeparation).
+    // De-clump STANDING adventurers so they never read as one blob. Includes
+    // FIGHTING/healing advs — they stand still while swinging/channelling (they
+    // tryAttack+return, no _moveToward), so the nudge sticks; two heroes piling on
+    // the same enemy fan out side-by-side. WALKING/fleeing stay excluded (nudging a
+    // mover backfires — the path snaps it back). Doorway-safe (see crowdSeparation).
     applyCrowdSeparation(active, this._dungeonGrid, {
       radius: 11,
       eligible: (a) =>
-        a.aiState === 'idle' && (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
+        (a.aiState === 'idle' || a.aiState === 'fighting' || a.aiState === 'healing') &&
+        (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
     })
 
     // Bestiary POSITIONING counter (Layer B) — when a STUDIED AoE-threat minion
