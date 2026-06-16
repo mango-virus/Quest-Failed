@@ -533,17 +533,28 @@ export class LeaderboardOverlay {
   _renderPodium(top3) {
     // Visual order: #2 (left), #1 (center, bigger), #3 (right).
     const order = [[top3[1], 2], [top3[0], 1], [top3[2], 3]]
-    return h('div', { className: 'qf-lb2-pods' },
-      order.map(([e, place]) => e ? this._podCard(e, place) : h('div', null)))
+    // One podium entry can be open at a time (shared with the ledger via
+    // _openRow, keyed by rank). Its pacts render full-width under the grid so
+    // expanding doesn't shove the 3-col podium layout around.
+    const openEntry = top3.find(e => e && this._openRow === e.rank)
+    return h('div', { className: 'qf-lb2-podwrap' }, [
+      h('div', { className: 'qf-lb2-pods' },
+        order.map(([e, place]) => e ? this._podCard(e, place) : h('div', null))),
+      openEntry ? h('div', { className: 'qf-lb2-podexp' }, [this._pactsExp(openEntry)]) : null,
+    ])
   }
 
   _podCard(e, place) {
     const c = rankColor(place)
     const portraitSize = place === 1 ? 84 : place === 2 ? 70 : 48
     const titleText = e.title || e.accolade
+    const isOpen = this._openRow === e.rank
     return h('div', {
       className: `qf-lb2-pod p${place}${e.isYou ? ' you' : ''}`,
-      style: { '--rc': c },
+      dataset: { open: isOpen ? 'true' : 'false' },
+      style: { '--rc': c, cursor: 'pointer' },
+      title: 'Click to view sealed pacts',
+      on: { click: () => { this._openRow = isOpen ? null : e.rank; this._rerender() } },
     }, [
       e.status === 'live' && h('span', { className: 'sil live' + (e.isStale ? ' stale' : '') }, e.isStale ? 'PAUSED' : 'LIVE'),
       h('div', { className: 'potop' }, [
@@ -559,6 +570,7 @@ export class LeaderboardOverlay {
         ]),
       ]),
       this._podStats(e),
+      h('div', { className: 'sil qf-lb2-pod-more' }, isOpen ? '▾ HIDE PACTS' : '▸ VIEW PACTS'),
     ])
   }
 
@@ -588,7 +600,9 @@ export class LeaderboardOverlay {
 
   _ledgerRow(r) {
     const c = rankColor(r.rank)
-    const isOpen = this._openRow === r.name
+    // Key the accordion by RANK (unique) — keying by name expanded every run
+    // that shared a name at once.
+    const isOpen = this._openRow === r.rank
     const titleText = r.title || r.accolade
     const stat = (label, val, color) => h('span', { className: 's' }, [
       h('i', null, label),
@@ -601,7 +615,7 @@ export class LeaderboardOverlay {
     }, [
       h('button', {
         className: 'qf-lb2-r',
-        on: { click: () => { this._openRow = isOpen ? null : r.name; this._rerender() } },
+        on: { click: () => { this._openRow = isOpen ? null : r.rank; this._rerender() } },
       }, [
         h('span', { className: 'pix qf-lb2-rnum' }, String(r.rank)),
         h('span', { className: 'qf-lb2-rart' }, [this._portrait(r.bossId, 30)]),
@@ -629,16 +643,22 @@ export class LeaderboardOverlay {
         ]),
         h('span', { className: 'qf-lb2-chev' }, '▶'),
       ]),
-      isOpen && h('div', { className: 'qf-lb2-exp' }, [
-        h('div', { className: 'sil qf-lb2-keeper' },
-          `KEEPER · ${this._compName(r.companionId)} · ${this._bossDisplayName(r.bossId)}`),
-        r.pacts?.length
-          ? h('div', { className: 'qf-lb2-pacts' }, r.pacts.map((p, i) => {
-              const pc = ['#ffd86a', '#e2a6f2', '#86e89a'][i % 3]
-              return h('span', { className: 'sil qf-lb2-pact', style: { color: pc, borderColor: pc } }, p)
-            }))
-          : h('div', { className: 'sil', style: { color: 'var(--text-dim)', fontSize: '8px' } }, 'NO PACTS SEALED'),
-      ]),
+      isOpen && this._pactsExp(r),
+    ])
+  }
+
+  // Shared expand panel (keeper line + sealed-pact chips) used by both the
+  // ledger rows and the podium cards.
+  _pactsExp(r) {
+    return h('div', { className: 'qf-lb2-exp' }, [
+      h('div', { className: 'sil qf-lb2-keeper' },
+        `KEEPER · ${this._compName(r.companionId)} · ${this._bossDisplayName(r.bossId)}`),
+      r.pacts?.length
+        ? h('div', { className: 'qf-lb2-pacts' }, r.pacts.map((p, i) => {
+            const pc = ['#ffd86a', '#e2a6f2', '#86e89a'][i % 3]
+            return h('span', { className: 'sil qf-lb2-pact', style: { color: pc, borderColor: pc } }, p)
+          }))
+        : h('div', { className: 'sil', style: { color: 'var(--text-dim)', fontSize: '8px' } }, 'NO PACTS SEALED'),
     ])
   }
 

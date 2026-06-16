@@ -8581,6 +8581,16 @@ body {
 .qf-lb2-pod .stats span + span { border-left: 1px solid var(--line); }
 .qf-lb2-pod .stats i { font-family: var(--sil); font-size: 7px; letter-spacing: .08em; color: var(--text-mute); font-style: normal; }
 .qf-lb2-pod .stats b { font-family: var(--pix); font-size: 12px; color: var(--text); }
+.qf-lb2-pod { transition: border-color .12s, box-shadow .12s; }
+.qf-lb2-pod[data-open="true"] { border-color: var(--rc); box-shadow: 0 0 22px color-mix(in srgb,var(--rc) 30%,transparent), 0 5px 0 rgba(0,0,0,.5); }
+.qf-lb2-pod-more { text-align: center; font-size: 7px; letter-spacing: .14em; color: var(--text-mute); padding-top: 2px; transition: color .12s; }
+.qf-lb2-pod:hover .qf-lb2-pod-more { color: var(--rc); }
+.qf-lb2-pod[data-open="true"] .qf-lb2-pod-more { color: var(--rc); }
+/* full-width podium expand (pacts for a top-3 keeper) */
+.qf-lb2-podwrap { margin-bottom: 18px; }
+.qf-lb2-podwrap .qf-lb2-pods { margin-bottom: 0; }
+.qf-lb2-podexp { margin-top: 10px; border: 1px solid var(--line2); border-top: 2px solid var(--acc); background: #0a0710; }
+.qf-lb2-podexp .qf-lb2-exp { border-top: none; padding-left: 16px; }
 /* ledger */
 .qf-lb2-ledgerhead { display: flex; align-items: center; gap: 14px; margin-bottom: 9px; }
 .qf-lb2-ledgerhead .t { font-family: var(--pix); font-size: 10px; color: var(--bone); }
