@@ -9,8 +9,10 @@
 // Plumbing preserved from the prior version:
 //   * PALETTE toggles `.palette-necro` / `.palette-hellfire` on #hud-root (live
 //     preview; APPLY persists, CANCEL reverts).
-//   * AUDIO faders write `qf.audio.{master,music,sfx,voice,ambient}`; master is
-//     a multiplier folded into music + SFX (SfxVolume / TitleMusic).
+//   * AUDIO faders write `qf.audio.{master,music,sfx,voice}`; master is a
+//     multiplier folded into music + SFX (SfxVolume / TitleMusic) and read by
+//     VOICE directly (userSettings.masterVolume). (No AMBIENT fader — the game
+//     has no ambient audio to control; removed 2026-06-15.)
 //   * VIDEO flags (scanlines / vignette / dungeon-vignette / fullscreen) apply
 //     live; shake / particles read lazily.
 // New this redesign (wired): VOICE fader → companion speech-blip volume
@@ -31,7 +33,6 @@ const STORE_KEYS = {
   music:     'qf.audio.music',
   sfx:       'qf.audio.sfx',
   voice:     'qf.audio.voice',
-  ambient:   'qf.audio.ambient',
   speechSfx: 'qf.audio.speechSfx',          // derived (voice > 0) — kept for back-compat reads
   muteUnfocused: 'qf.audio.muteUnfocused',
   scanlines: 'qf.video.scanlines',
@@ -48,7 +49,7 @@ const STORE_KEYS = {
 }
 
 const DEFAULTS = {
-  master: 70, music: 20, sfx: 80, voice: 65, ambient: 45,
+  master: 70, music: 20, sfx: 80, voice: 65,
   speechSfx: true, muteUnfocused: true,
   scanlines: true, vignette: true, dungeonVignette: true,
   shake: true, particles: 'high',
@@ -159,8 +160,9 @@ export class SettingsOverlay {
     const sfx    = (s.sfx    ?? 80) / 100
     SfxVolume.setVolume(master * sfx)
     TitleMusic.setVolume(master * music)
-    // VOICE (companion speech-blip volume) + AMBIENT are read live from
-    // localStorage at play time — they take effect on APPLY (persist).
+    // VOICE (companion speech-blip volume) reads master + voice live from
+    // localStorage at play time (userSettings.masterVolume × voiceVolume), so it
+    // takes effect on APPLY (persist) — independent of the SFX fader.
   }
 
   // ─── state mutation ────────────────────────────────────────────────────
@@ -174,7 +176,7 @@ export class SettingsOverlay {
     if (k === 'scanlines' || k === 'vignette' || k === 'fullscreen' || k === 'dungeonVignette') {
       this._applyVideoFlags(this._draft)
     }
-    if (k === 'master' || k === 'music' || k === 'sfx' || k === 'ambient') {
+    if (k === 'master' || k === 'music' || k === 'sfx') {
       this._applyAudio(this._draft)
     }
     this._rerender()
@@ -354,7 +356,7 @@ export class SettingsOverlay {
     if (this._tab === 'audio') return [
       h('div', { className: 'qf-op-mixer' }, [
         this._fader('MASTER', 'master'), this._fader('MUSIC', 'music'), this._fader('SFX', 'sfx'),
-        this._fader('VOICE', 'voice'), this._fader('AMBIENT', 'ambient'),
+        this._fader('VOICE', 'voice'),
       ]),
       h('div', { className: 'qf-op-asub' }, [this._lever('MUTE WHEN UNFOCUSED', 'muteUnfocused')]),
     ]

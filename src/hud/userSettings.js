@@ -77,8 +77,18 @@ export const userSettings = {
   isNpcSpeechEnabled() {
     return this.voiceVolume() > 0.02
   },
+  // Master volume, 0..1 (MASTER fader / qf.audio.master, default 0.7). SFX +
+  // music fold it in via SfxVolume / TitleMusic; VOICE reads it here directly so
+  // companion speech scales with master WITHOUT also being gated by the SFX fader.
+  masterVolume() {
+    try {
+      const raw = localStorage.getItem('qf.audio.master')
+      if (raw == null) return 0.7
+      return Math.max(0, Math.min(1, Number(raw) / 100))
+    } catch { return 0.7 }
+  },
   // Companion speech-blip volume, 0..1 (VOICE fader / qf.audio.voice, default
-  // 0.65). Blip play sites multiply their SFX volume by this.
+  // 0.65). Blip play sites multiply master × this (independent of the SFX fader).
   voiceVolume() {
     try {
       const raw = localStorage.getItem('qf.audio.voice')
