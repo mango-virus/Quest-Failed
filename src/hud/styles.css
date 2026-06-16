@@ -8235,10 +8235,10 @@ body {
 }
 .qf-cm .qcm-t1, .qf-cm .qcm-t2 {
   display: block; font-family: var(--pix); font-size: 78px; letter-spacing: 4px;
-  /* Tight line-height ON the words (these never wrap) — overrides the generous
-     .pix default (~1.55, its wrap-collision guard) which was opening a blank
-     line between QUEST and FAILED. 0.82 stacks them real close, not touching. */
-  line-height: 0.82;
+  /* Line-height ON the words (these never wrap) — overrides the generous .pix
+     default (~1.55, its wrap-collision guard) which opened a blank line between
+     QUEST and FAILED. 1.0 stacks them close with a clean gap (0.82 was touching). */
+  line-height: 1.0;
 }
 .qf-cm .qcm-t1 { color: var(--bone); text-shadow: 0 5px 0 var(--bgTint), 0 0 30px color-mix(in srgb, var(--emb) 45%, transparent); }
 .qf-cm .qcm-t2 { color: var(--acc); margin-top: 0; text-shadow: 0 5px 0 var(--accDk), 0 0 40px color-mix(in srgb, var(--acc) 65%, transparent); }

@@ -61,7 +61,6 @@ export class ConfirmPopup {
     const ev  = p.event ?? null
     const theme        = String(p.theme ?? ev?.theme ?? (ev ? 'gold' : 'shadow'))
     const title        = ev?.title       ?? p.title        ?? 'CONFIRM'
-    const icon         = p.icon          ?? ev?.icon       ?? null
     const kicker       = p.kicker        ?? (ev ? '◆  DUNGEON EVENT  ◆' : null)
     const message      = p.message       ?? 'Are you sure?'
     // Optional `messageNode` payload — when present (a DOM element or
@@ -89,9 +88,9 @@ export class ConfirmPopup {
     // red/danger theme) → red "grave decision"; events keep their theme tint.
     const danger = !!p.danger || theme === 'danger' || theme === 'red'
     const acc = danger ? '#e0566e' : (CONFIRM_THEME_COLOR[theme] ?? 'var(--blood)')
-    // Emblem glyph + kicker default by context (event → dungeon-event kicker,
-    // danger → grave-decision, else a plain confirm).
-    const emblem = icon ?? (danger ? '☠' : '◆')
+    // Kicker default by context (event → dungeon-event kicker, danger →
+    // grave-decision, else a plain confirm). The standalone emblem badge above
+    // the kicker was removed at user request — the kicker + title carry it.
     const kick = kicker ?? (danger ? '☠  A GRAVE DECISION  ☠' : '◆  CONFIRM  ◆')
     const stage = document.getElementById('hud-stage') ?? document.body
 
@@ -104,7 +103,6 @@ export class ConfirmPopup {
       }),
       h('div', { className: 'qf-cf', style: { '--ac': acc } }, [
         h('div', { className: 'qf-cf-inner' }, [
-          h('div', { className: 'qf-cf-emblem' }, emblem),
           h('div', { className: 'sil qf-cf-kick' }, kick),
           h('div', { className: 'pix qf-cf-title' }, title),
           h('div', { className: 'qf-cf-rule' }),
