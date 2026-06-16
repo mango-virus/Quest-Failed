@@ -145,7 +145,7 @@ export class MinionInspector {
 
     // Stats block
     const statsLines = [
-      `HP        ${minion.resources.hp}/${minion.resources.maxHp}`,
+      `HP        ${Math.round(minion.resources.hp)}/${Math.round(minion.resources.maxHp)}`,
       `Attack    ${minion.stats.attack}`,
       `Defense   ${minion.stats.defense}`,
       `Speed     ${minion.stats.speed?.toFixed(1) ?? '1.0'}`,

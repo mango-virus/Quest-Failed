@@ -517,8 +517,8 @@ export class TopBar {
 
     const phase = gs.meta?.phase ?? 'night'
     const day   = gs.meta?.dayNumber ?? 1
-    const hp    = gs.boss?.hp ?? 0
-    const maxHp = gs.boss?.maxHp ?? 100
+    const hp    = Math.round(gs.boss?.hp ?? 0)
+    const maxHp = Math.round(gs.boss?.maxHp ?? 100)
     const xp    = gs.boss?.xp ?? 0
     const xpMax = gs.boss?.xpToNext ?? 100
     const level = gs.boss?.level ?? 1

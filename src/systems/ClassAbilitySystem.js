@@ -335,7 +335,7 @@ export class ClassAbilitySystem {
       if (restored > 0) {
         healedCount++
         AbilityVfx.crescendoFx?.(this._scene, adv.worldX, adv.worldY, { stacks: 1 })
-        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, `+${restored}`, { color: '#ff99cc', fontSize: '12px' })
+        AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 24, `+${Math.round(restored)}`, { color: '#ff99cc', fontSize: '12px' })
         EventBus.emit('ALLY_HEALED', { sourceId: bard.instanceId, targetId: adv.instanceId, amount: restored })
       }
     }
@@ -1696,7 +1696,7 @@ export class ClassAbilitySystem {
         target.resources.hp = Math.min(target.resources.maxHp, target.resources.hp + heal)
         const restored = target.resources.hp - before
         AbilityVfx.healLightFx?.(this._scene, target.worldX, target.worldY)
-        AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, `+${restored}`, { color: '#fff4a8' })
+        AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, `+${Math.round(restored)}`, { color: '#fff4a8' })
         EventBus.emit('ALLY_HEALED', { sourceId: adv.instanceId, targetId: target.instanceId, amount: restored })
         EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'cleric_heal', message: `${adv.name} healed ${this._shortName(target)}.` })
       }

@@ -165,7 +165,7 @@ export class SoloLevelingCinematic {
     if (instanceId != null) this._cornerAdvId = instanceId
     if (!this._cornerHp) this._buildCornerHp(name)
     if (this._cornerFill) this._cornerFill.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`
-    if (this._cornerNum && hp != null && maxHp != null) this._cornerNum.textContent = `${hp} / ${maxHp}`
+    if (this._cornerNum && hp != null && maxHp != null) this._cornerNum.textContent = `${Math.round(hp)} / ${Math.round(maxHp)}`
   }
 
   _buildCornerHp(name) {

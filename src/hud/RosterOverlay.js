@@ -270,8 +270,8 @@ export class RosterOverlay {
     const statusColor = status === 'wounded' ? 'var(--warn)'
                       : status === 'idle'    ? 'var(--text-dim)'
                       : 'var(--poison)'
-    const hp = m.resources?.hp ?? 0
-    const maxHp = m.resources?.maxHp ?? 1
+    const hp = Math.round(m.resources?.hp ?? 0)
+    const maxHp = Math.round(m.resources?.maxHp ?? 1)
     const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
     const active = idx === this._selIdx
     const tier = this._tierOf(m)
@@ -370,8 +370,8 @@ export class RosterOverlay {
     const status = this._classifyStatus(sel)
     const tier = this._tierOf(sel)
     const tierColor = this._tierColor(tier)
-    const hp = sel.resources?.hp ?? 0
-    const maxHp = sel.resources?.maxHp ?? 1
+    const hp = Math.round(sel.resources?.hp ?? 0)
+    const maxHp = Math.round(sel.resources?.maxHp ?? 1)
     const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
     const def = this._minionDefinition(sel)
     // The Undying Court — a revived adventurer reads as the fallen hero (its

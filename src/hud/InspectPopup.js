@@ -209,6 +209,8 @@ export class InspectPopup {
 
   _statsGrid(boxes) {
     if (!boxes.length) return null
+    // Never show decimals — round any numeric stat value at the display.
+    const disp = (v) => String(Number.isFinite(v) ? Math.round(v) : v)
     return h('div', {
       className: 'qf-inspect-stats',
       style: { gridTemplateColumns: `repeat(${boxes.length}, 1fr)` },
@@ -216,15 +218,19 @@ export class InspectPopup {
       h('div', { className: 'pix qf-inspect-stat-label' }, label),
       // The ∞ glyph isn't in the pixel font, so the `pix` class renders it as
       // a tiny fallback. Drop `pix` for it and size it up so it reads clearly.
-      String(value) === '∞'
+      disp(value) === '∞'
         ? h('div', { className: 'qf-inspect-stat-value', style: { fontSize: '22px', lineHeight: '1', fontWeight: 'bold' } }, '∞')
-        : h('div', { className: 'pix qf-inspect-stat-value' }, String(value)),
+        : h('div', { className: 'pix qf-inspect-stat-value' }, disp(value)),
     ])))
   }
 
   _descLine(text) {
     return h('div', { className: 'qf-inspect-desc' }, text)
   }
+
+  // Never show decimals in player-facing numbers — round, pass non-numbers
+  // (e.g. the '?' fallback) through untouched.
+  _int(v) { return Number.isFinite(v) ? Math.round(v) : v }
 
   // Tagged ABILITY / BEHAVIOR lines — same shape as the construction
   // footer's ability block.
@@ -266,7 +272,7 @@ export class InspectPopup {
     const maxHp = m.resources?.maxHp ?? hp
     const boxes = [
       ['TIER', this._minionTier(m)],
-      ['HP',   `${hp}/${maxHp}`],
+      ['HP',   `${this._int(hp)}/${this._int(maxHp)}`],
       ['ATK',  m.stats?.attack ?? '?'],
       // Minions scale to the BOSS level (m.bossLevel); the per-minion XP level
       // was removed 2026-05-29.
@@ -302,7 +308,7 @@ export class InspectPopup {
     const maxHp = m.resources?.maxHp ?? hp
     const boxes = [
       ['LV',  m._raisedLevel ?? m.level ?? 1],
-      ['HP',  `${hp}/${maxHp}`],
+      ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
       ['ATK', m.stats?.attack ?? '?'],
       ['DEF', m.stats?.defense ?? 0],
     ]
@@ -341,7 +347,7 @@ export class InspectPopup {
     const boxes = [
       // Jinwoo's level reads as ∞ (flavour only — his real level is untouched).
       ['LV',  (a._shadowMonarch || a.classId === 'shadow_monarch') ? '∞' : (a.displayLevel ?? a.level ?? 1)],
-      ['HP',  `${hp}/${maxHp}`],
+      ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
       ['ATK', a.stats?.attack ?? '?'],
     ]
     const flavor = def?.flavorText || def?.description || ''

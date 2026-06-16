@@ -159,7 +159,7 @@ export class DungeonFx {
       return
     }
     this._spawnFloat({
-      text: `-${damage}`,
+      text: `-${Math.round(damage)}`,
       kind: isCritical ? 'crit' : 'damage',
       worldX: target.worldX,
       worldY: target.worldY,

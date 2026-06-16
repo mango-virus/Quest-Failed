@@ -156,8 +156,8 @@ export class BossOverviewOverlay {
     const gs = this._gameState
     const arch = this._archetype()
     const archId = String(gs.player?.bossArchetypeId ?? '').replace(/^the_/, '')
-    const hp    = gs.boss?.hp ?? 0
-    const maxHp = gs.boss?.maxHp ?? 100
+    const hp    = Math.round(gs.boss?.hp ?? 0)
+    const maxHp = Math.round(gs.boss?.maxHp ?? 100)
     const xp    = gs.boss?.xp ?? 0
     const xpMax = gs.boss?.xpToNext ?? 100
     const level = gs.boss?.level ?? 1

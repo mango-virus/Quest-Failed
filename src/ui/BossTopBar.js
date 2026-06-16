@@ -192,7 +192,7 @@ export class BossTopBar {
     const hp   = boss?.hp ?? 100
     const max  = boss?.maxHp ?? 100
     this._hpBar = pixelBar(this._scene, barX, barY, barW, 11, hp, max, {
-      color: 'red', label: `${hp} / ${max}`, depth: D, fontSize: 8,
+      color: 'red', label: `${Math.round(hp)} / ${Math.round(max)}`, depth: D, fontSize: 8,
     })
     this._objects.push(this._hpBar.g, this._hpBar.txt)
 
@@ -453,7 +453,7 @@ export class BossTopBar {
     if (!this._gameState) return
     const boss = this._gameState.boss
     if (boss && this._hpBar) {
-      this._hpBar.update(boss.hp ?? 0, boss.maxHp ?? 100, `${boss.hp ?? 0} / ${boss.maxHp ?? 0}`)
+      this._hpBar.update(boss.hp ?? 0, boss.maxHp ?? 100, `${Math.round(boss.hp ?? 0)} / ${Math.round(boss.maxHp ?? 0)}`)
     }
     if (this._captionT) this._captionT.setText(this._captionText())
     if (this._levelT)   this._levelT.setText(this._levelText())

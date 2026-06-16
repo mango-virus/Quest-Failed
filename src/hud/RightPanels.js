@@ -1212,7 +1212,7 @@ export class RightPanels {
     // Boss Ascension (KR P6) — the act-boundary evolution + power surge, and the
     // dark chamber aura searing invaders (coalesced; it pulses every ~1.2s).
     sub('BOSS_ASCENSION', ({ after = {} } = {}) => {
-      this._addLog(`Your boss ASCENDS — its dark power surges (HP ${after.hp ?? '?'}, ATK ${after.attack ?? '?'}).`, 'ascension')
+      this._addLog(`Your boss ASCENDS — its dark power surges (HP ${Number.isFinite(after.hp) ? Math.round(after.hp) : '?'}, ATK ${Number.isFinite(after.attack) ? Math.round(after.attack) : '?'}).`, 'ascension')
     })
     sub('BOSS_ASCENSION_AURA', () => {
       this._addLogCoalesced('The ascended dungeon sears the invaders.', 'ascension', 'BOSS_ASCENSION_AURA', null)

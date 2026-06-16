@@ -94,7 +94,7 @@ export class MinionInspectorOverlay {
       ]),
 
       h('div', { className: 'qf-mininsp-stats' }, [
-        this._statRow('HP',      `${m.resources?.hp ?? 0} / ${m.resources?.maxHp ?? 0}`),
+        this._statRow('HP',      `${Math.round(m.resources?.hp ?? 0)} / ${Math.round(m.resources?.maxHp ?? 0)}`),
         this._statRow('Attack',  m.stats?.attack ?? 0),
         this._statRow('Defense', m.stats?.defense ?? 0),
         this._statRow('Speed',   (m.stats?.speed ?? 1.0).toFixed(1)),

@@ -89,7 +89,7 @@ export class BossFightOverlay {
       this._barFill.fillRect(this._barFillX, this._barFillY, Math.max(0, innerW), this._barFillH)
     }
     if (this._barText) {
-      this._barText.setText(`${cur}  /  ${max}`)
+      this._barText.setText(`${Math.round(cur)}  /  ${Math.round(max)}`)
     }
 
     // Detect HP drops since last tick and flash + shake the bar.
@@ -346,7 +346,7 @@ export class BossFightOverlay {
 
     // HP numeric — white, centered over the bar
     this._barText = this._scene.add.text(trackX + trackW / 2, trackY + trackH / 2,
-      `${this._gameState.boss?.hp ?? 0}  /  ${this._gameState.boss?.maxHp ?? 0}`, {
+      `${Math.round(this._gameState.boss?.hp ?? 0)}  /  ${Math.round(this._gameState.boss?.maxHp ?? 0)}`, {
       fontFamily: FONT_HEAD, fontSize: '9px', color: '#ffffff', letterSpacing: 1,
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5)

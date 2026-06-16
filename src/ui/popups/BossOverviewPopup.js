@@ -140,7 +140,7 @@ export class BossOverviewPopup {
     yy += 12
     const hpBar = pixelBar(this._scene, x + 14, yy, w - 28, 14,
       boss?.hp ?? 0, boss?.maxHp ?? 100,
-      { color: 'red', label: `${boss?.hp ?? 0} / ${boss?.maxHp ?? 0}`, depth: D + 2, fontSize: 8 })
+      { color: 'red', label: `${Math.round(boss?.hp ?? 0)} / ${Math.round(boss?.maxHp ?? 0)}`, depth: D + 2, fontSize: 8 })
     addChild(hpBar.g, hpBar.txt)
     yy += 22
 
