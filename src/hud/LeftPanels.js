@@ -927,6 +927,9 @@ export class LeftPanels {
     // Auto-open for the build night; auto-close for the day invasion.
     sub('NIGHT_PHASE_BEGAN', () => this._setDrawer(true))
     sub('DAY_PHASE_BEGAN',   () => this._setDrawer(false))
+    // On a loaded save the panel is built before gameState.meta.phase is known
+    // (so it defaulted closed) — re-sync once the load completes.
+    sub('GAME_STATE_LOADED', () => this._setDrawer((this._gameState?.meta?.phase ?? 'night') === 'night'))
     // Esc closes the drawer when it's open.
     window.addEventListener('keydown', this._keyHandler, true)
     // Re-render when level unlocks new content or pacts add gating.
