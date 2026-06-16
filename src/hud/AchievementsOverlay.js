@@ -129,6 +129,23 @@ const CATEGORY_FALLBACK_ICON = {
   mastery:     '★',
 }
 
+// Per-category icon tint inside the medallion disc (crypt redesign).
+const AC_CAT_COLOR = {
+  progression: 'var(--gold)',
+  combat:      'var(--blood-glow)',
+  economy:     'var(--gold)',
+  variety:     'var(--info)',
+  mastery:     'var(--gold-bright)',
+}
+
+// Tier shelves — gold/silver/bronze from achievementTier() map to the design's
+// LEGENDARY / HARDENED / BLOODED shelves.
+const AC_SHELVES = [
+  { tier: 'gold',   label: 'LEGENDARY', glyph: '✦', color: '#ffd86a' },
+  { tier: 'silver', label: 'HARDENED',  glyph: '◆', color: '#c8c8d0' },
+  { tier: 'bronze', label: 'BLOODED',   glyph: '◇', color: '#c8884a' },
+]
+
 // Legendary tier is now data-driven — each achievement def carries
 // `legendary: true` in `src/data/achievements.json`. The grid card
 // renderer reads it via `def.legendary`. ToastQueue reads the same
@@ -161,6 +178,7 @@ export class AchievementsOverlay {
     this._viewer      = opts.viewer || null
     this._compareMode = false
     this._activeTab   = 'all'
+    this._titleOpen   = false     // rail equipped-title picker open state
     this._defs        = AchievementSystem.getDefinitions()
     // Leaderboard-tab state. Lazily fetched on first activation; cached
     // for the rest of the overlay's lifetime so re-entering the tab is
@@ -221,16 +239,16 @@ export class AchievementsOverlay {
     this._el = this._renderBody()
     this._keyHandler = (e) => this._onKey(e)
     this._overlay = new Overlay({
-      title:     this._viewer
-        ? `◆  ${this._viewer.name.toUpperCase()}'S TROPHIES  ◆`
-        : '◆  HALL OF TROPHIES  ◆',
-      width:     1300,
-      height:    840,
-      accent:    'var(--gold)',
-      frame:     'plain',   // subtle main-menu edge instead of the gold frame
-      animation: 'unfurl',
-      onClose:   () => this._onOverlayClose(),
-      body:      this._el,
+      eyebrow:    'THE RECKONING',
+      title:      this._viewer
+        ? `${this._viewer.name.toUpperCase()}'S TROPHIES`
+        : 'HALL OF TROPHIES',
+      width:      1340,
+      height:     844,
+      accent:     'var(--gold)',
+      atmosphere: true,
+      onClose:    () => this._onOverlayClose(),
+      body:       this._el,
     })
     this._overlay.open()
     // Arrow-key tab cycling. The Overlay shell already binds Esc; this
@@ -283,104 +301,226 @@ export class AchievementsOverlay {
   // chrome (border, shadow, header bar with title + close X), and Esc /
   // backdrop-click affordances — so the body just needs the counter
   // band, title chip, tabs row, recent strip, and the view wrap.
+  // ─── Render (Crypt — Hall of Trophies) ──────────────────────────
   _renderBody() {
+    return h('div', { className: 'qf-ac' }, [
+      this._acRail(),
+      this._acHall(),
+    ])
+  }
+
+  _rerenderBody() {
+    if (!this._overlay) return
+    this._el = this._renderBody()
+    this._overlay.setBody(this._el)
+  }
+
+  // ── dossier rail ──
+  _acRail() {
     const unlocked = this._unlockedSet()
-    const total    = this._defs.length
+    const total = this._defs.length
+    const pct = total ? Math.round((unlocked.size / total) * 100) : 0
+    const inLb = this._activeTab === LEADERBOARD_TAB
+    return h('div', { className: 'qf-ac-rail' }, [
+      // trophy-ladder toggle (leaderboard view)
+      !this._viewer && h('div', {
+        className: 'pix qf-ac-lbbtn' + (inLb ? ' on' : ''),
+        on: { click: () => {
+          this._activeTab = inLb ? 'all' : LEADERBOARD_TAB
+          if (!inLb && this._lbRows == null && !this._lbLoading) this._loadLeaderboard()
+          this._rerenderBody()
+        } },
+      }, inLb ? '◀  BACK TO TROPHIES' : '🏆 TROPHY LADDER'),
+      // completion sigil
+      this._acSigil(pct, unlocked.size, total),
+      // equipped title plate
+      this._acTitlePlate(),
+      // vault breakdown (tier bars)
+      this._acVault(unlocked),
+      // recent unlocks
+      this._acRecent(),
+    ])
+  }
 
-    // Active title chip — clickable in self-view (opens the title
-    // picker popup); hidden in viewer mode (we don't know the other
-    // player's active title locally, and changing the chip wouldn't
-    // make sense for someone else's screen).
-    const titleChip = this._buildTitleChip()
-
-    // Title chip + picker share a `position: relative` wrapper so the
-    // picker can `position: absolute; top: 100%` directly under the
-    // chip — robust to any layout changes above. Replaces the previous
-    // fixed `top: 160px` against `.qf-ach`.
-    const titleChipWrap = titleChip ? h('div', { className: 'qf-ach-titlechip-wrap' }, [
-      titleChip,
-      this._renderTitlePicker(),
-    ]) : null
-
-    return h('div', { className: 'qf-ach' }, [
-      // HEADER BAND — counter + title chip + (viewer-only) compare toggle.
-      // The Overlay shell's title bar above already shows "HALL OF
-      // TROPHIES", so this body header is just the player-facing chips.
-      h('div', { className: 'qf-ach-head' }, [
-        h('div', { className: 'pix qf-ach-counter' },
-          `${unlocked.size} / ${total} UNLOCKED`),
-        titleChipWrap,
-        // Phase-C "Compare with you" toggle. Hidden in self-view since
-        // it has nothing to compare against.
-        this._viewer && h('button', {
-          className: 'btn qf-ach-compare-toggle',
-          on: { click: () => this._toggleCompare() },
-        }, this._compareMode ? '◉ COMPARING' : '◇ COMPARE WITH YOU'),
-      ]),
-
-      // TABS ROW — category filters on the left + the prominent
-      // LEADERBOARD destination button on the right. The leaderboard
-      // is deliberately NOT styled as another tab; it's a gold-burst
-      // pulsing button that reads as "go somewhere new" instead of
-      // "filter the current view."
-      h('div', { className: 'qf-ach-tabsrow' }, [
-        h('div', { className: 'qf-ach-tabs' },
-          TABS.map(t => h('button', {
-            className: 'qf-ach-tab' + (t.id === this._activeTab ? ' is-active' : ''),
-            dataset: { cat: t.id },
-            on: { click: () => this._selectTab(t.id) },
-          }, t.label))),
-        // LEADERBOARD destination button — hidden in viewer mode (drilled
-        // into another player's grid). The viewer overlay is reached BY
-        // clicking a row from the leaderboard view, so offering another
-        // LEADERBOARD button inside it would be confusing — you're already
-        // looking at the comparison context. Also avoids the visual conflict
-        // with the compare-toggle button that takes its slot in viewer mode.
-        !this._viewer && h('button', {
-          className: 'qf-ach-lb-btn' + (this._activeTab === LEADERBOARD_TAB ? ' is-active' : ''),
-          on: { click: () => this._selectTab(LEADERBOARD_TAB) },
-        }, [
-          h('span', { className: 'qf-ach-lb-btn-glyph' }, '🏆'),
-          h('span', { className: 'pix qf-ach-lb-btn-label' }, 'LEADERBOARD'),
+  _acSigil(pct, n, total) {
+    return h('div', { className: 'qf-ac-sigil' }, [
+      h('div', { className: 'qf-ac-ring', style: { '--pct': String(pct) } }, [
+        h('div', { className: 'pc' }, [
+          h('b', { className: 'pix' }, pct + '%'),
+          h('i', { className: 'sil' }, 'SWORN'),
         ]),
       ]),
+      h('div', { className: 'pix qf-ac-count' }, [h('b', null, String(n)), ` / ${total} TROPHIES`]),
+    ])
+  }
 
-      // RECENT UNLOCKS strip — 3 most recent unlocks. Self-view only.
-      !this._viewer && this._renderRecentStrip(),
-
-      // VIEW — either the category grid OR the leaderboard, depending on
-      // active tab. Wrapped so we can swap one child without rebuilding
-      // the entire chrome.
-      h('div', { className: 'qf-ach-view-wrap' }, [
-        this._renderActiveView(),
+  _acTitlePlate() {
+    if (this._viewer) return null
+    const active = PlayerProfile.getActiveTitle()
+    if (!active) return null
+    const titles = PlayerProfile.getUnlockedTitles()
+    const fxCls   = titleFxClassById(active.id)
+    const fxBord  = titleFxBorderClassById(active.id)
+    const tColor  = fxBord ? null : titleColorById(active.id)
+    const activeId = PlayerProfile.getActiveTitleId()
+    return h('div', {
+      className: 'qf-ac-tplate' + (this._titleOpen ? ' open' : ''),
+      on: { click: () => { this._titleOpen = !this._titleOpen; this._rerenderBody() } },
+    }, [
+      h('div', { className: 'sil l' }, '✦ EQUIPPED TITLE'),
+      h('div', { className: 'row' }, [
+        h('span', {
+          className: ('pix n ' + fxCls).trimEnd(),
+          style: tColor ? { color: tColor } : undefined,
+        }, active.name),
+        h('span', { className: 'cv' }, `${titles.length} ▾`),
+      ]),
+      this._titleOpen && h('div', { className: 'qf-ac-picker', on: { click: (e) => e.stopPropagation() } }, [
+        h('button', {
+          className: 'pix qf-ac-prow' + (activeId == null ? ' on' : ''),
+          on: { click: () => this._acSelectTitle(null) },
+        }, '◇ AUTO'),
+        ...titles.slice().sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0)).map(t => {
+          const fc = titleFxClassById(t.id)
+          const tc = fc ? null : titleColorById(t.id)
+          return h('button', {
+            className: ('pix qf-ac-prow ' + fc).trimEnd() + (activeId === t.id ? ' on' : ''),
+            style: tc ? { color: tc } : undefined,
+            on: { click: () => this._acSelectTitle(t.id) },
+          }, '✦ ' + t.name)
+        }),
       ]),
     ])
   }
 
-  // ── Recent unlocks strip ──────────────────────────────────────────────
-  // Three most-recent unlocks for the player, with relative-time labels.
-  // Renders nothing when there are no unlocks yet (clean empty state).
-  _renderRecentStrip() {
-    const recent = PlayerProfile.getRecentUnlocks(3)
-    if (!recent.length) return null
-    // Filter out unknown ids (achievement defs that were removed from
-    // the data file but linger in the player's timestamps).
-    const items = recent
+  _acSelectTitle(id) {
+    PlayerProfile.setActiveTitleId(id)
+    HudSfx.playUi('hover')
+    this._titleOpen = false
+    this._rerenderBody()
+  }
+
+  _acVault(unlocked) {
+    return h('div', { className: 'qf-ac-tiers' }, [
+      h('div', { className: 'sil hd' }, 'VAULT BREAKDOWN'),
+      ...AC_SHELVES.map(s => {
+        const items = this._defs.filter(d => achievementTier(d) === s.tier)
+        const have = items.filter(d => unlocked.has(d.id)).length
+        const pct = items.length ? (have / items.length) * 100 : 0
+        return h('div', { className: 'qf-ac-trow' }, [
+          h('div', { className: 'sil top' }, [
+            h('span', { style: { color: s.color } }, `${s.glyph} ${s.label}`),
+            h('span', { style: { color: 'var(--text-mute)' } }, `${have}/${items.length}`),
+          ]),
+          h('div', { className: 'bar' }, [
+            h('div', { className: 'fill', style: { width: pct + '%', background: s.color, boxShadow: `0 0 6px ${s.color}88` } }),
+          ]),
+        ])
+      }),
+    ])
+  }
+
+  _acRecent() {
+    const recent = (PlayerProfile.getRecentUnlocks?.(4) || [])
       .map(r => ({ ...r, def: AchievementSystem.getDefinition(r.id) }))
       .filter(x => x.def)
-    if (!items.length) return null
-    return h('div', { className: 'qf-ach-recent' }, [
-      h('span', { className: 'pix qf-ach-recent-label' }, 'RECENT UNLOCKS'),
-      h('div', { className: 'qf-ach-recent-list' },
-        items.map(item => h('div', { className: 'qf-ach-recent-item' }, [
-          h('span', { className: `pix qf-ach-recent-icon qf-ach-icon--${item.def.category}` },
-            item.def.icon || '◆'),
-          h('div', { className: 'qf-ach-recent-textcol' }, [
-            h('div', { className: 'pix qf-ach-recent-name' }, item.def.name),
-            h('div', { className: 'qf-ach-recent-time' }, this._formatRelative(item.ts)),
-          ]),
-        ]))),
+    if (!recent.length) return null
+    return h('div', { className: 'qf-ac-recent' }, [
+      h('div', { className: 'sil hd' }, 'RECENT UNLOCKS'),
+      ...recent.map(r => h('div', { className: 'qf-ac-ritem' }, [
+        h('span', { className: 'ic' }, r.def.icon || '◆'),
+        h('div', null, [
+          h('div', { className: 'pix n' }, r.def.name),
+          h('div', { className: 't' }, this._formatRelative(r.ts)),
+        ]),
+      ])),
     ])
+  }
+
+  // ── trophy hall (filters + tier shelves, OR the trophy-ladder view) ──
+  _acHall() {
+    if (this._activeTab === LEADERBOARD_TAB) {
+      return h('div', { className: 'qf-ac-hall' }, [this._renderLeaderboardView()])
+    }
+    return h('div', { className: 'qf-ac-hall' }, [
+      h('div', { className: 'qf-ac-filters' },
+        TABS.map(t => h('button', {
+          className: 'pix qf-ac-fl' + (t.id === this._activeTab ? ' on' : ''),
+          on: { click: () => { this._activeTab = t.id; this._rerenderBody() } },
+        }, t.label))),
+      h('div', { className: 'qf-ac-shelves' }, this._acShelves()),
+    ])
+  }
+
+  _acShelves() {
+    const unlocked = this._unlockedSet()
+    const out = AC_SHELVES.map(s => {
+      const items = this._defs.filter(d =>
+        achievementTier(d) === s.tier && this._defMatchesTab(d, this._activeTab))
+      if (!items.length) return null
+      const have = items.filter(d => unlocked.has(d.id)).length
+      return h('div', { className: 'qf-ac-shelf' }, [
+        h('div', { className: 'qf-ac-shelfhd', style: { '--sc': s.color } }, [
+          h('span', { className: 'g' }, s.glyph),
+          h('span', { className: 'pix t' }, s.label),
+          h('span', { className: 'sil ct' }, `${have}/${items.length}`),
+          h('span', { className: 'ln' }),
+        ]),
+        h('div', { className: 'qf-ac-grid' }, items.map(d => this._acMedallion(d, unlocked))),
+      ])
+    }).filter(Boolean)
+    if (!out.length) {
+      return [h('div', { className: 'qf-ac-empty' }, '— no trophies in this category yet —')]
+    }
+    return out
+  }
+
+  _acMedallion(def, unlocked) {
+    const isUnlocked = unlocked.has(def.id)
+    const tier = achievementTier(def)
+    const sc = { gold: '#ffd86a', silver: '#c8c8d0', bronze: '#c8884a' }[tier]
+    const catc = AC_CAT_COLOR[def.category] || 'var(--text)'
+    const icon = def.icon || CATEGORY_FALLBACK_ICON[def.category] || '◆'
+    const target = def.target ?? 1
+    const progress = this._viewer ? this._viewerProgress(def) : AchievementSystem.getProgress(def.id)
+    const showProg = !isUnlocked && progress != null && target > 1
+    const p = showProg ? Math.max(0, Math.min(100, (progress / target) * 100)) : null
+    const isNew = !this._viewer && this._newAtOpen?.has(def.id)
+    return h('div', {
+      className: 'qf-ac-med',
+      dataset: { locked: isUnlocked ? 'false' : 'true', leg: def.legendary ? 'true' : 'false' },
+      style: { '--sc': sc, '--catc': catc },
+    }, [
+      isNew && h('span', { className: 'sil qf-ac-new qf-newchip' }, 'NEW'),
+      h('div', { className: 'qf-ac-disc' }, [
+        h('span', { className: 'ic' }, icon),
+        isUnlocked && h('span', { className: 'pix seal' }, '✓'),
+        (!isUnlocked && p == null) && h('span', { className: 'lk' }, '🔒'),
+      ]),
+      h('div', { className: 'qf-ac-mbody' }, [
+        h('div', { className: 'pix qf-ac-mname' }, def.name),
+        h('div', { className: 'qf-ac-mdesc' }, def.description),
+        showProg && h('div', { className: 'qf-ac-prog' }, [
+          h('div', { className: 'tk' }, [h('div', { className: 'fl', style: { width: p + '%' } })]),
+          h('span', { className: 'sil pt' }, `${progress}/${target}`),
+        ]),
+        this._acRewardChip(def),
+      ]),
+    ])
+  }
+
+  _acRewardChip(def) {
+    if (def.reward?.type === 'boss') {
+      return h('div', { className: 'sil qf-ac-rw boss' }, '◆ ' + def.reward.id.replace(/_/g, ' ').toUpperCase())
+    }
+    if (def.reward?.type === 'companion') {
+      const cName = (COMPANIONS[def.reward.id]?.name || def.reward.id).toUpperCase()
+      return h('div', { className: 'sil qf-ac-rw comp' }, '♥ ' + cName)
+    }
+    if (def.title) {
+      return h('div', { className: 'sil qf-ac-rw title' }, '✦ ' + def.title)
+    }
+    return null
   }
 
   // "12 minutes ago" / "3 days ago" / "Just now" — picks the largest unit
@@ -403,45 +543,6 @@ export class AchievementsOverlay {
     if (mo < 12) return `${mo} month${mo === 1 ? '' : 's'} ago`
     const yr = Math.floor(day / 365)
     return `${yr} year${yr === 1 ? '' : 's'} ago`
-  }
-
-  // ── Title picker ──────────────────────────────────────────────────────
-  // Floating popup beneath the title chip. Lists all unlocked titles +
-  // an "AUTO" option. The `data-open` attribute drives visibility (CSS
-  // toggles display: none / block). Click outside or pick a title to
-  // close — handled via the document-level click listener bound on toggle.
-  // Build the equipped-title chip. Self-contained (reads PlayerProfile
-  // fresh) so _selectTitle can rebuild it on a title swap and the
-  // border / fx / color / glow all reflect the NEW title — the old
-  // in-place name-only patch left the chip styled for the previous one.
-  _buildTitleChip() {
-    const activeTitle = this._viewer ? null : PlayerProfile.getActiveTitle()
-    if (!activeTitle) return null
-    const titleCount = PlayerProfile.getUnlockedTitles().length
-    const sourceCat  = AchievementSystem.getDefinition(activeTitle.id)?.category || 'mastery'
-    // fx title → animated gradient border + gradient name. Color title →
-    // solid color on border + name + matching glow. Plain (no fx/color)
-    // → category tint via data-source-cat (legacy fallback).
-    const fxBorder = titleFxBorderClassById(activeTitle.id)
-    const tColor   = fxBorder ? null : titleColorById(activeTitle.id)
-    const useCatTint = !fxBorder && !tColor
-    return h('button', {
-      className: ('pix qf-ach-titlechip ' + fxBorder).trimEnd(),
-      dataset: useCatTint ? { sourceCat } : undefined,
-      style: tColor
-        ? { borderColor: tColor, boxShadow: `0 0 0 2px #000, 0 0 16px ${tColor}66` }
-        : undefined,
-      on: { click: () => this._toggleTitlePicker() },
-    }, [
-      h('span', { className: 'qf-ach-titlechip-label' }, '✦  TITLE'),
-      h('span', {
-        className: ('qf-ach-titlechip-name ' + titleFxClassById(activeTitle.id)).trimEnd(),
-        style: tColor ? { color: tColor } : undefined,
-      }, activeTitle.name),
-      titleCount > 1 && h('span', { className: 'qf-ach-titlechip-count' },
-        ` · ${titleCount} unlocked  ▼`),
-      titleCount === 1 && h('span', { className: 'qf-ach-titlechip-count' }, '  ▼'),
-    ])
   }
 
   // Achievement-leaderboard podium title chip — fx titles get the
@@ -468,117 +569,6 @@ export class AchievementsOverlay {
     }, title)
   }
 
-  _renderTitlePicker() {
-    const titles = PlayerProfile.getUnlockedTitles()
-    if (!titles.length) return null
-    const activeId = PlayerProfile.getActiveTitleId()
-    const sorted = titles.slice().sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0))
-    return h('div', {
-      className: 'qf-ach-titlepicker',
-      dataset: { open: 'false' },
-      ref: el => { this._titlePickerEl = el },
-    }, [
-      h('div', { className: 'pix qf-ach-titlepicker-head' }, 'SELECT TITLE'),
-      // AUTO entry — clears the explicit selection so the active title
-      // tracks "most recently unlocked" going forward.
-      h('button', {
-        className: 'qf-ach-titlepicker-row' + (activeId == null ? ' is-active' : ''),
-        on: { click: () => this._selectTitle(null) },
-      }, [
-        h('span', { className: 'pix qf-ach-titlepicker-name' }, '◇ AUTO'),
-        h('span', { className: 'qf-ach-titlepicker-sub' },
-          '(most recent: ' + (sorted[0]?.name || '—') + ')'),
-      ]),
-      // One row per unlocked title (most-recent first).
-      ...sorted.map(t => {
-        const fxCls  = titleFxClassById(t.id)
-        const tColor = fxCls ? null : titleColorById(t.id)
-        return h('button', {
-          className: 'qf-ach-titlepicker-row' + (activeId === t.id ? ' is-active' : ''),
-          on: { click: () => this._selectTitle(t.id) },
-        }, [
-          h('span', {
-            className: ('pix qf-ach-titlepicker-name ' + fxCls).trimEnd(),
-            style: tColor ? { color: tColor } : undefined,
-          }, '✦ ' + t.name),
-        ])
-      }),
-    ])
-  }
-
-  _toggleTitlePicker() {
-    if (!this._titlePickerEl) return
-    const isOpen = this._titlePickerEl.dataset.open === 'true'
-    this._titlePickerEl.dataset.open = isOpen ? 'false' : 'true'
-    // Bind / unbind an outside-click closer so clicking anywhere else
-    // dismisses the popup.
-    if (!isOpen) {
-      this._outsideClickHandler = (e) => {
-        if (!this._el) return
-        if (e.target.closest('.qf-ach-titlechip')) return  // don't re-toggle
-        if (e.target.closest('.qf-ach-titlepicker')) return // click inside
-        this._titlePickerEl.dataset.open = 'false'
-        document.removeEventListener('click', this._outsideClickHandler)
-        this._outsideClickHandler = null
-      }
-      // Defer the binding by one tick — otherwise the click that opened
-      // the popup also closes it immediately.
-      setTimeout(() => document.addEventListener('click', this._outsideClickHandler), 0)
-    } else if (this._outsideClickHandler) {
-      document.removeEventListener('click', this._outsideClickHandler)
-      this._outsideClickHandler = null
-    }
-  }
-
-  _selectTitle(achId) {
-    PlayerProfile.setActiveTitleId(achId)
-    HudSfx.playUi('hover')
-    // Close picker.
-    if (this._titlePickerEl) this._titlePickerEl.dataset.open = 'false'
-    if (this._outsideClickHandler) {
-      document.removeEventListener('click', this._outsideClickHandler)
-      this._outsideClickHandler = null
-    }
-    // Rebuild the chip + picker so the new title's border / fx / color /
-    // glow all apply (patching only the name text left the chip styled
-    // for the previously-equipped title). Replace the wrap's children in
-    // place — cheaper than re-rendering the whole overlay, and
-    // _renderTitlePicker re-sets this._titlePickerEl via its ref.
-    const wrap = this._el?.querySelector('.qf-ach-titlechip-wrap')
-    if (wrap) {
-      const chip = this._buildTitleChip()
-      wrap.replaceChildren(...[chip, this._renderTitlePicker()].filter(Boolean))
-    }
-  }
-
-  // Pick the right inner view for the active tab. Wrapped this way so
-  // `_selectTab` can re-render only `.qf-ach-view-wrap`'s child without
-  // disturbing the header/tabs/footer.
-  _renderActiveView() {
-    if (this._activeTab === LEADERBOARD_TAB) {
-      return this._renderLeaderboardView()
-    }
-    return this._renderGrid()
-  }
-
-  // Build the cards grid as a fresh DOM subtree. Caller can replace just
-  // the grid-wrap's child to refresh without nuking the rest of the screen.
-  _renderGrid() {
-    const unlocked = this._unlockedSet()
-    const myUnlocked = this._viewer ? PlayerProfile.getUnlockedAchievements() : null
-    // Order every tab by difficulty tier — bronze first, then silver,
-    // then gold at the bottom. Stable within a tier (preserves the
-    // achievements.json order, e.g. boss levels stay in level order).
-    const TIER_RANK = { bronze: 0, silver: 1, gold: 2 }
-    const cards = this._defs
-      .filter(def => this._defMatchesTab(def, this._activeTab))
-      .sort((a, b) => (TIER_RANK[achievementTier(a)] ?? 1) - (TIER_RANK[achievementTier(b)] ?? 1))
-      .map(def => this._card(def, unlocked, myUnlocked))
-    // Cards cascade in on open + each tab switch (both rebuild this grid
-    // fresh; the capped 6-cycle stagger keeps even a full grid snappy).
-    return h('div', { className: 'qf-ach-grid qf-stagger-in' }, cards)
-  }
-
   // Does an achievement belong under the given tab?
   //   all        — everything
   //   companions — its reward unlocks a companion
@@ -601,220 +591,6 @@ export class AchievementsOverlay {
     if (tab === 'titles')     return !!def.title
     if (tab === 'mastery')    return !!def.legendary
     return def.category === tab
-  }
-
-  _card(def, unlockedSet, myUnlockedSet) {
-    const isUnlocked = unlockedSet.has(def.id)
-    const icon       = def.icon || CATEGORY_FALLBACK_ICON[def.category] || '◆'
-    const target     = def.target ?? 1
-    // Self-view reads live progress from AchievementSystem. Viewer-mode
-    // reads the remote player's submitted metric snapshot — null on
-    // legacy rows (no snapshot) so the bar is skipped, same as before.
-    const progress   = this._viewer
-      ? this._viewerProgress(def)
-      : AchievementSystem.getProgress(def.id)
-
-    // Reward-type classification — drives BOTH the reward chip's color
-    // AND the icon medal color. Boss-unlock / companion-unlock / title-
-    // grant achievements get a colored icon matching their reward chip
-    // (visually doubling the "this gives you X" signal). Pure-recognition
-    // achievements (no reward, no title) get a cream icon to read as
-    // "unclaimed plaque" — most of the grid, which gives natural contrast
-    // against the colored category borders.
-    let rewardType = 'recognition'
-    if (def.reward?.type === 'boss')           rewardType = 'boss'
-    else if (def.reward?.type === 'companion') rewardType = 'companion'
-    else if (def.title)                        rewardType = 'title'
-
-    // Reward chip — boss / companion / title unlocks call out what the
-    // player gets. Pure-recognition achievements skip the chip entirely.
-    let rewardChip = null
-    if (rewardType === 'boss') {
-      rewardChip = h('div', {
-        className: 'qf-ach-reward qf-ach-reward--boss',
-        dataset: { rewardType: 'boss' },
-      }, `◆ Unlocks ${def.reward.id.replace(/_/g, ' ').toUpperCase()}`)
-    } else if (rewardType === 'companion') {
-      // Pull the display name from the COMPANIONS registry so "rattlebones"
-      // → "RATTLE BONES" (with the space) and "zulgath" → "ZUL'GATH" (with
-      // the apostrophe) instead of the squashed id-derived string. Falls
-      // back to the id if the companion is somehow missing from the
-      // registry. Format matches the boss chip's brevity ("◆ Unlocks
-      // BEHOLDER") — the heart icon + chip color already signal "this
-      // unlocks a companion", so the redundant "companion:" label is
-      // dropped (it was overflowing the card width on longer names).
-      const cName = (COMPANIONS[def.reward.id]?.name || def.reward.id).toUpperCase()
-      rewardChip = h('div', {
-        className: 'qf-ach-reward qf-ach-reward--companion',
-        dataset: { rewardType: 'companion' },
-      }, `♥ Unlocks ${cName}`)
-    } else if (rewardType === 'title') {
-      // Title-granting achievements show their title here as the reward.
-      // The title NAME is wrapped in an fx span so legendary fx titles
-      // shimmer here too. The span is forced back to `display: inline`
-      // (see .qf-ach-reward .qf-titlefx in styles.css) so the chip's
-      // ellipsis truncation still works on long names.
-      // fx titles → animated gradient border + gradient text. Non-fx
-      // titles with a titleColor → recolor the whole chip cohesively by
-      // overriding the --qf-reward-title var (drives text, border,
-      // text-shadow glow, AND the chip bg tint in one shot).
-      rewardChip = this._buildTitleRewardChip(def)
-    }
-
-    // Some achievements grant a companion (or boss) AND a title (e.g. "Arise"
-    // → Necroknight + "King of the Dead"). The single rewardType above can
-    // only pick one, so render a SECOND title chip here when the primary
-    // reward wasn't the title itself — otherwise the title is silently
-    // dropped from the card.
-    let titleChip = null
-    if (def.title && rewardType !== 'title') {
-      titleChip = this._buildTitleRewardChip(def)
-    }
-
-    // Rarity badge — appears once the leaderboard sample has been
-    // ingested. Format: "5% have this" with the gold-bright accent for
-    // rare (<10%) achievements. Absent when no data yet.
-    let rarityChip = null
-    const rarity = AchievementSystem.getRarity(def.id)
-    if (rarity != null && rarity.sample > 0) {
-      const pct = Math.round(rarity.fraction * 100)
-      const isRare = rarity.fraction < 0.1
-      rarityChip = h('div', {
-        className: 'qf-ach-rarity' + (isRare ? ' qf-ach-rarity--rare' : ''),
-      }, [
-        h('span', { className: 'qf-ach-rarity-pct' }, `${pct}%`),
-        h('span', { className: 'qf-ach-rarity-label' }, isRare ? 'rare' : 'earned'),
-      ])
-    }
-
-    // Progress bar — shown for numeric in-progress (not unlocked yet AND
-    // target > 1). One-shot booleans (target=1) skip the bar.
-    let progressEl = null
-    if (!isUnlocked && progress != null && target > 1) {
-      const pct = Math.max(0, Math.min(100, (progress / target) * 100))
-      progressEl = h('div', { className: 'qf-ach-progress' }, [
-        h('div', { className: 'qf-ach-progress-track' }, [
-          h('div', { className: 'qf-ach-progress-fill', style: { width: pct + '%' } }),
-        ]),
-        h('div', { className: 'qf-ach-progress-text' }, `${progress} / ${target}`),
-      ])
-    }
-
-    // "NEW" chip — paints in the top-LEFT corner of any card whose id was
-    // UNSEEN at the moment `open()` ran (i.e. added to achievements.json
-    // since the player last opened this overlay). open() already marked
-    // every current id as seen, so the chip only renders on this one
-    // visit — closing + reopening the overlay clears it. Self-view only
-    // (viewer mode browses someone else's grid). Visual matches the
-    // main-menu NEW badge so the two read as the same kind of signal.
-    let newChip = null
-    if (!this._viewer && this._newAtOpen?.has(def.id)) {
-      newChip = h('span', { className: 'pix qf-ach-new-chip' }, 'NEW')
-    }
-
-    // Compare-mode badge (Phase C). 🟢 both / 🔵 they have, you don't /
-    // 🟡 you have, they don't / ⚪ neither.
-    let compareBadge = null
-    if (this._viewer && this._compareMode && myUnlockedSet) {
-      const theyHave = isUnlocked
-      const youHave  = myUnlockedSet.has(def.id)
-      let cls = 'neither'
-      if (theyHave && youHave)        cls = 'both'
-      else if (theyHave && !youHave)  cls = 'their-edge'
-      else if (!theyHave && youHave)  cls = 'your-edge'
-      compareBadge = h('div', {
-        className: 'qf-ach-compare-badge qf-ach-compare-badge--' + cls,
-      })
-    }
-
-    const cardAttrs = {
-      className: 'qf-ach-card',
-      dataset: {
-        id:        def.id,
-        category:  def.category,
-        // Difficulty tier drives the border color (bronze/silver/gold) —
-        // see achievementTier() + the [data-tier] CSS. gold == legendary
-        // (showcase shimmer rule).
-        tier:      achievementTier(def),
-        unlocked:  isUnlocked ? 'true' : 'false',
-        // Legendary tier — data-driven via `def.legendary` in
-        // `achievements.json`. Drives the CSS `[data-legendary="true"]`
-        // block (showcase shimmer border + ember glow).
-        legendary: def.legendary ? 'true' : 'false',
-        // Reward-type classification on the card so descendant elements
-        // (the icon medal, in particular) can match the reward color
-        // even though the reward chip is a sibling. Values:
-        // 'boss' | 'companion' | 'title' | 'recognition'.
-        rewardType: rewardType,
-      },
-      // NEW-chip hover dismiss — the ONLY way to clear an achievement's
-      // NEW chip per the design (matches the companion-card pattern).
-      // Marks just this id known in PlayerProfile (persisted), removes
-      // it from the in-memory snapshot so a sibling re-render won't
-      // re-paint, fades the chip out, and removes it from the DOM. Self-
-      // view only — viewer mode is browsing someone else's grid and
-      // shouldn't mutate the local player's state.
-      on: this._viewer ? undefined : {
-        mouseenter: (e) => {
-          if (!this._newAtOpen?.has(def.id)) return
-          PlayerProfile.markAchievementsKnown([def.id])
-          this._newAtOpen.delete(def.id)
-          const chip = e.currentTarget?.querySelector('.qf-ach-new-chip')
-          if (chip) {
-            chip.classList.add('is-dismissing')
-            setTimeout(() => chip.remove(), 260)
-          }
-        },
-      },
-    }
-    // `.qf-ach-card-body` exists so the locked-card desaturation filter
-    // can be applied to a SUBTREE of the card instead of the whole card.
-    // CSS `filter` applies at composite time to the parent + ALL its
-    // descendants, with no way for a descendant to opt back out (a child
-    // `filter: none` just adds an identity filter — it doesn't escape).
-    // The body wraps ONLY the icon-+-text row, leaving compareBadge,
-    // rarityChip, and newChip as direct children of the card so their
-    // absolute positions still resolve relative to the card itself
-    // (preserving the corner placements they had before the refactor)
-    // AND they all sit outside the dim filter so the NEW chip pulses
-    // bright on locked cards. The rarity + compare chips reading at
-    // full brightness on locked cards is fine — they're informational
-    // overlays, not part of the "you don't have this" visual cue.
-    return h('div', cardAttrs, [
-      compareBadge,
-      rarityChip,
-      newChip,
-      h('div', { className: 'qf-ach-card-body' }, [
-        h('div', { className: 'qf-ach-card-row' }, [
-          h('div', { className: `pix qf-ach-icon qf-ach-icon--${def.category}` }, icon),
-          h('div', { className: 'qf-ach-card-col' }, [
-            h('div', { className: 'pix qf-ach-name' }, def.name),
-            h('div', { className: 'qf-ach-desc' }, def.description),
-            progressEl,
-            rewardChip,
-            titleChip,
-          ]),
-        ]),
-      ]),
-    ])
-  }
-
-  // Build the title reward chip for `def`. fx titles → animated gradient
-  // border + gradient text; non-fx titles with a titleColor recolor the
-  // whole chip via the --qf-reward-title var. The title NAME is wrapped in
-  // an fx span (forced back to display:inline in CSS so ellipsis truncation
-  // still works). Shared by the primary title-reward branch and the
-  // secondary chip for achievements that grant a companion/boss AND a title.
-  _buildTitleRewardChip(def) {
-    const fxBorder = titleFxBorderClassById(def.id)
-    const tColor   = fxBorder ? null : titleColorById(def.id)
-    return h('div', {
-      className: ('qf-ach-reward qf-ach-reward--title ' + fxBorder).trimEnd(),
-      dataset: { rewardType: 'title' },
-      style: tColor ? { '--qf-reward-title': tColor } : undefined,
-    }, [
-      h('span', { className: titleFxClassById(def.id) }, def.title),
-    ])
   }
 
   // Remote player's progress toward an achievement, read from the metric
@@ -878,23 +654,11 @@ export class AchievementsOverlay {
     if (tabId === this._activeTab) return
     this._activeTab = tabId
     HudSfx.playUi('hover')
-    // Refresh CATEGORY tab active state visually.
-    for (const tabEl of this._el.querySelectorAll('.qf-ach-tab')) {
-      tabEl.classList.toggle('is-active', tabEl.dataset.cat === tabId)
-    }
-    // Refresh LEADERBOARD button active state — different selector so
-    // the gold-burst styling toggles correctly.
-    const lbBtn = this._el.querySelector('.qf-ach-lb-btn')
-    if (lbBtn) lbBtn.classList.toggle('is-active', tabId === LEADERBOARD_TAB)
-    // Kick off leaderboard fetch on first activation of the LEADERBOARD
-    // tab (lazy — saves a Supabase round-trip if the player never
-    // opens it). Subsequent re-entry reuses the cached `_lbRows`.
+    // Lazy leaderboard fetch on first activation; cached after.
     if (tabId === LEADERBOARD_TAB && this._lbRows == null && !this._lbLoading) {
       this._loadLeaderboard()
     }
-    // Re-render the view region (grid OR leaderboard).
-    const wrap = this._el.querySelector('.qf-ach-view-wrap')
-    if (wrap) wrap.replaceChildren(this._renderActiveView())
+    this._rerenderBody()
   }
 
   // ── Leaderboard view ────────────────────────────────────────────────
@@ -957,24 +721,15 @@ export class AchievementsOverlay {
       // render; on initial mount before any leaderboard fetch they just
       // show no rarity badge (graceful absence).
       AchievementSystem.ingestRarityFromRows(players)
-      // Refresh the grid too in case we're not on the leaderboard tab
-      // when the fetch lands — the rarity badges should appear retro-
-      // actively.
-      if (this._activeTab !== LEADERBOARD_TAB) {
-        const wrap = this._el?.querySelector('.qf-ach-view-wrap')
-        if (wrap) wrap.replaceChildren(this._renderActiveView())
-      }
     } catch (err) {
       console.warn('[AchievementsOverlay] leaderboard fetch failed:', err)
       this._lbError = err?.message || 'Failed to load.'
       this._lbRows = []
     } finally {
       this._lbLoading = false
-      // If we're still on the leaderboard tab, refresh the view.
-      if (this._activeTab === LEADERBOARD_TAB) {
-        const wrap = this._el?.querySelector('.qf-ach-view-wrap')
-        if (wrap) wrap.replaceChildren(this._renderActiveView())
-      }
+      // Re-render so the trophy-ladder view (or retroactive rarity badges)
+      // reflect the now-loaded rows.
+      if (this._overlay) this._rerenderBody()
     }
   }
 
@@ -1570,15 +1325,6 @@ export class AchievementsOverlay {
       onClose: () => { this._playerViewer = null },
     })
     this._playerViewer.open()
-  }
-
-  _toggleCompare() {
-    if (!this._viewer) return
-    this._compareMode = !this._compareMode
-    const btn = this._el.querySelector('.qf-ach-compare-toggle')
-    if (btn) btn.textContent = this._compareMode ? '◉ COMPARING' : '◇ COMPARE WITH YOU'
-    const wrap = this._el.querySelector('.qf-ach-grid-wrap')
-    if (wrap) wrap.replaceChildren(this._renderGrid())
   }
 
   // Arrow-key tab cycling. Escape is owned by the Overlay shell now
