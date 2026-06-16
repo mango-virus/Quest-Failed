@@ -982,6 +982,14 @@ export class LeftPanels {
       this._tickHandle = requestAnimationFrame(() => this._tick())
       return
     }
+    // One-time: sync the construction drawer to the loaded phase. On a CONTINUE,
+    // GAME_STATE_LOADED can fire before this panel subscribes (and gameState
+    // may not be hydrated at construction), so the constructor default is
+    // unreliable — correct it on the first tick where state is readable.
+    if (!this._drawerInitSynced) {
+      this._drawerInitSynced = true
+      this._setDrawer((gs.meta?.phase ?? 'night') === 'night')
+    }
     // Gold readout removed from the CONSTRUCTION header at user request;
     // TopBar shows the treasury total and per-card cost chips cover the
     // affordability check. No `goldMeta` to refresh anymore.
