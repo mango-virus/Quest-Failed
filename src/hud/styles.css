@@ -1440,8 +1440,12 @@ body {
 
 /* Shared floating-panel chrome — gradient fill + doubled inset ring. */
 .qf-topbar-left, .qf-topbar-right {
-  background: linear-gradient(180deg, rgba(26,22,34,.94), rgba(13,10,18,.94));
-  box-shadow: inset 0 0 0 1px var(--bg-0), inset 0 0 0 2px var(--line-2), 0 6px 20px rgba(0,0,0,.55);
+  /* Minimalistic: no panel box behind the vitals / treasury — the content
+     floats directly over the dungeon. A soft drop-shadow on the group keeps
+     text + icons legible against bright tiles without a framed slab. */
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.85)) drop-shadow(0 0 2px rgba(0,0,0,.9));
   pointer-events: auto;
 }
 
@@ -6423,11 +6427,20 @@ body {
   animation: pt-eye 1s ease-out 1s both;
 }
 .pt-rtile {
-  width: 56px; height: 56px; image-rendering: pixelated;
-  background-color: #0a0710; background-repeat: no-repeat;
+  /* Size is set inline (shrinks as the wave grows). Holds a snapshot <canvas>
+     (or procedural <div>) of the real incoming adventurer. */
+  box-sizing: border-box; image-rendering: pixelated;
+  background-color: #0a0710;
   border: 2px solid var(--warn);
   box-shadow: 0 0 16px rgba(232,154,60,.4);
+  display: grid; place-items: center; overflow: hidden;
 }
+.pt-rtile > canvas, .pt-rtile > div { width: 100%; height: 100%; }
+/* Returning enemy (vendetta hunter) — gold frame to mark the veteran. */
+.pt-rtile.vet { border-color: var(--gold-bright); box-shadow: 0 0 18px rgba(255,203,92,.55); }
+/* "+N more" overflow chip for big late-game waves. */
+.pt-rtile-more { background-color: #140d08; }
+.pt-rtile-more-num { font-size: 13px; color: var(--warn); }
 
 /* ---------- shared moment keyframes ---------- */
 @keyframes fade-up {
@@ -9567,9 +9580,10 @@ body {
      (hud-stage.jsx .hs-vig sits on the backdrop, under the console chrome). */
   inset: 0;
   background:
-    radial-gradient(110% 100% at 50% 46%,
-      transparent 46%,
-      rgba(0, 0, 0, 0.62) 100%);
+    radial-gradient(115% 100% at 50% 46%,
+      transparent 38%,
+      rgba(0, 0, 0, 0.46) 72%,
+      rgba(0, 0, 0, 0.85) 100%);
   opacity: 0;
   transition: opacity 480ms ease;
 }

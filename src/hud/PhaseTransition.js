@@ -19,14 +19,19 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { incomingWaveParty } from './wavePreview.js'
+import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
+import { pixelSprite } from './sprites.js'
 
 const TRANSITION_MS = 2400
 
-// Incoming-roster showcase classes (design's fixed five). Framed to a clean
-// LPC standing pose: 64px frames on an 832×1856 sheet, row 10 col 0 — the same
-// shield-forward stance the design's hud-stage AdvFrame uses. Tile is 56px, so
-// scale = 56/64 = 0.875 → sheet 728×1624, row-10 offset = -(10·64·0.875) = -560px.
-const ROSTER = ['knight', 'cleric', 'mage', 'rogue', 'ranger']
+// Day-roster ribbon caps: above MAX_VISIBLE adventurers we show the first N as
+// sprite tiles + a "+K" overflow chip so a big late-game wave still fits one
+// centered row. Tile size shrinks as the wave grows.
+const ROSTER_MAX_VISIBLE = 16
+function rosterTileSize(n) {
+  return n <= 6 ? 64 : n <= 10 ? 52 : 44
+}
 
 export class PhaseTransition {
   constructor(gameState) {
@@ -44,7 +49,18 @@ export class PhaseTransition {
     if (this._el) this._dismiss()
     const day = this._gameState.meta?.dayNumber ?? 1
     this._activePhase = to
+    this._refs = {}
+    // Day roster — the EXACT incoming wave, library-gated (empty when no
+    // Library of Whispers / no preview, so the ribbon simply doesn't show).
+    // DAY_PHASE_BEGAN fires BEFORE the spawn consumes nextWavePreview, so the
+    // preview is still intact here.
+    this._party = to === 'day' ? incomingWaveParty(this._gameState) : []
     this._el = this._render(to, day)
+    // Warm the wave's on-demand LPC sheets so the tiles show real sprites (not
+    // the procedural fallback); re-render the ribbon in place as they stream in.
+    if (this._party.length) {
+      warmAdvSnapshotsThen(this._party, () => this._rerenderRoster(), 'pt-roster')
+    }
     // Mount on document.body (not #hud-stage) so the cinematic covers
     // the entire viewport. #hud-stage is the 1920×1080 logical stage
     // that transform-scales to FIT the viewport — on non-16:9 windows
@@ -87,18 +103,50 @@ export class PhaseTransition {
         h('div', { className: 'pix pt-sub' },
           isDay ? 'THE INVASION BEGINS' : 'FORTIFY THE DEEP'),
       ]),
-      // Incoming roster ribbon — day only.
-      isDay && h('div', { className: 'pt-roster' },
-        ROSTER.map(s => h('div', {
-          className: 'pt-rtile',
-          style: {
-            backgroundImage: `url('assets/sprites/adventurers/${s}/v01.png')`,
-            backgroundSize: '728px 1624px',
-            backgroundPosition: '0 -560px',
-          },
-        }))
-      ),
+      // Incoming-wave roster ribbon — day only, and only when a Library of
+      // Whispers has leaked the roster (otherwise this._party is empty and
+      // nothing renders).
+      isDay && this._party.length ? this._buildRoster() : null,
     ].filter(Boolean))
+  }
+
+  // The roster ribbon node — real, properly-framed adventurer sprites for the
+  // whole incoming wave (capped with a "+N" chip for big late-game waves).
+  _buildRoster() {
+    return h('div', { className: 'pt-roster', ref: el => { this._refs.roster = el } },
+      this._rosterTiles())
+  }
+
+  // Tiles for the current party — split out so the warmer can rebuild them in
+  // place (with real sprites) as the on-demand LPC sheets finish loading.
+  _rosterTiles() {
+    const party = this._party || []
+    const n = party.length
+    const size = rosterTileSize(n)
+    const shown = party.slice(0, ROSTER_MAX_VISIBLE)
+    const overflow = n - shown.length
+    const tiles = shown.map(adv => {
+      const tile = h('div', {
+        className: 'pt-rtile' + (adv.veteran ? ' vet' : ''),
+        style: { width: `${size}px`, height: `${size}px` },
+      })
+      // Real in-game sprite (south-facing idle, auto-cropped) — falls back to
+      // the procedural pixel sprite until the LPC sheet warms in.
+      const snap = snapshotAdventurerEntity(adv, size) || pixelSprite(adv.classId, size)
+      if (snap) tile.appendChild(snap)
+      return tile
+    })
+    if (overflow > 0) {
+      tiles.push(h('div', {
+        className: 'pt-rtile pt-rtile-more',
+        style: { width: `${size}px`, height: `${size}px` },
+      }, [h('span', { className: 'pix pt-rtile-more-num' }, `+${overflow}`)]))
+    }
+    return tiles
+  }
+
+  _rerenderRoster() {
+    if (this._refs?.roster) this._refs.roster.replaceChildren(...this._rosterTiles())
   }
 
   destroy() {

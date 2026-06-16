@@ -142,20 +142,9 @@ export class LeftPanels {
     }, [
       // ── MiniKnowledgeMap ───────────────────────────────────────
       h('div', { className: 'panel bevel qf-minimap' }, [
-        h('div', { className: 'panel-head' }, [
-          h('div', { className: 'title' }, [
-            h('span', {
-              className: 'diamond',
-              style: { background: 'var(--rumor)', boxShadow: '0 0 6px var(--rumor)' },
-            }),
-            'KNOWLEDGE MAP',
-          ]),
-          h('div', {
-            className: 'meta',
-            style: { color: 'var(--warn)' },
-            ref: el => { this._refs.mapMeta = el },
-          }, '0% EXPOSED'),
-        ]),
+        // Header (KNOWLEDGE MAP title + N% EXPOSED) removed for a minimalist
+        // map — exposure still reads in the Adventurer Intel panel + the full
+        // Knowledge Map overlay.
         h('div', { className: 'qf-minimap-body' }, [
           h('div', {
             className: 'qf-minimap-canvas',
@@ -995,26 +984,9 @@ export class LeftPanels {
     // Gold readout removed from the CONSTRUCTION header at user request;
     // TopBar shows the treasury total and per-card cost chips cover the
     // affordability check. No `goldMeta` to refresh anymore.
-    // Mini-map header shows DUNGEON EXPOSURE — the tier-weighted % from
-    // the live KnowledgeSystem report (FULL intel counts 4× a RUMOR), so
-    // it matches the Knowledge Map overlay + Adventurer Intel panel
-    // exactly. 0% = nobody has scouted you; 100% = every room is fully
-    // mapped. Color ramps cool→hot as exposure rises.
-    const report = _knowledgeReport()
-    const pct = report.exposurePct
-    if (pct !== this._prevExposurePct) {
-      this._prevExposurePct = pct
-      if (this._refs.mapMeta) {
-        this._refs.mapMeta.textContent = `${pct}% EXPOSED`
-        // Color ramps with exposure level: <25% safe (poison green),
-        // <50% caution (gold), <75% warn (orange), 75%+ critical (red).
-        this._refs.mapMeta.style.color =
-          pct >= 75 ? 'var(--blood)'
-          : pct >= 50 ? 'var(--warn)'
-          : pct >= 25 ? 'var(--gold)'
-          : 'var(--poison)'
-      }
-    }
+    // Mini-map header (KNOWLEDGE MAP + N% EXPOSED) removed for a minimalist
+    // map — exposure still surfaces in the Adventurer Intel panel + the full
+    // Knowledge Map overlay, so there's no per-tick exposure readout to update.
     // Slot counter — refresh when trap / minion counts or caps change.
     const slotInfo = this._slotInfo(this._currentCategory())
     const slotSig  = slotInfo ? `${slotInfo.used}/${slotInfo.cap}` : 'none'
