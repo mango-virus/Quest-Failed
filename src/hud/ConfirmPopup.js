@@ -19,6 +19,16 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 
+// Accent colour per confirm theme (the crypt redesign tints the whole card by
+// one accent var). `danger` overrides to red. Unknown themes fall to crypt-red.
+const CONFIRM_THEME_COLOR = {
+  gold:   'var(--gold)',
+  blue:   'var(--xp)',
+  shadow: 'var(--info)',
+  red:    '#e0566e',
+  danger: '#e0566e',
+}
+
 export class ConfirmPopup {
   constructor() {
     this._el       = null     // mounted card DOM node
@@ -75,37 +85,50 @@ export class ConfirmPopup {
     // key become no-ops.
     const forceChoice = p.forceChoice ?? (!!ev || hideCancel)
     this._forceChoice = forceChoice
+    // Crypt redesign: one accent var tints the whole card. `danger` (or a
+    // red/danger theme) → red "grave decision"; events keep their theme tint.
+    const danger = !!p.danger || theme === 'danger' || theme === 'red'
+    const acc = danger ? '#e0566e' : (CONFIRM_THEME_COLOR[theme] ?? 'var(--blood)')
+    // Emblem glyph + kicker default by context (event → dungeon-event kicker,
+    // danger → grave-decision, else a plain confirm).
+    const emblem = icon ?? (danger ? '☠' : '◆')
+    const kick = kicker ?? (danger ? '☠  A GRAVE DECISION  ☠' : '◆  CONFIRM  ◆')
     const stage = document.getElementById('hud-stage') ?? document.body
 
     this._el = h('div', {
-      className: 'qf-eventconfirm' + (forceChoice ? ' qf-eventconfirm-locked' : ''),
-      on: forceChoice ? {} : {
-        click: (e) => { if (e.target === e.currentTarget) this._click('cancel') },
-      },
+      className: 'qf-cf-layer' + (forceChoice ? ' qf-cf-locked' : ''),
     }, [
-      h('div', { className: `qf-eventconfirm-card qf-eventconfirm-${theme}` }, [
-        h('span', { className: 'qf-eventconfirm-corner tl' }),
-        h('span', { className: 'qf-eventconfirm-corner tr' }),
-        h('span', { className: 'qf-eventconfirm-corner bl' }),
-        h('span', { className: 'qf-eventconfirm-corner br' }),
-        kicker ? h('div', { className: 'qf-eventconfirm-kicker' }, kicker) : null,
-        h('div', { className: 'qf-eventconfirm-head' }, [
-          icon ? h('span', { className: 'qf-eventconfirm-icon' }, icon) : null,
-          h('div', { className: 'qf-eventconfirm-title' }, title),
+      h('div', {
+        className: 'qf-cf-back',
+        on: forceChoice ? {} : { click: () => this._click('cancel') },
+      }),
+      h('div', { className: 'qf-cf', style: { '--ac': acc } }, [
+        h('div', { className: 'qf-cf-inner' }, [
+          h('div', { className: 'qf-cf-emblem' }, emblem),
+          h('div', { className: 'sil qf-cf-kick' }, kick),
+          h('div', { className: 'pix qf-cf-title' }, title),
+          h('div', { className: 'qf-cf-rule' }),
+          // Plain strings use the new crypt body style; a caller-built
+          // `messageNode` (event PAY/REWARD prompts etc.) also carries
+          // `qf-eventconfirm-message` so its `.qf-event-prompt` descendant
+          // styling keeps working unchanged.
+          (messageNode ?? message) != null
+            ? h('div', {
+                className: messageNode ? 'qf-cf-body qf-eventconfirm-message' : 'qf-cf-body',
+              }, messageNode ?? message)
+            : null,
+          h('div', { className: 'qf-cf-btns' }, [
+            hideCancel ? null : h('button', {
+              className: 'pix qf-cf-btn',
+              on: { click: () => this._click('cancel') },
+            }, cancelLabel),
+            h('button', {
+              className: 'pix qf-cf-btn go',
+              on: { click: () => this._click('confirm') },
+            }, confirmLabel),
+          ].filter(Boolean)),
         ].filter(Boolean)),
-        h('div', { className: 'qf-eventconfirm-rule' }),
-        h('div', { className: 'qf-eventconfirm-message' }, messageNode ?? message),
-        h('div', { className: 'qf-eventconfirm-buttons' }, [
-          hideCancel ? null : h('button', {
-            className: 'qf-eventconfirm-btn cancel',
-            on: { click: () => this._click('cancel') },
-          }, cancelLabel),
-          h('button', {
-            className: 'qf-eventconfirm-btn confirm',
-            on: { click: () => this._click('confirm') },
-          }, confirmLabel),
-        ].filter(Boolean)),
-      ].filter(Boolean)),
+      ]),
     ])
     stage.appendChild(this._el)
     // Force reflow so the .show fade/slam runs.
