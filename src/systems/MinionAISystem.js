@@ -9,6 +9,7 @@
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
+import { tickKnockback }    from '../util/knockback.js'
 import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
 import { applyMinionScaling } from '../entities/Minion.js'
@@ -464,6 +465,9 @@ export class MinionAISystem {
     // expires. The adventurer-side reader lives in AISystem; this is its missing
     // minion counterpart (the isStaggered/isRooted API already existed, unused).
     const _nowMs = this._scene?.time?.now ?? 0
+    // Knockback slide — a minion flung by a big adventurer hit slides + wall-clamps
+    // here, suspending its turn for the window (same as the adventurer side).
+    if (tickKnockback(minion, delta, this._dungeonGrid, this._scene, _nowMs)) return
     if (MinionAbilities.isStaggered(minion, _nowMs) || MinionAbilities.isRooted(minion, _nowMs)) return
 
     // Lich Heal Undead aura is now data-driven (healAura onTick in

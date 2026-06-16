@@ -26,6 +26,20 @@ export const Balance = {
   // --- Earn rates per adventurer kill ---
   GOLD_PER_KILL: 5,   // 2026-06-02: halved 10→5 (kill income was too rich)
 
+  // --- Hit reaction (getting struck) — flinch/flash sizing (entity-agnostic) ---
+  HIT_REACT_MIN_FRAC:  0.015, // hits below this fraction of maxHP don't flinch/flash (chip/DoT)
+  HIT_REACT_FULL_FRAC: 0.18,  // a hit ≥ this fraction = full-intensity flinch/flash
+
+  // --- Knockback (big hits fling the target into walls; both factions) ---
+  KNOCKBACK_MED_FRAC:   0.10,   // hit ≥ 10% maxHP → SMALL knockback
+  KNOCKBACK_BIG_FRAC:   0.22,   // hit ≥ 22% maxHP → BIG knockback (normal melee = neither)
+  KNOCKBACK_SMALL_SPEED: 256,   // px/s launch (≈8 tiles/s)
+  KNOCKBACK_BIG_SPEED:   480,   // px/s launch (≈15 tiles/s, ~the boss-slam feel)
+  KNOCKBACK_DUR_MS:      300,   // slide window (AI movement suspended this long)
+  KNOCKBACK_DECAY:       0.86,  // per-frame velocity ease-out
+  KNOCKBACK_MIN_SPEED:   32,    // px/s — below this the slide ends early
+  KNOCKBACK_WALL_IMPACT_MIN: 200, // px/s — wall slams above this emit the heavy-impact event (shake/sfx)
+
   // --- Camera ---
   CAMERA_ZOOM_MIN: 0.25,
   CAMERA_ZOOM_MAX: 2.0,

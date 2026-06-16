@@ -20,6 +20,11 @@ import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 
 const TS = Balance.TILE_SIZE
 const RADIUS = 11
+// Hit reaction (getting struck) — flinch (play the `hurt` strip, like MinionRenderer)
+// + a damage glow-flash whose duration/intensity scale with the hit's size.
+const HURT_ANIM_MS     = 300
+const HIT_FLASH_MIN_MS = 90
+const HIT_FLASH_MAX_MS = 220
 // Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used for
 // Jinwoo's RGB-style blue↔black flame cycle.
 function _lerpHex(a, b, k) {
@@ -699,8 +704,48 @@ export class AdventurerRenderer {
       s.hp.setVisible(hpVisible)
       s.hpBg.setVisible(hpVisible)
       this._updateBubbleState(s, adv)
+
+      // Hit reaction — on ANY HP drop (melee OR an ability), flinch + flash, sized
+      // by the hit. Event-free (mirrors MinionRenderer's hurtUntil), so it catches
+      // every damage source. Tiny chip damage (< HIT_REACT_MIN_FRAC) is ignored so
+      // sprites don't twitch on poke damage / DoT ticks.
+      {
+        const curHp = adv.resources.hp, nowMs = this._scene.time?.now ?? 0
+        if (s._lastHpReact != null && curHp < s._lastHpReact && curHp > 0) {
+          const frac = (s._lastHpReact - curHp) / Math.max(1, adv.resources.maxHp)
+          if (frac >= (Balance.HIT_REACT_MIN_FRAC ?? 0.015)) {
+            const t = Math.max(0, Math.min(1, frac / (Balance.HIT_REACT_FULL_FRAC ?? 0.18)))
+            s.hurtUntil      = nowMs + HURT_ANIM_MS
+            s._hitFlashDur   = HIT_FLASH_MIN_MS + t * (HIT_FLASH_MAX_MS - HIT_FLASH_MIN_MS)
+            s._hitFlashUntil = nowMs + s._hitFlashDur
+            s._hitFlashStr   = 0.5 + t * 0.7
+          }
+        }
+        s._lastHpReact = curHp
+      }
+
       this._tickBuilderAnim(s, adv, dt)
       this._tickLpcAnim(s, adv)
+
+      // Hit FLASH — a white glow flares on the sprite and decays over the window
+      // (intensity scaled by hit size). postFX layer, so it composes cleanly over
+      // status tints/auras and never fights the per-frame setTint logic below.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const nowMs = this._scene.time?.now ?? 0
+        if (pImg?.postFX) {
+          const until = s._hitFlashUntil ?? 0
+          if (nowMs < until) {
+            const p = Math.max(0, Math.min(1, (until - nowMs) / Math.max(1, s._hitFlashDur || 1)))
+            const str = Math.min(9, (s._hitFlashStr || 0.6) * 7 * p)
+            if (!s._hitFlashFx) { try { s._hitFlashFx = pImg.postFX.addGlow(0xffffff, str, 0, false, 0.06, 6) } catch (e) { s._hitFlashFx = true } }
+            else if (s._hitFlashFx !== true) { try { s._hitFlashFx.outerStrength = str } catch (e) {} }
+          } else if (s._hitFlashFx && s._hitFlashFx !== true) {
+            try { s._hitFlashFx.outerStrength = 0 } catch (e) {}
+          }
+        }
+      }
+
       if (s.flightShadow) this._tickValkyrieFlight(s)
 
       // Spawn fade-in / leave fade-out: the smaller of the two alphas
@@ -1214,6 +1259,11 @@ export class AdventurerRenderer {
     } else {
       anim = 'idle'
     }
+
+    // Hit FLINCH — a recent strike plays the `hurt` strip briefly, overriding
+    // idle/walk/run/attack (matches MinionRenderer). Death + the duel cinematics
+    // returned earlier, so they're unaffected.
+    if ((adv.resources?.hp ?? 0) > 0 && (this._scene.time?.now ?? 0) < (s.hurtUntil ?? 0)) anim = 'hurt'
 
     // Resolve the right texture/anim — slash and thrust swap to the `_atk`
     // texture (192×192 frames) so long weapons render at native scale.

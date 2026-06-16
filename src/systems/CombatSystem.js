@@ -14,6 +14,7 @@ import { MinionAbilities } from './MinionAbilities.js'
 import { Balance }         from '../config/balance.js'
 import { TILE }            from './DungeonGrid.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
+import { applyKnockback, knockbackSpeedFor } from '../util/knockback.js'
 
 // ── Mage Elemental Arcana tuning ───────────────────────────────────────────
 // The rolled element (fire/ice/lightning/wind) gives the mage's hits an
@@ -85,6 +86,46 @@ export class CombatSystem {
   constructor(scene, gameState) {
     this._scene = scene
     this._gameState = gameState
+    // Knockback (Hit-reaction #2) — apply on any BIG hit (a tagged ability or a
+    // %-maxHP threshold), to whoever got hit (adventurer OR dungeon minion). The
+    // SLIDE itself runs in the AI ticks (tickKnockback); this just sets the impulse.
+    EventBus.on('COMBAT_HIT', this._onHitKnockback, this)
+  }
+
+  destroy() {
+    EventBus.off('COMBAT_HIT', this._onHitKnockback, this)
+  }
+
+  // Look up a combat entity by id across adventurers / minions / the boss.
+  _kbLookup(id) {
+    if (id == null) return null
+    const gs = this._gameState
+    if (gs.boss && (id === 'boss' || gs.boss.instanceId === id)) return gs.boss
+    return (gs.adventurers?.active ?? []).find(a => a.instanceId === id)
+        ?? (gs.minions ?? []).find(m => m.instanceId === id)
+        ?? null
+  }
+
+  _onHitKnockback({ sourceId, targetId, damage, knockback } = {}) {
+    if (!targetId || !(damage > 0)) return
+    const gs = this._gameState, boss = gs.boss
+    const target = this._kbLookup(targetId)
+    if (!target || target === boss) return
+    if (target.aiState === 'dead' || (target.resources?.hp ?? 0) <= 0) return
+    // Boss-fight participants have their OWN knockback (BossSystem fs.vx) — don't
+    // double-drive them.
+    if (target.goal?.type === 'AT_BOSS') return
+    // Only living adventurers + dungeon minions get dungeon knockback.
+    const isAdv = !!target.classId && target.faction !== 'dungeon'
+    const isMin = target.faction === 'dungeon' && !!target.definitionId
+    if (!isAdv && !isMin) return
+    const speed = knockbackSpeedFor(target, damage, knockback)
+    if (speed <= 0) return
+    // Push directly away from the attacker; skip if there's no positioned source
+    // (e.g. an ambient DoT) so we never fling in a meaningless direction.
+    const src = this._kbLookup(sourceId)
+    if (!src || !Number.isFinite(src.worldX)) return
+    applyKnockback(target, src.worldX, src.worldY, speed, this._scene?.time?.now ?? 0)
   }
 
   // attacker / target are entities (adventurer or minion) — both have stats.attack,

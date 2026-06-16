@@ -448,6 +448,9 @@ function _rehydrateRunHistory(state) {
     // Plant ENTANGLE / generic CC — scene-time root/slow/stagger stamps; a saved
     // future value would freeze or slow an adventurer on load until wall-clock catches up.
     '_rootedUntil', '_staggeredUntil', '_slowUntil', '_slowMult',
+    // Knockback — scene-time slide velocity + window; a saved value would fling
+    // the entity on load.
+    '_knockbackUntil', '_kbVx', '_kbVy',
     // Mushroom HALLUCINATION — scene-time daze window + whiff chance; drop on load.
     '_dazedUntil', '_dazeMissChance',
     // Myconid THE BLOOM — scene-time spore/bloom DoT tick stamps; drop on load.
@@ -612,6 +615,7 @@ function _rehydrateRunHistory(state) {
     // value would freeze a minion on load until the clock catches up. (Dawn reset
     // also clears these, but strip on mid-day save/load for correctness.)
     '_staggeredUntil', '_rootedUntil', '_slowUntil', '_slowMult',
+    '_knockbackUntil', '_kbVx', '_kbVy',
   ]
   for (const m of (state.minions ?? [])) {
     for (const k of MIN_TRANSIENT_KEYS) if (k in m) delete m[k]

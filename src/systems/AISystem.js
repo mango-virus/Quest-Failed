@@ -6,6 +6,7 @@
 import { EventBus }         from './EventBus.js'
 import { PathfinderSystem } from './PathfinderSystem.js'
 import { MinionAbilities }  from './MinionAbilities.js'
+import { tickKnockback }    from '../util/knockback.js'
 import { Balance, passiveIncomeMul } from '../config/balance.js'
 import { DebugOverlay }     from './DebugOverlay.js'
 import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './DungeonGrid.js'
@@ -1584,6 +1585,10 @@ export class AISystem {
     // Root / stagger gate — adv stands still for the duration. Any minion
     // already in range gets free swings (CombatSystem hits them normally).
     const _now = this._scene?.time?.now ?? 0
+    // Knockback slide — being flung by a big hit overrides normal AI for the brief
+    // window: the slide moves + wall-clamps the adv (suspending pathing), then the
+    // AI resumes from the new position. Sync'd tile coords keep range/path sane.
+    if (tickKnockback(adv, delta, this._dungeonGrid, this._scene, _now)) return
     if (MinionAbilities.isRooted(adv, _now) || MinionAbilities.isStaggered(adv, _now)) {
       return
     }
