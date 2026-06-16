@@ -2120,25 +2120,56 @@ body {
 .qf-bb-menu-icon.muted  { color: var(--text-mute); }
 
 /* ---------- LeftPanels (mini-map + construction) ---------- */
+/* Crypt-console redesign: LeftPanels is now a full-stage layer holding two
+   independently-positioned pieces — the minimap (top-right corner) and the
+   construction drawer (left-edge slide-out). The old always-open left column
+   is gone. */
 .qf-leftpanels {
   position: absolute;
-  top: var(--hud-top);
-  bottom: var(--hud-bottom);
-  left: 0;
-  width: var(--hud-side);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  /* Solid panel backing — the design's edge-fade gradient assumes a dark
-     gameplay surface behind it; in Quest-Failed the Phaser dungeon view
-     fills the canvas with stone-tile wallpaper, so any transparency
-     leaks the wallpaper through the panel gaps. */
-  background: var(--bg-1);
-  border-right: 1px solid var(--line);
+  inset: 0;
   z-index: 9;
+  pointer-events: none;   /* the minimap + drawer re-enable it themselves */
+}
+
+/* Minimap — docked in the top-right corner (just left of it sits the
+   treasury, which is shifted to make room). */
+.qf-minimap {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 212px;
   pointer-events: auto;
 }
+/* Make room for the minimap by nudging the treasury panel left. */
+.qf-topbar-right { margin-right: 224px; }
+
+/* Construction drawer — dock = [panel][handle], slides via `left` so it
+   animates open AND closed; the peek handle stays on the screen edge. */
+.qf-build-dock {
+  position: absolute;
+  left: 14px; top: 96px; bottom: 96px;
+  display: flex; align-items: stretch;
+  pointer-events: auto;
+  transition: left .3s cubic-bezier(.3, 1, .4, 1);
+}
+.qf-build-dock.closed { left: -232px; }
+.qf-build-handle {
+  width: 34px; flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #1d1726, #12101a);
+  box-shadow: inset 0 0 0 1px var(--bg-0), inset 0 0 0 2px var(--line-2);
+}
+.qf-build-chev { font-size: 10px; color: var(--text-mute); }
+.qf-build-handle-label { writing-mode: vertical-rl; font-size: 9px; letter-spacing: .24em; color: var(--text-mute); text-transform: uppercase; }
+.qf-build-handle-dia { width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.qf-build-handle:hover .qf-build-handle-label, .qf-build-handle:hover .qf-build-chev { color: var(--text); }
+/* The construction panel fills the dock's left slot at a fixed drawer width. */
+.qf-build-dock .qf-construction {
+  width: 232px; flex: 0 0 auto;
+  display: flex; flex-direction: column; min-height: 0;
+  margin: 0;
+}
+.qf-build-dock .qf-build-grid { flex: 1; min-height: 0; overflow: auto; }
 
 /* MiniKnowledgeMap */
 .qf-minimap-body {

@@ -202,7 +202,9 @@ export class BottomBar {
       if (this._armedTool === 'move')         EventBus.emit('TOOL_MOVE')
       else if (this._armedTool === 'sell')    EventBus.emit('TOOL_SELL')
       else if (this._armedTool === 'upgrade') EventBus.emit('TOOL_UPGRADE')
-      // If nothing armed, PLACE is already the resting state — no-op.
+      // PLACE also toggles the construction drawer (crypt-console design) —
+      // it IS the build affordance now that construction is a sliding drawer.
+      EventBus.emit('TOGGLE_BUILD_DRAWER')
       return
     }
     if (mode === 'move')    EventBus.emit('TOOL_MOVE')

@@ -120,6 +120,12 @@ export class LeftPanels {
     this._listeners = []
     this._selectedKey = null
     this._selectedCategory = 'ROOMS'
+    // Construction is a left-edge sliding drawer (crypt-console redesign).
+    // Opens by default at NIGHT (build phase) so the menu is immediately
+    // visible; auto-closes for the DAY invasion (can't build then). The peek
+    // handle / action-bar PLACE button toggle it manually either way.
+    this._drawerOpen = (gameState?.meta?.phase ?? 'night') === 'night'
+    this._keyHandler = (e) => { if (e.key === 'Escape' && this._drawerOpen) { this._setDrawer(false) } }
 
     this.el = this._build()
     this._wireEvents()
@@ -191,7 +197,11 @@ export class LeftPanels {
         ]),
       ]),
 
-      // ── ConstructionPanel ──────────────────────────────────────
+      // ── ConstructionPanel — left-edge sliding drawer ──────────
+      h('div', {
+        className: 'qf-build-dock' + (this._drawerOpen ? '' : ' closed'),
+        ref: el => { this._refs.buildDock = el },
+      }, [
       h('div', { className: 'panel bevel qf-construction' }, [
         // Header — gold-meta removed at user request; TopBar already
         // shows the treasury total and the per-card cost chips on each
@@ -234,12 +244,31 @@ export class LeftPanels {
           ref: el => { this._refs.footer = el },
         }),
       ]),
+        // Peek handle — always visible on the left edge; toggles the drawer.
+        h('div', {
+          className: 'qf-build-handle',
+          on: { click: () => this._toggleDrawer() },
+        }, [
+          h('span', { className: 'pix qf-build-chev', ref: el => { this._refs.buildChev = el } }, '▸'),
+          h('span', { className: 'sil qf-build-handle-label' }, 'CONSTRUCTION'),
+          h('span', { className: 'qf-build-handle-dia' }),
+        ]),
+      ]),
     ])
 
     this._selectCategory(this._selectedCategory, /*skipRerender*/ true)
     this._renderFooter()
     this._renderSlots()
     return root
+  }
+
+  // ── Construction drawer ─────────────────────────────────────────
+  _toggleDrawer() { this._setDrawer(!this._drawerOpen) }
+  _setDrawer(open) {
+    if (open === this._drawerOpen) return
+    this._drawerOpen = open
+    this._refs.buildDock?.classList.toggle('closed', !open)
+    if (this._refs.buildChev) this._refs.buildChev.textContent = open ? '◂' : '▸'
   }
 
   // ── Category switcher ───────────────────────────────────────────
@@ -892,6 +921,14 @@ export class LeftPanels {
       this._renderGrid()
       this._renderFooter()
     })
+    // Action bar's PLACE button toggles the construction drawer.
+    sub('TOGGLE_BUILD_DRAWER', () => this._toggleDrawer())
+    sub('OPEN_BUILD_DRAWER',   () => this._setDrawer(true))
+    // Auto-open for the build night; auto-close for the day invasion.
+    sub('NIGHT_PHASE_BEGAN', () => this._setDrawer(true))
+    sub('DAY_PHASE_BEGAN',   () => this._setDrawer(false))
+    // Esc closes the drawer when it's open.
+    window.addEventListener('keydown', this._keyHandler, true)
     // Re-render when level unlocks new content or pacts add gating.
     sub('BOSS_LEVELED_UP', () => { this._kickRoomPrecache(); this._renderGrid(); this._renderMap() })
     // BOSS_LEVEL_CHANGED — fires on both up AND down (Demon's Wager
@@ -1030,6 +1067,7 @@ export class LeftPanels {
   destroy() {
     if (this._tickHandle) cancelAnimationFrame(this._tickHandle)
     for (const [event, fn] of this._listeners) EventBus.off(event, fn)
+    window.removeEventListener('keydown', this._keyHandler, true)
     this._listeners = []
     this.el?.remove()
   }
