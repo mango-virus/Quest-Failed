@@ -45,6 +45,7 @@ export class GameOverOverlay {
       npcKind:  'gameover',
       title:    'YOUR REIGN ENDS',
       hideClose: true,   // terminal screen — closes via RISE AGAIN (design: no ✕)
+      hideHeader: true,  // body renders its own QUEST FAILED header
       width:    1100,
       height:   860,
       accent:   'var(--blood)',

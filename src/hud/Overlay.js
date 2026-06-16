@@ -52,6 +52,9 @@ export class Overlay {
       // Result screens (PostWave / Ascension / GameOver) hide the legacy ✕ —
       // they close via their own CONTINUE / RISE AGAIN buttons.
       hideClose: opts.hideClose ?? false,
+      // Result screens render their own dramatic in-body header, so the legacy
+      // title bar is suppressed to avoid a duplicate title at the top-left.
+      hideHeader: opts.hideHeader ?? false,
       // ── "Crypt" shell (front-end redesign) — opt-in, additive ──
       // When `eyebrow` or `atmosphere` is set, the modal renders the redesign
       // shell: a centered ◆ eyebrow + title head, faint brick-wall + vignette +
@@ -116,8 +119,9 @@ export class Overlay {
           padding: '12px',
         },
       }, [
-        // Header
-        h('div', { className: 'qf-overlay-head' }, [
+        // Header — suppressed for result screens that render their own
+        // dramatic in-body header (avoids a duplicate title at the top-left).
+        !o.hideHeader && h('div', { className: 'qf-overlay-head' }, [
           h('div', { className: 'qf-overlay-headleft' }, [
             h('div', { className: 'pix qf-overlay-title' }, o.title),
             o.badge && h('div', { className: 'qf-overlay-badge' }, o.badge),

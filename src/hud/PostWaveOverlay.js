@@ -47,6 +47,7 @@ export class PostWaveOverlay {
       npcKind:  'postwave',
       title:    'POST-WAVE SUMMARY',
       hideClose: true,   // closes via CONTINUE TO NIGHT (design: no ✕)
+      hideHeader: true,  // body renders its own header
       width:    1400,
       height:   840,
       accent:   'var(--blood)',

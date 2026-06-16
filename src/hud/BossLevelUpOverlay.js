@@ -44,6 +44,7 @@ export class BossLevelUpOverlay {
       dock:    false,
       title:   'ASCENSION',
       hideClose: true,   // closes via CONTINUE THE NIGHT (design: no ✕)
+      hideHeader: true,  // body renders its own ASCENSION hero burst
       width:   980,
       height:  680,
       accent:  'var(--gold)',
