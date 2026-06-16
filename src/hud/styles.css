@@ -12374,7 +12374,12 @@ body {
 .qf-csl-title { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 24px; color: var(--bone); letter-spacing: .02em; margin-top: 8px; text-shadow: 0 4px 0 #0a0710, 0 0 24px color-mix(in srgb, var(--acc) 40%, transparent); }
 .qf-csl-spacer { width: 120px; }
 /* stage */
-.qf-csl-stage { position: relative; z-index: 5; flex: 1; display: grid; grid-template-columns: 520px 1fr; gap: 34px; min-height: 0; margin-bottom: 18px; }
+/* Hero + lore as a CENTERED group (was grid 520px/1fr, which stretched the
+   lore column to the right edge and left a big empty third). Now the two sit
+   centered with balanced margins. */
+.qf-csl-stage { position: relative; z-index: 5; flex: 1; display: flex; align-items: stretch; justify-content: center; gap: 48px; min-height: 0; margin-bottom: 18px; }
+.qf-csl-stage > .qf-csl-hero { flex: 0 0 460px; }
+.qf-csl-stage > .qf-csl-lore { flex: 0 1 520px; }
 /* No frame/box — just the sprite (per user, 2026-06-15). The hero is a bare
    transparent stage; the portrait gets a soft accent drop-shadow so it still
    reads as the lit centerpiece without a border around it. */
