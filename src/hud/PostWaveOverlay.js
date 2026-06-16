@@ -46,6 +46,7 @@ export class PostWaveOverlay {
     this._overlay = new Overlay({
       npcKind:  'postwave',
       title:    'POST-WAVE SUMMARY',
+      hideClose: true,   // closes via CONTINUE TO NIGHT (design: no ✕)
       width:    1400,
       height:   840,
       accent:   'var(--blood)',

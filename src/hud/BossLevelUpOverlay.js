@@ -43,6 +43,7 @@ export class BossLevelUpOverlay {
       // celebratory moment, not a docked side menu.
       dock:    false,
       title:   'ASCENSION',
+      hideClose: true,   // closes via CONTINUE THE NIGHT (design: no ✕)
       width:   980,
       height:  680,
       accent:  'var(--gold)',

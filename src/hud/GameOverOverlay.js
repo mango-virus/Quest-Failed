@@ -44,6 +44,7 @@ export class GameOverOverlay {
     this._overlay = new Overlay({
       npcKind:  'gameover',
       title:    'YOUR REIGN ENDS',
+      hideClose: true,   // terminal screen — closes via RISE AGAIN (design: no ✕)
       width:    1100,
       height:   860,
       accent:   'var(--blood)',

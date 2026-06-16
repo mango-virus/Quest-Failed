@@ -119,13 +119,15 @@ export class Overlay {
             h('div', { className: 'pix qf-overlay-title' }, o.title),
             o.badge && h('div', { className: 'qf-overlay-badge' }, o.badge),
           ]),
-          h('button', {
+          // Result screens (PostWave / Ascension / GameOver) close via their
+          // own CONTINUE / RISE AGAIN buttons — no ✕, matching the design.
+          !o.hideClose && h('button', {
             className: 'qf-overlay-close',
             title: 'Close',
             style: { borderColor: plain ? 'var(--line-2)' : o.accent },
             on: { click: () => this.close() },
           }, '×'),
-        ]),
+        ].filter(Boolean)),
         // Body
         h('div', {
           className: 'qf-overlay-body',
