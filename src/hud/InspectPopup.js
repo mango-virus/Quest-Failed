@@ -101,7 +101,7 @@ function advAbilityLabels(classId) {
 // Raid-only abilities that DON'T carry over when an adventurer is revived as a
 // minion by The Undying Court (matches the carriesToRevived exclusions).
 const NON_CARRIED_ABILITY_IDS = new Set([
-  'lockpick', 'trap_expert', 'tame_beast', 'sic_em', 'break_door', 'tunnel',
+  'lockpick', 'trap_expert', 'tame_beast', 'sic_em', 'tunnel',
 ])
 // The ability labels a REVIVED adventurer keeps as a minion (class abilities
 // minus the raid-only ones above).

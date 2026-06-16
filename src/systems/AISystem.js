@@ -3534,34 +3534,6 @@ export class AISystem {
     return best
   }
 
-  // Beast tamer attempt: returns true if the attempt was made (success OR fail uses the turn).
-  // Returns false when on cooldown — in that case AI falls through to standard attack.
-  // Note: this remains tag-driven for now; the Beast Master class rework will
-  // replace it with the new ability-system Tame Beast (50% success, single
-  // companion enforcement).
-  _tryTame(adv, target) {
-    const now = this._scene.time.now
-    const last = adv._lastTameAt ?? 0
-    if (now - last < Balance.TAME_COOLDOWN_MS) return false
-    if (target.faction === 'adventurer') return false  // already tamed
-    const dist = Math.hypot(target.tileX - adv.tileX, target.tileY - adv.tileY)
-    if (dist > Balance.TAME_RANGE_TILES + 0.01) return false
-
-    adv._lastTameAt = now
-
-    if (Math.random() < Balance.TAME_SUCCESS_RATE) {
-      // Success — defect
-      target.faction          = 'adventurer'
-      target.factionExpiresOn = this._gameState.meta.dayNumber
-      target.tamedByAdvId     = adv.instanceId
-      target.currentTargetId  = null
-      EventBus.emit('MINION_TAMED', { minion: target, tamer: adv })
-    } else {
-      EventBus.emit('TAME_FAILED', { minion: target, tamer: adv })
-    }
-    return true
-  }
-
   // Paranoid types apply a movement speed reduction in non-starter rooms
   // (proxy for "unfamiliar" until knowledge system in Phase 8).
   _paranoidSpeedMultiplier(adv) {

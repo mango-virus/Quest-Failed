@@ -48,7 +48,6 @@ const SFX_VOLUMES = {
   'sfx-door-open':      0.80,   // MP3 estimate
   'sfx-close-door':     0.75,   // (-6.4pk / -25.6rms)
   'sfx-door-unlock':    0.46,   // 8-bit (-0.5pk / -16.4rms) — very loud, reduce
-  'sfx-break-door':     0.52,   // (-0.2pk / -15.1rms) — loud, reduce
 
   // ── Environment ───────────────────────────────────────────────────────
   'sfx-chest-open':     0.82,   // MP3 estimate
@@ -443,7 +442,6 @@ export class SfxSystem {
 
   _onAbilityTriggered({ abilityId }) {
     if (abilityId === 'arcane_burst') this._play('sfx-mage-attack')
-    if (abilityId === 'break_door')   this._play('sfx-break-door')
   }
 
   _onAllyHealed()    { this._play('sfx-cleric-heal') }

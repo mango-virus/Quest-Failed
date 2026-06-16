@@ -399,7 +399,7 @@ function _rehydrateRunHistory(state) {
   // owning systems re-arm fresh.
   const ADV_TRANSIENT_KEYS = [
     // Class-ability windows
-    '_summonGateUntil', '_focusActiveUntil', '_innerPeaceUntil',
+    '_summonGateUntil', '_focusActiveUntil',
     '_boneArmorUntil', '_invisibilityUntil',
     '_arcaneBurstQueued', '_madnessTargetId', '_wanderingGateCooldownDay',
     // Mage Elemental Arcana — scene.time gates on the per-hit lightning chain /
@@ -481,7 +481,6 @@ function _rehydrateRunHistory(state) {
     // each was used as `if (now < adv._xxxUntil)` so a saved future
     // timestamp keeps the effect active longer than intended.
     '_scatterUntil', '_warnedUntil', '_lastAvoidTrapAt', '_lastWarnAt',
-    '_lastTameAt',
     // False Exit re-trigger cooldown — scene.time-stamped; a saved
     // future value would block the teleport until the new clock catches
     // up. Drop on load.

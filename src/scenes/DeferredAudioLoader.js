@@ -30,7 +30,6 @@ export const DEFERRED_AUDIO = {
   'sfx-beholder-beam':    'assets/audio/beholder eye beam.mp3',
   'sfx-boss-attack':      'assets/audio/boss attack1.mp3',
   'sfx-boss-death':       'assets/audio/boss death.wav',
-  'sfx-break-door':       'assets/audio/break door.wav',
   'sfx-chest-open':       'assets/audio/chest open.mp3',
   'sfx-cleric-heal':      'assets/audio/cleric heal.wav',
   'sfx-close-door':       'assets/audio/close door.wav',

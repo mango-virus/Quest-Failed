@@ -73,7 +73,6 @@ export const ABILITY_DEFS = {
   // beast share a target) is a passive in CombatSystem. (Replaced Scout Ahead.)
   bm_sic_em:             { id: 'sic_em',         cooldownMs: 7000, rangeTiles: 5, mult: 1.6, label: "Sic 'Em" },
   // Barbarian
-  barb_break_door:       { id: 'break_door',     cooldownMs: 6000,                     label: 'Break Door' }, // dormant — needs locked doors to land
   // Reckless Charge — barrel in a straight line into the densest nearby minion
   // cluster, knocking back + staggering everything in the path (no path damage),
   // ending with a full swing on the target. Telegraphed wind-up = counterplay.
@@ -296,7 +295,6 @@ export class ClassAbilitySystem {
     adventurer._crescendoSpdMul       = 1
     adventurer._crescendoSilencedUntil = 0
     adventurer._focusActiveUntil      = null
-    adventurer._innerPeaceUntil       = null
     adventurer._boneArmorUntil        = null
     adventurer._invisibilityUntil     = null
     // Gladiator — drop the Block brace + reset the Crowd Roar stack count so a
@@ -440,7 +438,7 @@ export class ClassAbilitySystem {
       case 'tunnel':        V.digBurstFx?.(sc, ax, ay, { depth: 13 }); break
       case 'roll_the_dice': V.diceRoll?.(sc, ax, ay - 32, 1 + Math.floor(Math.random() * 6)); break
       case 'double_or_nothing': V.coinFlip?.(sc, ax, ay - 24, Math.random() < 0.5); break
-      case 'break_door': case 'lockpick':
+      case 'lockpick':
         V.floatingText?.(sc, ax, ay - 24, '(needs a locked door)', { color: '#999999', fontSize: '10px' }); break
       default:
         // Cheater hacks + anything unmapped: fall back to the real consider tick.
@@ -497,9 +495,6 @@ export class ClassAbilitySystem {
           case 'miner':           this._considerMiner(adv, now); break
         }
       }
-      // Inner Peace tick — Monk regen while active (any class can be regen-target
-      // but only Monk's Inner Peace ability sets _innerPeaceUntil).
-      this._tickInnerPeace(adv, now)
     }
 
     // ── The Undying Court ──────────────────────────────────────────────────
@@ -528,7 +523,6 @@ export class ClassAbilitySystem {
         // valkyrie Rally + cleric Resurrection + gambler Double-or-Nothing need
         // a minion-death hook — wired in the follow-up (3c) pass.
       }
-      this._tickInnerPeace(m, now)
     }
   }
 
@@ -560,11 +554,6 @@ export class ClassAbilitySystem {
       this._endSustainedFx(adv.instanceId, 'focus')
       EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'focus' })
     }
-    if (adv._innerPeaceUntil && now >= adv._innerPeaceUntil) {
-      adv._innerPeaceUntil = null
-      this._endSustainedFx(adv.instanceId, 'inner_peace')
-      EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'inner_peace' })
-    }
     // Necromancer
     if (adv._boneArmorUntil && now >= adv._boneArmorUntil) {
       adv._boneArmorUntil = null
@@ -582,18 +571,6 @@ export class ClassAbilitySystem {
       adv._blockActiveUntil = null
       EventBus.emit('ABILITY_BUFF_ENDED', { adventurer: adv, abilityId: 'block' })
     }
-  }
-
-  _tickInnerPeace(adv, now) {
-    if (!adv._innerPeaceUntil) return
-    if (now >= adv._innerPeaceUntil) return
-    if (adv.resources.hp >= adv.resources.maxHp) return
-    // 1 HP/sec while active. Tick once per second using a stamp.
-    const last = adv._innerPeaceLastTick ?? 0
-    if (now - last < 1000) return
-    adv._innerPeaceLastTick = now
-    adv.resources.hp = Math.min(adv.resources.maxHp, adv.resources.hp + 2)
-    AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 10, '+2', { color: '#a4ffb0', fontSize: '10px', durationMs: 500, driftY: -16 })
   }
 
   _endSustainedFx(instanceId, slot) {

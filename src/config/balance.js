@@ -699,9 +699,6 @@ export const Balance = {
   NECROMANCER_RAISES_PER_DAY:    2,
   NECROMANCER_RAISE_RANGE:       3,    // tiles
   NECROMANCER_RAISE_HP_FRACTION: 0.4,  // raised minion comes back at this HP fraction
-  TAME_SUCCESS_RATE:             0.40,
-  TAME_RANGE_TILES:              1.5,  // melee attempt
-  TAME_COOLDOWN_MS:              1500,
   ECHO_MINE_FOOTSTEP_THRESHOLD:  2,    // step count at which it fires (2 = follower)
   CURSE_BRAND_DURATION_MS:       30000, // mark lasts 30s of game time
 
