@@ -13,7 +13,7 @@
 // FRIENDS tab was removed 2026-05-19 — no friends backend yet, so the
 // tab was inert. Re-add later when friends data exists.
 
-import { h, mount } from './dom.js'
+import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
 import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
@@ -21,7 +21,6 @@ import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
 import { EventBus } from '../systems/EventBus.js'
-import { titleFxClassByName, titleFxBorderClassByName, titleColorByName } from './titleFx.js'
 
 // Feature flag — show the companion the player used on each leaderboard
 // row, on the podium card, and in the detail panel (incl. a
@@ -52,14 +51,6 @@ const LB_LIVE_STALE_MS = 10 * 60 * 1000   // 10 minutes
 // Pact rarity → chip colour. Mirrors the bright (c1) tones of the
 // PactPicker tome (src/hud/PactPicker.js RARITY) so a pact reads the
 // same hue everywhere it surfaces.
-const RARITY_COLOR = {
-  common:    '#d8d2c0',
-  uncommon:  '#86e89a',
-  rare:      '#ffd86a',
-  epic:      '#e2a6f2',
-  legendary: '#ff8a96',
-}
-
 // Build a small boss-portrait <div> from assets/ui/bestiary/portraits/
 // <id>_p.png. Used in place of the procedural pixelSprite blobs the
 // leaderboard previously rendered. Falls back to pixelSprite if the
@@ -194,6 +185,7 @@ export class LeaderboardOverlay {
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
     this._tab = 'global'
+    this._openRow = null   // expanded ledger row (by name) in the accordion
     this._selected = null
     this._rows = []
     this._loading = true
@@ -218,14 +210,13 @@ export class LeaderboardOverlay {
     if (this._overlay) return
     const body = this._renderBody()
     this._overlay = new Overlay({
-      title:    'CHRONICLE · HALL OF EVIL',
-      width:    1300,
-      height:   840,
-      accent:   'var(--gold)',
-      // Subtle single-line frame (matches the main-menu edge) instead of the
-      // loud gold double-border + glow.
-      frame:    'plain',
-      animation: 'unfurl',
+      eyebrow:    'THE CHRONICLE',
+      title:      'HALL OF EVIL',
+      width:      1240,
+      height:     836,
+      accent:     'var(--gold)',
+      atmosphere: true,
+      footer:     this._youStandingBar(),
       onClose: () => {
         this._overlay = null
         this._cuCancel?.(); this._cuCancel = null
@@ -308,6 +299,13 @@ export class LeaderboardOverlay {
         if (!seen.has(rowId)) newSet.add(rowId)
       }
       this._newPodiumAtOpen = newSet
+      // The redesign drops the per-podium NEW chips; viewing the board IS the
+      // acknowledgement, so mark the top-3 row ids known here — that clears the
+      // LEADERBOARD menu badge once the player has opened the Hall.
+      for (const r of top3) {
+        const rawId = r?._raw?.id
+        if (rawId != null) { try { PlayerProfile.markLeaderboardIdKnown?.(String(rawId)) } catch {} }
+      }
       this._loading = false
     } catch (e) {
       this._error = e?.message || String(e)
@@ -394,120 +392,6 @@ export class LeaderboardOverlay {
     }
   }
 
-  // LB_SHOW_LIVE_RUNS — chip beside an in-progress run's name. Two
-  // visual variants:
-  //   • Fresh heartbeat → green pulsing "LIVE" (player is right now).
-  //   • Stale heartbeat → orange static "PAUSED" (closed tab / saved
-  //     and walked away, but never formally ended the run). Only ever
-  //     rendered in the LIVE tab — the GLOBAL board filters stale
-  //     rows out entirely so it doesn't read as a fake-active player.
-  // Small "LV N" badge for the run's peak boss level. Used on table
-  // rows so progression depth reads at a glance without opening the
-  // detail panel. Defensive: a missing / non-positive level renders
-  // nothing rather than "LV 0".
-  _bossLevelChip(level) {
-    const lv = Number(level)
-    if (!Number.isFinite(lv) || lv < 1) return null
-    return h('span', {
-      className: 'pix qf-lb-bosslvl-chip',
-      title: `Boss reached level ${lv}.`,
-      style: {
-        display: 'inline-block',
-        marginLeft: '6px',
-        padding: '1px 5px',
-        background: 'var(--bg-0)',
-        color: 'var(--gold)',
-        border: '1px solid var(--gold)',
-        fontSize: '7px',
-        letterSpacing: '0.5px',
-        verticalAlign: 'middle',
-        textShadow: '0 0 4px rgba(255,228,136,0.45)',
-      },
-    }, `LV ${lv}`)
-  }
-
-  _liveChip(opts = {}) {
-    if (!LB_SHOW_LIVE_RUNS) return null
-    const paused = !!opts.paused
-    // `inline: false` strips the left margin used for sitting beside
-    // a name — call with `{ inline: false }` when placing the chip on
-    // its own row (e.g., above the podium DAYS/KILLS stats block).
-    const inline = opts.inline !== false
-    const label = paused ? 'PAUSED' : 'LIVE'
-    const accent = paused ? '#ff9933' : '#33dd66'
-    const glow   = paused ? 'rgba(255,153,51,0.65)' : 'rgba(51,221,102,0.75)'
-    return h('span', {
-      className: 'pix qf-lb-live-chip',
-      title: paused
-        ? 'Run in progress but no heartbeat in the last 10 minutes — the player has stepped away.'
-        : 'Run in progress — actively playing.',
-      style: {
-        display: 'inline-block',
-        marginLeft: inline ? '6px' : '0',
-        padding: '1px 5px',
-        background: accent,
-        color: '#0a0e16',
-        border: '1px solid #0a0e16',
-        fontSize: '7px',
-        letterSpacing: '0.5px',
-        verticalAlign: 'middle',
-        boxShadow: `0 0 6px ${glow}`,
-        // Pulse only on LIVE — PAUSED stays static so the eye reads
-        // "not currently moving" at a glance.
-        animation: paused ? null : 'qf-lb-live-pulse 1.6s ease-in-out infinite',
-      },
-    }, label)
-  }
-
-  // ── LB_SHOW_COMPANIONS — companion chip (icon + name) ────────────────
-  // Returns null when the feature is off or the row predates the
-  // feature (no companionId). `size` controls the icon px; `compact`
-  // hides the name text for the tightest spots.
-  _companionChip(companionId, opts = {}) {
-    if (!LB_SHOW_COMPANIONS || !companionId) return null
-    if (!COMPANIONS[companionId]) return null
-    const c = getCompanion(companionId)
-    const size = opts.size ?? 14
-    const compact = !!opts.compact
-    const fontSize = opts.fontSize ?? 8
-    const src = `${c.spriteDir}${c.restExpr}.webp`
-    return h('span', {
-      className: 'pix qf-lb-companion-chip',
-      title: `Keeper: ${c.name}`,
-      style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        marginLeft: '6px',
-        padding: '1px 5px 1px 2px',
-        border: '1px solid var(--line-2)',
-        background: 'var(--bg-0)',
-        verticalAlign: 'middle',
-        fontSize: `${fontSize}px`,
-        color: 'var(--text-mute)',
-        letterSpacing: '0.5px',
-      },
-    }, [
-      h('img', {
-        src,
-        alt: c.name,
-        style: {
-          width: `${size}px`,
-          height: `${size}px`,
-          objectFit: 'cover',
-          objectPosition: '50% 0%',  // crop to head/shoulders
-          imageRendering: 'auto',
-          borderRadius: '50%',
-          background: 'var(--bg-1)',
-        },
-        // Hide the chip entirely if the sprite 404s — never show a
-        // broken-image box on the leaderboard.
-        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
-      }),
-      !compact && h('span', null, c.name.toUpperCase()),
-    ])
-  }
-
   // Resolve a boss archetype's display name ("Earth Golem", "Elder
   // Lich", …) from bossArchetypes.json. Falls back to a humanised id
   // if the cache hasn't loaded or the id isn't in the registry — so
@@ -518,70 +402,6 @@ export class LeaderboardOverlay {
     const def = list.find(b => b?.id === bossId)
     if (def?.name) return def.name
     return String(bossId).replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
-  }
-
-  // LB_SHOW_COMPANIONS — detail-panel Keeper field + a one-line
-  // boss × companion narrative. Sentence pattern reads like a small
-  // chronicle entry instead of a stat row, so the run feels like a
-  // story (rather than a row of numbers).
-  _renderDetailCompanion(sel) {
-    const c = getCompanion(sel.companionId)
-    // sel.boss is the SPRITE KIND (used to pick the portrait art), not
-    // the boss display name — and the mapping can collapse multiple
-    // archetypes onto one sprite, so reading `sel.boss` here would give
-    // wrong names (e.g. Earth Golem rendered as "Imp"). Resolve the
-    // display name from bossArchetypes.json keyed on `sel.bossId`
-    // (the raw archetype id); humanise the id as a final fallback.
-    const bossWord = this._bossDisplayName(sel.bossId)
-    const days = sel.days || 0
-    const dayWord = days === 1 ? 'day' : 'days'
-    // Narrative is past-tense — every row on the board represents a
-    // finished (or abandoned) run. (Previously this read `sel.cause`
-    // to maybe flip to "stands" for indefinite endings, but no live
-    // end_cause phrase ever matched the check, and the cause field
-    // has been removed from the panel entirely.)
-    const narrative = `This dungeon stood for ${days} ${dayWord} under the ${bossWord}, with ${c.name} at their side.`
-    return h('div', {
-      className: 'qf-lb-detail-keeper',
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '6px 8px',
-        margin: '6px 0',
-        border: '1px solid var(--line-2)',
-        background: 'var(--bg-1)',
-      },
-    }, [
-      h('img', {
-        src: `${c.spriteDir}${c.restExpr}.webp`,
-        alt: c.name,
-        style: {
-          width: '28px',
-          height: '28px',
-          objectFit: 'cover',
-          objectPosition: '50% 0%',
-          borderRadius: '50%',
-          background: 'var(--bg-0)',
-          flex: '0 0 auto',
-        },
-        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
-      }),
-      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 } }, [
-        h('div', {
-          className: 'pix',
-          style: { fontSize: '8px', color: 'var(--text-mute)', letterSpacing: '0.5px' },
-        }, `KEEPER · ${c.name.toUpperCase()}`),
-        h('div', {
-          style: {
-            fontSize: '11px',
-            color: 'var(--text)',
-            fontStyle: 'italic',
-            lineHeight: 1.3,
-          },
-        }, narrative),
-      ]),
-    ])
   }
 
   _formatDate(iso) {
@@ -609,32 +429,6 @@ export class LeaderboardOverlay {
     return null
   }
 
-  // Lazy lookup of pact identifier → rarity. Keyed by BOTH the lowercased
-  // display name and the raw id so it resolves whichever shape
-  // _normalize() left in the pacts array. Built from dungeonMechanics.json.
-  _pactRarityMap() {
-    if (this._rarityMap) return this._rarityMap
-    const map = {}
-    for (const m of (this._cachedJson('dungeonMechanics') ?? [])) {
-      const rar = String(m?.rarity ?? '').toLowerCase()
-      if (!rar) continue
-      if (m.id)   map[String(m.id).toLowerCase()]   = rar
-      if (m.name) map[String(m.name).toLowerCase()] = rar
-    }
-    // Only memoise once the cache actually had the data — guards against
-    // an early open before Preload finished registering the JSON.
-    if (Object.keys(map).length > 0) this._rarityMap = map
-    return map
-  }
-
-  // Resolve a pact string (display name or id) to its rarity chip colour.
-  // Unknown / unmatched pacts fall back to the common tone.
-  _pactColor(pact) {
-    const key = String(pact ?? '').trim().toLowerCase()
-    const rar = this._pactRarityMap()[key]
-    return RARITY_COLOR[rar] ?? RARITY_COLOR.common
-  }
-
   _rerender() {
     if (!this._overlay) return
     // Cancel any in-flight count-up before swapping the body, then
@@ -643,6 +437,7 @@ export class LeaderboardOverlay {
     this._cuCancel?.()
     const body = this._renderBody()
     this._overlay.setBody(body)
+    this._overlay.setFooter?.(this._youStandingBar())
     this._cuCancel = runCountUp(body)
   }
 
@@ -690,595 +485,202 @@ export class LeaderboardOverlay {
   }
 
   // ── Render ──────────────────────────────────────────────────────
+  // ─── Render (Crypt — Hall of Evil) ──────────────────────────────
   _renderBody() {
-    return h('div', { className: 'qf-lb-body' }, [
-      // Tab strip
-      h('div', { className: 'qf-lb-tabstrip' },
-        TABS.map(t => {
-          const active = this._tab === t.id
-          return h('button', {
-            className: 'qf-lb-tab',
-            dataset: { active: active ? 'true' : 'false' },
-            style: { '--tab-color': t.color },
-            on: { click: () => this._selectTab(t.id) },
-          }, [
-            h('span', {
-              className: 'pix qf-lb-tab-icon',
-              style: { color: t.color },
-            }, t.icon),
-            h('span', { className: 'pix qf-lb-tab-label' }, t.label),
-          ])
-        })
-      ),
+    return h('div', { className: 'qf-lb2' }, [
+      this._renderTabs(),
       this._loading
-        ? h('div', { className: 'qf-lb-loading' },
-            'The Chronicle gathers itself…')
+        ? h('div', { className: 'qf-lb2-empty' }, '— consulting the chronicle… —')
         : this._error
-          ? h('div', { className: 'qf-lb-error' }, [
-              h('div', null, '⚠ Could not reach the Chronicle.'),
-              h('div', { className: 'qf-lb-error-msg' }, this._error),
-            ])
+          ? h('div', { className: 'qf-lb2-empty' }, ['⚠ Could not reach the Chronicle.', h('br'), this._error])
           : this._renderContent(),
     ])
   }
 
+  _renderTabs() {
+    return h('div', { className: 'qf-lb2-tabs' },
+      TABS.map(t => {
+        const on = this._tab === t.id
+        const icColor = on ? (t.id === 'live' ? '#33dd66' : 'var(--gold-bright)') : 'var(--text-mute)'
+        return h('button', {
+          className: 'qf-lb2-tab', dataset: { on: on ? 'true' : 'false' },
+          on: { click: () => { this._openRow = null; this._selectTab(t.id) } },
+        }, [
+          h('span', { className: 'ic', style: { color: icColor } }, t.icon),
+          t.label,
+        ])
+      }))
+  }
+
   _renderContent() {
     const rows = this._filteredRows()
-    if (rows.length === 0) {
-      return h('div', { className: 'qf-lb-empty' },
+    if (!rows.length) {
+      return h('div', { className: 'qf-lb2-empty' },
         this._tab === 'personal'
           ? '— no submitted runs yet. die and you shall be remembered. —'
           : this._tab === 'live'
             ? '— no live runs right now. begin a dungeon to claim the throne. —'
-            : '— no entries in this view —')
+            : '— the chronicle is empty. —')
     }
     const top3 = rows.slice(0, 3)
-    return h('div', { className: `qf-lb-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, [
-      // Podium row (top 3)
-      h('div', { className: 'qf-lb-podium' }, [
-        top3[1] ? this._podiumCard(top3[1], 2) : h('div', { className: 'qf-lb-podium-empty' }),
-        top3[0] ? this._podiumCard(top3[0], 1) : h('div', { className: 'qf-lb-podium-empty' }),
-        top3[2] ? this._podiumCard(top3[2], 3) : h('div', { className: 'qf-lb-podium-empty' }),
-      ]),
-      // Main two-column
-      h('div', { className: 'qf-lb-main' }, [
-        // Table
-        h('div', { className: 'panel bevel qf-lb-tablepanel' }, [
-          h('div', { className: 'panel-head' }, [
-            h('div', { className: 'title' }, 'ALL TIME RANKINGS'),
-            h('div', { className: 'meta' }, `${rows.length} OF ${this._rows.length}`),
-          ]),
-          h('div', { className: 'qf-lb-tablehead' }, [
-            h('span', { style: { textAlign: 'right' } }, '#'),
-            h('span'),
-            h('span', null, 'KEEPER'),
-            h('span', { style: { textAlign: 'right', color: 'var(--gold)' } }, 'LV'),
-            h('span', { style: { textAlign: 'right' } }, 'DAYS'),
-            h('span', { style: { textAlign: 'right', color: 'var(--blood)' } }, 'KILLS'),
-            h('span', { style: { textAlign: 'right', color: 'var(--warn)' } }, 'ESCAPES'),
-          ]),
-          h('div', { className: 'qf-lb-tablebody' },
-            rows.map(r => this._tableRow(r))
-          ),
-        ]),
-        // Detail
-        this._renderDetail(this._selected || rows[0]),
-      ]),
+    const rest = rows.slice(3)
+    return h('div', { className: `qf-lb2-content${this._consumeTabSwap() ? ' qf-tab-swap' : ''}` }, [
+      this._renderPodium(top3),
+      rest.length ? this._renderLedger(rest, rows.length) : null,
     ])
   }
 
-  // Build the title-or-accolade chip shared by the podium card + detail
-  // panel. Three looks, mirroring the in-game title displays:
-  //   • fx title    — animated gradient border on the chip + gradient
-  //                   text in an inner span (the full "special" look).
-  //   • color title — solid per-title color on both the words and border.
-  //   • plain title / accolade — falls back to the rank color (gold /
-  //                   silver / bronze etc.).
-  // `baseClass` is the per-site chip class; `tag` is 'div' (podium) or
-  // 'span' (detail).
-  _titleChipNode(entry, rankColor, baseClass, tag = 'div') {
-    const title    = entry.title
-    const accolade = entry.accolade
-    if (!title && !accolade) return null
-    const fxBorder = title ? titleFxBorderClassByName(title) : ''
-    if (title && fxBorder) {
-      return h(tag, { className: (baseClass + ' ' + fxBorder).trim() }, [
-        h('span', { className: titleFxClassByName(title) }, title),
-      ])
-    }
-    const color = title ? titleColorByName(title) : null
-    if (title && color) {
-      return h(tag, { className: baseClass, style: { color, borderColor: color } }, title)
-    }
-    return h(tag, { className: baseClass, style: { color: rankColor, borderColor: rankColor } },
-      title || accolade)
+  _renderPodium(top3) {
+    // Visual order: #2 (left), #1 (center, bigger), #3 (right).
+    const order = [[top3[1], 2], [top3[0], 1], [top3[2], 3]]
+    return h('div', { className: 'qf-lb2-pods' },
+      order.map(([e, place]) => e ? this._podCard(e, place) : h('div', null)))
   }
 
-  _podiumCard(entry, place) {
+  _podCard(e, place) {
     const c = rankColor(place)
-    const active = this._selected === entry
-    // Should this podium card paint a NEW chip? Driven by per-RUN row id
-    // (Supabase PK from `entry._raw.id`) so each podium spot dismisses
-    // independently even when two slots belong to the same player.
-    // `_newPodiumAtOpen` is the Set of row ids that were unseen at
-    // `_loadRows` time; the hover handler `delete`s from it on dismiss.
-    // Coerce `entry._raw.id` to a string — see snapshot loop in
-    // `_loadRows` for why numeric bigint PKs from Supabase need to be
-    // stringified at every boundary.
-    const rawId = entry?._raw?.id
-    const rowId = (rawId != null) ? String(rawId) : ''
-    const isNewPodium = !entry?.isYou && !!rowId &&
-                        this._newPodiumAtOpen?.has(rowId)
-    // LB_SHOW_COMPANIONS — when a companion is shown, the card flips to
-    // a horizontal layout: [big keeper sprite on the left | existing
-    // boss/name/stats column on the right]. Cards without a companion
-    // (legacy rows) keep the original vertical layout.
-    const showCompanion = LB_SHOW_COMPANIONS && entry.companionId && COMPANIONS[entry.companionId]
-    const cardStyle = {
-      '--rank-color': c,
-      background: active
-        ? `linear-gradient(180deg, ${c}26, var(--bg-2) 60%)`
-        : 'linear-gradient(180deg, var(--bg-2), var(--bg-1))',
-      borderColor: active ? c : 'var(--line-2)',
-      borderTop: `3px solid ${c}`,
-      boxShadow: active
-        ? `0 0 20px ${c}55, 0 4px 0 rgba(0,0,0,0.5)`
-        : '0 4px 0 rgba(0,0,0,0.5)',
-    }
-    if (showCompanion) {
-      cardStyle.display = 'flex'
-      cardStyle.flexDirection = 'row'
-      cardStyle.alignItems = 'stretch'
-      cardStyle.gap = '10px'
-    }
-    // The existing column of card content (rank → boss → name → accolade)
-    // is wrapped in its own flex column so the keeper sprite can sit
-    // alongside it without disturbing internal alignment. When the
-    // keeper is shown, the days/kills stats move into the keeper block
-    // (left side) — see _podiumCompanionSprite. When no keeper, stats
-    // stay here in their original spot.
-    // Per-place sizing — bigger cards (#1 > #2 > #3) get larger sprites
-    // + fonts so the content visibly fills the per-card min-height
-    // ladder (220 / 190 / 125 in CSS). Tuned 2026-05-27 alongside the
-    // vertical-step bump.
-    const portraitSize = place === 1 ? 96 : place === 2 ? 76 : 60
-    const nameFontSize = place === 1 ? '17px' : place === 2 ? '14px' : '12px'
-    const contentColumn = h('div', {
-      // Class added so the #1-podium legendary-shimmer CSS can lift this
-      // column above the sweep ::before without yanking the badge (which
-      // is `position: absolute` and uses the CARD as its containing block)
-      // into a different positioning context.
-      // `justifyContent: 'center'` vertically centres the content within
-      // the card's min-height so it doesn't anchor to the top with a
-      // hole of empty space below.
-      className: 'qf-lb-podium-content-col',
-      style: showCompanion
-        ? { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto', minWidth: 0, gap: '8px' }
-        : null,
-    }, [
-      h('div', {
-        className: 'pix qf-lb-podium-badge',
-        style: {
-          borderColor: c, color: c,
-          boxShadow: `0 0 12px ${c}66`,
-          textShadow: `0 0 6px ${c}`,
-        },
-      }, `#${place}`),
-      h('div', {
-        className: 'qf-lb-podium-sprite',
-        style: { borderColor: c },
-      }, _bossPortrait(entry.bossId, portraitSize)),
-      h('div', {
-        className: 'pix qf-lb-podium-name',
-        style: {
-          color: c,
-          fontSize: nameFontSize,
-          textShadow: `0 0 6px ${c}66`,
-        },
-      }, entry.name),
-      // BOSS LV now renders as a framed box in the right-side stats
-      // block (see _podiumStatsBlock) — matches the visual language
-      // of the DAYS / KILLS frames stacked next to it.
-      // Days/kills only stay here in the legacy (no-keeper) layout.
-      // With a keeper, stats move to their own framed block on the
-      // RIGHT side (see _podiumStatsBlock) so the card reads as
-      // [keeper | hero | stats] — three matching framed panels.
-      !showCompanion && h('div', { className: 'pix qf-lb-podium-stats' }, [
-        h('span', null, `${entry.days}d`),
-        h('span', { style: { color: 'var(--blood)' } }, `${entry.kills} KILLS`),
-      ]),
-      // Title-or-accolade: player-chosen title (e.g. "The Hoarder")
-      // takes the slot when present; otherwise the legacy IMMORTAL /
-      // BUTCHER / CUNNING accolade fills it for top-3 podium ranks.
-      // Older runs with neither render the slot empty (no chip).
-      (entry.title || entry.accolade) &&
-        this._titleChipNode(entry, c, 'pix qf-lb-podium-accolade', 'div'),
-    ])
-    return h('button', {
-      className: 'qf-lb-podium-card',
-      dataset: { place, active: active ? 'true' : 'false' },
-      style: cardStyle,
-      on: {
-        click: () => { this._selected = entry; this._rerender() },
-        // NEW-chip dismiss on hover — per-row, so two podium spots by
-        // the same player dismiss independently. Marks just this row's
-        // Supabase id known in PlayerProfile, removes it from the in-
-        // memory snapshot, then fades + DOM-removes only THIS card's
-        // chip. Guard against re-firing if already cleared this open.
-        mouseenter: (e) => {
-          if (!rowId || !this._newPodiumAtOpen?.has(rowId)) return
-          PlayerProfile.markLeaderboardIdKnown?.(rowId)
-          this._newPodiumAtOpen.delete(rowId)
-          const chip = e.currentTarget?.querySelector('.qf-lb-podium-new-chip')
-          if (chip && !chip.classList.contains('is-dismissing')) {
-            chip.classList.add('is-dismissing')
-            setTimeout(() => chip.remove(), 260)
-          }
-        },
-      },
-    }, [
-      // NEW chip — paints in the top-LEFT corner of the podium card
-      // when this card's player just entered the local player's top-3
-      // view. Matches the visual of the other NEW pills (red/pink
-      // pulsing pixel pill). Click-through; the card's own mouseenter
-      // dismisses it. Self-rows never receive a chip (filtered above).
-      isNewPodium && h('span', { className: 'pix qf-lb-podium-new-chip' }, 'NEW'),
-      showCompanion ? this._podiumCompanionSprite(entry, place) : null,
-      contentColumn,
-      // Right-side stats block — mirrors the keeper block's width so
-      // the content column sits visually centred. Same framed-panel
-      // styling as the keeper sprite frame so the card reads as a
-      // balanced [keeper | hero | stats] triptych.
-      showCompanion ? this._podiumStatsBlock(entry, place) : null,
-    ])
-  }
-
-  // LB_SHOW_COMPANIONS — right-side framed stats panel for the podium
-  // card. Two stacked mini-frames (DAYS / KILLS) styled to match the
-  // keeper sprite's framing (rank-coloured border + glow). Sized to
-  // mirror the keeper block on the opposite side so the centre column
-  // stays centred.
-  _podiumStatsBlock(entry, place) {
-    const accent = rankColor(place)
-    // Per-place width — mirrors the keeper block + matches the
-    // per-card min-height ladder (220 / 190 / 125). The centre
-    // column stays centred because both flanks have equal width.
-    const w = place === 1 ? 96 : place === 2 ? 76 : 60
-    const labelStyle = {
-      fontSize: place === 1 ? '7px' : '6px',
-      color: 'var(--text-mute)',
-      letterSpacing: '0.5px',
-    }
-    const valueFontSize = place === 1 ? '13px' : place === 2 ? '10px' : '9px'
-    const miniFrame = (labelText, valueNode, frameColor, glowColor) => h('div', {
-      style: {
-        background: 'var(--bg-1)',
-        border: `1px solid ${frameColor}`,
-        boxShadow: `0 0 4px ${glowColor}`,
-        padding: '2px 4px 3px',
-        textAlign: 'center',
-        width: '100%',
-        boxSizing: 'border-box',
-      },
-    }, [
-      h('div', { className: 'pix', style: labelStyle }, labelText),
-      valueNode,
-    ])
+    const portraitSize = place === 1 ? 84 : place === 2 ? 70 : 48
+    const titleText = e.title || e.accolade
     return h('div', {
-      className: 'qf-lb-podium-stats-block',
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        justifyContent: 'center',
-        gap: '4px',
-        flex: '0 0 auto',
-        width: `${w}px`,
-        padding: '2px',
-      },
+      className: `qf-lb2-pod p${place}${e.isYou ? ' you' : ''}`,
+      style: { '--rc': c },
     }, [
-      // LB_SHOW_LIVE_RUNS — chip sits ABOVE the stat frames so the run
-      // state reads top-down with the numbers. Centred horizontally;
-      // `inline: false` strips the chip's default left-margin (which
-      // was for sitting beside a name).
-      entry.status === 'live'
-        ? h('div', {
-            style: { display: 'flex', justifyContent: 'center', marginBottom: '2px' },
-          }, this._liveChip({ paused: entry.isStale, inline: false }))
-        : null,
-      // BOSS LV — sits at the TOP of the stack so progression depth
-      // reads first. Gold-tinted (rank colour for top-3) to mark it as
-      // the "headline" stat while DAYS / KILLS carry the run details.
-      entry.bossLevel >= 1 ? miniFrame(
-        'BOSS LV',
-        h('div', {
-          className: 'pix',
-          style: {
-            fontSize: valueFontSize,
-            color: accent,
-            textShadow: `0 0 4px ${accent}88`,
-            marginTop: '1px',
-          },
-        }, String(entry.bossLevel)),
-        `${accent}88`,
-        `${accent}33`,
-      ) : null,
-      miniFrame(
-        'DAYS',
-        h('div', {
-          className: 'pix',
-          style: {
-            fontSize: valueFontSize,
-            color: 'var(--text)',
-            textShadow: `0 0 4px ${accent}66`,
-            marginTop: '1px',
-          },
-        }, String(entry.days)),
-        `${accent}88`,
-        `${accent}33`,
-      ),
-      miniFrame(
-        'KILLS',
-        h('div', {
-          className: 'pix',
-          style: {
-            fontSize: valueFontSize,
-            color: 'var(--blood)',
-            textShadow: '0 0 4px rgba(255,68,88,0.6)',
-            marginTop: '1px',
-          },
-        }, String(entry.kills)),
-        'rgba(255,68,88,0.55)',
-        'rgba(255,68,88,0.25)',
-      ),
-    ])
-  }
-
-  // LB_SHOW_COMPANIONS — big keeper sprite block for the podium card's
-  // left side. Per-place sizing so the #1 keeper reads as the biggest.
-  // Self-contained so removing the feature is one delete.
-  _podiumCompanionSprite(entry, place) {
-    const c = getCompanion(entry.companionId)
-    const accent = rankColor(place)
-    // Per-place sizing — matches _podiumStatsBlock + portrait + name
-    // so the keeper, hero, and stats columns all scale together.
-    const w = place === 1 ? 96 : place === 2 ? 76 : 60
-    const nameFontSize = place === 1 ? '10px' : place === 2 ? '9px' : '8px'
-    return h('div', {
-      className: 'qf-lb-podium-keeper',
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        // Vertically centre the sprite + name within the card's
-        // min-height so the keeper doesn't anchor to the top with a
-        // hole of empty space below (matches the content-col change).
-        justifyContent: 'center',
-        gap: '4px',
-        flex: '0 0 auto',
-        // Outer block has no background / border / padding — just lays
-        // out the sprite + name + stats. The yellow frame around the
-        // sprite itself is the only chrome, and it lives on the <img>
-        // below.
-        padding: '2px',
-        background: 'transparent',
-      },
-    }, [
-      h('img', {
-        src: `${c.spriteDir}${c.restExpr}.webp`,
-        alt: c.name,
-        style: {
-          width: `${w}px`,
-          // Tall aspect so the head + shoulders + a bit of chest read.
-          // Companions are framed quite differently across the four
-          // sprite sets; cover + top-anchor keeps them all centred on
-          // the face.
-          height: `${Math.round(w * 1.15)}px`,
-          objectFit: 'cover',
-          objectPosition: '50% 0%',
-          imageRendering: 'auto',
-          background: 'var(--bg-1)',
-          border: `1px solid ${accent}88`,
-          boxShadow: `0 0 8px ${accent}33`,
-        },
-        // Hide the keeper block entirely if the sprite 404s — never
-        // ship a broken-image box. Removing the parent keeps the card
-        // gracefully reflowing to its no-companion layout.
-        onerror: (e) => { const p = e.currentTarget?.parentNode; if (p) p.style.display = 'none' },
-      }),
-      h('div', {
-        className: 'pix',
-        style: {
-          color: accent,
-          fontSize: nameFontSize,
-          letterSpacing: '0.5px',
-          textShadow: `0 0 4px ${accent}66`,
-        },
-      }, c.name.toUpperCase()),
-    ])
-  }
-
-  _tableRow(r) {
-    const c = rankColor(r.rank)
-    const active = this._selected === r
-    return h('button', {
-      className: 'qf-lb-row',
-      dataset: { active: active ? 'true' : 'false', isyou: r.isYou ? 'true' : 'false' },
-      style: {
-        '--row-color': c,
-        background: r.isYou
-          ? 'linear-gradient(90deg, rgba(255,68,88,0.18), var(--bg-2))'
-          : active
-            ? `linear-gradient(90deg, ${c}22, var(--bg-3))`
-            : 'transparent',
-        borderLeft: r.isYou
-          ? '3px solid var(--blood)'
-          : active ? `3px solid ${c}` : '3px solid transparent',
-      },
-      on: { click: () => { this._selected = r; this._rerender() } },
-    }, [
-      h('span', {
-        className: 'pix qf-lb-row-rank',
-        style: { color: c, textShadow: r.rank <= 3 ? `0 0 6px ${c}` : 'none' },
-      }, String(r.rank)),
-      h('div', { className: 'qf-lb-row-sprite' }, _bossPortrait(r.bossId, 24)),
-      h('div', { className: 'qf-lb-row-textcol' }, [
-        h('div', {
-          className: 'pix qf-lb-row-name',
-          style: { color: r.isYou ? 'var(--blood)' : 'var(--text)' },
-        }, [
-          r.name,
-          r.isYou && h('span', { className: 'pix qf-lb-row-youtag' }, ' · YOU'),
-          // LB_SHOW_COMPANIONS — companion chip beside the name.
-          this._companionChip(r.companionId, { size: 12, fontSize: 7 }),
-          // LB_SHOW_LIVE_RUNS — green LIVE / orange PAUSED chip placed
-          // AFTER the companion chip so the status reads last (most
-          // recent state of the run).
-          r.status === 'live' ? this._liveChip({ paused: r.isStale }) : null,
-          r.prePatch && h('span', {
-            className: 'pix',
-            style: {
-              marginLeft: '6px',
-              padding: '1px 5px',
-              background: '#b03a48',
-              color: '#fff8e8',
-              border: '1px solid #2a0a0c',
-              fontSize: '7px',
-              letterSpacing: '0.5px',
-              verticalAlign: 'middle',
-              boxShadow: '0 0 4px rgba(176,58,72,0.7)',
-            },
-          }, 'PRE NERF PATCH'),
-        ]),
-      ]),
-      h('span', {
-        className: 'pix qf-lb-row-cell',
-        style: { color: 'var(--gold)' },
-      }, String(r.bossLevel)),
-      h('span', { className: 'pix qf-lb-row-cell' }, String(r.days)),
-      h('span', {
-        className: 'pix qf-lb-row-cell',
-        style: { color: 'var(--blood)' },
-      }, String(r.kills)),
-      h('span', {
-        className: 'pix qf-lb-row-cell',
-        style: { color: r.escapes > 0 ? 'var(--warn)' : 'var(--text-dim)' },
-      }, String(r.escapes)),
-    ])
-  }
-
-  _renderDetail(sel) {
-    if (!sel) {
-      return h('div', { className: 'panel bevel qf-lb-detail qf-lb-detail-empty' },
-        '— select a keeper to see their chronicle —')
-    }
-    const c = rankColor(sel.rank)
-    return h('div', { className: 'panel bevel qf-lb-detail' }, [
-      // Portrait + rank
-      h('div', {
-        className: 'qf-lb-detail-head',
-        dataset: { isyou: sel.isYou ? 'true' : 'false' },
-        style: {
-          background: sel.isYou
-            ? 'linear-gradient(180deg, rgba(255,68,88,0.18), rgba(255,68,88,0.04))'
-            : 'var(--bg-0)',
-          borderColor: sel.isYou ? 'var(--blood)' : 'var(--line-2)',
-          boxShadow: sel.isYou ? '0 0 18px rgba(255,68,88,0.3)' : 'none',
-        },
-      }, [
-        h('div', {
-          className: 'qf-lb-detail-portrait',
-          style: {
-            borderColor: c,
-            boxShadow: `0 0 14px ${c}55`,
-          },
-        }, _bossPortrait(sel.bossId, 56)),
-        h('div', { className: 'qf-lb-detail-info' }, [
-          h('div', { className: 'qf-lb-detail-rankrow' }, [
-            h('span', {
-              className: 'pix qf-lb-detail-rank',
-              style: { color: c, textShadow: `0 0 8px ${c}55` },
-            }, `#${String(sel.rank).padStart(2, '0')}`),
-            // Title-or-accolade — same fallback rule as the podium card.
-            (sel.title || sel.accolade) &&
-              this._titleChipNode(sel, c, 'pix qf-lb-detail-accolade', 'span'),
-            sel.isYou && h('span', { className: 'pix qf-lb-detail-youtag' }, 'YOU'),
+      e.status === 'live' && h('span', { className: 'sil live' + (e.isStale ? ' stale' : '') }, e.isStale ? 'PAUSED' : 'LIVE'),
+      h('div', { className: 'potop' }, [
+        h('div', { className: 'frame' }, [this._portrait(e.bossId, portraitSize)]),
+        h('div', { className: 'poinfo' }, [
+          h('div', { className: 'pix rkbadge' }, [
+            place === 1 && h('span', { className: 'cr' }, '♛'),
+            h('span', null, '#' + String(place).padStart(2, '0')),
           ]),
-          h('div', {
-            className: 'pix qf-lb-detail-name',
-            style: { color: sel.isYou ? 'var(--blood)' : 'var(--text)' },
-          }, sel.name),
-          h('div', { className: 'pix qf-lb-detail-sub' },
-            `${String(sel.boss).toUpperCase()} · LV ${sel.bossLevel} · ${sel.date}`),
+          h('div', { className: 'pix nm' }, e.name),
+          titleText && h('div', { className: 'sil ti' }, titleText),
+          h('div', { className: 'sil kp' }, 'KEEPER · ' + this._compName(e.companionId)),
         ]),
       ]),
-      // LB_SHOW_COMPANIONS — boss × companion narrative line + Keeper
-      // field. Sits between the head and the stat grid. Renders nothing
-      // when the row predates the feature (no companionId) or the flag
-      // is off.
-      LB_SHOW_COMPANIONS && sel.companionId && COMPANIONS[sel.companionId]
-        ? this._renderDetailCompanion(sel)
-        : null,
-      // Stat grid. Skull glyph removed from KILLS at user request —
-      // the personal-tab tab icon still uses ☠. KILLS uses a sword
-      // mark so the trio (◇ DAYS · ⚔ KILLS · ↗ ESCAPES) reads as three
-      // distinct beats without redundancy.
-      h('div', { className: 'qf-lb-detail-stats' }, [
-        this._detailStat('DAYS',    sel.days,    'var(--text)',  '◇'),
-        this._detailStat('KILLS',   sel.kills,   'var(--blood)', '⚔'),
-        this._detailStat('ESCAPES', sel.escapes, 'var(--warn)',  '↗'),
+      this._podStats(e),
+    ])
+  }
+
+  _podStats(e) {
+    const st = (label, val, color) => h('span', null, [
+      h('i', null, label),
+      h('b', { style: color ? { color } : undefined }, String(val)),
+    ])
+    return h('div', { className: 'stats' }, [
+      st('LV', e.bossLevel, 'var(--gold)'),
+      st('DAYS', e.days),
+      st('KILLS', e.kills, 'var(--blood-glow)'),
+      st('ESC', e.escapes, e.escapes ? 'var(--warn)' : 'var(--text-dim)'),
+    ])
+  }
+
+  _renderLedger(rest, total) {
+    return h('div', null, [
+      h('div', { className: 'qf-lb2-ledgerhead' }, [
+        h('span', { className: 'pix t' }, 'THE LESSER DAMNED'),
+        h('span', { className: 'ln' }),
+        h('span', { className: 'sil m' }, `RANKS 04—${String(total).padStart(2, '0')}`),
       ]),
-      // Cause-of-end block removed at user request — the thematic phrase
-      // wasn't earning its space alongside the keeper narrative + stats.
-      // Notable pacts. Pulled from the normalized `sel.pacts` array
-      // which _normalize() now walks across every plausible source
-      // location (meta.pacts, history.pacts, run.history.pacts) so the
-      // chips populate regardless of which writer path saved the row.
-      // Show ALL pacts the run sealed — the chips container is
-      // flex-wrap so a long list just takes more rows; the detail panel
-      // scrolls (overflow:auto in styles.css) when needed.
-      h('div', { className: 'qf-lb-detail-pacts' }, [
-        h('div', { className: 'pix qf-lb-pacts-label' }, '◇ NOTABLE PACTS'),
-        h('div', { className: 'qf-lb-pacts-chips' },
-          sel.pacts && sel.pacts.length > 0
-            ? sel.pacts.map(p => {
-                // Tint the chip by the pact's rarity (common → legendary).
-                const color = this._pactColor(p)
-                return h('span', {
-                  className: 'pix qf-lb-pact-chip',
-                  style: {
-                    color,
-                    borderColor: `${color}99`,
-                    background:  `${color}1f`,
-                    textShadow:  `0 0 6px ${color}55`,
-                  },
-                }, String(p).toUpperCase())
-              })
-            : [h('span', {
-                className: 'pix qf-lb-pact-chip',
-                style: {
-                  fontStyle: 'italic',
-                  opacity: 0.55,
-                  borderStyle: 'dashed',
-                },
-              }, '— NO PACTS SEALED —')]
-        ),
+      h('div', { className: 'qf-lb2-rows' }, rest.map(r => this._ledgerRow(r))),
+    ])
+  }
+
+  _ledgerRow(r) {
+    const c = rankColor(r.rank)
+    const isOpen = this._openRow === r.name
+    const titleText = r.title || r.accolade
+    const stat = (label, val, color) => h('span', { className: 's' }, [
+      h('i', null, label),
+      h('span', { style: color ? { color } : undefined }, String(val)),
+    ])
+    return h('div', {
+      className: 'qf-lb2-tab-row',
+      dataset: { you: r.isYou ? 'true' : 'false', open: isOpen ? 'true' : 'false' },
+      style: { '--rc': c },
+    }, [
+      h('button', {
+        className: 'qf-lb2-r',
+        on: { click: () => { this._openRow = isOpen ? null : r.name; this._rerender() } },
+      }, [
+        h('span', { className: 'pix qf-lb2-rnum' }, String(r.rank)),
+        h('span', { className: 'qf-lb2-rart' }, [this._portrait(r.bossId, 30)]),
+        h('span', { className: 'qf-lb2-rmid' }, [
+          h('span', { className: 'pix qf-lb2-rname', style: { color: r.isYou ? 'var(--gold-bright)' : 'var(--text)' } }, [
+            r.name,
+            r.isYou && h('span', { className: 'sil qf-lb2-ryou' }, 'YOU'),
+            titleText && h('span', {
+              className: 'sil',
+              style: { fontSize: '8px', letterSpacing: '.1em', color: c, border: `1px solid ${c}`, padding: '1px 6px' },
+            }, titleText),
+          ]),
+          h('span', { className: 'sil qf-lb2-rsub' }, [
+            h('span', null, this._bossDisplayName(r.bossId)),
+            h('span', { style: { color: 'var(--line-2)' } }, '·'),
+            h('span', { className: 'kp' }, this._compName(r.companionId)),
+            r.status === 'live' && h('span', { className: 'qf-lb2-rlive' + (r.isStale ? ' stale' : '') }, r.isStale ? 'PAUSED' : 'LIVE'),
+          ]),
+        ]),
+        h('span', { className: 'pix qf-lb2-rstats' }, [
+          stat('LV', r.bossLevel, 'var(--gold)'),
+          stat('DAYS', r.days),
+          stat('KILLS', r.kills, 'var(--blood-glow)'),
+          stat('ESC', r.escapes, r.escapes ? 'var(--warn)' : 'var(--text-dim)'),
+        ]),
+        h('span', { className: 'qf-lb2-chev' }, '▶'),
+      ]),
+      isOpen && h('div', { className: 'qf-lb2-exp' }, [
+        h('div', { className: 'sil qf-lb2-keeper' },
+          `KEEPER · ${this._compName(r.companionId)} · ${this._bossDisplayName(r.bossId)}`),
+        r.pacts?.length
+          ? h('div', { className: 'qf-lb2-pacts' }, r.pacts.map((p, i) => {
+              const pc = ['#ffd86a', '#e2a6f2', '#86e89a'][i % 3]
+              return h('span', { className: 'sil qf-lb2-pact', style: { color: pc, borderColor: pc } }, p)
+            }))
+          : h('div', { className: 'sil', style: { color: 'var(--text-dim)', fontSize: '8px' } }, 'NO PACTS SEALED'),
       ]),
     ])
   }
 
-  _detailStat(label, value, color, icon) {
-    return h('div', { className: 'qf-lb-stat' }, [
-      h('span', {
-        className: 'pix qf-lb-stat-icon',
-        style: { color, opacity: 0.4 },
-      }, icon),
-      h('div', {
-        className: 'pix qf-lb-stat-value cu',
-        style: { color, textShadow: `0 0 8px ${color}55` },
-      }, String(value)),
-      h('div', { className: 'pix qf-lb-stat-label' }, label),
+  // YOUR STANDING footer plinth — the player's GLOBAL rank (independent of tab).
+  _youStandingBar() {
+    const you = (this._rows || []).find(r => r.isYou)
+    if (!you) {
+      return h('div', { className: 'sil', style: { color: 'var(--text-dim)', fontSize: '9px', letterSpacing: '.1em' } },
+        '— no submitted run yet · die and be remembered —')
+    }
+    const st = (label, val, color) => h('span', { className: 'st' }, [
+      h('i', null, label), h('b', { style: color ? { color } : undefined }, String(val)),
     ])
+    return h('div', { className: 'qf-lb2-you' }, [
+      h('span', { className: 'sil badge' }, 'YOUR STANDING'),
+      h('span', { className: 'pix rk' }, '#' + String(you.rank).padStart(2, '0')),
+      h('span', { className: 'pt' }, [this._portrait(you.bossId, 26)]),
+      h('span', { className: 'pix nm' }, you.name),
+      (you.title || you.accolade) && h('span', { className: 'sil ti' }, you.title || you.accolade),
+      h('span', { className: 'sp' }),
+      st('LV', you.bossLevel, 'var(--gold)'),
+      st('DAYS', you.days),
+      st('KILLS', you.kills, 'var(--blood-glow)'),
+      st('ESC', you.escapes, you.escapes ? 'var(--warn)' : 'var(--text-dim)'),
+    ])
+  }
+
+  // ─── small helpers ──────────────────────────────────────────────
+  _compName(id) {
+    if (!id) return '—'
+    try { const c = getCompanion(id); if (c?.name) return c.name } catch {}
+    return '—'
+  }
+
+  _portrait(bossId, size) {
+    const clean = String(bossId || '').replace(/^the_/, '')
+    return h('img', {
+      src: `assets/ui/bestiary/portraits/${clean}_p.png`,
+      alt: '',
+      style: { width: `${size}px`, height: `${size}px`, objectFit: 'contain', imageRendering: 'pixelated', display: 'block' },
+      on: { error: (e) => { e.currentTarget.style.visibility = 'hidden' } },
+    })
   }
 
   destroy() { this.close() }
