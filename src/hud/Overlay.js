@@ -49,6 +49,9 @@ export class Overlay {
       frame:    opts.frame    ?? 'ornate',
       scrollLock: opts.scrollLock ?? false,
       closeOnBackdrop: opts.closeOnBackdrop ?? true,
+      // Result screens (PostWave / Ascension / GameOver) hide the legacy ✕ —
+      // they close via their own CONTINUE / RISE AGAIN buttons.
+      hideClose: opts.hideClose ?? false,
       // ── "Crypt" shell (front-end redesign) — opt-in, additive ──
       // When `eyebrow` or `atmosphere` is set, the modal renders the redesign
       // shell: a centered ◆ eyebrow + title head, faint brick-wall + vignette +
