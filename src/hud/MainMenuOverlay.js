@@ -232,6 +232,31 @@ export class MainMenuOverlay {
     mount(this._el, this._renderInner())
     this._applySelection()
     this._mountAtmosphere()
+    this._applyReignTint()
+  }
+
+  // Re-tint the whole title screen to the colour of the boss you currently
+  // reign as (design: the crypt palette keys off your archetype). Empty throne
+  // (no save) → leave the CSS default crypt-red. Only --acc/--accDk/--bgTint
+  // shift; --emb stays the gold treasure accent.
+  _applyReignTint() {
+    if (!this._el) return
+    const raw = this._currentArch()?.color
+    const st = this._el.style
+    if (raw == null) {
+      st.removeProperty('--acc'); st.removeProperty('--accDk'); st.removeProperty('--bgTint')
+      return
+    }
+    const c = MainMenuOverlay._hexToCss(raw)
+    st.setProperty('--acc', c)
+    st.setProperty('--accDk', `color-mix(in srgb, ${c} 50%, #050208)`)
+    st.setProperty('--bgTint', `color-mix(in srgb, ${c} 26%, #100a12)`)
+  }
+
+  static _hexToCss(c) {
+    if (typeof c === 'number') return '#' + c.toString(16).padStart(6, '0')
+    const s = String(c || '').replace(/^0x/, '')
+    return /^[0-9a-fA-F]{6}$/.test(s) ? '#' + s : '#c8334a'
   }
 
   _renderInner() {
@@ -749,6 +774,7 @@ export class MainMenuOverlay {
     if (this._refs?.crest) mount(this._refs.crest, this._buildCrestInner())
     if (this._refs?.prim)  mount(this._refs.prim, this._buildPrimInner())
     this._applySelection()
+    this._applyReignTint()
   }
 
   // Single entry point for "the active player name changed": re-resolve the

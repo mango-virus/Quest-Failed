@@ -40,6 +40,27 @@ const STORE_KEY = 'qf.companion'
 // "more keepers are coming" independent of the real roster size.
 const MYSTERY_BUSTS = 2
 
+// Per-companion accent colour — mirrors the canonical palette already used by
+// `.qf-cmpsel-card[data-id]` / `.qf-archdec-companion[data-id]` / `.qf-npc
+// [data-companion-id]` in styles.css, so the select screen tints to each
+// keeper's own colour instead of a flat crypt-red.
+const CMP_ACCENT = {
+  lilith:      '#ff3782',
+  malakor:     '#a070dc',
+  zulgath:     '#ff8c2a',
+  safira:      '#2caee8',
+  nocturna:    '#7c6cff',
+  rattlebones: '#ffe34d',
+  luna:        '#cdd6f0',
+  necroknight: '#4dff7a',
+  spectra:     '#9b4dff',
+}
+
+// How long each picked-expression frame holds before the selected keeper
+// cross-fades to the next — gives the hero portrait a little life instead of
+// a frozen PNG.
+const EXPR_CYCLE_MS = 2200
+
 export class CompanionSelectOverlay {
   constructor(scene) {
     this._scene    = scene
@@ -85,9 +106,48 @@ export class CompanionSelectOverlay {
   }
 
   close() {
+    this._stopExprCycle()
+    this._heroImg = null
     this._el?.remove()
     this._el = null
     window.removeEventListener('keydown', this._keyHandler)
+  }
+
+  // Tint the whole screen to the selected keeper's accent (falls back to the
+  // crypt-red CSS default for any id without a mapped colour).
+  _applyAccent(id) {
+    const c = CMP_ACCENT[id]
+    if (!this._el || !c) return
+    this._el.style.setProperty('--acc', c)
+    this._el.style.setProperty('--accDk', `color-mix(in srgb, ${c} 48%, #000)`)
+  }
+
+  // Cross-fade the selected (unlocked) keeper's portrait through its rest +
+  // picked expressions on a timer, so the hero reads as alive. No-op for
+  // keepers with a single frame (Luna / Nocturna) or a locked (shrouded) pick.
+  _startExprCycle(c) {
+    this._stopExprCycle()
+    const img = this._heroImg
+    if (!img || !c) return
+    const frames = [...new Set([c.restExpr, ...(c.pickedExprs || [])].filter(Boolean))]
+    if (frames.length <= 1) return
+    // Warm every frame so swaps don't flash a blank while the webp loads.
+    frames.forEach(f => { const im = new Image(); im.src = c.spriteDir + f + '.webp' })
+    let i = 0
+    this._exprTimer = setInterval(() => {
+      if (this._heroImg !== img) { this._stopExprCycle(); return }
+      i = (i + 1) % frames.length
+      img.classList.add('swapping')
+      setTimeout(() => {
+        if (this._heroImg !== img) return
+        img.src = c.spriteDir + frames[i] + '.webp'
+        img.classList.remove('swapping')
+      }, 200)
+    }, EXPR_CYCLE_MS)
+  }
+
+  _stopExprCycle() {
+    if (this._exprTimer) { clearInterval(this._exprTimer); this._exprTimer = null }
   }
 
   // ── data helpers (preserved plumbing) ───────────────────────────────────
@@ -194,7 +254,9 @@ export class CompanionSelectOverlay {
     // Hero frame.
     const heroKids = []
     if (!locked) heroKids.push(h('span', { className: 'sil qf-csl-chosen' }, '✦ YOUR KEEPER ✦'))
-    heroKids.push(this._portraitImg(c, locked ? 'is-locked' : null))
+    const heroImg = this._portraitImg(c, locked ? 'is-locked' : null)
+    this._heroImg = locked ? null : heroImg
+    heroKids.push(heroImg)
     if (locked) heroKids.push(h('div', { className: 'qf-csl-shroud' }, [h('span', { className: 'lk' }, '🔒')]))
     const hero = h('div', { className: 'qf-csl-hero' + (locked ? ' locked' : '') }, heroKids)
 
@@ -220,6 +282,9 @@ export class CompanionSelectOverlay {
     const lore = h('div', { className: 'qf-csl-lore' }, loreKids)
 
     this._stageEl.replaceChildren(hero, lore)
+    this._applyAccent(id)
+    if (locked) this._stopExprCycle()
+    else        this._startExprCycle(c)
   }
 
   // Roster rail — one bust per real companion + MYSTERY_BUSTS `?` teasers.
@@ -307,10 +372,13 @@ export class CompanionSelectOverlay {
     if (!COMPANIONS[id] || id === this._selected) return
     HudSfx.playUi(this._isUnlocked(id) ? 'click' : 'hover')
     this._selected = id
-    // Dismiss the NEW dot when an unlocked keeper is first selected.
+    // Dismiss the NEW dot when an unlocked keeper is first selected — remove it
+    // from the rail immediately (the rail isn't rebuilt on select, so without
+    // this the tag would linger until the screen is reopened).
     if (this._isUnlocked(id) && !this._known.has(id)) {
       PlayerProfile.markCompanionKnown(id)
       this._known.add(id)
+      this._bustRefs[id]?.querySelector('.qf-csl-newdot')?.remove()
     }
     this._renderStage()
     this._syncRail()
