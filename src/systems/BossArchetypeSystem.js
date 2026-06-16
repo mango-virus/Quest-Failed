@@ -1041,6 +1041,7 @@ export class BossArchetypeSystem {
       .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
 
     let victims = 0
+    const rayTargets = []
     for (const a of advsIn) {
       // T1 — Silence: ability casts blocked (ClassAbilitySystem reads _silencedUntil).
       a._silencedUntil = Math.max(a._silencedUntil ?? 0, now + Balance.BEHOLDER_GAZE_SILENCE_MS)
@@ -1066,22 +1067,32 @@ export class BossArchetypeSystem {
           EventBus.emit('ADVENTURER_DIED', { adventurer: a, killerId: 'boss', killerName: 'The Eye Tyrant', roomId: room.instanceId, damageType: 'arcane' })
         }
       }
-      // Per-adv ray VFX — the dominant ray for this tier hits each occupant.
-      const kind = tier >= 4 ? 'disintegrate' : tier >= 3 ? 'petrify' : tier >= 2 ? 'slow' : 'silence'
-      if (this._scene && Number.isFinite(a.worldX)) {
-        AbilityVfx?.beholderRayFx?.(this._scene, boss.worldX ?? a.worldX, (boss.worldY ?? a.worldY) - 8, {
-          toX: a.worldX, toY: (a.worldY ?? 0) - 16, kind, tier,
-        })
-      }
+      // Collect each occupant's hit point — rays are fired below FROM the great
+      // eye over the room (not the off-screen boss, which read as "from nowhere").
+      if (Number.isFinite(a.worldX)) rayTargets.push({ toX: a.worldX, toY: (a.worldY ?? 0) - 16 })
       victims++
     }
 
-    // Room-sweep eye VFX over the targeted room.
-    const cx = (room.gridX + room.width  / 2) * TS
-    const cy = (room.gridY + room.height / 2) * TS
-    AbilityVfx?.tyrantGazeSweepFx?.(this._scene, cx, cy, {
-      tier, rectW: room.width * TS, rectH: room.height * TS,
-    })
+    // VFX — a great tyrant's eye fixes on the targeted room and beams every
+    // occupant FROM there. It looms over the upper room (an on-screen source,
+    // vs the old beams that streaked in from the off-screen boss) and reads as
+    // CHARGE → open → fire: a short charge tell, then the eye opens and the rays
+    // lance out to each victim.
+    const kind  = tier >= 4 ? 'disintegrate' : tier >= 3 ? 'petrify' : tier >= 2 ? 'slow' : 'silence'
+    const cx    = (room.gridX + room.width  / 2) * TS
+    const cy    = (room.gridY + room.height / 2) * TS
+    const rectW = room.width * TS, rectH = room.height * TS
+    const eyeX  = cx, eyeY = cy - rectH * 0.28   // loom over the upper part of the room
+    if (this._scene) {
+      const CHARGE_MS = 420
+      AbilityVfx?.beholderEyeChargeFx?.(this._scene, eyeX, eyeY, { tier, durationMs: CHARGE_MS })
+      this._scene.time?.delayedCall?.(CHARGE_MS, () => {
+        AbilityVfx?.tyrantGazeSweepFx?.(this._scene, eyeX, eyeY, { tier, rectW, rectH })
+        for (const t of rayTargets) {
+          AbilityVfx?.beholderRayFx?.(this._scene, eyeX, eyeY, { toX: t.toX, toY: t.toY, kind, tier })
+        }
+      })
+    }
 
     if (boss._beholderGaze) boss._beholderGaze.usesLeft = Math.max(0, (boss._beholderGaze.usesLeft ?? 0) - 1)
     this._gazeArmed = false
