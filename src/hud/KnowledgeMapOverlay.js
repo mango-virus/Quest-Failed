@@ -526,7 +526,7 @@ export class KnowledgeMapOverlay {
             transition: this._dragRef ? 'none' : 'transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
           },
         }, [
-          h('div', { className: 'qf-knowmap-grid' }, [
+          h('div', { className: 'qf-knowmap-grid', style: { aspectRatio: `${W} / ${H}` } }, [
             // Corner registration marks
             ...['tl','tr','bl','br'].map(p => h('div', {
               className: `qf-knowmap-mapcorner qf-knowmap-mapcorner-${p}`,
