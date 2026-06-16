@@ -32,17 +32,6 @@ import { SettingsOverlay } from './SettingsOverlay.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { userSettings } from './userSettings.js'
 
-const MENU_ITEMS = [
-  { id: 'resume',    label: 'RESUME',        sub: 'return to the bone-halls',     icon: '▶', color: 'var(--blood)',  primary: true },
-  { id: 'boss',      label: 'BOSS STATS',    sub: 'inspect your champion',        icon: '★', color: 'var(--gold)' },
-  { id: 'roster',    label: 'MINION ROSTER', sub: 'review your hunters',          icon: '✦', color: 'var(--poison)' },
-  { id: 'knowledge', label: 'KNOWLEDGE MAP', sub: 'what the world has learned',   icon: '◇', color: 'var(--rumor)' },
-  { id: 'log',       label: 'DUNGEON LOG',   sub: 'replay the night',             icon: '▤', color: 'var(--info)' },
-  { id: 'options',   label: 'OPTIONS',       sub: 'audio · controls',             icon: '◈', color: 'var(--warn)' },
-  { id: 'quit',      label: 'QUIT TO MENU',  sub: 'save and step away',           icon: '⏏', color: 'var(--text-dim)' },
-  { id: 'abandon',   label: 'ABANDON RUN',   sub: 'erase this dungeon forever',   icon: '✖', color: 'var(--text-mute)', danger: true },
-]
-
 export class PauseOverlay {
   constructor(gameState) {
     this._gameState = gameState
@@ -94,8 +83,9 @@ export class PauseOverlay {
     if (this.isOpen()) return
     this._overlay = new Overlay({
       title:   'PAUSED',
-      width:   760,
-      height:  640,
+      eyebrow: 'THE DUNGEON HOLDS ITS BREATH',
+      width:   500,
+      height:  452,
       accent:  'var(--blood)',
       frame:   'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => {
@@ -131,52 +121,75 @@ export class PauseOverlay {
     else this._unmountOverlay()
   }
 
+  // Resolve the boss archetype's display name + portrait id from the JSON
+  // cache (mirrors TopBar). Falls back to a humanised id.
+  _bossIdentity() {
+    const rawId = String(this._gameState?.player?.bossArchetypeId ?? '')
+    const id = rawId.replace(/^the_/, '')
+    let name = id.replace(/_/g, ' ')
+    try {
+      const scenes = window.__game?.scene?.scenes || []
+      for (const s of scenes) {
+        const archs = s.cache?.json?.get?.('bossArchetypes')
+        if (Array.isArray(archs) && archs.length) {
+          const arch = archs.find(a => a.id === id || a.id === rawId)
+          if (arch?.name) { name = arch.name; break }
+        }
+      }
+    } catch {}
+    return { id, name: name.toUpperCase() }
+  }
+
   _renderBody() {
     const gs = this._gameState
-    const stats = [
-      { l: 'DAY',   v: String(gs?.meta?.dayNumber ?? 1).padStart(2, '0'), c: 'var(--text)' },
-      { l: 'GOLD',  v: String(gs?.player?.gold ?? 0),                     c: 'var(--gold-bright)' },
-      { l: 'KILLS', v: String(gs?.player?.totalKills ?? 0).padStart(2, '0'), c: 'var(--blood)' },
-    ]
-    return h('div', { className: 'qf-pause-body' }, [
-      // Skull + flavor
-      h('div', { className: 'qf-pause-header' }, [
-        h('div', { className: 'pix pm-skull qf-pause-skull' }, '☠'),
-        h('div', { className: 'pix qf-pause-eyebrow' }, '⸺ THE NIGHT HOLDS ITS BREATH ⸺'),
-        h('div', { className: 'qf-pause-flavor' }, '"Even tyrants must rest, my lord."'),
-      ]),
-      // Run snapshot
-      h('div', { className: 'qf-pause-stats' },
-        stats.map(s => h('div', { className: 'qf-pause-stat' }, [
-          h('div', {
-            className: 'pix qf-pause-stat-value',
-            style: { color: s.c, textShadow: `0 0 6px ${s.c}55` },
-          }, s.v),
-          h('div', { className: 'pix qf-pause-stat-label' }, s.l),
-        ]))
-      ),
-      // Menu grid
-      h('div', { className: 'qf-pause-menu' },
-        MENU_ITEMS.map((m, i) => h('button', {
-          className: 'btn qf-pause-item',
-          dataset: { id: m.id, primary: m.primary ? 'true' : 'false', danger: m.danger ? 'true' : 'false' },
-          style: { '--item-color': m.color, animationDelay: `${120 + i * 60}ms` },
-          on: { click: () => this._onItemClick(m.id) },
-        }, [
-          h('span', { className: 'pix qf-pause-item-icon' }, m.icon),
-          h('div', { className: 'qf-pause-item-textcol' }, [
-            h('div', { className: 'pix qf-pause-item-label' }, m.label),
-            h('div', { className: 'qf-pause-item-sub' }, m.sub),
+    const { id, name } = this._bossIdentity()
+    const day     = gs?.meta?.dayNumber ?? 1
+    const kills   = gs?.player?.totalKills ?? 0
+    const gold    = gs?.player?.gold ?? 0
+    const minions = Array.isArray(gs?.minions)
+      ? gs.minions.filter(m => (m?.class ?? 'roster') === 'roster' && m?.aiState !== 'dead').length
+      : 0
+
+    const reignStat = (label, val, color) => h('span', { className: 'sil qf-pse-st' }, [
+      label + ' ', h('b', { className: 'pix', style: { color } }, String(val)),
+    ])
+
+    const btn = (cls, icon, label, gc, onClick) => h('button', {
+      className: 'pix qf-pse-btn' + cls,
+      style: gc ? { '--gc': gc } : undefined,
+      on: { click: onClick },
+    }, [h('span', { className: 'qf-pse-g' }, icon), label])
+
+    return h('div', { className: 'qf-pse' }, [
+      // Reign summary card
+      h('div', { className: 'qf-pse-card' }, [
+        h('div', {
+          className: 'qf-pse-port',
+          style: id ? { backgroundImage: `url('assets/ui/bestiary/portraits/${id}_p.png')` } : {},
+        }),
+        h('div', { className: 'qf-pse-id' }, [
+          h('span', { className: 'sil qf-pse-eye' }, 'YOUR REIGN, MY LORD'),
+          h('span', { className: 'pix qf-pse-name' }, name),
+          h('div', { className: 'qf-pse-reign' }, [
+            reignStat('DAY', day, 'var(--gold)'),
+            reignStat('☠', kills, 'var(--blood)'),
+            reignStat('◐', gold, 'var(--gold-bright)'),
+            reignStat('▤', minions, 'var(--poison)'),
           ]),
-        ]))
-      ),
+        ]),
+      ]),
+      // Actions
+      h('div', { className: 'qf-pse-btns' }, [
+        btn(' primary', '▶', 'RESUME', null, () => this._onItemClick('resume')),
+        h('div', { className: 'qf-pse-row' }, [
+          btn('', '◇', 'OPTIONS', 'var(--gold)', () => this._onItemClick('options')),
+          btn('', '⏏', 'QUIT TO MENU', 'var(--text-mute)', () => this._onItemClick('quit')),
+        ]),
+        btn(' danger', '☠', 'ABANDON RUN', 'var(--blood)', () => this._onItemClick('abandon')),
+      ]),
       // Footer
-      h('div', { className: 'qf-pause-footer' }, [
-        h('span', { className: 'pix qf-pause-footer-l' }, 'ESC TO RESUME'),
-        h('span', {
-          className: 'pix qf-pause-footer-r',
-          style: { color: 'var(--poison)' },
-        }, '● PROGRESS SAVED'),
+      h('div', { className: 'qf-pse-foot' }, [
+        h('kbd', { className: 'pix' }, 'ESC'), ' RESUME',
       ]),
     ])
   }
