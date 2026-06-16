@@ -27,6 +27,7 @@
 
 import { h } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
+import { buildCryptBackdrop } from './menuBackdrop.js'
 import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import {
   COMPANION_ORDER, COMPANIONS, DEFAULT_COMPANION,
@@ -156,6 +157,8 @@ export class CompanionSelectOverlay {
     this._railEl  = h('div', { className: 'qf-csl-rail' })
 
     this._el = h('div', { className: 'qf-csl' }, [
+      // Crypt backdrop — brick wall + flanking torches + fog (title-screen look).
+      ...buildCryptBackdrop(),
       // Cheap ember field — transform/opacity only (GPU composited).
       h('div', { className: 'qf-csl-embers' }, this._emberPieces()),
       // Header — BACK + centered title block.

@@ -22,6 +22,7 @@
 
 import { h } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
+import { buildCryptBackdrop } from './menuBackdrop.js'
 import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { UNLOCK_GATES } from '../data/bossUnlocks.js'
@@ -113,6 +114,8 @@ export class ArchetypeSelectOverlay {
     this._footEl  = h('div', { className: 'qf-bp-foot' })
 
     this._el = h('div', { className: 'qf-bp' }, [
+      // Crypt backdrop — brick wall + flanking torches + fog (title-screen look).
+      ...buildCryptBackdrop(),
       h('div', { className: 'qf-bp-rays' }),
       h('div', { className: 'qf-bp-halo' }),
       h('div', { className: 'qf-bp-floor' }),

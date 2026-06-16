@@ -1470,7 +1470,16 @@ body {
 .qf-treasury-label { align-self: center; }
 
 .boss-portrait-btn {
-  padding: 4px;
+  /* Fixed square (matches the design's .hc-portbtn 60×60). flex:0 0 auto +
+     align-self:flex-start keep it square inside the align-items:stretch vitals
+     panel — without them it stretched to the taller info column and read as a
+     vertical rectangle. */
+  width: 60px;
+  height: 60px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  box-sizing: border-box;
+  padding: 0;
   background: var(--bg-0);
   /* Double-framed crypt portrait: blood outer border + an inset second frame
      drawn by ::after (matches the design's .hc-portbtn). */
@@ -1497,8 +1506,10 @@ body {
 }
 
 .qf-boss-sprite {
-  width: 56px;
-  height: 56px;
+  /* Fills the fixed-square portrait button (the ::after inset frame sits over
+     it). The boss portrait is set as a contained background-image in TopBar. */
+  width: 100%;
+  height: 100%;
   background:
     radial-gradient(circle at 50% 40%, var(--blood) 0 30%, transparent 60%),
     linear-gradient(180deg, var(--bg-2), var(--bg-0));
@@ -6317,296 +6328,105 @@ body {
   margin-top: auto;
 }
 
-/* ---------- PhaseTransition (2.8s cinematic) ---------- */
-.phase-transition {
-  /* Fixed (not absolute) + mounted on document.body so the cinematic
-     covers the full viewport, including the letterbox bars outside
-     the 1920×1080 transform-scaled #hud-stage. Bumped z-index above
-     anything inside hud-stage so the visual beat reads cleanly. */
+/* ---------- PhaseTransition (design port — veil + horizon band + slam-stamp, ~2.4s) ----------
+   Ported from hud-transition.jsx. Mounted on document.body (fixed, full viewport,
+   above #hud-stage) so it covers the letterbox too. Replaced the older bespoke
+   sun/moon + speed-line + letterbox version. */
+.pt-root {
   position: fixed;
   inset: 0;
   z-index: 9999;
   overflow: hidden;
   pointer-events: auto;   /* block clicks during the transition */
-  animation: pt-bg 2.8s ease forwards;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pt-out .5s ease-in 1.9s forwards;
 }
-.phase-transition.day {
-  background: radial-gradient(ellipse at center, #2a1006 0%, #0a0408 70%, #000 100%);
+@keyframes pt-out { to { opacity: 0; } }
+
+/* Veil — wipes across to cover (clip-path sweep from the left), day/night tinted. */
+.pt-veil { position: absolute; inset: 0; animation: pt-veil-in .5s cubic-bezier(.4,0,.2,1); }
+.pt-root.to-day .pt-veil {
+  background:
+    radial-gradient(120% 80% at 50% 120%, rgba(255,170,70,.32), transparent 60%),
+    linear-gradient(180deg, rgba(8,6,14,.92), rgba(20,10,6,.86));
 }
-.phase-transition.night {
-  background: radial-gradient(ellipse at center, #161630 0%, #08081a 70%, #000 100%);
+.pt-root.to-night .pt-veil {
+  background:
+    radial-gradient(120% 80% at 50% 30%, rgba(70,60,140,.3), transparent 62%),
+    linear-gradient(180deg, rgba(12,12,30,.9), rgba(6,5,14,.92));
+}
+@keyframes pt-veil-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* Sweeping band of light/dark across the horizon. */
+.pt-band {
+  position: absolute; left: -20%; right: -20%; top: 50%; height: 4px;
+  transform: translateY(-50%);
+  animation: pt-band 1.6s ease-out .35s both;
+}
+.pt-root.to-day .pt-band {
+  background: linear-gradient(90deg, transparent, var(--gold-bright), #fff, var(--gold-bright), transparent);
+  box-shadow: 0 0 30px 6px rgba(255,203,92,.6);
+}
+.pt-root.to-night .pt-band {
+  background: linear-gradient(90deg, transparent, #8a9cf0, #cdd6f0, #8a9cf0, transparent);
+  box-shadow: 0 0 30px 6px rgba(140,156,240,.5);
+}
+@keyframes pt-band {
+  0%   { transform: translateY(-50%) scaleX(0); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: translateY(-50%) scaleX(1); opacity: .35; }
 }
 
-@keyframes pt-bg {
-  0%, 100% { opacity: 0; }
-  14%, 78% { opacity: 1; }
-}
-
-.pt-shaft {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 240px;
-  transform: translateX(-50%);
+/* Expanding glow rays from center. */
+.pt-rays { position: absolute; left: 50%; top: 50%; width: 1px; height: 1px; animation: pt-rays 1.8s ease-out .4s both; }
+.pt-rays::before {
+  content: ''; position: absolute; left: -360px; top: -360px; width: 720px; height: 720px;
+  border-radius: 50%; background: radial-gradient(circle, var(--pt-rayc) 0%, transparent 60%);
   mix-blend-mode: screen;
-  animation: pt-shaft 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-@keyframes pt-shaft {
-  0%   { opacity: 0; transform: translateX(-50%) scaleY(0.2); }
-  35%  { opacity: 1; transform: translateX(-50%) scaleY(1); }
-  85%  { opacity: 1; }
-  100% { opacity: 0; transform: translateX(-50%) scaleY(1.2); }
-}
+.pt-root.to-day  { --pt-rayc: rgba(255,180,90,.28); }
+.pt-root.to-night { --pt-rayc: rgba(120,140,230,.22); }
+@keyframes pt-rays { 0% { transform: scale(.2); } 100% { transform: scale(1.4); } }
 
-.pt-streaks {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.pt-streak {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 2px;
-  height: 800px;
-  transform-origin: 50% 0%;
-  opacity: 0;
-  animation: pt-streak 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-@keyframes pt-streak {
-  0%   { opacity: 0; }
-  30%  { opacity: 0.7; }
-  60%  { opacity: 0.7; }
-  100% { opacity: 0; }
-}
-
-/* Day-phase sun — a large warm glowing disc centered behind the title
-   card, the counterpart to the night moon. The radial streaks above
-   radiate from it as rays. Fades in/out across the 2.8s cinematic in
-   sync with the streaks. */
-.pt-day-bg {
-  position: absolute;
-  inset: 0;
-}
-.pt-sun {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 480px;
-  height: 480px;
-  transform: translate(-50%, -50%) scale(0.86);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 42% 40%,
-      #fff6d8 0%,
-      #ffd96e 32%,
-      #ff9f3e 62%,
-      #e8631e 100%);
-  box-shadow:
-    0 0 90px  rgba(255, 190, 90, 0.55),
-    0 0 210px rgba(255, 130, 40, 0.38),
-    inset -18px -22px 58px rgba(150, 52, 10, 0.42),
-    inset 14px 16px 42px rgba(255, 255, 255, 0.28);
-  opacity: 0;
-  animation: pt-sun-in 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-@keyframes pt-sun-in {
-  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.7);  }
-  30%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1.0);  }
-  70%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1.03); }
-  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.1);  }
-}
-
-/* Night-phase moon — large pale glowing disc centered behind the
-   title card, with a slightly offset darker disc carving a crescent
-   shadow into one side. Fades in/out across the 2.8s cinematic in
-   sync with the speed-streaks animation it replaces. */
-.pt-moon {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 520px;
-  height: 520px;
-  transform: translate(-50%, -50%) scale(0.86);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 40% 38%,
-      #f4f6ff 0%,
-      #c8d4e8 35%,
-      #6a82a8 70%,
-      #2a3550 100%);
-  box-shadow:
-    0 0 80px rgba(180, 210, 255, 0.45),
-    0 0 160px rgba(120, 160, 220, 0.30),
-    inset -22px -28px 60px rgba(20, 30, 60, 0.55),
-    inset 14px 18px 40px rgba(255, 255, 255, 0.12);
-  opacity: 0;
-  animation: pt-moon-in 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-/* Crescent shadow — a smaller dark disc nudged toward the right side
-   of the moon to suggest a waxing crescent without using SVG / mask
-   gymnastics. The blend keeps it subtle so the moon still reads as
-   "moon," not "Pac-Man." */
-.pt-moon-crescent {
-  position: absolute;
-  right: 6%;
-  top: 8%;
-  width: 78%;
-  height: 84%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 40%,
-    rgba(28, 38, 64, 0.85) 0%,
-    rgba(28, 38, 64, 0.65) 60%,
-    rgba(28, 38, 64, 0.0)  100%);
-  filter: blur(2px);
-  opacity: 0.65;
-}
-@keyframes pt-moon-in {
-  0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.7);  }
-  30%  { opacity: 0.92; transform: translate(-50%, -50%) scale(1.0);  }
-  70%  { opacity: 0.92; transform: translate(-50%, -50%) scale(1.02); }
-  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.08); }
-}
-
-.pt-silhouette {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 640px;
-  height: 640px;
-  opacity: 0;
-  z-index: 1;
-  animation: pt-silhouette 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-.pt-silhouette-inner {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  opacity: 0.18;
-}
-@keyframes pt-silhouette {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  75%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
-}
-
-.pt-card {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+/* Plate — eyebrow + slammed-in DAY/NIGHT stamp + sub-line. */
+.pt-plate {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
   text-align: center;
-  z-index: 3;
-  animation: pt-shake 2.8s ease forwards;
 }
-@keyframes pt-shake {
-  0%, 100% { transform: translate(-50%, -50%); }
-  18%      { transform: translate(calc(-50% - 3px), calc(-50% + 2px)); }
-  19%      { transform: translate(calc(-50% + 2px), calc(-50% - 3px)); }
-  20%      { transform: translate(-50%, -50%); }
+.pt-eye {
+  font-size: 16px; letter-spacing: .42em; text-transform: uppercase;
+  color: var(--text); animation: pt-eye 1s ease-out .5s both;
 }
+.pt-stamp {
+  font-size: 72px; letter-spacing: .04em;
+  animation: pt-stamp .7s cubic-bezier(.2,1.1,.3,1) .3s both;
+}
+.pt-root.to-day  .pt-stamp { color: var(--gold-bright); text-shadow: 5px 5px 0 #0a0610, 0 0 40px rgba(255,203,92,.6); }
+.pt-root.to-night .pt-stamp { color: #cdd6f0;            text-shadow: 5px 5px 0 #0a0610, 0 0 40px rgba(140,156,240,.6); }
+.pt-sub { font-size: 16px; letter-spacing: .1em; animation: pt-eye 1s ease-out .7s both; }
+.pt-root.to-day  .pt-sub { color: var(--blood); }
+.pt-root.to-night .pt-sub { color: var(--rumor); }
+@keyframes pt-stamp {
+  0%   { transform: scale(2.4); filter: blur(8px) brightness(2); letter-spacing: .3em; }
+  55%  { transform: scale(.94); }
+  100% { transform: scale(1); filter: none; }
+}
+@keyframes pt-eye { from { transform: translateY(8px); letter-spacing: .6em; opacity: 0; } to { transform: none; opacity: 1; } }
 
-.pt-eyebrow {
-  font-size: 11px;
-  color: var(--text-mute);
-  letter-spacing: 10px;
-  margin-bottom: 20px;
-  opacity: 0;
-  animation: pt-eyebrow 2.8s ease forwards;
+/* Incoming-roster ribbon (day only) — clean LPC standing-pose tiles. */
+.pt-roster {
+  position: absolute; bottom: 14%; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 14px;
+  animation: pt-eye 1s ease-out 1s both;
 }
-@keyframes pt-eyebrow {
-  0%, 100% { opacity: 0; letter-spacing: 16px; }
-  24%, 78% { opacity: 0.9; letter-spacing: 10px; }
-}
-
-.pt-title-wrap {
-  position: relative;
-  display: inline-block;
-  padding: 14px 60px;
-  margin-bottom: 18px;
-}
-.pt-title {
-  font-size: 110px;
-  letter-spacing: 10px;
-  font-variant-numeric: tabular-nums;
-  animation: pt-title 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-  opacity: 0;
-}
-@keyframes pt-title {
-  0%   { opacity: 0; transform: scale(1.4); filter: blur(14px) brightness(2); }
-  18%  { opacity: 1; transform: scale(1);   filter: blur(0) brightness(1.4); }
-  22%  { transform: scale(1.05); }
-  26%  { transform: scale(1); filter: blur(0) brightness(1); }
-  80%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.96); }
-}
-.pt-bracket {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  border-width: 3px;
-  border-style: solid;
-  border-color: transparent;
-  opacity: 0;
-  animation: pt-bracket 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) 200ms forwards;
-}
-.pt-bracket-tl { top: 0;    left: 0; }
-.pt-bracket-tr { top: 0;    right: 0; }
-.pt-bracket-bl { bottom: 0; left: 0; }
-.pt-bracket-br { bottom: 0; right: 0; }
-@keyframes pt-bracket {
-  0%, 100% { opacity: 0; transform: scale(0.5); }
-  30%, 78% { opacity: 1; transform: scale(1); }
-}
-
-.pt-sub {
-  font-size: 22px;
-  letter-spacing: 8px;
-  opacity: 0;
-  animation: pt-sub 2.8s ease 100ms forwards;
-}
-@keyframes pt-sub {
-  0%, 100% { opacity: 0; transform: translateY(8px); }
-  28%, 78% { opacity: 1; transform: translateY(0); }
-}
-
-.pt-flavor {
-  font-family: var(--term);
-  font-size: 22px;
-  color: var(--text-mute);
-  font-style: italic;
-  /* Constrain width while keeping horizontally centered inside .pt-card.
-     The parent has text-align:center which only centers INLINE content;
-     this block needs auto margins to actually center itself. */
-  max-width: 700px;
-  margin: 22px auto 0;
-  opacity: 0;
-  animation: pt-flavor 2.8s ease 300ms forwards;
-}
-@keyframes pt-flavor {
-  0%, 100% { opacity: 0; }
-  40%, 78% { opacity: 0.8; }
-}
-
-.pt-letterbox {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 90px;
-  background: #000;
-  box-shadow: 0 0 24px rgba(0,0,0,0.8);
-  z-index: 4;
-}
-.pt-letterbox.top    { top: 0;    --start: -100%; animation: pt-letterbox-in 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-.pt-letterbox.bottom { bottom: 0; --start:  100%; animation: pt-letterbox-in 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-@keyframes pt-letterbox-in {
-  0%   { transform: translateY(var(--start)); }
-  18%, 80% { transform: translateY(0); }
-  100% { transform: translateY(var(--start)); }
+.pt-rtile {
+  width: 56px; height: 56px; image-rendering: pixelated;
+  background-color: #0a0710; background-repeat: no-repeat;
+  border: 2px solid var(--warn);
+  box-shadow: 0 0 16px rgba(232,154,60,.4);
 }
 
 /* ---------- shared moment keyframes ---------- */
@@ -8301,6 +8121,50 @@ body {
 .qf-cm .qcm-torch.r .qcm-torchsprite { animation-delay: -.37s; }
 @keyframes qcm-torchburn { from { background-position: 0 0; } to { background-position: 0 -1152px; } }
 
+/* ── Shared crypt backdrop (.qf-cryptbg-*) ──────────────────────────────
+   Brick wall + flanking torches (sprite + glow) + low fog, extracted from the
+   title screen (.qcm-*) so the companion + boss pickers carry the same look.
+   Values mirror MainMenuOverlay's; reuses the qcm-* keyframes above. All layers
+   are pointer-events:none, z-index 0 — picker content sits on top (z>=1).
+   Torch + glow are co-centered (glow center = torch sprite center) and pushed to
+   the far edges so they flank the altar/stage without overlapping its panels. */
+.qf-cryptbg-bricks {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-color: #0a0710;
+  background-image: url('../../assets/bg/wall.png');
+  background-size: 173px 86px; background-repeat: repeat;
+  image-rendering: pixelated; opacity: 0.28;
+  -webkit-mask: radial-gradient(92% 82% at 50% 40%, #000 8%, transparent 86%);
+  mask: radial-gradient(92% 82% at 50% 40%, #000 8%, transparent 86%);
+}
+.qf-cryptbg-fog {
+  position: absolute; left: -72px; right: -72px; bottom: 0; height: 360px; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(50% 120% at 32% 100%, rgba(54,48,70,.16), transparent 62%),
+    radial-gradient(48% 120% at 68% 100%, rgba(48,44,64,.13), transparent 62%);
+  animation: qcm-fogdrift 16s ease-in-out infinite alternate;
+}
+.qf-cryptbg-glow {
+  /* z:2 so the torch light reads ON TOP of the pickers' own edge-vignette
+     (.qf-bp-vig, z:auto) instead of being darkened by it; still below the
+     picker content (z>=5). */
+  position: absolute; top: 224px; width: 432px; height: 432px; z-index: 2; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255,160,70,.42), rgba(255,120,45,.16) 42%, transparent 70%);
+  mix-blend-mode: screen; animation: qcm-flicker 2.6s ease-in-out infinite;
+}
+.qf-cryptbg-glow.l { left: -130px; }
+.qf-cryptbg-glow.r { right: -130px; animation-delay: -1.1s; }
+.qf-cryptbg-torch { position: absolute; top: 344px; z-index: 2; pointer-events: none; }
+.qf-cryptbg-torch.l { left: 0px; }
+.qf-cryptbg-torch.r { right: 0px; }
+.qf-cryptbg-torchsprite {
+  width: 172px; height: 192px; image-rendering: pixelated;
+  background: url('../../assets/sprites/torch.png') 0 0 / 172px 1152px no-repeat;
+  animation: qcm-torchburn .75s steps(6) infinite;
+  filter: drop-shadow(0 0 20px rgba(255,150,60,.6));
+}
+.qf-cryptbg-torch.r .qf-cryptbg-torchsprite { animation-delay: -.37s; }
+
 /* drifting embers */
 .qf-cm .qcm-embers { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
 .qf-cm .qcm-ember {
@@ -9697,14 +9561,15 @@ body {
    to be declared BEFORE the individual top/bottom/left/right or it
    clobbers them back to auto. */
 .qf-fx-dungeon-vignette {
-  /* Full-screen now that the crypt-console HUD floats over the dungeon (the
-     dungeon fills the whole viewport, not a centered box between solid panels). */
+  /* Full-screen, and lives inside .qf-fx (z:5) — BELOW every HUD chrome layer
+     (top/bottom bars z:10, side panels z:9). So it darkens the DUNGEON view's
+     edges only; the floating HUD panels stay bright on top, matching the design
+     (hud-stage.jsx .hs-vig sits on the backdrop, under the console chrome). */
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 50%,
-      rgba(0, 0, 0, 0)    40%,
-      rgba(0, 0, 0, 0.32) 75%,
-      rgba(0, 0, 0, 0.68) 100%);
+    radial-gradient(110% 100% at 50% 46%,
+      transparent 46%,
+      rgba(0, 0, 0, 0.62) 100%);
   opacity: 0;
   transition: opacity 480ms ease;
 }
