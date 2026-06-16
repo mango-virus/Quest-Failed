@@ -3818,6 +3818,28 @@ body {
 .qf-pse-foot { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 8px; letter-spacing: .1em; color: var(--text-dim); margin-top: auto; }
 .qf-pse-foot kbd { font-size: 8px; color: var(--text); background: #0a0710; border: 1px solid var(--line-2); padding: 4px 6px; }
 
+/* ---------- CodexOverlay (.qf-cdx-*) — in-game reference, ported from
+   hud-overlay-codex.jsx. Tabs + 2-col card grid. Lives in the .qf-cov shell. */
+.qf-cdx { display: flex; flex-direction: column; flex: 1; min-height: 0; font-family: var(--body); color: var(--text); gap: 13px; }
+.qf-cdx-tabs { display: flex; gap: 4px; flex: 0 0 auto; }
+.qf-cdx-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 8px; color: var(--text-mute); cursor: pointer; padding: 11px 6px;
+  background: var(--bg-1); border: 1px solid var(--line-2); box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5); transition: color .12s, box-shadow .12s; }
+.qf-cdx-tab .ct { font-size: 8px; color: var(--text-dim); }
+.qf-cdx-tab:hover { color: var(--text); }
+.qf-cdx-tab.on { color: #fff; box-shadow: inset 0 -3px 0 var(--tc), inset 1px 1px 0 rgba(255,255,255,.05); }
+.qf-cdx-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-content: start; padding-right: 4px; animation: qf-cdx-fade .26s ease-out; }
+@keyframes qf-cdx-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.qf-cdx-card { display: flex; gap: 12px; padding: 12px 13px; background: #0d0a12; border: 1px solid var(--line-2); border-left: 3px solid var(--cc); }
+.qf-cdx-ico { width: 46px; height: 46px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--cc);
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--cc) 20%, transparent), transparent 68%), #0a0710; border: 1px solid var(--cc); text-shadow: 0 0 8px color-mix(in srgb, var(--cc) 50%, transparent); }
+.qf-cdx-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.qf-cdx-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.qf-cdx-name { font-size: 9px; color: #fff; }
+.qf-cdx-meta { font-size: 8px; letter-spacing: .08em; }
+.qf-cdx-desc { font-size: 12px; color: var(--text-mute); line-height: 1.45; }
+.qf-cdx-cost { display: inline-flex; align-items: center; gap: 4px; font-size: 7px; color: var(--gold-bright); }
+.qf-cdx-cost i { width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #ffe488, var(--gold) 60%, #7a5616); }
+
 /* ---------- PauseOverlay ---------- */
 .qf-pause-body {
   flex: 1;

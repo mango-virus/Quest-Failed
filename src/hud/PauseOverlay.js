@@ -30,6 +30,7 @@ import { PauseManager } from '../systems/PauseManager.js'
 import { SaveSystem }   from '../systems/SaveSystem.js'
 import { SettingsOverlay } from './SettingsOverlay.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
+import { CodexOverlay } from './CodexOverlay.js'
 import { userSettings } from './userSettings.js'
 
 export class PauseOverlay {
@@ -85,7 +86,7 @@ export class PauseOverlay {
       title:   'PAUSED',
       eyebrow: 'THE DUNGEON HOLDS ITS BREATH',
       width:   500,
-      height:  452,
+      height:  508,
       accent:  'var(--blood)',
       frame:   'plain',   // subtle main-menu edge instead of the accent frame
       onClose: () => {
@@ -183,8 +184,9 @@ export class PauseOverlay {
         btn(' primary', '▶', 'RESUME', null, () => this._onItemClick('resume')),
         h('div', { className: 'qf-pse-row' }, [
           btn('', '◇', 'OPTIONS', 'var(--gold)', () => this._onItemClick('options')),
-          btn('', '⏏', 'QUIT TO MENU', 'var(--text-mute)', () => this._onItemClick('quit')),
+          btn('', '◈', 'CODEX', 'var(--rumor)', () => this._onItemClick('codex')),
         ]),
+        btn('', '⏏', 'QUIT TO MENU', 'var(--text-mute)', () => this._onItemClick('quit')),
         btn(' danger', '☠', 'ABANDON RUN', 'var(--blood)', () => this._onItemClick('abandon')),
       ]),
       // Footer
@@ -222,6 +224,9 @@ export class PauseOverlay {
         break
       case 'options':
         this._openSettings()
+        break
+      case 'codex':
+        this._openCodex()
         break
       case 'abandon':
         // ABANDON RUN posts the run to the leaderboard, then deletes the
@@ -262,6 +267,16 @@ export class PauseOverlay {
     this._settings.open()
   }
 
+  // Open the Codex reference on top of the pause modal (stacked crypt shells;
+  // Esc/backdrop returns here). Mirrors _openSettings.
+  _openCodex() {
+    if (this._codex) return
+    this._codex = new CodexOverlay({
+      onClose: () => { this._codex = null },
+    })
+    this._codex.open()
+  }
+
   // Open the FullLogOverlay on top of the pause modal. Two stacked
   // Overlay shells (both z-index 150) — second one wins by DOM order,
   // so the log lands above pause and Esc/× returns to pause.
@@ -277,6 +292,8 @@ export class PauseOverlay {
     for (const [event, fn] of this._listeners) EventBus.off(event, fn)
     this._listeners = []
     this._settings?.close()
+    this._codex?.close()
+    this._codex = null
     this._fullLog?.close()
     this._fullLog = null
     this._overlay?.close()
