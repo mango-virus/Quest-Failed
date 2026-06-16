@@ -2126,7 +2126,7 @@ body {
    is gone. */
 .qf-leftpanels {
   position: absolute;
-  inset: 0;
+  inset: 0; width: 100%; height: 100%;
   z-index: 9;
   pointer-events: none;   /* the minimap + drawer re-enable it themselves */
 }
@@ -3214,20 +3214,43 @@ body {
 }
 
 /* ---------- RightPanels (wave + intel + log) ---------- */
+/* Crypt-console redesign: RightPanels is now a full-stage layer holding a
+   right-edge sliding drawer (wave / intel / log) with a "WAVE · LOG" peek
+   handle. The old always-open right column is gone. */
 .qf-rightpanels {
   position: absolute;
-  top: var(--hud-top);
-  bottom: var(--hud-bottom);
-  right: 0;
-  width: var(--hud-side);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--bg-1);
-  border-left: 1px solid var(--line);
+  inset: 0; width: 100%; height: 100%;
   z-index: 9;
+  pointer-events: none;   /* the drawer re-enables it */
+}
+
+/* Wave/log drawer — dock = [handle][panel], slides via `right` so it animates
+   open AND closed; the peek handle stays on the screen edge. */
+.qf-wave-dock {
+  position: absolute;
+  /* Starts below the top-right minimap so the two don't overlap. */
+  right: 14px; top: 272px; bottom: 96px;
+  display: flex; align-items: stretch;
   pointer-events: auto;
+  transition: right .3s cubic-bezier(.3, 1, .4, 1);
+}
+.qf-wave-dock.closed { right: -268px; }
+.qf-wave-handle {
+  width: 34px; flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #1d1726, #12101a);
+  box-shadow: inset 0 0 0 1px var(--bg-0), inset 0 0 0 2px var(--line-2);
+}
+.qf-wave-chev { font-size: 10px; color: var(--text-mute); }
+.qf-wave-handle-label { writing-mode: vertical-rl; font-size: 9px; letter-spacing: .22em; color: var(--text-mute); text-transform: uppercase; }
+.qf-wave-handle-live { width: 6px; height: 6px; background: var(--blood); box-shadow: 0 0 6px var(--blood); animation: blink 1.2s steps(2) infinite; }
+.qf-wave-handle:hover .qf-wave-handle-label, .qf-wave-handle:hover .qf-wave-chev { color: var(--text); }
+/* The three panels stack inside the dock's right slot at a fixed drawer width. */
+.qf-wave-panelcol {
+  width: 268px; flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
+  overflow: auto;
 }
 
 /* IncomingWave — direct port of design's PartyRow + ThreatMeter */

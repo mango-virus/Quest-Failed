@@ -264,6 +264,10 @@ export class RightPanels {
     // Lets us collapse a 12+ adv wave into one summary row instead of
     // 12 separate "X (Class) entered the dungeon." lines.
     this._pendingArrivals = []
+    // Wave/intel/log is a right-edge sliding drawer (crypt-console redesign).
+    // Defaults open — it's passive info you want visible; the "WAVE · LOG"
+    // peek handle on the screen edge collapses it.
+    this._drawerOpen = true
 
     this.el = this._build()
     this._wireEvents()
@@ -288,6 +292,20 @@ export class RightPanels {
       className: 'qf-rightpanels',
       ref: el => { this._refs.root = el },
     }, [
+      h('div', {
+        className: 'qf-wave-dock' + (this._drawerOpen ? '' : ' closed'),
+        ref: el => { this._refs.waveDock = el },
+      }, [
+      // Peek handle — left edge of the dock; toggles the drawer.
+      h('div', {
+        className: 'qf-wave-handle',
+        on: { click: () => this._toggleDrawer() },
+      }, [
+        h('span', { className: 'pix qf-wave-chev', ref: el => { this._refs.waveChev = el } }, '▸'),
+        h('span', { className: 'sil qf-wave-handle-label' }, 'WAVE · LOG'),
+        h('span', { className: 'qf-wave-handle-live' }),
+      ]),
+      h('div', { className: 'qf-wave-panelcol' }, [
       // IncomingWave
       h('div', {
         className: 'panel bevel qf-wavepanel',
@@ -367,6 +385,8 @@ export class RightPanels {
         }, [
           h('div', { className: 'qf-log-rail' }),
         ]),
+      ]),
+      ]),
       ]),
     ])
     return root
@@ -1447,6 +1467,16 @@ export class RightPanels {
       onClose: () => { this._fullLog = null },
     })
     this._fullLog.open()
+  }
+
+  // ── Wave/log drawer ─────────────────────────────────────────────
+  _toggleDrawer() { this._setDrawer(!this._drawerOpen) }
+  _setDrawer(open) {
+    if (open === this._drawerOpen) return
+    this._drawerOpen = open
+    this._refs.waveDock?.classList.toggle('closed', !open)
+    // Right-edge drawer: open points ▸ (collapse right), closed ◂ (expand left).
+    if (this._refs.waveChev) this._refs.waveChev.textContent = open ? '▸' : '◂'
   }
 
   destroy() {
