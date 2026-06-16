@@ -439,6 +439,12 @@
     },
     "entry_open_1": {
       "file": "assets/themes/doorskins/entry_open_1.png"
+    },
+    "entry2_closed": {
+      "file": "assets/themes/doorskins/entry2_closed.png"
+    },
+    "entry2_open2": {
+      "file": "assets/themes/doorskins/entry2_open2.png"
     }
   },
   "active": "Basic"
