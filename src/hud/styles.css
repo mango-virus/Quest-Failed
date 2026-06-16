@@ -8733,7 +8733,10 @@ body {
 /* z-index 160 — above the title screen (.qf-cm z100) AND the crypt overlay
    shell (.overlay z150) so an abandon/leave confirm fired from any of them
    (or from a dungeon event over the in-game HUD) sits on top. */
-.qf-cf-layer { position: absolute; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; font-family: var(--body); }
+/* pointer-events: auto — #hud-stage is pointer-events:none and that inherits,
+   so without re-enabling it here the whole popup (backdrop + buttons) is
+   unclickable. */
+.qf-cf-layer { position: absolute; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; font-family: var(--body); pointer-events: auto; }
 .qf-cf-layer.closing { opacity: 0; transition: opacity .2s ease; }
 .qf-cf-back { position: absolute; inset: 0; background: rgba(6,3,9,.82); backdrop-filter: blur(4px) saturate(.75); -webkit-backdrop-filter: blur(4px) saturate(.75); animation: qf-cf-fade .22s ease-out; }
 @keyframes qf-cf-fade { from { opacity: 0; } to { opacity: 1; } }
