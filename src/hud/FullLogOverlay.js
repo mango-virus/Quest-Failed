@@ -83,7 +83,8 @@ export class FullLogOverlay {
     if (this._overlay) return
     this._overlay = new Overlay({
       npcKind:  'log',
-      title:    'DUNGEON LOG · FULL RUN',
+      title:    'DUNGEON LOG',
+      eyebrow:  'THE CHRONICLE · FULL RUN',   // → crypt shell (eyebrow + no X)
       width:    1100,
       height:   840,
       accent:   'var(--blood)',
