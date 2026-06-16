@@ -3,7 +3,7 @@
 // refund readout.
 //
 // Listens for ENTITY_SOLD { kind, worldX, worldY, width, height } and runs
-// the shatter. Minion sells get the shadow-swallow from MinionRenderer
+// the shatter. Minion sells get a death-anim → fade from MinionRenderer
 // instead, so kind === 'minion' is ignored. (The "+Xg" refund readout is a
 // HUD toast emitted by NightPhase — world-space text didn't render here.)
 //
@@ -59,7 +59,7 @@ export class SellFxRenderer {
   _untrack(obj) { const i = this._items.indexOf(obj); if (i >= 0) this._items.splice(i, 1) }
 
   _onSold(p) {
-    if (!p || p.kind === 'minion') return   // minion → MinionRenderer swallow
+    if (!p || p.kind === 'minion') return   // minion → MinionRenderer death-anim → fade
     if (p.kind === 'room') { this._shatterRoom(p); return }
     if (p.kind === 'trap' || p.kind === 'item') {
       this._shatterFromSprite(p); return
