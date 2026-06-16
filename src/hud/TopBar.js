@@ -57,6 +57,12 @@ export class TopBar {
             className: 'qf-boss-sprite',
             ref: el => { this._refs.bossSprite = el },
           }),
+          // LV tab pinned to the portrait's bottom-left corner (crypt-console
+          // design). Relocated from the name row so the name has full width.
+          h('div', {
+            className: 'pix qf-boss-level gold qf-boss-lvtab',
+            ref: el => { this._refs.bossLevel = el },
+          }, 'LV 1'),
         ]),
         h('div', { className: 'qf-boss-info' }, [
           h('div', { className: 'qf-boss-headrow' }, [
@@ -64,10 +70,6 @@ export class TopBar {
               className: 'pix qf-boss-name',
               ref: el => { this._refs.bossName = el },
             }, 'BOSS'),
-            h('div', {
-              className: 'pix qf-boss-level gold',
-              ref: el => { this._refs.bossLevel = el },
-            }, 'LV 1'),
           ]),
           // HP chip-bar
           h('div', {

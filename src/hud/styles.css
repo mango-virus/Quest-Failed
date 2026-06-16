@@ -582,6 +582,13 @@ body {
   z-index: 1;
   transition: width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+/* Segmented look (crypt-console design): chip dividers notch the bar every
+   ~13px so the HP reads as discrete pips rather than one smooth fill. */
+.bar.chip-bar::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 13px, rgba(0,0,0,.32) 13px 15px);
+}
+.bar.chip-bar > .num { z-index: 3; }
 
 /* ---------- Boss crest animations ---------- */
 @keyframes crest-pulse {
@@ -1418,14 +1425,23 @@ body {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: var(--hud-top);
-  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
-  border-bottom: 2px solid var(--line-2);
+  /* Floating panels (crypt-console redesign): transparent strip; the vitals
+     (left) + treasury (right) sit in their own panels, phase floats centered. */
+  background: transparent;
+  border-bottom: none;
   display: grid;
   grid-template-columns: 1fr 1.1fr 1fr;
-  align-items: center;
-  padding: 0 22px;
+  align-items: start;
+  padding: 16px 22px 0;
   gap: 24px;
   z-index: 10;
+  pointer-events: none;   /* only the panels are interactive */
+}
+
+/* Shared floating-panel chrome — gradient fill + doubled inset ring. */
+.qf-topbar-left, .qf-topbar-right {
+  background: linear-gradient(180deg, rgba(26,22,34,.94), rgba(13,10,18,.94));
+  box-shadow: inset 0 0 0 1px var(--bg-0), inset 0 0 0 2px var(--line-2), 0 6px 20px rgba(0,0,0,.55);
   pointer-events: auto;
 }
 
@@ -1436,30 +1452,46 @@ body {
    the top bar. This bleeds the bar's background upward to cover that
    strip (and any rounding slop). It only ever overlaps the letterbox /
    off-screen area, so the extra height never reads as a visible band. */
-.qf-topbar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  height: 12px;
-  background: var(--bg-2);
-  pointer-events: none;
-}
+/* (The letterbox-strip cover is unneeded now the bar is a transparent
+   floating layer — no full-width band to bleed upward.) */
+.qf-topbar::before { display: none; }
 
-.qf-topbar-left { display: flex; align-items: center; gap: 14px; }
+.qf-topbar-left {
+  display: flex; align-items: stretch; gap: 11px;
+  padding: 11px 15px 12px 11px;
+  width: max-content;        /* panel hugs its content, doesn't span the cell */
+}
+.qf-topbar-right {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 14px;
+  width: max-content; justify-self: end;   /* panel hugs content, sits at the right */
+}
 
 .boss-portrait-btn {
   padding: 4px;
-  background: var(--bg-3);
-  border: 2px solid var(--line-2);
+  background: var(--bg-0);
+  /* Double-framed crypt portrait: blood outer border + an inset second frame
+     drawn by ::after (matches the design's .hc-portbtn). */
+  border: 1px solid var(--blood);
   box-shadow:
     inset 0 0 0 1px var(--bg-0),
-    inset 0 0 0 2px var(--line-2);
+    inset 0 0 14px rgba(0,0,0,.55),
+    0 0 12px color-mix(in srgb, var(--blood) 32%, transparent);
   position: relative;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 160ms ease, border-color 160ms ease;
   line-height: 0;
+}
+.boss-portrait-btn::after {
+  content: ''; position: absolute; inset: 3px; pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--blood) 30%, transparent);
+}
+/* LV tab — pinned to the portrait's bottom-left corner. */
+.qf-boss-lvtab {
+  position: absolute; left: -2px; bottom: -2px; z-index: 2;
+  font-size: 7px; line-height: 1; color: var(--bg-0);
+  background: var(--gold-bright, #ffcb5c); padding: 2px 4px;
+  box-shadow: 0 0 0 1px var(--bg-0);
 }
 
 .qf-boss-sprite {
