@@ -12154,6 +12154,89 @@ body {
 @keyframes cmpsel-card-in   { from { opacity: 0; transform: translateY(44px); } }
 
 /* ============================================================
+   CompanionSelect — crypt redesign (.qf-csl-*), 2026-06-15.
+   A summoning stage: hero portrait (left) + lore panel (right) + a roster
+   rail of busts (bottom). Replaces the old .qf-cmpsel 3-up pager (that block
+   above is now dead CSS — left in place because non-mine .qf-archdec-* rules
+   are interleaved through it). Prefix renamed from the design's .qf-cm-* to
+   .qf-csl-* to avoid colliding with MainMenuOverlay's .qf-cm container.
+   FLAT background (no full-screen gradient/blur — Phaser repaints under it
+   60×/sec); embers animate transform/opacity only.
+   ============================================================ */
+.qf-csl {
+  --acc: var(--blood); --accDk: color-mix(in srgb, var(--blood) 48%, #000);
+  --bone: var(--text); --mute: var(--text-mute); --line2: var(--line-2); --danger: var(--blood-glow);
+  --dim: #6a5d52; --faint: #3a3340;
+  position: absolute; inset: 0; z-index: 200; pointer-events: auto;
+  display: flex; flex-direction: column; padding: 30px 60px 26px;
+  font-family: var(--body, 'Pixelify Sans', sans-serif); color: var(--bone);
+  background: #0b0710; overflow: hidden;
+  animation: qf-csl-in .26s ease-out;
+}
+@keyframes qf-csl-in { from { opacity: 0; } to { opacity: 1; } }
+/* ember field — GPU-composited (transform + opacity only) */
+.qf-csl-embers { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.qf-csl-ember { position: absolute; bottom: -8px; border-radius: 50%; background: color-mix(in srgb, var(--acc) 75%, #ffb060);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--acc) 60%, #ffb060); opacity: 0; animation-name: qf-csl-rise; animation-timing-function: ease-out; animation-iteration-count: infinite; }
+@keyframes qf-csl-rise { 0% { transform: translateY(0) scale(1); opacity: 0; } 12% { opacity: .85; } 100% { transform: translateY(-104vh) scale(.4); opacity: 0; } }
+/* header */
+.qf-csl-head { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-bottom: 18px; z-index: 5; }
+.qf-csl-back { position: absolute; top: -2px; left: 0; z-index: 8; font-family: var(--pix, 'Press Start 2P', monospace); font-size: 9px; color: var(--mute); cursor: pointer;
+  background: #0b0810; border: 2px solid var(--line2); box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 rgba(0,0,0,.5); padding: 11px 16px; transition: color .12s, border-color .12s; }
+.qf-csl-back:hover { color: var(--bone); border-color: var(--acc); }
+.qf-csl-htext { text-align: center; }
+.qf-csl-eyebrow { display: flex; align-items: center; gap: 13px; justify-content: center; font-family: var(--sil, 'Silkscreen', monospace); font-size: 11px; letter-spacing: .3em; color: var(--acc); text-transform: uppercase; }
+.qf-csl-eyebrow .ln { width: 42px; height: 2px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--acc) 75%, transparent)); }
+.qf-csl-eyebrow .ln.r { transform: scaleX(-1); }
+.qf-csl-title { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 24px; color: var(--bone); letter-spacing: .02em; margin-top: 8px; text-shadow: 0 4px 0 #0a0710, 0 0 24px color-mix(in srgb, var(--acc) 40%, transparent); }
+.qf-csl-spacer { width: 120px; }
+/* stage */
+.qf-csl-stage { position: relative; z-index: 5; flex: 1; display: grid; grid-template-columns: 520px 1fr; gap: 34px; min-height: 0; margin-bottom: 18px; }
+.qf-csl-hero { position: relative; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+  background: radial-gradient(70% 60% at 50% 36%, color-mix(in srgb, var(--acc) 14%, #0e0b14), #0a0710 80%);
+  border: 3px solid var(--acc); box-shadow: 0 0 46px color-mix(in srgb, var(--acc) 32%, transparent), inset 0 0 30px rgba(0,0,0,.7);
+  animation: qf-csl-heroin .34s cubic-bezier(.2,1.1,.3,1); }
+@keyframes qf-csl-heroin { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+.qf-csl-hero.locked { border-color: var(--line2); box-shadow: 0 0 30px rgba(0,0,0,.6); }
+.qf-csl-portimg { max-width: 100%; max-height: 100%; width: auto; height: auto; image-rendering: auto; pointer-events: none; }
+.qf-csl-portimg.is-locked { filter: brightness(.32) saturate(.45) contrast(1.05); }
+.qf-csl-shroud { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; background: rgba(6,4,9,.55); }
+.qf-csl-shroud .lk { font-size: 52px; opacity: .55; }
+.qf-csl-chosen { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 10px; letter-spacing: .18em; color: #0a0710; background: var(--acc); padding: 4px 14px; box-shadow: 0 0 16px color-mix(in srgb, var(--acc) 60%, transparent); }
+/* lore */
+.qf-csl-lore { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.qf-csl-role { font-family: var(--sil, 'Silkscreen', monospace); font-size: 11px; letter-spacing: .22em; color: var(--acc); text-transform: uppercase; }
+.qf-csl-name { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 34px; color: var(--bone); letter-spacing: .01em; margin: 12px 0 14px; text-shadow: 0 4px 0 #0a0710, 0 0 26px color-mix(in srgb, var(--acc) 30%, transparent); }
+.qf-csl-tag { font-size: 18px; color: var(--bone); font-style: italic; line-height: 1.4; }
+.qf-csl-traits { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.qf-csl-trait { font-family: var(--sil, 'Silkscreen', monospace); font-size: 10px; letter-spacing: .12em; color: var(--bone); background: #0a0710; border: 1px solid var(--line2); padding: 6px 12px; text-transform: uppercase; }
+.qf-csl-lockmsg { margin-top: 24px; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); align-self: flex-start; }
+.qf-csl-lockmsg .lk { font-size: 22px; }
+.qf-csl-lockmsg .tx { font-family: var(--sil, 'Silkscreen', monospace); font-size: 10px; letter-spacing: .1em; color: var(--danger); }
+.qf-csl-lockmsg .tx b { display: block; color: var(--bone); margin-top: 5px; font-size: 11px; }
+.qf-csl-confirm { margin-top: 26px; align-self: flex-start; font-family: var(--pix, 'Press Start 2P', monospace); font-size: 13px; letter-spacing: .03em; color: #f0e6d4; cursor: pointer; padding: 16px 28px;
+  border: 2px solid var(--acc); background: linear-gradient(180deg, #1d1726, #12101a);
+  box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000); animation: qf-csl-glow 1.7s ease-in-out infinite; }
+@keyframes qf-csl-glow { 0%,100% { box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000), 0 0 6px color-mix(in srgb, var(--acc) 24%, transparent); } 50% { box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000), 0 0 24px color-mix(in srgb, var(--acc) 55%, transparent); } }
+.qf-csl-confirm:hover { color: #fff; transform: translateY(-2px); box-shadow: inset 0 0 0 2px #0a0710, 0 6px 0 rgba(0,0,0,.5); }
+.qf-csl-confirm:active { transform: translateY(1px); box-shadow: inset 0 0 0 2px #0a0710, 0 2px 0 rgba(0,0,0,.5); }
+/* roster rail */
+.qf-csl-rail { position: relative; z-index: 5; flex: 0 0 auto; display: flex; gap: 12px; justify-content: center; flex-wrap: nowrap; }
+.qf-csl-bust { position: relative; width: 116px; cursor: pointer; background: linear-gradient(180deg, #15111c, #100c16); border: 2px solid var(--line2);
+  box-shadow: 0 4px 0 rgba(0,0,0,.5); transition: transform .12s, border-color .12s, box-shadow .12s; }
+.qf-csl-bust:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--acc) 55%, var(--line2)); }
+.qf-csl-bust.on { border-color: var(--acc); box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 0 24px color-mix(in srgb, var(--acc) 45%, transparent); }
+.qf-csl-bust.ph { cursor: default; opacity: .5; }
+.qf-csl-bustport { position: relative; height: 112px; background: radial-gradient(70% 60% at 50% 40%, #14101a, #0a0710 85%); overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+.qf-csl-bustimg { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; image-rendering: auto; pointer-events: none; }
+.qf-csl-bustimg.is-locked { filter: brightness(.22) saturate(.4); }
+.qf-csl-bustshroud { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(6,4,9,.5); }
+.qf-csl-newdot { position: absolute; top: 5px; right: 5px; z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 7px; letter-spacing: .08em; color: #0a0710; background: var(--gold-bright, #ffd964); padding: 2px 4px; box-shadow: 0 0 8px color-mix(in srgb, var(--gold-bright, #ffd964) 60%, transparent); }
+.qf-csl-bustname { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 8px; text-align: center; padding: 8px 4px; color: var(--text); border-top: 2px solid var(--line); background: #0a0710; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qf-csl-bust.on .qf-csl-bustname { color: var(--acc); }
+.qf-csl-mystery { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: var(--pix, 'Press Start 2P', monospace); font-size: 34px; color: var(--faint); }
+
+/* ============================================================
    Achievements (AchievementsOverlay) — Hall of Trophies screen
    Full-screen DOM overlay opened from MainMenu's ACHIEVEMENTS button
    + (Phase C) from the per-row 🏆 chip on the leaderboard. Same pix-
