@@ -5516,7 +5516,9 @@ body {
 
 .qf-knowmap-main {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  /* Even split so the blueprint + intel ledger read as balanced halves
+     (was 1.4fr 1fr, which made the blueprint column lopsidedly wide). */
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   flex: 1;
   overflow: hidden;
