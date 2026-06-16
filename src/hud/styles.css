@@ -8331,7 +8331,11 @@ body {
 .qf-cm .qcm-hints kbd { font-family: var(--pix); font-size: 9px; color: var(--bone); background: #0b0810; border: 1px solid #2e2632; padding: 6px 7px; box-shadow: 0 2px 0 #000; }
 
 /* footer chips — version (right) / dev tools (left) */
-.qf-cm .qcm-foot { position: absolute; left: 0; right: 0; bottom: 24px; display: flex; justify-content: flex-end; padding: 0 70px; z-index: 9; }
+/* Full-width strip — must be click-through or its empty left half intercepts
+   clicks meant for the bottom-left DEV TOOLS chip. Only the version button re-
+   enables pointer events. */
+.qf-cm .qcm-foot { position: absolute; left: 0; right: 0; bottom: 24px; display: flex; justify-content: flex-end; padding: 0 70px; z-index: 9; pointer-events: none; }
+.qf-cm .qcm-foot .qcm-ver { pointer-events: auto; }
 .qf-cm .qcm-ver, .qf-cm .qcm-dev {
   font-family: var(--sil); font-size: 11px; letter-spacing: .2em; color: var(--text-mute); text-transform: uppercase;
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 9px 14px;
@@ -8345,7 +8349,7 @@ body {
 .qf-cm .qcm-ver:hover b { color: var(--gold-bright); }
 .qf-cm .qcm-ver-nu { font-family: var(--sil); font-size: 8px; letter-spacing: .12em; color: #0b0810; background: #6ee06e; padding: 2px 5px; animation: qcm-vernu 1.7s ease-in-out infinite; }
 @keyframes qcm-vernu { 0%,100% { box-shadow: 0 0 4px rgba(110,224,143,.4); } 50% { box-shadow: 0 0 12px rgba(110,224,143,.9); } }
-.qf-cm .qcm-dev { position: absolute; left: 30px; bottom: 24px; }
+.qf-cm .qcm-dev { position: absolute; left: 30px; bottom: 24px; z-index: 10; }
 .qf-cm .qcm-dev:hover { color: var(--bone); border-color: #ffd964; transform: translateY(-2px); box-shadow: inset 0 0 0 2px #0a0710, 0 6px 0 rgba(0,0,0,.5); }
 .qf-cm .qcm-dev:active { transform: translateY(1px); box-shadow: inset 0 0 0 2px #0a0710, 0 2px 0 rgba(0,0,0,.5); }
 .qf-cm .qcm-dev-gear { display: inline-block; font-size: 13px; color: #ffd964; animation: qcm-devgear 6s linear infinite; }
@@ -8508,6 +8512,33 @@ body {
 .qf-op-key .a { font-size: 13px; color: var(--text); }
 .qf-op-key .caps { display: flex; gap: 4px; flex: 0 0 auto; }
 .qf-op-cap { font-family: var(--pix); font-size: 9px; color: var(--bone); background: linear-gradient(180deg,#231d2c,#161019); border: 1px solid var(--line-2); border-bottom: 3px solid #0a0710; padding: 5px 7px; min-width: 22px; text-align: center; }
+
+/* ============================================================
+   DEV TOOLS body (DevToolsOverlay) — live-state chip strip + colour-coded
+   tool groups. Ported from dev-tools-overlay.jsx; crypt-shell tokens.
+   ============================================================ */
+.qf-dv { font-family: var(--body); color: var(--text); }
+.qf-dv-state { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 13px; margin-bottom: 16px; background: #0a0710; border: 1px solid var(--line-2); }
+.qf-dv-chip { display: flex; align-items: center; gap: 7px; font-size: 9px; letter-spacing: .08em; color: var(--text-mute); padding: 4px 9px; border: 1px solid var(--line-2); background: #120d18; text-transform: uppercase; }
+.qf-dv-chip b { font-family: var(--pix); font-size: 8px; color: var(--text); }
+.qf-dv-chip.hot { border-color: rgba(126,224,160,.6); }
+.qf-dv-chip.hot b { color: #7ee0a0; }
+.qf-dv-group { margin-bottom: 16px; }
+.qf-dv-ghead { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.qf-dv-ghead .dot { width: 9px; height: 9px; background: var(--gc); box-shadow: 0 0 8px var(--gc); flex: 0 0 auto; }
+.qf-dv-ghead .t { font-size: 9px; color: var(--gc); letter-spacing: .04em; }
+.qf-dv-ghead .ln { flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb,var(--gc) 45%,transparent), transparent); }
+.qf-dv-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.qf-dv-tool { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 13px; cursor: pointer; text-align: left; width: 100%;
+  background: #0b0810; border: 2px solid var(--line-2); box-shadow: inset 0 0 0 2px #0a0710; transition: background .12s, border-color .12s, box-shadow .12s; }
+.qf-dv-tool:hover { background: #15111c; border-color: var(--ic); box-shadow: inset 0 0 0 2px #0a0710, inset 3px 0 0 var(--ic), 0 0 14px color-mix(in srgb,var(--ic) 22%,transparent); }
+.qf-dv-ico { flex: 0 0 auto; width: 24px; text-align: center; font-size: 18px; color: var(--ic); text-shadow: 0 0 8px color-mix(in srgb,var(--ic) 45%,transparent); }
+.qf-dv-tx { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.qf-dv-tl { font-size: 10px; color: var(--text); line-height: 1.3; }
+.qf-dv-tool:hover .qf-dv-tl { color: var(--ic); }
+.qf-dv-ts { font-size: 12px; color: var(--text-mute); line-height: 1.3; }
+.qf-dv-warn { display: flex; align-items: center; gap: 9px; font-size: 9px; letter-spacing: .1em; color: var(--warn); text-transform: uppercase;
+  padding: 9px 12px; border: 1px dashed color-mix(in srgb,var(--warn) 55%,var(--line-2)); background: rgba(232,154,60,.06); margin-top: 2px; }
 
 /* ---------- LeaderboardOverlay ---------- */
 .qf-lb-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 12px; }

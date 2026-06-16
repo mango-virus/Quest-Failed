@@ -1,55 +1,56 @@
-// DevToolsOverlay — mango-only dev panel that consolidates every
-// developer shortcut into one modal so the main menu stays compact.
+// DevToolsOverlay — mango-only dev panel (redesigned 2026-06-15).
 //
-// The main menu used to list each dev tool as its own row (JUMP TO
-// DAY 50, ROOM EDITOR, TILESET EDITOR, TEST UNLOCKS, TEST TOP-3 ×3…),
-// which ran off the bottom of the panel and would only get worse as
-// more tools were added. Now the cheat-name menu shows a single
-// "DEV TOOLS" row that opens this overlay.
+// Hosted in the crypt Overlay shell (eyebrow "Mango · Cheat Access" + DEV TOOLS
+// title, gold accent). A live-state chip strip (name / boss / save / build /
+// env) sits above colour-coded tool groups (run shortcuts, editors, unlock-card
+// tests, leaderboard-card tests) + a mango-only warning line.
 //
-// Each tool's `id` matches a case in MainMenuOverlay._activate — this
-// overlay doesn't perform actions itself, it routes the chosen id back
-// through `onAction(id)` so there's a single source of truth for what
-// each shortcut does. Adding a new tool is a one-line edit to
-// DEV_TOOL_GROUPS below PLUS its case in MainMenuOverlay._activate.
+// Each tool's `id` matches a case in MainMenuOverlay._activate — this overlay
+// doesn't perform actions itself, it routes the chosen id back through
+// `onAction(id)`. Adding a tool = one entry in DEV_TOOL_GROUPS + its _activate
+// case.
 
 import { h }       from './dom.js'
 import { Overlay } from './Overlay.js'
+import { PlayerProfile } from '../systems/PlayerProfile.js'
+import { SaveSystem }    from '../systems/SaveSystem.js'
 
-// Dev tools, grouped for readability. `id` must match a MainMenuOverlay
-// _activate case. `color` themes the icon + hover border (a CSS var or
-// resolved color). Order within a group is display order.
+// Grouped for readability. `color` themes the group marker + each tool's icon
+// and hover border. `id` must match a MainMenuOverlay._activate case.
 const DEV_TOOL_GROUPS = [
   {
-    label: 'RUN SHORTCUTS',
+    label: 'RUN SHORTCUTS', color: '#5cc8d8',
     tools: [
-      { id: 'jump50',    label: 'JUMP TO DAY 50',  sub: 'Late-game wave test (day 50, boss L12)', icon: '▶', color: 'var(--blood)' },
-      { id: 'teststage', label: 'JUMP TO TEST STAGE', sub: 'Clean VFX stage: arena built, NO wave (day 8, boss L10)', icon: '🧪', color: 'var(--poison)' },
+      { id: 'jump50',    icon: '⏩', label: 'JUMP TO DAY 50',  sub: 'Boss lv 12 · late-game state' },
+      { id: 'teststage', icon: '✦', label: 'VFX TEST STAGE',  sub: 'Clean arena · quiet day' },
     ],
   },
   {
-    label: 'EDITORS',
+    label: 'EDITORS', color: '#7fb53a',
     tools: [
-      { id: 'rooms', label: 'ROOM EDITOR', sub: 'Layouts · tiles · themes · doors', icon: '▤', color: 'var(--poison)' },
+      { id: 'rooms', icon: '▦', label: 'ROOM EDITOR', sub: 'Rooms · tiles · themes · doors' },
     ],
   },
   {
-    label: 'NOTIFICATION TESTS',
+    label: 'UNLOCK NOTIFICATIONS', color: '#ffd964',
     tools: [
-      { id: 'testunlock', label: 'TEST UNLOCKS', sub: 'Fire sample of each card type',     icon: '✦', color: 'var(--gold-bright, #ffd964)' },
-      { id: 'testtop1',   label: 'TEST TOP-3 #1', sub: 'Champion (gold) podium card',      icon: '★', color: '#ffd964' },
-      { id: 'testtop2',   label: 'TEST TOP-3 #2', sub: 'Runner-up (silver) podium card',   icon: '★', color: '#d9e2ec' },
-      { id: 'testtop3',   label: 'TEST TOP-3 #3', sub: 'Podium-finish (bronze) card',      icon: '★', color: '#e09858' },
-      { id: 'testdemoteoff',  label: 'TEST DEMOTION ✦ OFF',  sub: 'Dethroned — fell off the podium',  icon: '▼', color: '#d0566a' },
-      { id: 'testdemoteslip', label: 'TEST DEMOTION ✦ SLIP', sub: 'Knocked down — #1 → #2 on podium',  icon: '▼', color: '#d0566a' },
+      { id: 'testunlock', icon: '✧', label: 'TEST UNLOCK CARDS', sub: 'Achievement · boss · 2 companions' },
+    ],
+  },
+  {
+    label: 'LEADERBOARD CARDS', color: '#ff5fb0',
+    tools: [
+      { id: 'testtop1', icon: '♛', label: 'PROMOTE → #1', sub: 'Top-3 reveal · rank 1' },
+      { id: 'testtop2', icon: '♛', label: 'PROMOTE → #2', sub: 'Top-3 reveal · rank 2' },
+      { id: 'testtop3', icon: '♛', label: 'PROMOTE → #3', sub: 'Top-3 reveal · rank 3' },
+      { id: 'testdemoteoff',  icon: '▼', label: 'DEMOTE OFF PODIUM', sub: 'Dethroned card' },
+      { id: 'testdemoteslip', icon: '▽', label: 'DEMOTE WITHIN',     sub: 'Slipped #1 → #3' },
     ],
   },
 ]
 
 export class DevToolsOverlay {
   constructor(opts = {}) {
-    // onAction(id) — route the chosen tool's id back to the caller
-    // (MainMenuOverlay._activate). onClose — caller cleanup hook.
     this._onAction = opts.onAction ?? (() => {})
     this._onClose  = opts.onClose  ?? null
     this._overlay  = null
@@ -57,56 +58,88 @@ export class DevToolsOverlay {
 
   open() {
     if (this._overlay) return
-    const body = h('div', { className: 'qf-devtools' },
-      DEV_TOOL_GROUPS.map(group => this._renderGroup(group)))
     this._overlay = new Overlay({
-      title:     '⚙  DEV TOOLS',
-      // Poison-green accent matches the editor tools' color family and
-      // signals "developer surface" distinct from the blood-red game
-      // chrome. Sized to fit the current tool count with room to grow;
-      // the body scrolls (overflow auto) if the list outgrows it.
-      width:     520,
-      height:    560,
-      accent:    'var(--poison)',
-      frame:     'plain',   // subtle main-menu edge instead of the accent frame
-      animation: 'panel',
-      onClose: () => {
-        this._overlay = null
-        this._onClose?.()
-      },
-      body,
+      eyebrow:    'MANGO · CHEAT ACCESS',
+      title:      'DEV TOOLS',
+      width:      1056,
+      height:     780,
+      accent:     '#ffd964',
+      atmosphere: true,
+      onClose: () => { this._overlay = null; this._onClose?.() },
+      body: this._renderBody(),
     })
     this._overlay.open()
   }
 
   close() { this._overlay?.close() }
 
-  _renderGroup(group) {
-    return h('div', { className: 'qf-devtools-group' }, [
-      h('div', { className: 'pix qf-devtools-grouphead' }, group.label),
-      h('div', { className: 'qf-devtools-tools' },
-        group.tools.map(t => this._renderTool(t))),
+  _renderBody() {
+    return h('div', { className: 'qf-dv' }, [
+      h('div', { className: 'qf-dv-state' }, this._state().map(s =>
+        h('span', { className: 'sil qf-dv-chip' + (s.hot ? ' hot' : '') }, [
+          s.k, ' ', h('b', null, s.v),
+        ]))),
+      ...DEV_TOOL_GROUPS.map(g => this._renderGroup(g)),
+      h('div', { className: 'sil qf-dv-warn' },
+        '⚠ Mango-only · these shortcuts skip the normal run flow. Not visible to ordinary keepers.'),
     ])
   }
 
-  _renderTool(t) {
+  // Live read-only state chips. NAME + ENV are "hot" (green) as cheat markers.
+  _state() {
+    const name = (PlayerProfile.getName?.() || 'mango').toUpperCase()
+    const save = SaveSystem.hasSave?.() ? SaveSystem.load?.() : null
+    const saveStr = save
+      ? `DAY ${save.meta?.dayNumber ?? 1} · LV ${save.boss?.level ?? 1}`
+      : 'NO SAVE'
+    return [
+      { k: 'NAME', v: name + ' · CHEAT', hot: true },
+      { k: 'BOSS', v: this._bossName(save) },
+      { k: 'SAVE', v: saveStr },
+      { k: 'BUILD', v: 'v0.1.4' },
+      { k: 'ENV', v: 'DEV', hot: true },
+    ]
+  }
+
+  _bossName(save) {
+    const archId = String(save?.player?.bossArchetypeId ?? '').replace(/^the_/, '')
+    if (!archId) return '—'
+    const scenes = window.__game?.scene?.scenes || []
+    for (const s of scenes) {
+      const archs = s.cache?.json?.get?.('bossArchetypes')
+      if (Array.isArray(archs)) {
+        const a = archs.find(x => x.id === archId)
+        if (a?.name) return a.name.toUpperCase()
+      }
+    }
+    return archId.replace(/_/g, ' ').toUpperCase()
+  }
+
+  _renderGroup(group) {
+    return h('div', { className: 'qf-dv-group' }, [
+      h('div', { className: 'qf-dv-ghead', style: { '--gc': group.color } }, [
+        h('span', { className: 'dot' }),
+        h('span', { className: 'pix t' }, group.label),
+        h('span', { className: 'ln' }),
+      ]),
+      h('div', { className: 'qf-dv-tools' },
+        group.tools.map(t => this._renderTool(t, group.color))),
+    ])
+  }
+
+  _renderTool(t, color) {
     return h('button', {
-      className: 'btn qf-devtools-tool',
-      style: { '--item-color': t.color },
-      // Close the panel FIRST, then route the action — so editor/jump
-      // shortcuts (which tear down the menu and start a scene) and the
-      // notification tests (which open the unlock overlay) both land
-      // with the dev panel already dismissed instead of lingering
-      // behind the next surface.
+      className: 'qf-dv-tool',
+      style: { '--ic': color },
+      // Close FIRST, then route — editor/jump shortcuts tear down the menu and
+      // start a scene; notification tests open the unlock overlay. Either way
+      // the dev panel should be gone before the next surface appears.
       on: { click: () => { this.close(); this._onAction(t.id) } },
     }, [
-      h('span', {
-        className: 'pix qf-devtools-tool-icon',
-        style: { color: t.color },
-      }, t.icon),
-      h('div', { className: 'qf-devtools-tool-textcol' }, [
-        h('div', { className: 'pix qf-devtools-tool-label' }, t.label),
-        h('div', { className: 'qf-devtools-tool-sub' }, t.sub),
+      h('span', { className: 'qf-dv-ico' }, t.icon),
+      h('span', { className: 'qf-dv-tx' }, [
+        h('span', { className: 'pix qf-dv-tl' }, t.label),
+        h('span', { className: 'qf-dv-ts' }, t.sub),
       ]),
     ])
   }
