@@ -8237,8 +8237,8 @@ body {
   display: block; font-family: var(--pix); font-size: 78px; letter-spacing: 4px;
   /* Line-height ON the words (these never wrap) — overrides the generous .pix
      default (~1.55, its wrap-collision guard) which opened a blank line between
-     QUEST and FAILED. 1.0 stacks them close with a clean gap (0.82 was touching). */
-  line-height: 1.0;
+     QUEST and FAILED. 1.1 stacks them close with a comfortable gap (0.82 touched). */
+  line-height: 1.1;
 }
 .qf-cm .qcm-t1 { color: var(--bone); text-shadow: 0 5px 0 var(--bgTint), 0 0 30px color-mix(in srgb, var(--emb) 45%, transparent); }
 .qf-cm .qcm-t2 { color: var(--acc); margin-top: 0; text-shadow: 0 5px 0 var(--accDk), 0 0 40px color-mix(in srgb, var(--acc) 65%, transparent); }
@@ -8965,6 +8965,9 @@ body {
 .qf-un-layer {
   --bone: var(--text); --mute: var(--text-mute); --line2: var(--line-2); --danger: var(--blood-glow);
   position: absolute; inset: 0; z-index: 160; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  /* Mounted into #hud-stage (pointer-events:none) — MUST opt back in or the
+     CLAIM / NEXT / SKIP buttons are dead (clicks fall through to the canvas). */
+  pointer-events: auto;
   font-family: var(--body, 'Pixelify Sans', sans-serif); color: var(--bone); overflow: hidden;
   background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--uc) 18%, #0a070e) 0%, #07040a 60%, #050208 100%);
   animation: qf-un-layerin .22s ease-out;
