@@ -120,7 +120,6 @@ export function createGameState(
     player: {
       bossArchetypeId,
       bossEvolution: {
-        unlockedAbilities: [],
         appliedEvolutions: [],
       },
       gold: Balance.STARTING_GOLD,
@@ -221,7 +220,6 @@ export function createGameState(
         'dragon_trap', 'spike_pit', 'rotating_blades', 'saw_blade',
       ],
       dungeonMechanics: [],
-      bossAbilities: [],
       archetypes: ['the_lich', 'the_architect', 'the_beast_lord', 'the_trickster', 'the_tyrant'],
     },
   }

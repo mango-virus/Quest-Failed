@@ -312,7 +312,6 @@ export class Preload extends Phaser.Scene {
     this.load.json('adventurerClasses', 'src/data/adventurerClasses.json')
     this.load.json('lastWords',         'src/data/lastWords.json')
     this.load.json('chatLines',         'src/data/chatLines.json')
-    this.load.json('bossAbilities',     'src/data/bossAbilities.json')
     this.load.json('items',             'src/data/items.json')
     this.load.json('events',            'src/data/events.json')
     this.load.json('npcLines',          'src/data/npcLines.json')

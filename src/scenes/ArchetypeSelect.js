@@ -143,7 +143,6 @@ export class ArchetypeSelect extends Phaser.Scene {
         xpToNext:         Math.round((Balance.BOSS_XP_BASE ?? 50) * Math.pow(Balance.BOSS_XP_SCALE ?? 1.5, lvOver)),
         deathsRemaining:  Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
         totalLivesEverHad: Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
-        unlockedAbilities: [],
       }
       console.info(`[Mango dev] Starting at day ${devDay} with boss level ${devLv} (HP ${maxHp} / ATK ${state.boss.attack} / DEF ${state.boss.defense}).`)
     }

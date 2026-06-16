@@ -96,7 +96,6 @@ export class BossSystem {
 
     if (this._gameState.boss) {
       // Boss already exists — migrate newer fields for saves from earlier phases.
-      this._gameState.boss.unlockedAbilities ??= []
       this._gameState.boss.tileX    ??= cx
       this._gameState.boss.tileY    ??= cy
       this._gameState.boss.worldX   ??= cx * TS + TS / 2
@@ -130,7 +129,6 @@ export class BossSystem {
       defense:          fight.defense,
       deathsRemaining:  Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
       totalLivesEverHad: Balance.BOSS_DEFEATS_TO_GAME_OVER ?? 3,
-      unlockedAbilities: [],
       tileX:  cx,
       tileY:  cy,
       worldX: cx * TS + TS / 2,
@@ -143,43 +141,6 @@ export class BossSystem {
     // as the literal init above (no level/day scaling at day 1, level 1)
     // but keep the call for parity with the migration branch above.
     this._recomputeBossFightStats()
-  }
-
-  // ── Ability tree (Phase 10b) ─────────────────────────────────────────────
-
-  // Returns ability defs the player could buy right now (not already owned,
-  // requirements met). Filters by power cost too if filterAffordable=true.
-  getAvailableAbilities(filterAffordable = false) {
-    const defs = this._scene.cache.json.get('bossAbilities') ?? []
-    const owned = new Set(this._gameState.boss.unlockedAbilities ?? [])
-    const xp = this._gameState.boss?.xp ?? 0
-    return defs.filter(d => {
-      if (owned.has(d.id)) return false
-      for (const req of (d.requires ?? [])) if (!owned.has(req)) return false
-      if (filterAffordable && (d.powerCost ?? 0) > xp) return false
-      return true
-    })
-  }
-
-  unlockAbility(abilityId) {
-    const defs = this._scene.cache.json.get('bossAbilities') ?? []
-    const def = defs.find(d => d.id === abilityId)
-    if (!def) return false
-    const owned = this._gameState.boss.unlockedAbilities
-    if (owned.includes(abilityId)) return false
-    if ((this._gameState.boss?.xp ?? 0) < (def.powerCost ?? 0)) return false
-    for (const req of (def.requires ?? [])) {
-      if (!owned.includes(req)) return false
-    }
-    this._gameState.boss.xp = Math.max(0, (this._gameState.boss.xp ?? 0) - (def.powerCost ?? 0))
-    owned.push(abilityId)
-
-    // Apply passive stat bonuses immediately
-    if (def.effect === 'boss_defense_plus_5') this._gameState.boss.defense += 5
-    if (def.effect === 'boss_attack_plus_4')  this._gameState.boss.attack  += 4
-
-    EventBus.emit('BOSS_ABILITY_UNLOCKED', { abilityId, def })
-    return true
   }
 
   // ── Wander update (called every frame from Game.update) ──────────────────
@@ -2955,7 +2916,6 @@ export class BossSystem {
     this._fightEnded     = false
     this._fightCombatT   = 0
     this._roundLog       = []
-    this._secondWindUsed = false
     this._roundsRun      = 0
     this._duelMode       = false   // Solo Leveling — recomputed per tick
     this._duel           = null
@@ -2977,7 +2937,6 @@ export class BossSystem {
       // current HP fraction (so a survivor of an earlier same-day fight
       // doesn't full-heal between fights). See _recomputeBossFightStats.
       this._recomputeBossFightStats()
-      const owned = new Set(boss.unlockedAbilities ?? [])
       // Respawn refresh — ONLY when the boss is actually down (drained to
       // 0 and lingering between fights after a non-final life loss). A
       // boss that SURVIVED its last fight keeps its damage: multiple
@@ -2990,20 +2949,6 @@ export class BossSystem {
       if ((this._gameState._mechanicFlags ?? {}).sleeplessThrone) {
         const cap = Math.floor((boss.maxHp ?? 0) * (Balance.MECHANIC_SLEEPLESS_THRONE_START_HP_FRAC ?? 0.5))
         boss.hp = Math.max(1, Math.min(boss.hp ?? boss.maxHp, cap))
-      }
-      // Soul Drain ability — heals +25% maxHP at the start of every
-      // fight (may overheal, capped at 125% maxHP). A deliberate healing
-      // ability, so it fires whether the boss respawned or survived.
-      if (owned.has('soul_drain')) {
-        const cap = Math.floor((boss.maxHp ?? 0) * 1.25)
-        boss.hp = Math.min(cap, (boss.hp ?? 0) + Math.floor((boss.maxHp ?? 0) * 0.25))
-      }
-      if (owned.has('summon_adds')) {
-        const bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
-        if (bossRoom) {
-          EventBus.emit('BOSS_SUMMONED_ADDS', { count: 2 })
-          _summonAddsNearBoss(this._scene, this._gameState, bossRoom, 2)
-        }
       }
       // Solo Leveling — the Shadow Monarch duels the boss on equal terms:
       // his stats are set to the boss's right here (after the recompute),
@@ -5187,8 +5132,6 @@ export class BossSystem {
     // phase threshold since the last round.
     this._tickDoppelgangerSplit(boss)
 
-    const owned = new Set(boss.unlockedAbilities ?? [])
-
     // Party → boss (skipped if everyone left is in flee — they're too busy
     // running to swing at the boss).
     //
@@ -5438,11 +5381,6 @@ export class BossSystem {
         }
       }
 
-      if (!this._secondWindUsed && owned.has('second_wind') && boss.hp > 0 && boss.hp < boss.maxHp * 0.2) {
-        boss.hp = Math.min(boss.maxHp, boss.hp + 30)
-        this._secondWindUsed = true
-        EventBus.emit('BOSS_SECOND_WIND')
-      }
       // Phase 9 — Final Breath: once per run, if this hit would kill the boss,
       // revive at 50% HP, full-heal all minions, and mark the pact used.
       // Triggers BEFORE the lethal-check so deathsRemaining is untouched.
@@ -5621,15 +5559,6 @@ export class BossSystem {
           targetId: target.adv.instanceId,
           kind:     'out_of_range',
         })
-      }
-    }
-
-    // Necrotic Aura is a true AOE — it tags every defender every round.
-    if (owned.has('necrotic_aura')) {
-      for (const fs of defenders) {
-        if (this._advBlocking(fs.adv)) continue   // braced — immune to the aura tick
-        const dot = Math.max(1, Math.floor(fs.adv.resources.maxHp * 0.05))
-        fs.adv.resources.hp = Math.max(0, fs.adv.resources.hp - dot)
       }
     }
 
@@ -5986,54 +5915,6 @@ function _pointInRoomBS(tx, ty, room) {
          ty >= room.gridY && ty < room.gridY + room.height
 }
 
-// Phase 10b — summon a small number of dungeon-faction skeletons near the
-// boss chamber when the Summon Adds ability is unlocked. They join combat
-// via the existing MinionAISystem next tick.
-// `opts.defId` overrides the default 'skeleton1' summon (Slime King Mitosis
-// passes its own slime def + sets `extraTags` so adds are skipped by Absorb).
-// `opts.tagBossAdd` toggles the `isBossAdd` marker (default true).
-// Returns the array of spawned minion objects so callers can attach VFX or
-// per-instance flags afterward.
-function _summonAddsNearBoss(scene, gameState, bossRoom, count, opts = {}) {
-  const minionTypes = scene.cache.json.get('minionTypes') ?? []
-  const defId = opts.defId ?? 'skeleton1'
-  const def = minionTypes.find(d => d.id === defId) ?? minionTypes[0]
-  if (!def) return []
-  const TS = 32
-  const w = Balance.WALL_THICKNESS
-  const innerW = Math.max(1, bossRoom.width - 2 * w)
-  const spawned = []
-  for (let i = 0; i < count; i++) {
-    const x = bossRoom.gridX + w + (i % innerW)
-    const y = bossRoom.gridY + w
-    const m = {
-      instanceId:    `boss_add_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 4)}`,
-      definitionId:  def.id,
-      name:          opts.name ?? 'Boss Add',
-      faction:       'dungeon',
-      isBossAdd:     opts.tagBossAdd !== false,
-      assignedRoomId: bossRoom.instanceId,
-      homeTileX: x, homeTileY: y,
-      tileX: x, tileY: y,
-      worldX: x * TS + TS / 2, worldY: y * TS + TS / 2,
-      stats: { ...(def.baseStats ?? { hp: 20, attack: 6, defense: 2, speed: 1 }) },
-      resources: {
-        hp:    def.baseStats?.hp ?? 20,
-        maxHp: def.baseStats?.hp ?? 20,
-      },
-      aiState: 'idle', level: 1, xp: 0,
-      tags: [...(def.tags ?? [])],
-      equippedGear: [], killHistory: [], evolutionHistory: [],
-      timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
-    }
-    // Merge extra flag fields (e.g. `_isMitosisAdd: true`) from opts.flags.
-    if (opts.flags) Object.assign(m, opts.flags)
-    gameState.minions ??= []
-    gameState.minions.push(m)
-    spawned.push(m)
-  }
-  return spawned
-}
 
 function _inOrAdjacentToRoom(adv, room) {
   const inRoom =
