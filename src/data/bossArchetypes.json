@@ -57,7 +57,7 @@
     },
     "mechanics": [
       {
-        "text": "Infernal Pact (day active) — arm, click a room: burn an expendable imp + spend banked Brimstone to hellfire the room (damage scales with the reserve). Higher acts add burning ground, heal-block, and a %-HP Soulfire Execute that refunds Brimstone.",
+        "text": "Infernal Pact (day active) — arm, click a room: burn an imp + spend banked Brimstone to hellfire it (bigger reserve = bigger blast). Higher acts add burning ground, heal-block, and a %HP execute that refunds Brimstone.",
         "implemented": true
       },
       {
@@ -225,7 +225,7 @@
     "portraitAvailable": true,
     "headline": {
       "name": "The Living Fortress",
-      "summary": "The dungeon IS its body. Every room you build permanently grows its HP and DEF — and makes the earth hit harder when it moves. The bigger your fortress, the more unkillable the Golem.",
+      "summary": "The dungeon IS its body. Every room you hold grows its HP and DEF and makes its quakes hit harder. The bigger your fortress, the more unkillable the Golem.",
       "implemented": true
     },
     "mechanics": [
@@ -238,7 +238,7 @@
         "implemented": true
       },
       {
-        "text": "Living Architecture — every placed room permanently adds HP and DEF to the boss (the fortress grows as you build).",
+        "text": "Living Architecture — every room you hold adds HP and DEF to the boss; the fortress grows as you build and shrinks if rooms are torn down.",
         "implemented": true
       }
     ],
@@ -267,7 +267,7 @@
     "portraitAvailable": true,
     "headline": {
       "name": "The Withering",
-      "summary": "Every death in your dungeon banks Soul Essence — the Lich's lifeline, the fuel for your active Channel Souls ability, and the reserve it carries into the throne fight.",
+      "summary": "In the throne fight it spends banked Soul Essence to blast, drain and wither the party — escalating each act — and self-heals while Essence is held. Every death in your halls banks more.",
       "implemented": true
     },
     "mechanics": [
@@ -313,7 +313,7 @@
     },
     "mechanics": [
       {
-        "text": "Plague Spit (day active) — arm, click a room: infect everyone inside with a heavy dose, which then spreads on its own. Contagion (Act II+) jumps to nearby heroes; Virulent Strain (Act III+) spreads farther + adds a feverish slow; Pandemic (Act IV) crosses rooms and an infected death bursts to infect the corpse's neighbours.",
+        "text": "Plague Spit (day active) — arm, click a room: infect everyone with a heavy dose that then spreads on its own — to neighbors (Act II), farther + a feverish slow (Act III), and across rooms with bursting corpses (Act IV).",
         "implemented": true
       },
       {
@@ -489,7 +489,7 @@
     },
     "mechanics": [
       {
-        "text": "Mitosis Surge — during the day, flood a target room with a wave of gooplings that swarm everyone inside (scales with Mass + the crowd).",
+        "text": "Mitosis Surge (day active) — arm, click a room: flood it with a wave of gooplings that swarm everyone inside (scales with Mass + the crowd).",
         "implemented": true
       },
       {

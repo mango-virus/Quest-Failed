@@ -90,15 +90,15 @@ export const MINION_ABILITY_INFO = {
   // BuildMenu / UPGRADE info / hover UI always show the correct current ability
   // and the next tier's ability. Mimic keeps its identity (re-added with the
   // first family pass).
-  mimic: { ability: 'Devour — instantly kills any adventurer who tries to loot it.', behavior: 'Stationary Trap — disguised as a treasure chest; sits still until sprung.' },
+  mimic: { ability: 'Devour — instakills any adventurer who loots it, and banks +5g to your treasury per hit.', behavior: 'Ambush — hides as a treasure chest (re-disguises each night) and springs on whoever opens it.' },
 
   // ── GOBLIN — mechanic: PLUNDER (steal gold) ──────────────────────────────
   goblin1: { ability: 'Pilfer — every hit instantly banks +2g to your treasury.', behavior: 'Greed: a cheap, fragile gold faucet during invasions.' },
-  goblin2: { ability: 'Pilfer (+2g/hit) + Mark for Plunder — brands a hero so EVERY minion that hits them also steals gold, plus a slow gold-bleed.', behavior: 'Greed: turns one hero into payday for the whole room.' },
-  goblin3: { ability: "Pilfer + Mark + Warband's Cut (DOUBLES goblin plunder in its room) + Grand Heist — periodically brands every hero in the room at once.", behavior: 'Greed: the capstone of a goblin gold-rush dungeon.' },
+  goblin2: { ability: 'Pilfer (+2g/hit) + Mark for Plunder — brands a hero so every minion that hits them also steals gold, plus a gold-bleed.', behavior: 'Greed: turns one hero into payday for the whole room.' },
+  goblin3: { ability: "Pilfer + Mark + Warband's Cut (doubles goblin plunder in-room) + Grand Heist — periodically brands every hero in the room.", behavior: 'Greed: the capstone of a goblin gold-rush dungeon.' },
 
   // ── SKELETON — mechanic: REASSEMBLY ("they don't stay dead") ─────────────
-  skeleton1: { ability: 'Reassemble — when killed it collapses into bones, then clatters back up at 50% HP. The party has to kill it twice.', behavior: 'Attrition: a cheap body that wastes the enemy’s time and HP.' },
+  skeleton1: { ability: 'Reassemble — when killed, collapses then clatters back up once at 50% HP. The party has to kill it twice.', behavior: 'Attrition: a cheap body that wastes the enemy’s time and HP.' },
   skeleton2: { ability: 'Reassemble ×2 — gets back up twice, and each rise it returns in a bone-armor shell (damage reduction) and flings a ring of bone shards at nearby heroes.', behavior: 'Attrition: the more you break it, the harder it is to put down.' },
   skeleton3: { ability: 'Reassemble ×3 + bone-armor & shards, plus Undying Legion — periodically raises every fallen undead nearby and turns near-unkillable for a few seconds.', behavior: 'Attrition: a self-resurrecting commander that drags the dead back up with it.' },
 
@@ -117,7 +117,7 @@ export const MINION_ABILITY_INFO = {
   slime3: { ability: 'Infect — every hit lands a stacking poison that ticks the hero down over time.', behavior: 'Plague: an attrition DoT that punishes a long fight.' },
   slime7: { ability: 'Infect + Contagion — infected heroes spread the poison to nearby allies; the plague jumps through the party.', behavior: 'Plague: the more they cluster, the faster it spreads.' },
   slime8: { ability: 'Infect (stronger) + Contagion — spreads farther & faster, and infected heroes leave a brief toxic trail.', behavior: 'Plague: a walking epidemic.' },
-  elder_slime1: { ability: 'Infect + Contagion + Outbreak — periodically infects EVERY hero in the room at once in a toxic cloud.', behavior: 'Plague: a room-wide pandemic that can rot the whole party.' },
+  elder_slime1: { ability: 'Infect + Contagion + Outbreak — periodically infects every hero in the room in a toxic cloud.', behavior: 'Plague: a room-wide pandemic that can rot the whole party.' },
 
   // ── SLIME · CORROSIVE — mechanic: ACID PUDDLES (floor denial) ─────────────
   slime4: { ability: 'Acid Burst — when killed, bursts into a lingering caustic puddle that damages anyone who stands in it.', behavior: 'Denial: punishes the spot where it dies — pushes heroes off ground you choose.' },
@@ -133,15 +133,15 @@ export const MINION_ABILITY_INFO = {
   // ── RAT · SWARM — mechanic: strength in numbers ──────────────────────────
   rat1: { ability: 'Swarm — bites harder for every other rat sharing its room (capped). Pathetic alone, dangerous in a pack.', behavior: 'Swarm: cheap bodies — flood the room, keep them clustered.' },
   rat2: { ability: 'Pack Tactics — steeper swarm damage AND takes less damage per pack member. A clustered pack is bite-y AND tanky.', behavior: 'Swarm: cleave them apart to drop the count and break the pack.' },
-  rat3: { ability: 'Vermin Tide — periodically frenzies EVERY rat in the room: max swarm bonus (damage + armor) + a speed surge. A devouring tide.', behavior: 'Swarm: the pack-lord — turns even a small pack into a horde on cue.' },
+  rat3: { ability: 'Vermin Tide — periodically frenzies every rat in the room: max swarm bonus (damage + armor) + a speed surge.', behavior: 'Swarm: the pack-lord — turns even a small pack into a horde on cue.' },
 
   // ── ZOMBIE · RAISE THE DEAD — mechanic: slain heroes rise as your zombies ──
   zombie1: { ability: 'Reanimate — a hero this zombie lands the killing blow on rises as a weak Risen zombie under your control (room-capped).', behavior: 'Outbreak: cheap relentless body — every kill grows the horde.' },
   zombie2: { ability: 'Contagion Bite — its bites infect heroes with rot; an infected hero that dies to ANY source rises as a zombie. The plague spreads the outbreak.', behavior: 'Outbreak: turns the whole party into potential recruits.' },
-  zombie3: { ability: 'Mass Grave — periodically claws EVERY fallen hero in the room back up at once as a zombie horde + a room-wide rot infection.', behavior: 'Outbreak: the dead rise en masse — the more that died here, the bigger the horde.' },
+  zombie3: { ability: 'Mass Grave — periodically claws the room\'s fallen heroes back up at once as a zombie horde + a room-wide rot infection.', behavior: 'Outbreak: the dead rise en masse — the more that died here, the bigger the horde.' },
 
   // ── DEMON · HELLFIRE — mechanic: escalating burn aura ─────────────────────
-  demon1: { ability: 'Burning Aura — radiates hellfire; heroes nearby take fire damage each second that ESCALATES the longer they stay close (cools when they back off).', behavior: 'Immolation: a walking bonfire — burst it from range, never melee it.' },
+  demon1: { ability: 'Burning Aura — radiates hellfire; nearby heroes burn for escalating fire each second (cools when they back off).', behavior: 'Immolation: a walking bonfire — burst it from range, never melee it.' },
   demon2: { ability: 'Burning Aura (hotter/wider) + Combustion — a hero burned to MAX heat detonates, blasting fire onto nearby allies, then resets.', behavior: 'Immolation: punishes a clustered party — keep them spread.' },
   demon_lord: { ability: 'Inferno — periodically erupts the ENTIRE room into hellfire: max heat on everyone + a big fire AoE. No safe distance.', behavior: 'Immolation: the room burns — a damage-race the party usually loses.' },
 
@@ -151,9 +151,9 @@ export const MINION_ABILITY_INFO = {
   golem_warden: { ability: 'Bastion — periodically raises a stone bastion: a big damage-reduction window on itself AND every ally in the room.', behavior: 'Fortress: the garrison turtles up — a near-unbreakable wall on a timer.' },
 
   // ── GHOST · FEAR — mechanic: nerve warfare (bite → haunt → mass rout) ──────
-  ghost1: { ability: 'Dread — its psychic attacks drain a hero\'s NERVE as they wound, and lingering near it bleeds courage faster than a normal threat. Break their nerve and they PANIC — freezing in place, defenceless, for your minions to butcher.', behavior: 'Terror: softens the party\'s resolve from afar — no flesh required.' },
-  ghost2: { ability: 'Dread + Haunt — a hit haunts a hero: their nerve keeps bleeding and won\'t recover, a rattled hero fights worse, and their panic infects nearby party-mates — collapsing them into helpless, frozen kills.', behavior: 'Terror: turns one frightened hero into a spreading morale collapse.' },
-  dark_wraith: { ability: 'Dread + Haunt + Pall of Dread — periodically craters the nerve of EVERY hero in the room at once: the whole party PANICS in place, frozen and defenceless, to be slaughtered where they stand.', behavior: 'Terror: the capstone of a fear dungeon — freeze the whole party for the kill.' },
+  ghost1: { ability: 'Dread — its psychic attacks and lingering aura drain a hero\'s NERVE from across the room. Broken nerve makes them panic and fight worse.', behavior: 'Terror: softens the party\'s resolve from afar — no flesh required.' },
+  ghost2: { ability: 'Dread + Haunt — a hit haunts a hero: their nerve keeps bleeding and won\'t recover, they fight worse, and their panic spreads to nearby party-mates.', behavior: 'Terror: turns one frightened hero into a spreading morale collapse.' },
+  dark_wraith: { ability: 'Dread + Haunt + Pall of Dread — periodically craters every hero\'s nerve so the whole room panics in place, frozen, for the kill.', behavior: 'Terror: the capstone of a fear dungeon — freeze the whole party for the kill.' },
 
   // ── BEHOLDER · GAZE — mechanic: domination (charm → mass charm → petrify room) ──
   beholder1: { ability: 'Mesmerize — its gaze CHARMS the hero it hits: for a few seconds they turn and attack their own nearest ally. One eye, one traitor.', behavior: 'Domination: a ranged eye that turns the party against itself.' },
@@ -163,7 +163,7 @@ export const MINION_ABILITY_INFO = {
   // ── GNOLL · BLOOD HUNT — mechanic: bleed them, smell it, run them down ───────
   gnoll1: { ability: 'Bleed — every hit opens a lasting wound that STACKS; bleeding heroes lose HP over time and leave a blood trail. Death by a thousand cuts.', behavior: 'Blood Hunt: marks prey with bleed for the pack to track and finish.' },
   gnoll2: { ability: 'Bleed + Bloodhound — SMELLS bleeding prey anywhere in the dungeon and abandons its post to SPRINT them down (faster, relentless). No wounded hero is safe in any room.', behavior: 'Blood Hunt: leaves its room to chase the bleeding across the whole dungeon.' },
-  gnoll_alpha: { ability: "Bleed + Bloodhound + Blood Frenzy — the alpha howls: every hero's bleed RUPTURES at once (a burst scaled by how deep it's stacked), wounds can't be healed for a while, and the WHOLE pack goes feral to run the bloodied down.", behavior: 'Blood Hunt: the capstone — turn a wave of cuts into a slaughter.' },
+  gnoll_alpha: { ability: "Bleed + Bloodhound + Blood Frenzy — the alpha howls: every bleed ruptures at once, wounds can't be healed for a while, and the whole pack goes feral to run the bloodied down.", behavior: 'Blood Hunt: the capstone — turn a wave of cuts into a slaughter.' },
 
   // ── ENT · THORNS — mechanic: a losing trade (reflect + regrow) ──────────────
   ent1: { ability: 'Thornskin — a hero who strikes it in MELEE takes thorn damage straight back. Swinging at the tree is a losing trade. (Ranged attackers are safe.)', behavior: 'Old Growth: a slow wall that punishes everything that touches it.' },

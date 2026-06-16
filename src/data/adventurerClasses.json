@@ -67,7 +67,7 @@
       "speed": 2.4
     },
     "startingResources": {},
-    "description": "Fast, fragile, fond of shortcuts and locked things.",
+    "description": "Fast, fragile thief. Vanishes from sight to slip past or escape your minions, and picks your locked doors.",
     "flavorText": "If they catch me, I deserved it."
   },
   {
@@ -86,7 +86,7 @@
       "ranged",
       "spellcaster"
     ],
-    "description": "Glass cannon. Wields one random element each run: FIRE burns over time, ICE chills (slows), LIGHTNING arcs between minions, WIND scatters them. Arcane Burst amplifies that element into an AoE (or a branching bolt). Big spells, brittle bones.",
+    "description": "Glass cannon. Each run wields one random element — FIRE (burn), ICE (slow), LIGHTNING (arcs between minions), WIND (knockback) — and Arcane Burst amplifies it into an AoE or branching bolt.",
     "flavorText": "Fireball solves most problems. Survival is a different one."
   },
   {
@@ -127,7 +127,7 @@
       "dark"
     ],
     "unlockDay": 31,
-    "description": "Raises defeated minions to fight for the party. Defected raises last until the day ends.",
+    "description": "Conjures skeletons and zombies that fight for the party until day's end, and wears Bone Armor that grows stronger with each undead at his side.",
     "flavorText": "Death is a waste of perfectly good labour."
   },
   {
@@ -169,7 +169,7 @@
     ],
     "unlockDay": 21,
     "rarity": "rare",
-    "description": "Trained handler. TAMES a single hostile minion mid-fight to fight for them (one at a time; re-tames if it dies). SIC 'EM: commands the beast to pounce a foe for a heavy maul. PACK TACTICS: the handler and beast hit harder when both flank the same target — kill the beast to defang them.",
+    "description": "Trained handler. TAMES one of your minions at a time (50% chance, biggest threat first) to fight for him. SIC 'EM: the beast pounces a foe for a heavy maul. PACK TACTICS: he and the beast hit harder flanking the same target — kill the beast to defang him.",
     "flavorText": "Every beast was a person once, in their head."
   },
   {
@@ -189,7 +189,7 @@
       "fearless"
     ],
     "unlockDay": 21,
-    "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Immune to fear and flee triggers — never retreats.",
+    "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Reckless Charge: barrels into your densest minion cluster, staggering them. Immune to fear and flee — never retreats.",
     "flavorText": "Pain is just bad weather. You walk through it."
   },
   {
@@ -585,7 +585,7 @@
       "luck"
     ],
     "unlockDay": 21,
-    "description": "A dapper riverboat sharp who lets fate swing the cane. Every strike is a Roll the Dice — whiff, crit, double-hit, a self-heal, even a payout that lines YOUR coffers. And when he should be dead, he calls Double or Nothing: heads he rises again, tails the house pays out to you.",
+    "description": "Every strike is a Roll the Dice — whiff, crit, double-hit, self-heal, even a gold payout to you. On death, Double or Nothing: heads he revives at half HP, tails the house pays out to you.",
     "flavorText": "Fortune favors me. She just doesn't know it yet."
   },
   {
