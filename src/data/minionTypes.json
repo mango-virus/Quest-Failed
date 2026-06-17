@@ -28,7 +28,7 @@
     ],
     "goldCost": 20,
     "powerCostToUnlock": 0,
-    "unlockLevel": 10,
+    "unlockLevel": 11,
     "evolutionPaths": [],
     "tags": [
       "aberration",
@@ -110,7 +110,7 @@
     ],
     "goldCost": 26,
     "powerCostToUnlock": 0,
-    "unlockLevel": 13,
+    "unlockLevel": 15,
     "evolutionPaths": [],
     "tags": [
       "fiend",
@@ -349,9 +349,9 @@
         "flat": 2
       }
     ],
-    "goldCost": 22,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
-    "unlockLevel": 11,
+    "unlockLevel": 8,
     "evolutionPaths": [],
     "tags": [
       "plant",
@@ -486,9 +486,9 @@
         "label": "FEAR"
       }
     ],
-    "goldCost": 16,
+    "goldCost": 20,
     "powerCostToUnlock": 0,
-    "unlockLevel": 8,
+    "unlockLevel": 10,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -577,7 +577,7 @@
         "label": "BLEEDING"
       }
     ],
-    "goldCost": 14,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
     "unlockLevel": 6,
     "evolutionPaths": [],
@@ -658,9 +658,9 @@
       "damageType": "physical",
       "abilities": []
     },
-    "goldCost": 8,
+    "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 1,
+    "unlockLevel": 3,
     "evolutionPaths": [],
     "tags": [
       "goblin",
@@ -794,9 +794,9 @@
         "mult": 0.6
       }
     ],
-    "goldCost": 30,
+    "goldCost": 24,
     "powerCostToUnlock": 0,
-    "unlockLevel": 14,
+    "unlockLevel": 13,
     "evolutionPaths": [],
     "tags": [
       "construct",
@@ -1157,7 +1157,7 @@
         "label": "DAZE"
       }
     ],
-    "goldCost": 10,
+    "goldCost": 7,
     "powerCostToUnlock": 0,
     "unlockLevel": 2,
     "evolutionPaths": [],
@@ -1243,7 +1243,7 @@
     ],
     "goldCost": 12,
     "powerCostToUnlock": 0,
-    "unlockLevel": 4,
+    "unlockLevel": 5,
     "evolutionPaths": [],
     "tags": [
       "orc",
@@ -1563,7 +1563,7 @@
     ],
     "goldCost": 10,
     "powerCostToUnlock": 0,
-    "unlockLevel": 3,
+    "unlockLevel": 4,
     "evolutionPaths": [],
     "tags": [
       "undead",
@@ -1760,7 +1760,7 @@
         "label": "INFECTED"
       }
     ],
-    "goldCost": 10,
+    "goldCost": 7,
     "powerCostToUnlock": 0,
     "unlockLevel": 3,
     "evolutionPaths": [],
@@ -1796,7 +1796,7 @@
         "zoneMs": 5000
       }
     ],
-    "goldCost": 12,
+    "goldCost": 8,
     "powerCostToUnlock": 0,
     "unlockLevel": 5,
     "evolutionPaths": [],
@@ -2062,7 +2062,7 @@
         "frac": 0.5
       }
     ],
-    "goldCost": 18,
+    "goldCost": 16,
     "powerCostToUnlock": 0,
     "unlockLevel": 9,
     "evolutionPaths": [],
@@ -2783,7 +2783,7 @@
     },
     "goldCost": 35,
     "powerCostToUnlock": 0,
-    "unlockLevel": 15,
+    "unlockLevel": 14,
     "evolutionPaths": [],
     "tags": [
       "mimic",
