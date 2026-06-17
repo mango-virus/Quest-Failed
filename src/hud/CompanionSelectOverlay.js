@@ -258,7 +258,7 @@ export class CompanionSelectOverlay {
     this._heroImg = locked ? null : heroImg
     heroKids.push(heroImg)
     if (locked) heroKids.push(h('div', { className: 'qf-csl-shroud' }, [h('span', { className: 'lk' }, '🔒')]))
-    const hero = h('div', { className: 'qf-csl-hero' + (locked ? ' locked' : '') }, heroKids)
+    const hero = h('div', { className: 'qf-csl-hero' + (locked ? ' locked' : ' breathing') }, heroKids)
 
     // Lore panel.
     const loreKids = [

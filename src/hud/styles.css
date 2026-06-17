@@ -12276,6 +12276,11 @@ body {
   background: none; border: none; box-shadow: none;
   animation: qf-csl-heroin .34s cubic-bezier(.2,1.1,.3,1); }
 @keyframes qf-csl-heroin { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+/* Chosen (unlocked) keeper idle-breathes — a slow vertical bob on the hero
+   container (the portrait img carries its own flip/scale transform, so the
+   bob lives here). Starts after the entrance settles to avoid a transform clash. */
+.qf-csl-hero.breathing { animation: qf-csl-heroin .34s cubic-bezier(.2,1.1,.3,1), qf-csl-breathe 3.8s ease-in-out .34s infinite; }
+@keyframes qf-csl-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 .qf-csl-portimg { filter: drop-shadow(0 6px 12px rgba(0,0,0,.55)) drop-shadow(0 0 30px color-mix(in srgb, var(--acc) 30%, transparent)); }
 .qf-csl-portimg { max-width: 100%; max-height: 100%; width: auto; height: auto; image-rendering: auto; pointer-events: none; transition: opacity .2s ease; }
 /* mid expression cross-fade (the cycler swaps src while faded out) */
