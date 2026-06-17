@@ -55,24 +55,12 @@ const TABS = [
   { id: 'mastery',     label: 'MASTERY' },
 ]
 
-// Difficulty TIER for the card border: gold = legendary/hard, silver =
-// medium, bronze = easy/early. gold is data-driven (def.legendary, drawn
-// by the showcase shimmer rule). The bronze set below lists the easy/
-// intro achievements; everything else non-legendary is silver (medium).
-const TIER_BRONZE_IDS = new Set([
-  // Early boss levels + first-time intros.
-  'first_spark', 'rising_power', 'hardened_throne', 'crown_of_iron', 'echoing_roar',
-  'first_blood', 'first_hire', 'first_trap', 'first_build',
-  // Low-bar milestones reached in normal early play.
-  'survivor', 'skirmisher', 'soul_collector', 'trapsmith', 'diverse_roster',
-  'daily_reaper', 'total_annihilation', 'trap_master', 'personality_profiler',
-  // Event / activity intro tier (2026-05-28).
-  'first_event', 'event_regular', 'open_house', 'landlord', 'petty_cash',
-  'boss_brawler', 'acceptable_losses', 'persistent', 'trap_tinkerer', 'punching_bag',
-])
+// Difficulty TIER for the card border + shelves. Fully data-driven: each
+// achievement carries `tier: 'gold' | 'silver' | 'bronze'` in achievements.json
+// (gold = legendary/hard, silver = medium, bronze = easy/early). gold also drives
+// the showcase shimmer + the bigger unlock toast. Defaults to silver if unset.
 function achievementTier(def) {
-  if (def?.legendary) return 'gold'
-  return TIER_BRONZE_IDS.has(def?.id) ? 'bronze' : 'silver'
+  return def?.tier ?? 'silver'
 }
 
 // Pseudo-tab id for the leaderboard view. Stored in `_activeTab` so the
@@ -138,19 +126,17 @@ const AC_CAT_COLOR = {
   mastery:     'var(--gold-bright)',
 }
 
-// Tier shelves — gold/silver/bronze from achievementTier() map to the design's
-// LEGENDARY / HARDENED / BLOODED shelves.
+// Tier shelves — GOLD / SILVER / BRONZE, keyed off the data-driven `tier` field.
 const AC_SHELVES = [
-  { tier: 'gold',   label: 'LEGENDARY', glyph: '✦', color: '#ffd86a' },
-  { tier: 'silver', label: 'HARDENED',  glyph: '◆', color: '#c8c8d0' },
-  { tier: 'bronze', label: 'BLOODED',   glyph: '◇', color: '#c8884a' },
+  { tier: 'gold',   label: 'GOLD',   glyph: '✦', color: '#ffd86a' },
+  { tier: 'silver', label: 'SILVER', glyph: '◆', color: '#c8c8d0' },
+  { tier: 'bronze', label: 'BRONZE', glyph: '◇', color: '#c8884a' },
 ]
 
-// Legendary tier is now data-driven — each achievement def carries
-// `legendary: true` in `src/data/achievements.json`. The grid card
-// renderer reads it via `def.legendary`. ToastQueue reads the same
-// flag to fire the bigger "RARE TROPHY" toast + particle burst when
-// one unlocks.
+// Tier is data-driven — each achievement def carries `tier` in
+// `src/data/achievements.json`. The grid card renderer reads `tier === 'gold'`
+// for the showcase shimmer, and ToastQueue reads the same to fire the bigger
+// "RARE TROPHY" toast + particle burst when a gold one unlocks.
 
 // Always-accessible starter counts. Used to compute "total ACCESS"
 // stats on the podium card (starters + achievement-unlocked). Keep in
@@ -488,7 +474,7 @@ export class AchievementsOverlay {
     const isNew = !this._viewer && this._newAtOpen?.has(def.id)
     return h('div', {
       className: 'qf-ac-med',
-      dataset: { locked: isUnlocked ? 'false' : 'true', leg: def.legendary ? 'true' : 'false' },
+      dataset: { locked: isUnlocked ? 'false' : 'true', leg: tier === 'gold' ? 'true' : 'false' },
       style: { '--sc': sc, '--catc': catc },
     }, [
       isNew && h('span', { className: 'sil qf-ac-new qf-newchip' }, 'NEW'),
@@ -589,7 +575,7 @@ export class AchievementsOverlay {
     if (tab === 'all')        return true
     if (tab === 'companions') return def.reward?.type === 'companion'
     if (tab === 'titles')     return !!def.title
-    if (tab === 'mastery')    return !!def.legendary
+    if (tab === 'mastery')    return achievementTier(def) === 'gold'
     return def.category === tab
   }
 

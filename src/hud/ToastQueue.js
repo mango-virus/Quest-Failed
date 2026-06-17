@@ -47,11 +47,10 @@ const KIND_STYLE = {
   // level / bounty (celebratory) but distinct glyph so the player can
   // pick it out of a busy run-end toast wash.
   achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
-  // Legendary achievement unlock — same trophy but bigger, brighter,
+  // Gold-tier achievement unlock — same trophy but bigger, brighter,
   // longer-dwell, with a "RARE TROPHY" eyebrow above the title and a
-  // gold particle burst on arrival. Triggered when `def.legendary` is
-  // true on the unlocked achievement (currently 6 hand-picked endgame
-  // achievements in `src/data/achievements.json`).
+  // gold particle burst on arrival. Triggered when `def.tier === 'gold'`
+  // on the unlocked achievement (the gold tier in `src/data/achievements.json`).
   legendary_achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
 }
 
@@ -410,7 +409,7 @@ export class ToastQueue {
     // Reward callouts (e.g. "Unlocks: Golem") land in the flavor slot
     // when the achievement has a reward attached.
     //
-    // Legendary tier (data-driven via `def.legendary === true`) routes
+    // Gold tier (data-driven via `def.tier === 'gold'`) routes
     // to a richer toast: "RARE TROPHY" eyebrow, gold-burst frame, 10s
     // dwell, and a gold particle burst fountaining outward from the
     // toast. Common unlocks use the basic golden trophy chip.
@@ -424,14 +423,14 @@ export class ToastQueue {
       } else if (def.title) {
         flavor = `Title earned: ${def.title}`
       }
-      const isLegendary = !!def.legendary
+      const isLegendary = def.tier === 'gold'
       this._push(
         isLegendary ? 'legendary_achievement' : 'achievement',
-        isLegendary ? 'LEGENDARY UNLOCKED' : 'ACHIEVEMENT UNLOCKED',
+        isLegendary ? 'RARE TROPHY UNLOCKED' : 'ACHIEVEMENT UNLOCKED',
         def.name,
         {
           flavor: flavor || undefined,
-          eyebrow: isLegendary ? '✦  RARE TROPHY  ✦' : null,
+          eyebrow: isLegendary ? '✦  GOLD  ✦' : null,
         },
       )
     })

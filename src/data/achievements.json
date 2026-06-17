@@ -4,6 +4,7 @@
     "name": "First Spark",
     "description": "Reach boss level 1.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "maxBossLevel",
     "target": 1,
     "icon": "⚡"
@@ -13,6 +14,7 @@
     "name": "Rising Power",
     "description": "Reach boss level 2.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "maxBossLevel",
     "target": 2,
     "icon": "🗿",
@@ -23,6 +25,7 @@
     "name": "Hardened Throne",
     "description": "Reach boss level 3.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "maxBossLevel",
     "target": 3,
     "icon": "☠️",
@@ -33,6 +36,7 @@
     "name": "Crown of Iron",
     "description": "Reach boss level 4.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "maxBossLevel",
     "target": 4,
     "icon": "🦎",
@@ -43,6 +47,7 @@
     "name": "Echoing Roar",
     "description": "Reach boss level 5.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "maxBossLevel",
     "target": 5,
     "icon": "🍄",
@@ -53,6 +58,7 @@
     "name": "Sixth Seal",
     "description": "Reach boss level 6.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 6,
     "icon": "⚔️",
@@ -63,6 +69,7 @@
     "name": "Seventh Sigil",
     "description": "Reach boss level 7.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 7,
     "icon": "🧛",
@@ -73,6 +80,7 @@
     "name": "Spectral Reign",
     "description": "Reach boss level 8.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 8,
     "icon": "👻",
@@ -83,6 +91,7 @@
     "name": "Witchbane",
     "description": "Reach boss level 9.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 9,
     "icon": "💋",
@@ -93,6 +102,7 @@
     "name": "Dread Sovereign",
     "description": "Reach boss level 10.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 10,
     "icon": "💧",
@@ -103,6 +113,7 @@
     "name": "Tyrant",
     "description": "Reach boss level 11.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 11,
     "icon": "👑",
@@ -114,6 +125,7 @@
     "name": "Despot",
     "description": "Reach boss level 12.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 12,
     "icon": "👁️",
@@ -125,6 +137,7 @@
     "name": "Worldbreaker",
     "description": "Reach boss level 13.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 13,
     "icon": "💥",
@@ -136,6 +149,7 @@
     "name": "Architect of Ruin",
     "description": "Reach boss level 14.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 14,
     "icon": "🏛️",
@@ -147,6 +161,7 @@
     "name": "Endless Crown",
     "description": "Reach boss level 15.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 15,
     "icon": "💍",
@@ -158,6 +173,7 @@
     "name": "Eldritch Throne",
     "description": "Reach boss level 16.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 16,
     "icon": "🔮",
@@ -169,6 +185,7 @@
     "name": "Forgotten God",
     "description": "Reach boss level 17.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 17,
     "icon": "⚰️",
@@ -180,6 +197,7 @@
     "name": "Demilich Eternal",
     "description": "Reach boss level 18.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 18,
     "icon": "💀",
@@ -191,6 +209,7 @@
     "name": "Avatar of Dread",
     "description": "Reach boss level 19.",
     "category": "progression",
+    "tier": "silver",
     "metric": "maxBossLevel",
     "target": 19,
     "icon": "😈",
@@ -202,18 +221,19 @@
     "name": "Throne Eternal",
     "description": "Reach boss level 20.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 20,
     "icon": "🏆",
     "title": "Of the Throne Eternal",
-    "titleFx": "goldshine",
-    "legendary": true
+    "titleFx": "goldshine"
   },
   {
     "id": "first_blood",
     "name": "First Blood",
     "description": "Kill your first adventurer.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "killsTotal",
     "target": 1,
     "icon": "🔪"
@@ -223,6 +243,7 @@
     "name": "First Hire",
     "description": "Recruit your first minion.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "minionsPlacedTotal",
     "target": 1,
     "icon": "🧙"
@@ -232,6 +253,7 @@
     "name": "First Trap",
     "description": "Place your first trap.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "trapsPlacedTotal",
     "target": 1,
     "icon": "🪤"
@@ -241,6 +263,7 @@
     "name": "First Build",
     "description": "Place your first non-starter room.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "nonStarterRoomsPlacedTotal",
     "target": 1,
     "icon": "🧱"
@@ -250,6 +273,7 @@
     "name": "Survivor",
     "description": "Survive 10 days in a single run.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "daysSurvivedMax",
     "target": 10,
     "icon": "⌛"
@@ -260,6 +284,7 @@
     "name": "Skirmisher",
     "description": "Kill 50 adventurers across all runs.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "killsTotal",
     "target": 50,
     "icon": "🗡️"
@@ -269,6 +294,7 @@
     "name": "Reaper",
     "description": "Kill 500 adventurers across all runs.",
     "category": "combat",
+    "tier": "silver",
     "metric": "killsTotal",
     "target": 500,
     "icon": "⚱️",
@@ -280,6 +306,7 @@
     "name": "Soul Collector",
     "description": "Reap the souls of 100 fallen adventurers across all runs.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "killsTotal",
     "target": 100,
     "icon": "✨"
@@ -289,6 +316,7 @@
     "name": "Master Architect",
     "description": "Place 12 different room types across all runs.",
     "category": "variety",
+    "tier": "silver",
     "metric": "roomTypesPlacedCount",
     "target": 12,
     "icon": "🏗️"
@@ -298,6 +326,7 @@
     "name": "Trapsmith",
     "description": "Fire 6 different trap types across all runs.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "trapTypesFiredCount",
     "target": 6,
     "icon": "⚙️"
@@ -308,6 +337,7 @@
     "name": "Architect",
     "description": "Place 15 rooms in a single run.",
     "category": "progression",
+    "tier": "silver",
     "metric": "roomsInRunMax",
     "target": 15,
     "icon": "🏰"
@@ -317,6 +347,7 @@
     "name": "Swarm Lord",
     "description": "Recruit 30 minions in a single run.",
     "category": "progression",
+    "tier": "silver",
     "metric": "minionsInRunMax",
     "target": 30,
     "icon": "🐝"
@@ -326,6 +357,7 @@
     "name": "Diverse Roster",
     "description": "Have 5 or more different minion types active simultaneously.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "minionTypesActiveMax",
     "target": 5,
     "icon": "🎲"
@@ -335,6 +367,7 @@
     "name": "Long Watch",
     "description": "Survive 30 days in a single run.",
     "category": "progression",
+    "tier": "silver",
     "metric": "daysSurvivedMax",
     "target": 30,
     "icon": "⏳"
@@ -344,6 +377,7 @@
     "name": "Daily Reaper",
     "description": "Kill 10 adventurers in a single day.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "killsInDayMax",
     "target": 10,
     "icon": "⚡"
@@ -354,6 +388,7 @@
     "name": "Untouchable",
     "description": "Survive a full day without losing a single minion.",
     "category": "combat",
+    "tier": "silver",
     "metric": "noMinionsLostInDayEver",
     "target": 1,
     "icon": "💎",
@@ -365,6 +400,7 @@
     "name": "Total Annihilation",
     "description": "Kill every member of a party in a single day.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "partyWipedInDayEver",
     "target": 1,
     "icon": "🔥"
@@ -374,6 +410,7 @@
     "name": "Trap Master",
     "description": "Kill 5 adventurers with traps in a single day.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "trapKillsInDayMax",
     "target": 5,
     "icon": "🎯"
@@ -383,24 +420,24 @@
     "name": "Class Hunter",
     "description": "Defeat at least one adventurer of every regularly-spawnable class.",
     "category": "variety",
+    "tier": "gold",
     "metric": "classesKilledCount",
     "target": 11,
     "icon": "🏹",
     "title": "The Hunter",
-    "titleFx": "steel",
-    "legendary": true
+    "titleFx": "steel"
   },
   {
     "id": "boss_slayer",
     "name": "Boss Slayer",
     "description": "Personally kill 150 adventurers with the boss in a single run.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "bossKillsInRunMax",
     "target": 150,
     "icon": "🪓",
     "title": "The Executioner",
-    "titleFx": "crimson",
-    "legendary": true
+    "titleFx": "crimson"
   },
 
   {
@@ -408,69 +445,70 @@
     "name": "Endless Reign",
     "description": "Survive 60 days in a single run.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "daysSurvivedMax",
     "target": 60,
     "icon": "♾️",
     "title": "The Eternal",
-    "titleFx": "frost",
-    "legendary": true
+    "titleFx": "frost"
   },
   {
     "id": "hoard_lord",
     "name": "Hoard Lord",
     "description": "Accumulate 10,000 gold in a single run.",
     "category": "economy",
+    "tier": "gold",
     "metric": "goldInRunMax",
     "target": 10000,
     "icon": "💰",
     "title": "The Hoarder",
     "titleFx": "goldshine",
-    "reward": { "type": "companion", "id": "zulgath" },
-    "legendary": true
+    "reward": { "type": "companion", "id": "zulgath" }
   },
   {
     "id": "curtain_call",
     "name": "Curtain Call",
     "description": "Kill 500 adventurers with traps across all runs.",
     "category": "combat",
+    "tier": "gold",
     "metric": "trapKillsTotal",
     "target": 500,
     "icon": "🎭",
     "title": "The Showrunner",
     "titleFx": "bone",
-    "reward": { "type": "companion", "id": "rattlebones" },
-    "legendary": true
+    "reward": { "type": "companion", "id": "rattlebones" }
   },
   {
     "id": "flawless_reign",
     "name": "Flawless Reign",
     "description": "Survive the first 30 days of a run without your boss taking any damage.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "daysSurvivedNoHitMax",
     "target": 30,
     "icon": "💠",
     "title": "The Flawless",
     "titleFx": "frost",
-    "reward": { "type": "companion", "id": "spectra" },
-    "legendary": true
+    "reward": { "type": "companion", "id": "spectra" }
   },
   {
     "id": "veteran_exterminator",
     "name": "Veteran Exterminator",
     "description": "Defeat 50 veteran adventurers in a single run.",
     "category": "combat",
+    "tier": "gold",
     "metric": "veteransKilledInRunMax",
     "target": 50,
     "icon": "🎖️",
     "title": "Veteran Hunter",
-    "titleFx": "crimson",
-    "legendary": true
+    "titleFx": "crimson"
   },
   {
     "id": "keeper_of_keepers",
     "name": "Keeper of Keepers",
     "description": "Complete a run with every unlocked companion.",
     "category": "variety",
+    "tier": "silver",
     "metric": "companionsCompletedCount",
     "target": 4,
     "icon": "🤝"
@@ -480,6 +518,7 @@
     "name": "Personality Profiler",
     "description": "Encounter 8 different adventurer personalities.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "personalitiesSeenCount",
     "target": 8,
     "icon": "📖"
@@ -490,216 +529,216 @@
     "name": "The Deathless",
     "description": "Survive 100 days in a single run.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "daysSurvivedMax",
     "target": 100,
     "icon": "🌈",
     "title": "The Deathless",
-    "titleFx": "rainbow",
-    "legendary": true
+    "titleFx": "rainbow"
   },
   {
     "id": "the_untouchable",
     "name": "The Untouchable",
     "description": "Survive the first 50 days of a run without your boss taking any damage.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "daysSurvivedNoHitMax",
     "target": 50,
     "icon": "❄️",
     "title": "The Untouchable",
-    "titleFx": "frost",
-    "legendary": true
+    "titleFx": "frost"
   },
   {
     "id": "bringer_of_the_end",
     "name": "Bringer of the End",
     "description": "Kill 200 adventurers in a single day.",
     "category": "combat",
+    "tier": "gold",
     "metric": "killsInDayMax",
     "target": 200,
     "icon": "🔥",
     "title": "Bringer of the End",
-    "titleFx": "inferno",
-    "legendary": true
+    "titleFx": "inferno"
   },
   {
     "id": "eternal_reaper",
     "name": "Eternal Reaper",
     "description": "Kill 10,000 adventurers across all runs.",
     "category": "combat",
+    "tier": "gold",
     "metric": "killsTotal",
     "target": 10000,
     "icon": "🌑",
     "title": "The Eternal Reaper",
-    "titleFx": "void",
-    "legendary": true
+    "titleFx": "void"
   },
   {
     "id": "hand_of_midas",
     "name": "Hand of Midas",
     "description": "Hold 100,000 gold in a single run.",
     "category": "economy",
+    "tier": "gold",
     "metric": "goldInRunMax",
     "target": 100000,
     "icon": "✨",
     "title": "Hand of Midas",
-    "titleFx": "goldshine",
-    "legendary": true
+    "titleFx": "goldshine"
   },
   {
     "id": "whole_coven",
     "name": "The Whole Coven",
     "description": "Unlock every companion.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "companionsUnlockedCount",
     "target": 9,
     "icon": "🔮",
     "title": "Keeper of the Coven",
-    "titleFx": "prismatic",
-    "legendary": true
+    "titleFx": "prismatic"
   },
   {
     "id": "the_soulkeeper",
     "name": "The Soulkeeper",
     "description": "Reap the souls of 25,000 fallen adventurers across all runs.",
     "category": "combat",
+    "tier": "gold",
     "metric": "killsTotal",
     "target": 25000,
     "icon": "👻",
     "title": "The Soulkeeper",
-    "titleFx": "spectral",
-    "legendary": true
+    "titleFx": "spectral"
   },
   {
     "id": "veterans_bane",
     "name": "Veteran's Bane",
     "description": "Defeat 300 veteran adventurers across all runs.",
     "category": "combat",
+    "tier": "gold",
     "metric": "veteransKilled",
     "target": 300,
     "icon": "🎖️",
     "title": "Veteran's Bane",
-    "titleFx": "crimson",
-    "legendary": true
+    "titleFx": "crimson"
   },
   {
     "id": "avatar_of_slaughter",
     "name": "Avatar of Slaughter",
     "description": "Kill 50,000 adventurers across all runs.",
     "category": "combat",
+    "tier": "gold",
     "metric": "killsTotal",
     "target": 50000,
     "icon": "🩸",
     "title": "Avatar of Slaughter",
-    "titleFx": "bloodstorm",
-    "legendary": true
+    "titleFx": "bloodstorm"
   },
   {
     "id": "warden_of_the_legion",
     "name": "Warden of the Legion",
     "description": "Field 100 minions at once in a single run.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "minionsInRunMax",
     "target": 100,
     "icon": "💀",
     "title": "Warden of the Legion",
-    "titleFx": "bone",
-    "legendary": true
+    "titleFx": "bone"
   },
   {
     "id": "death_by_design",
     "name": "Death by Design",
     "description": "Kill 100 adventurers with traps in a single day.",
     "category": "combat",
+    "tier": "gold",
     "metric": "trapKillsInDayMax",
     "target": 100,
     "icon": "☣️",
     "title": "Death by Design",
-    "titleFx": "toxic",
-    "legendary": true
+    "titleFx": "toxic"
   },
   {
     "id": "the_warmonger",
     "name": "The Warmonger",
     "description": "Place 1,000 minions across all runs.",
     "category": "variety",
+    "tier": "gold",
     "metric": "minionsPlacedTotal",
     "target": 1000,
     "icon": "⚔️",
     "title": "The Warmonger",
-    "titleFx": "molten",
-    "legendary": true
+    "titleFx": "molten"
   },
   {
     "id": "master_builder",
     "name": "Master Builder",
     "description": "Build 300 non-starter rooms across all runs.",
     "category": "variety",
+    "tier": "gold",
     "metric": "nonStarterRoomsPlacedTotal",
     "target": 300,
     "icon": "🏛️",
     "title": "Master Builder",
-    "titleFx": "blueprint",
-    "legendary": true
+    "titleFx": "blueprint"
   },
   {
     "id": "the_engineer",
     "name": "The Engineer",
     "description": "Place 500 traps across all runs.",
     "category": "variety",
+    "tier": "gold",
     "metric": "trapsPlacedTotal",
     "target": 500,
     "icon": "⚙️",
     "title": "The Engineer",
-    "titleFx": "steel",
-    "legendary": true
+    "titleFx": "steel"
   },
   {
     "id": "menagerie_lord",
     "name": "Menagerie Lord",
     "description": "Field 20 different minion types at once in a single run.",
     "category": "variety",
+    "tier": "gold",
     "metric": "minionTypesActiveMax",
     "target": 20,
     "icon": "🐲",
     "title": "Menagerie Lord",
-    "titleFx": "arcane",
-    "legendary": true
+    "titleFx": "arcane"
   },
   {
     "id": "leaderboard_top3",
     "name": "Bronze Standard",
     "description": "Place in the top 3 on the global leaderboard.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "leaderboardBestRankScore",
     "target": 1,
     "icon": "🥉",
     "title": "The Bronze Crown",
-    "titleFx": "bronze",
-    "legendary": true
+    "titleFx": "bronze"
   },
   {
     "id": "leaderboard_top2",
     "name": "Silver Standard",
     "description": "Reach #2 on the global leaderboard.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "leaderboardBestRankScore",
     "target": 2,
     "icon": "🥈",
     "title": "The Silver Crown",
-    "titleFx": "silver",
-    "legendary": true
+    "titleFx": "silver"
   },
   {
     "id": "leaderboard_top1",
     "name": "Gold Standard",
     "description": "Reach #1 on the global leaderboard.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "leaderboardBestRankScore",
     "target": 3,
     "icon": "🥇",
     "title": "The Golden Crown",
-    "titleFx": "champion",
-    "legendary": true
+    "titleFx": "champion"
   },
 
   {
@@ -707,6 +746,7 @@
     "name": "Disturbance",
     "description": "Experience your first dungeon event.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "eventsSeenTotal",
     "target": 1,
     "icon": "🎲"
@@ -716,6 +756,7 @@
     "name": "Regular Attendee",
     "description": "Experience 5 different dungeon events.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "eventTypesSeenCount",
     "target": 5,
     "icon": "📅",
@@ -727,6 +768,7 @@
     "name": "Open House",
     "description": "Welcome 100 adventurers into your dungeon across all runs.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "adventurersEnteredTotal",
     "target": 100,
     "icon": "🚪"
@@ -736,6 +778,7 @@
     "name": "Landlord",
     "description": "Survive 50 total days across all runs.",
     "category": "mastery",
+    "tier": "bronze",
     "metric": "daysSurvivedTotal",
     "target": 50,
     "icon": "🏚️",
@@ -747,6 +790,7 @@
     "name": "Petty Cash",
     "description": "Earn 10,000 gold across all runs.",
     "category": "economy",
+    "tier": "bronze",
     "metric": "goldEarnedTotal",
     "target": 10000,
     "icon": "🪙"
@@ -756,6 +800,7 @@
     "name": "Brawler",
     "description": "Personally kill 10 adventurers with the boss across all runs.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "bossKillsTotal",
     "target": 10,
     "icon": "🥊"
@@ -765,6 +810,7 @@
     "name": "Acceptable Losses",
     "description": "Lose 25 minions across all runs.",
     "category": "combat",
+    "tier": "bronze",
     "metric": "minionsLostTotal",
     "target": 25,
     "icon": "⚰️",
@@ -776,6 +822,7 @@
     "name": "Persistence",
     "description": "Finish 5 runs.",
     "category": "progression",
+    "tier": "bronze",
     "metric": "runsEndedTotal",
     "target": 5,
     "icon": "🔁",
@@ -787,6 +834,7 @@
     "name": "Tinkerer",
     "description": "Spring 50 traps across all runs.",
     "category": "variety",
+    "tier": "bronze",
     "metric": "trapsFiredTotal",
     "target": 50,
     "icon": "🔧"
@@ -796,6 +844,7 @@
     "name": "Punching Bag",
     "description": "Let your boss soak up 5,000 total damage.",
     "category": "mastery",
+    "tier": "bronze",
     "metric": "bossDamageTakenTotal",
     "target": 5000,
     "icon": "🛡️"
@@ -806,6 +855,7 @@
     "name": "Storm-Tested",
     "description": "Experience 30 dungeon events across all runs.",
     "category": "variety",
+    "tier": "silver",
     "metric": "eventsSeenTotal",
     "target": 30,
     "icon": "🌩️"
@@ -815,6 +865,7 @@
     "name": "Event Connoisseur",
     "description": "Experience 20 different dungeon events.",
     "category": "variety",
+    "tier": "silver",
     "metric": "eventTypesSeenCount",
     "target": 20,
     "icon": "🎟️"
@@ -824,6 +875,7 @@
     "name": "Innkeeper of the Damned",
     "description": "Welcome 2,000 adventurers into your dungeon across all runs.",
     "category": "variety",
+    "tier": "silver",
     "metric": "adventurersEnteredTotal",
     "target": 2000,
     "icon": "🏰"
@@ -833,6 +885,7 @@
     "name": "Eternal Host",
     "description": "Survive 500 total days across all runs.",
     "category": "mastery",
+    "tier": "silver",
     "metric": "daysSurvivedTotal",
     "target": 500,
     "icon": "🕰️",
@@ -844,6 +897,7 @@
     "name": "Magnate",
     "description": "Earn 250,000 gold across all runs.",
     "category": "economy",
+    "tier": "silver",
     "metric": "goldEarnedTotal",
     "target": 250000,
     "icon": "💰",
@@ -855,6 +909,7 @@
     "name": "Headsman",
     "description": "Personally kill 400 adventurers with the boss across all runs.",
     "category": "combat",
+    "tier": "silver",
     "metric": "bossKillsTotal",
     "target": 400,
     "icon": "⚔️",
@@ -866,6 +921,7 @@
     "name": "Martyrmaker",
     "description": "Lose 500 minions across all runs.",
     "category": "combat",
+    "tier": "silver",
     "metric": "minionsLostTotal",
     "target": 500,
     "icon": "💀"
@@ -875,6 +931,7 @@
     "name": "Campaigner",
     "description": "Finish 30 runs.",
     "category": "progression",
+    "tier": "silver",
     "metric": "runsEndedTotal",
     "target": 30,
     "icon": "🗺️"
@@ -884,6 +941,7 @@
     "name": "Munitions Expert",
     "description": "Spring 1,000 traps across all runs.",
     "category": "variety",
+    "tier": "silver",
     "metric": "trapsFiredTotal",
     "target": 1000,
     "icon": "🧨"
@@ -893,6 +951,7 @@
     "name": "Unbreaking",
     "description": "Let your boss soak up 250,000 total damage.",
     "category": "mastery",
+    "tier": "silver",
     "metric": "bossDamageTakenTotal",
     "target": 250000,
     "icon": "🛡️",
@@ -904,98 +963,98 @@
     "name": "Arise",
     "description": "Defeat Sung Jinwoo, the Shadow Monarch.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "shadowMonarchDefeated",
     "target": 1,
     "icon": "👑",
     "reward": { "type": "companion", "id": "necroknight" },
     "title": "King of the Dead",
-    "titleFx": "shadowmonarch",
-    "legendary": true
+    "titleFx": "shadowmonarch"
   },
   {
     "id": "warrior_of_light",
     "name": "Warrior of Light",
     "description": "Defeat the Light Party in the throne-room duel.",
     "category": "mastery",
+    "tier": "gold",
     "metric": "lightPartyDefeated",
     "target": 1,
     "icon": "✨",
     "reward": { "type": "companion", "id": "luna" },
     "title": "Warrior of Light",
-    "titleFx": "lightparty",
-    "legendary": true
+    "titleFx": "lightparty"
   },
   {
     "id": "umbral_ascendant",
     "name": "Umbral Ascendant",
     "description": "Reach boss level 21.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 21,
     "icon": "🌑",
     "title": "The Umbral Ascendant",
-    "titleFx": "void",
-    "legendary": true
+    "titleFx": "void"
   },
   {
     "id": "devourer_of_stars",
     "name": "Devourer of Stars",
     "description": "Reach boss level 22.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 22,
     "icon": "🌟",
     "title": "Devourer of Stars",
-    "titleFx": "arcane",
-    "legendary": true
+    "titleFx": "arcane"
   },
   {
     "id": "herald_of_oblivion",
     "name": "Herald of Oblivion",
     "description": "Reach boss level 23.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 23,
     "icon": "🕳️",
     "title": "Herald of Oblivion",
-    "titleFx": "spectral",
-    "legendary": true
+    "titleFx": "spectral"
   },
   {
     "id": "empyrean_dread",
     "name": "Empyrean Dread",
     "description": "Reach boss level 24.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 24,
     "icon": "☄️",
     "title": "The Empyrean Dread",
-    "titleFx": "inferno",
-    "legendary": true
+    "titleFx": "inferno"
   },
   {
     "id": "the_last_god",
     "name": "The Last God",
     "description": "Reach boss level 25.",
     "category": "progression",
+    "tier": "gold",
     "metric": "maxBossLevel",
     "target": 25,
     "icon": "🌌",
     "title": "The Last God",
-    "titleFx": "prismatic",
-    "legendary": true
+    "titleFx": "prismatic"
   },
   {
     "id": "won_the_reckoning",
     "name": "The Conqueror",
     "description": "Win the Kingdom's Reckoning — break all four acts and put down Aldric.",
     "category": "progression",
+    "tier": "gold",
     "metric": "reckoningWinsTotal",
     "target": 1,
     "icon": "♛",
     "title": "The Hero's End",
     "titleColor": "#c0303a",
-    "titleFx": "bloodstorm",
-    "legendary": true
+    "titleFx": "bloodstorm"
   }
 ]

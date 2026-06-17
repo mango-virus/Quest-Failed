@@ -167,7 +167,7 @@ export class UnlockNotificationOverlay {
       case 'leaderboard': return RANK_ACCENT(entry.rank ?? 3)
       case 'achievement': {
         const def = AchievementSystem.getDefinition?.(entry.id)
-        return TIER_COLOR[def?.legendary ? 'gold' : 'silver']
+        return TIER_COLOR[def?.tier ?? 'silver']
       }
       case 'companion':   return '#ff6ba0'
       case 'title':       return '#ffd964'
@@ -181,7 +181,7 @@ export class UnlockNotificationOverlay {
     switch (entry?.type) {
       case 'achievement': {
         const def  = AchievementSystem.getDefinition?.(entry.id) || {}
-        const tier = def.legendary ? 'GOLD' : 'SILVER'
+        const tier = (def.tier ?? 'silver').toUpperCase()
         return [
           h('div', { className: 'qf-un-medal' }, [
             h('span', { className: 'ic' }, def.icon || '★'),
