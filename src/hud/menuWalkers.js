@@ -64,6 +64,18 @@ const ADV_ROWS    = 29
 const rnd = (a, b) => a + Math.random() * (b - a)
 let WW_ID = 0
 
+// Perf caps (see the title-screen lag fix). The walkers are moving DOM sprites
+// with a live filter + masked soft-light blend, so each on-screen figure has a
+// real per-frame raster cost — keep the simultaneous count low. And spawn only
+// from a small FIXED roster of variants chosen once per session (WW_POOL),
+// rather than pulling randomly from the thousands of baked (class × variant)
+// combos: that bounds the decoded-image memory (no unbounded WW_STRIP growth)
+// and front-loads the one-time canvas strip/decode of each sheet to menu-open,
+// instead of a fresh 25–50ms main-thread stall every time a never-seen variant
+// walks on. Variety still reads fine — ~9 distinct adventurers pacing the wall.
+const WW_MAX  = 5    // hard cap on simultaneous walkers (was 14)
+const WW_POOL = 9    // distinct adventurer variants used per session
+
 // Torch-light falloff (logical px). A walker within this horizontal distance of
 // a torch column gets lit up — brighter + warmer + a soft glow — so figures feel
 // organically lit as they pass under the sconces. Fallback torch centres match
@@ -114,6 +126,10 @@ export class MenuWalkers {
     // replaced by the generated manifest once it loads (see _loadManifest).
     this._vars = { ...WW_FALLBACK }
     this._classes = Object.keys(this._vars)
+    // The fixed per-session spawn pool: ~WW_POOL distinct {cls,v} pairs chosen
+    // once (built in start() from the fallback, rebuilt when the manifest lands)
+    // and pre-stripped, so spawning never decodes a brand-new sheet mid-frame.
+    this._roster = []
   }
 
   // Load the generated walkers manifest so every baked sprite is reachable and
@@ -123,14 +139,41 @@ export class MenuWalkers {
     fetch(WW_MANIFEST_URL).then(r => r.ok ? r.json() : null).then(m => {
       if (!this._alive || !m || typeof m !== 'object') return
       const keys = Object.keys(m)
-      if (keys.length) { this._vars = m; this._classes = keys }
+      if (keys.length) {
+        this._vars = m; this._classes = keys
+        // Rebuild the spawn pool from the real manifest (start() seeded it from
+        // the fallback). One extra strip batch early on; bounded thereafter.
+        this._buildRoster()
+      }
     }).catch(() => {})
+  }
+
+  // Choose the fixed per-session pool of distinct adventurer variants and warm
+  // their stripped-sheet cache up front. Bounds decoded-image memory + moves the
+  // per-sheet canvas decode off the hot path (one-time, at menu open).
+  _buildRoster() {
+    const classes = this._classes
+    if (!classes.length) return
+    const picks = [], seen = new Set()
+    let guard = 0
+    while (picks.length < WW_POOL && guard++ < WW_POOL * 16) {
+      const cls = classes[(Math.random() * classes.length) | 0]
+      const v = 1 + ((Math.random() * (this._vars[cls] || 1)) | 0)
+      const key = cls + ':' + v
+      if (seen.has(key)) continue
+      seen.add(key); picks.push({ cls, v })
+    }
+    this._roster = picks
+    // Pre-strip every roster sheet now (idempotent; cached in WW_STRIP) so the
+    // first time each one actually spawns it's an instant cache hit.
+    for (const p of picks) wwStrip(wwAdvSheet(p.cls, p.v), () => {})
   }
 
   start() {
     if (this._alive) return
     this._alive = true
     this._loadManifest()
+    this._buildRoster()   // seed from the fallback; _loadManifest rebuilds on land
     this._measureBoss()
     this._last = performance.now()
     const loop = (now) => {
@@ -151,9 +194,11 @@ export class MenuWalkers {
   // Trigger a small burst (used on menu open / a button press flourish).
   fire() {
     if (!this._alive) return
-    const n = 2 + ((Math.random() * 3) | 0)
+    // 1–2 figures (was 2–4) — the WW_MAX cap is low now, so a big burst would
+    // just slam straight into the cap and no-op the extras anyway.
+    const n = 1 + ((Math.random() * 2) | 0)
     for (let i = 0; i < n; i++) setTimeout(() => this._spawn('adv'), i * rnd(280, 620))
-    if (Math.random() < 0.7) setTimeout(() => this._spawn('boss'), rnd(300, 1200))
+    if (Math.random() < 0.5) setTimeout(() => this._spawn('boss'), rnd(300, 1200))
   }
 
   destroy() {
@@ -221,7 +266,7 @@ export class MenuWalkers {
     if (kind === 'boss' &&
         (!WW_BOSS[id] || !this._bossMeta[id]?.walk?.sheet ||
          this._walkers.some((w) => w.kind === 'boss'))) kind = 'adv'
-    if (this._walkers.length > 14) return
+    if (this._walkers.length >= WW_MAX) return
     const dir = Math.random() < 0.5 ? 1 : -1
     const wid = ++WW_ID
     const now = performance.now()
@@ -241,8 +286,12 @@ export class MenuWalkers {
         bfps: isRun ? 12 : 8, yoff: rnd(0, 4), animStart: now,
       }
     } else {
-      const cls = this._classes[(Math.random() * this._classes.length) | 0]
-      const v = 1 + ((Math.random() * (this._vars[cls] || 1)) | 0)
+      // Spawn only from the fixed per-session pool (built + pre-stripped in
+      // _buildRoster) so we never decode a never-seen sheet mid-frame.
+      if (!this._roster.length) this._buildRoster()
+      const pick = this._roster[(Math.random() * this._roster.length) | 0]
+        || { cls: this._classes[0] || 'knight', v: 1 }
+      const cls = pick.cls, v = pick.v
       const scale = ADV_PX / 64
       w = {
         id: wid, kind: 'adv', sheet: wwAdvSheet(cls, v), fw: 64, fh: 64, sheetRows: ADV_ROWS,
