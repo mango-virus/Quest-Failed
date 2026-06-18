@@ -27,6 +27,7 @@ import { TitleMusic } from '../systems/TitleMusic.js'
 import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { GameRequests } from '../systems/GameRequests.js'
+import { applyUiScale } from './stageScale.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
@@ -41,6 +42,7 @@ const STORE_KEYS = {
   particles: 'qf.video.particles',
   palette:   'qf.video.palette',
   fullscreen: 'qf.video.fullscreen',
+  uiScale:   'qf.video.uiScale',
   dungeonVignette: 'qf.video.dungeonVignette',
   confirmRun: 'qf.gameplay.confirmRun',
   autosave:   'qf.gameplay.autosave',
@@ -53,7 +55,7 @@ const DEFAULTS = {
   speechSfx: true, muteUnfocused: true,
   scanlines: true, vignette: true, dungeonVignette: true,
   shake: true, particles: 'high',
-  palette: 'crypt', fullscreen: false,
+  palette: 'crypt', fullscreen: false, uiScale: 'auto',
   confirmRun: true, autosave: true, tutorials: true,
   companion: 'normal',
 }
@@ -176,11 +178,15 @@ export class SettingsOverlay {
     if (k === 'scanlines' || k === 'vignette' || k === 'fullscreen' || k === 'dungeonVignette') {
       this._applyVideoFlags(this._draft)
     }
+    if (k === 'uiScale') applyUiScale(this._uiScalePref(v))   // live preview
     if (k === 'master' || k === 'music' || k === 'sfx') {
       this._applyAudio(this._draft)
     }
     this._rerender()
   }
+
+  // Map a stored uiScale value ('auto' | '1.25' …) to a stageScale preview pref.
+  _uiScalePref(v) { return v === 'auto' ? 'auto' : Number(v) }
 
   _rerender() { this._overlay.setBody(this._renderBody()) }
 
@@ -199,6 +205,7 @@ export class SettingsOverlay {
     this._applyAudio(this._draft)
     this._applyVideoFlags(this._draft)
     this._applyPalette(this._draft.palette)
+    applyUiScale(null)   // clear preview → read the now-saved setting
     EventBus.emit('SETTINGS_CHANGED')
     this._overlay.close()
   }
@@ -207,6 +214,7 @@ export class SettingsOverlay {
     this._applyPalette(this._savedState.palette)
     this._applyVideoFlags(this._savedState)
     this._applyAudio(this._savedState)
+    applyUiScale(null)   // drop any live preview → revert to the saved scale
     this._draft = { ...this._savedState }
     this._requests?.close?.(); this._requests = null
     this._onClose?.()
@@ -218,6 +226,7 @@ export class SettingsOverlay {
     this._applyPalette(this._draft.palette)
     this._applyVideoFlags(this._draft)
     this._applyAudio(this._draft)
+    applyUiScale(this._uiScalePref(this._draft.uiScale))   // 'auto'
     this._rerender()
   }
 
@@ -362,6 +371,10 @@ export class SettingsOverlay {
     ]
     if (this._tab === 'video') return [
       this._lever('FULLSCREEN', 'fullscreen'),
+      this._seg('UI SCALE', 'uiScale', [
+        { v: 'auto', l: 'AUTO' }, { v: '1', l: '100%' }, { v: '1.25', l: '125%' },
+        { v: '1.5', l: '150%' }, { v: '2', l: '200%' },
+      ]),
       this._lever('CRT SCANLINES', 'scanlines'),
       this._lever('EDGE VIGNETTE', 'vignette'),
       this._lever('DUNGEON VIGNETTE', 'dungeonVignette'),

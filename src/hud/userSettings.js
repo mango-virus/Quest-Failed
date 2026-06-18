@@ -18,6 +18,7 @@ const KEY = {
   tutorials:       'qf.gameplay.tutorials',
   companion:       'qf.gameplay.companion',
   speechSfx:       'qf.audio.speechSfx',
+  uiScale:         'qf.video.uiScale',
 }
 
 const DEFAULT_BOOL = {
@@ -128,6 +129,19 @@ export const userSettings = {
   isCompanionSilent() {
     const m = this.companionMode()
     return m === 'off' || m === 'mute'
+  },
+
+  // UI scale preference for the DOM HUD. 'auto' (default) lets stageScale pick a
+  // crisp integer factor from the monitor; a number (0.75..2) is an explicit
+  // override the player set via Options. Returns 'auto' | number.
+  uiScalePref() {
+    try {
+      const raw = localStorage.getItem(KEY.uiScale)
+      if (raw == null || raw === 'auto') return 'auto'
+      const n = Number(raw)
+      if (Number.isFinite(n) && n >= 0.5 && n <= 3) return n
+    } catch {}
+    return 'auto'
   },
 
   // 'off' | 'low' | 'med' | 'high'. Numeric multiplier for emitters.
