@@ -1,0 +1,13 @@
+{
+  "name": "quest-failed-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron desktop shell for Quest Failed (Phase 1: offline-capable wrapper around the existing static web game).",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

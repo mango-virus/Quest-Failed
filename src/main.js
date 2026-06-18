@@ -81,8 +81,16 @@ const config = {
     RoomTileEditor,
   ],
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // RESIZE: the drawing buffer matches the physical window size, so the canvas
+    // renders 1:1 with the display — crisp at ANY window size / aspect, with no
+    // CSS resampling (the soft, blurry-when-not-1920×1080 problem FIT had). The UI
+    // cameras (UIKit.applyUiCamera) and the gameplay camera clamp (Game.js) are
+    // built for this: they derive their zoom from the live canvas size, so a fixed
+    // logical unit (designH=720) maps to the canvas height and layouts stay put.
+    // On non-16:9 windows the playfield simply shows more space instead of
+    // letterboxing. The DOM HUD scales independently to a 1920×1080 stage
+    // (hud/stageScale.js) and overlays the canvas.
+    mode: Phaser.Scale.RESIZE,
   },
   render: {
     antialias:   true,
@@ -159,7 +167,6 @@ window.__game.scale.on('resize', () => {
 // but un-maximizing a browser window on Windows can race its ResizeObserver.
 // We fire refresh() inside requestAnimationFrame so the browser has completed
 // CSS layout before Phaser reads offsetWidth/offsetHeight on the container.
-// (A direct call on 'resize' can still see the stale pre-reflow dimensions.)
 window.addEventListener('resize', () => {
   requestAnimationFrame(() => window.__game?.scale?.refresh())
 })

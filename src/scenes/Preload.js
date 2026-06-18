@@ -958,6 +958,18 @@ export class Preload extends Phaser.Scene {
       })
     }
 
+    // Pixel-art room/door skins, theme sprites and decor load with the game's
+    // default LINEAR filter (antialias:true in main.js) and go BLURRY when the
+    // dungeon camera magnifies them. Force NEAREST per-texture — mirrors the
+    // same fix already applied to boss/adventurer/minion sheets — so the dungeon
+    // view stays crisp. Per-texture filter, so this is idempotent.
+    for (const key of this.textures.getTextureKeys()) {
+      if (/^(roomskin|doorskin|themesprite|decor)-/.test(key)) {
+        const t = this.textures.get(key)
+        if (t?.setFilter) t.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      }
+    }
+
     if (manifest)      ThemeManager.load(manifest)
     if (decorManifest) DecorManager.load(decorManifest)
     startMain()

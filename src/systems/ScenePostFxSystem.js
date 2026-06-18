@@ -1,78 +1,83 @@
 import { EventBus } from './EventBus.js'
 
-// ScenePostFxSystem — VFX Frontier #1: a scene-wide post-processing pipeline on
-// the Game camera (the dungeon view). Three layers, composed on the main camera's
-// postFX chain:
-//   1. ColorMatrix GRADE — a cohesive dark-fantasy look that shifts by MOOD
-//      (calm cool night → warm day → hot high-contrast boss fight → desaturated
-//      death → golden victory). Moods cross-fade smoothly.
-//   2. BLOOM — soft scene bloom so torches, fire, holy beams + every additive
-//      VFX glow blooms naturally instead of reading flat.
-//   3. VIGNETTE — gentle dark framing that tightens in boss fights / on death.
-// Plus a transient BARREL+bloom PULSE for big hits (impact lens-warp).
+// ScenePostFxSystem — scene-wide colour grade + vignette for the dungeon view.
+// Two layers, applied to the Phaser canvas:
+//   1. GRADE — a cohesive dark-fantasy look that shifts by MOOD (calm cool night
+//      → warm day → hot high-contrast boss fight → desaturated death → golden
+//      victory). Moods cross-fade smoothly.
+//   2. VIGNETTE — gentle dark framing that tightens in boss fights / on death.
+// Plus a transient brightness/contrast PULSE for big hits.
 //
-// Only the Phaser canvas (dungeon) is affected — the DOM HUD sits above the
-// canvas and stays crisp, which is exactly what we want (grade the world, keep
-// the UI sharp).
+// ⚠ IMPLEMENTED IN CSS, NOT PHASER POSTFX (2026-06-17). This used to use the
+// camera's postFX chain (ColorMatrix + Bloom + Vignette). That softened the
+// dungeon: Phaser routes a postFX'd camera through an offscreen render target,
+// and when the window is resized BEFORE the Game scene exists (e.g. the player
+// maximises at the main menu, then starts a run) that target is the wrong size →
+// the whole dungeon renders blurry, and it can't be refreshed at runtime. Bloom
+// (downsampled targets) made it severe; even plain grade/vignette softened
+// mildly. CSS `filter` on the <canvas> is composited by the browser at native
+// display resolution — no offscreen resample — so the pixel art stays perfectly
+// crisp at any size, while we keep the exact mood look. The DOM HUD sits above
+// the canvas and is unaffected (it has its own crisp rendering).
 //
-// WebGL-only (postFX needs the GPU); no-ops gracefully on Canvas + when the
-// `qf.gameplay.postfx` setting is 'false'. Mood reacts to EventBus combat/run
-// events. EventBus listeners are torn down in destroy() (leak-safe).
+// Bloom is dropped (Phaser's built-in blurred the base; CSS has no cheap
+// bright-pass bloom). Re-introducing glow later = a custom threshold bloom shader
+// rendered to a SEPARATE additive layer, never the base camera.
 //
-// TUNING: mood numbers tuned by eye in the preview (2026-06-09 pass). The boss
-// mood was reworked off its first-pass values — "redder/tenser" applied to an
-// already torch-warm, now-lit dungeon read as a monochrome orange wash. Tension
-// now comes from CONTRAST + a tight VIGNETTE + a slight DESATURATE + NEUTRAL-warm
-// bloom; the danger COLOUR is supplied by the boss's own red light pool +
-// combat-juice red flashes, not the whole-screen grade. Re-tune via
-// __qfDev.postfx({...}) then bake the winners here.
+// No-ops gracefully when the `qf.gameplay.postfx` setting is 'false'. Mood reacts
+// to EventBus combat/run events; listeners are torn down in destroy() (leak-safe).
 
 function _setting(key, def) {
   try { const v = localStorage.getItem(key); return v == null ? def : v } catch { return def }
 }
 function _postFxEnabled() { return _setting('qf.gameplay.postfx', 'true') !== 'false' }
 
-// Per-mood grade + bloom + vignette targets. sat/bright/contrast are ColorMatrix
-// deltas (0 = identity); hue in degrees; bloom strength/blur; bloomColor tints
-// the glow; vig strength + radius (smaller radius = tighter dark frame).
+// Per-mood grade + vignette targets. sat/bright/contrast are deltas (0 = no
+// change); hue in degrees; vig = vignette strength (0–1); vigR = vignette radius
+// (smaller = tighter/darker frame). These map onto CSS:
+//   saturate(1+sat) brightness(1+bright) contrast(1+contrast) hue-rotate(hue deg)
 const MOODS = {
-  day:     { sat: -0.10, bright: 0.05,  contrast: 0.07, hue: 0,  bloom: 0.55, bloomBlur: 0.9, bloomColor: 0xffffff, vig: 0.20, vigR: 0.94 },
-  night:   { sat: -0.18, bright: 0.02,  contrast: 0.09, hue: -6, bloom: 0.50, bloomBlur: 1.0, bloomColor: 0xbcd0ff, vig: 0.31, vigR: 0.86 },
-  boss:    { sat: -0.06, bright: 0.00,  contrast: 0.19, hue: 1,  bloom: 0.70, bloomBlur: 1.05, bloomColor: 0xfff0e2, vig: 0.45, vigR: 0.77 },
-  death:   { sat: -0.80, bright: -0.08, contrast: 0.05, hue: 0,  bloom: 0.30, bloomBlur: 0.8, bloomColor: 0x99a0b0, vig: 0.60, vigR: 0.70 },
-  victory: { sat:  0.16, bright: 0.07,  contrast: 0.12, hue: 0,  bloom: 1.05, bloomBlur: 1.2, bloomColor: 0xffe9a8, vig: 0.20, vigR: 0.98 },
+  day:     { sat: -0.10, bright: 0.05,  contrast: 0.07, hue: 0,  vig: 0.20, vigR: 0.94 },
+  night:   { sat: -0.18, bright: 0.02,  contrast: 0.09, hue: -6, vig: 0.31, vigR: 0.86 },
+  boss:    { sat: -0.06, bright: 0.00,  contrast: 0.19, hue: 1,  vig: 0.45, vigR: 0.77 },
+  death:   { sat: -0.80, bright: -0.08, contrast: 0.05, hue: 0,  vig: 0.60, vigR: 0.70 },
+  victory: { sat:  0.16, bright: 0.07,  contrast: 0.12, hue: 0,  vig: 0.20, vigR: 0.98 },
 }
-const KEYS = ['sat', 'bright', 'contrast', 'hue', 'bloom', 'bloomBlur', 'vig', 'vigR']
+const KEYS = ['sat', 'bright', 'contrast', 'hue', 'vig', 'vigR']
 
 export class ScenePostFxSystem {
   constructor(scene, gameState) {
     this._scene = scene
     this._gameState = gameState
-    this._cam = scene.cameras?.main ?? null
     this._enabled = false
     this._mood = 'day'
     this._cur = { ...MOODS.day }
     this._target = { ...MOODS.day }
     this._pulse = 0
     this._dirty = true
-    this._fx = { grade: null, bloom: null, vignette: null, barrel: null }
+    this._canvas = null   // the Phaser <canvas> we grade via CSS filter
+    this._vigEl = null    // the vignette overlay div (over canvas, under HUD)
     this._listeners = []
 
-    if (this._cam?.postFX && this._scene.sys?.game?.renderer?.type === 2 && _postFxEnabled()) {
-      this.enable()
-    }
+    if (_postFxEnabled()) this.enable()
     this._wireEvents()
   }
 
   enable() {
-    if (this._enabled || !this._cam?.postFX) return
+    if (this._enabled) return
+    const canvas = this._scene.sys?.game?.canvas
+    if (!canvas) return
+    this._canvas = canvas
     try {
-      // Order = render order. Grade first (recolour), then bloom (glow the graded
-      // image), then vignette (frame), then barrel (lens — usually 0).
-      this._fx.grade    = this._cam.postFX.addColorMatrix()
-      this._fx.bloom    = this._cam.postFX.addBloom(0xffffff, 1, 1, this._cur.bloomBlur, this._cur.bloom, 4)
-      this._fx.vignette = this._cam.postFX.addVignette(0.5, 0.5, this._cur.vigR, this._cur.vig)
-      this._fx.barrel   = this._cam.postFX.addBarrel(0)
+      // Vignette: a non-interactive overlay that fills the canvas's container, so
+      // it sits OVER the dungeon canvas but UNDER the DOM HUD (#hud-root). Pure
+      // CSS radial-gradient — no canvas resample, stays crisp.
+      const host = canvas.parentNode || document.body
+      const el = document.createElement('div')
+      el.className = 'qf-scene-vignette'
+      el.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:2;mix-blend-mode:normal;'
+      host.appendChild(el)
+      this._vigEl = el
       this._enabled = true
       this._dirty = true
       this._apply()
@@ -81,8 +86,9 @@ export class ScenePostFxSystem {
 
   disable() {
     if (!this._enabled) return
-    try { this._cam.postFX.clear() } catch (e) {}
-    this._fx = { grade: null, bloom: null, vignette: null, barrel: null }
+    try { if (this._canvas) this._canvas.style.filter = '' } catch (e) {}
+    try { if (this._vigEl?.parentNode) this._vigEl.parentNode.removeChild(this._vigEl) } catch (e) {}
+    this._vigEl = null
     this._enabled = false
   }
 
@@ -95,7 +101,7 @@ export class ScenePostFxSystem {
     if (instant) { this._cur = { ...m }; this._dirty = true }
   }
 
-  // Transient impact punch — brief barrel lens-warp + bloom bump. strength ~0.5–1.5.
+  // Transient impact punch — brief brightness/contrast flash. strength ~0.5–1.5.
   pulse(strength = 1) { this._pulse = Math.min(2, this._pulse + strength); this._dirty = true }
 
   update(delta) {
@@ -116,26 +122,22 @@ export class ScenePostFxSystem {
   _apply() {
     this._dirty = false
     const p = this._cur
-    const cm = this._fx.grade
-    if (cm) {
-      cm.reset()
-      if (p.sat)      cm.saturate(p.sat, true)
-      if (p.bright)   cm.brightness(1 + p.bright, true)
-      if (p.contrast) cm.contrast(p.contrast, true)
-      if (p.hue)      cm.hue(p.hue, true)
+    // GRADE → CSS filter on the canvas (composited at native res → crisp). A pulse
+    // adds a brief brightness/contrast punch.
+    if (this._canvas) {
+      const sat      = Math.max(0, 1 + p.sat)
+      const bright   = Math.max(0, 1 + p.bright + this._pulse * 0.10)
+      const contrast = Math.max(0, 1 + p.contrast + this._pulse * 0.08)
+      this._canvas.style.filter =
+        `saturate(${sat.toFixed(3)}) brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)}) hue-rotate(${p.hue.toFixed(1)}deg)`
     }
-    if (this._fx.bloom) {
-      this._fx.bloom.strength     = Math.max(0, p.bloom + this._pulse * 0.5)
-      this._fx.bloom.blurStrength = p.bloomBlur
-      try { this._fx.bloom.color = p.bloomColor } catch (e) {}
-    }
-    if (this._fx.vignette) {
-      this._fx.vignette.strength = p.vig
-      this._fx.vignette.radius   = p.vigR
-    }
-    if (this._fx.barrel) {
-      // subtle lens-warp only while a pulse is decaying
-      this._fx.barrel.amount = 1 + this._pulse * 0.06
+    // VIGNETTE → radial-gradient overlay. vigR sets where darkening begins (as a %
+    // of the radius from centre); vig sets how dark the frame gets.
+    if (this._vigEl) {
+      const inner = Math.round(Math.max(0, Math.min(1, p.vigR)) * 100)
+      const strength = Math.max(0, Math.min(1, p.vig + this._pulse * 0.05))
+      this._vigEl.style.background =
+        `radial-gradient(ellipse 74% 74% at 50% 50%, rgba(0,0,0,0) ${inner}%, rgba(0,0,0,${strength.toFixed(3)}) 116%)`
     }
   }
 

@@ -20,7 +20,14 @@ function _fit() {
   const vw = window.innerWidth
   const vh = window.innerHeight
   const scale = Math.min(vw / DESIGN_W, vh / DESIGN_H)
-  _stage.style.transform = `translate(-50%, -50%) scale(${scale})`
+  // Use CSS `zoom` (not `transform: scale()`) to size the 1920×1080 stage to the
+  // window. `transform: scale()` bitmap-scales a composited layer, which softens
+  // the pixel-font text at any non-1.0 factor (i.e. any window ≠ 1920×1080).
+  // `zoom` instead re-lays-out and re-rasterizes the content at the scaled size,
+  // so text stays crisp. Electron/Chromium support it natively. translate keeps
+  // centering — its percentages resolve against the (zoomed) border box.
+  _stage.style.zoom = scale
+  _stage.style.transform = 'translate(-50%, -50%)'
 }
 
 // Call once when any DOM overlay mounts into #hud-stage. Installs a

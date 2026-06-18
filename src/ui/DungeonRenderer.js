@@ -773,6 +773,10 @@ export class DungeonRenderer {
       carveDoorOpening(img.data, w, h, Balance.DOOR_SKIN_BLACK_THRESHOLD ?? 24)
       ctx.putImageData(img, 0, 0)
       ct.refresh()
+      // Match the source skin's NEAREST filter — a fresh canvas texture defaults
+      // to the game's LINEAR (antialias:true), which would blur this open-door
+      // frame copy when the camera magnifies it.
+      if (ct.setFilter) ct.setFilter(Phaser.Textures.FilterMode.NEAREST)
       return frameKey
     } catch (e) {
       if (tex.exists(frameKey)) tex.remove(frameKey)
