@@ -128,6 +128,12 @@ const THEME_KITS = {
   wishing_well:        ['well', 'skull_pile', 'skull', 'sack'],
   false_exit:          ['skel_floor', 'skull'],
   entry_hall:          [],
+  // Rooms whose floor IS the feature (a tar pool / void sigil / brambles drawn
+  // by their own renderers) get NO scatter decor — generic bones/debris would
+  // render over the pool and read as junk floating on the surface.
+  tar_pit:             [],
+  silence_ward:        [],
+  thorn_hall:          [],
   _default:            ['skel_floor', 'skull'],
 }
 

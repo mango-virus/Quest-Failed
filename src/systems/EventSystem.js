@@ -1457,16 +1457,19 @@ export class EventSystem {
       armory:              { name: 'Weaponsmith',       description: 'Armory ATK aura doubled' },
       library_of_whispers: { name: "Oracle's Tome",     description: '+1 boss XP per kill, per Library' },
       watchtower:          { name: 'Cannonade',         description: '2× Watchtower first-strike damage' },
-      wandering_gate:      { name: 'Skewed Gate',       description: 'Boss-chamber teleport 5% → 15%' },
+      wandering_gate:      { name: 'Skewed Gate',       description: 'Always flings them to the farthest room' },
       veil_of_forgetting:  { name: 'Deeper Veil',       description: 'Also wipes 2-hop neighbour intel' },
       catacombs:           { name: 'Restless Tomb',     description: '+1 Revenant per Catacombs (3 max)' },
       mimic_vault:         { name: 'Hungry Vault',      description: '+2 mimic slots per Vault' },
       hall_of_trials:      { name: 'Champion Trials',   description: 'Tier-3 spawn instead of Tier-2' },
-      wishing_well:        { name: 'Cursed Well',       description: 'Curse chance 50% → 70%' },
+      wishing_well:        { name: 'Cursed Well',       description: 'Boon chance 25% → 10%' },
       false_exit:          { name: 'Painful Landing',   description: 'Teleported fleers take 25% maxHp' },
       hall_of_madness:     { name: 'Total Frenzy',      description: 'Friendly-fire 60% → 90%' },
       throne_room:         { name: 'Tyrant Throne',     description: 'Mini-boss +50% HP and +50% ATK' },
       sanctum:             { name: "Sanctum's Heart",   description: 'Boss HP regen doubled' },
+      tar_pit:             { name: 'Sucking Mire',       description: 'Also roots adventurers on entry' },
+      silence_ward:        { name: 'Dead Zone',          description: 'Silenced adventurers take +15% damage' },
+      thorn_hall:          { name: 'Iron Thorns',        description: '50% reflect, and catches ranged attackers' },
     }
   }
 

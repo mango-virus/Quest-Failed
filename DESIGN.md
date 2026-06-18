@@ -1325,7 +1325,7 @@ _(no new rooms — see Library of Whispers moved to L2)_
 
 | Room | Cap | Effect |
 |---|---|---|
-| **Wandering Gate** | 1 | On entry, % chance to teleport adventurer: **60%** nearby room, **35%** any built room, **5%** Boss Chamber. |
+| **Wandering Gate** | 1 | On entry, % chance to teleport adventurer: **60%** nearby room, **35%** any built room, **5%** Boss Chamber. *(deviation noted 2026-06-17 — reworked to "Disorienting Gate": the 5% Boss-Chamber bucket was a room the PLAYER builds that occasionally handed an invader a free trip to the boss. Now a pure setback — distance-weighted scatter to a random NON-boss room, biased toward rooms far from the boss [flung back toward the entrance], + path wipe. Tinkered = always the farthest room. See "Room balance + additions 2026-06-17".)* |
 | **Veil of Forgetting** | 1 | Each Night Phase, erases adventurer intel of all rooms **directly door-connected** to this one. |
 
 #### L7 unlocks
@@ -1340,7 +1340,7 @@ _(no new rooms — see Library of Whispers moved to L2)_
 
 | Room | Cap | Effect |
 |---|---|---|
-| **Wishing Well** | 1 | On entry, coin flip. **Heads:** adventurer gains +ATK and +HP buff. **Tails:** adventurer gains "Marked" (skull icon, takes +50% damage from minions for the rest of the day). |
+| **Wishing Well** | 1 | On entry, coin flip. **Heads:** adventurer gains +ATK and +HP buff. **Tails:** adventurer gains "Marked" (skull icon, takes +50% damage from minions for the rest of the day). *(deviation noted 2026-06-17 — "Flip the odds": heads buffing the invader meant the player's own room strengthened invaders half the time. Now 75% Marked / 25% small boon (+2 ATK / +10 maxHp, no free heal); a boon'd adventurer drops +15 bonus gold when killed, so the boon still pays the player. Tinkered "Cursed Well" = 90% Marked. See "Room balance + additions 2026-06-17".)* |
 | **False Exit** | 1 | Has its own entry door. Adventurers fleeing the dungeon have a chance to flee here instead of the Entry Hall. Trying to leave teleports them to a random built room. |
 
 #### L9 unlocks
@@ -1354,7 +1354,7 @@ _(no new rooms — see Library of Whispers moved to L2)_
 
 | Room | Cap | Effect |
 |---|---|---|
-| **Sanctum** | 1 | Passive: boss regenerates HP between fights. Aura: minions in directly door-connected rooms also regen. |
+| **Sanctum** | 1 | Passive: boss regenerates HP between fights. Aura: minions in directly door-connected rooms also regen. *(balance note 2026-06-17 — boss regen changed from a flat 8 HP/round to **1.5% maxHP/round** per Sanctum so it stays relevant at its lv15 unlock [~84 HP/round vs the old laughable 8]. Tinkered = 3%/round.)* |
 
 ### Cap scaling table
 
@@ -1384,6 +1384,27 @@ Room `goldCost` values were retuned so price reflects **how powerful the room's 
 The original 9-room list above (Hall of Echoes, Healing Fountain, Necropolis Wing, Colosseum, Mirror Maze, Obelisk Room, Treasure Room, plus the existing additions Trap Room, Prison Block, Serpent Pit, Power Core, Secret Passage, Lava Floor, Collapsing Pillars) is **superseded by this redesign**. Their behavior either (a) maps onto a new room, (b) becomes a trap in a future Trap Factory pass, or (c) is dropped. The existing handler code remains in place as orphaned no-ops until a follow-up cleanup phase removes it.
 
 The False Exit, Crypt, Armory, Barracks, Guard Post, Entry Hall, Boss Chamber, and Corridor are kept (with reworked behavior where noted).
+
+## Room balance + additions 2026-06-17 (LOCKED — user sign-off in session)
+
+A balance pass over existing rooms plus three new rooms. User approved each item explicitly.
+
+### Balance fixes to existing rooms
+
+1. **Garrison-spawn scaling fix.** Crypt (Risen Bones), Hall of Trials (elite), Catacombs (Revenant), and Mimic Vault (mimics) spawned at **flat base tier stats** and only rescaled on a *future* boss level-up — so at high boss level they were near-useless chaff. Now they scale to the **current boss level at spawn time** via `applyMinionScaling` (the same helper roster minions use), matching the Throne Room which already did this. Throne Room is unchanged (it pre-scales via `statsOverride`; scaling again would double-count).
+2. **Sanctum** boss regen: flat 8 HP/round → **1.5% maxHP/round** per Sanctum (3% tinkered).
+3. **Armory** minion buff: flat +2 ATK → **+15% attack** per swing (+30% tinkered).
+4. **Wandering Gate → Disorienting Gate** and **Wishing Well → Flip the odds** — see the annotated rows above. (Wandering Gate: implemented as "biased toward rooms far from the **boss**" rather than the loosely-worded "far from the exit," because for an advancing adventurer "far from exit" = closer to the boss, which would re-introduce the helping-the-invader problem the rework removes.)
+
+### New rooms (3)
+
+| Room | id | Unlock (boss lv) | Gold | Cap | Effect |
+|---|---|---|---|---|---|
+| **Tar Pit** | `tar_pit` | 4 | 30 (+22/step) | 1→3 | Control room. Adventurers *inside* move at **50% speed** (folded into the floored slow group — stacks with webs/chills, can't trip the path watchdogs). Minions unaffected. A chokepoint you route the path through into traps/minions. **Tinkered "Sucking Mire":** also **roots 0.75s on entry**, then the slow. VFX: organic bubbling tar pool (lobed pool + popping bubbles), animated. |
+| **Silence Ward** | `silence_ward` | 6 | 34 (flat) | 1→2 | Anti-caster. Adventurers in this room **and directly door-connected rooms** can't use class abilities (reuses the `_silencedUntil` / anti-magic silence path). Shuts off Cleric heals / Mage & Necro nukes / Bard songs in the kill pocket. **Tinkered "Dead Zone":** silenced adventurers also take **+15% damage**. VFX: void/null sigil (geometric OK — it's a ward) + suppression pulse over connected doorways. |
+| **Bramble Hall** | `thorn_hall` | 5 | 32 (+24/step) | 1→3 | Punish-attacker. When an adventurer makes a **melee** attack while standing here, **30% of damage dealt reflects back** to them (reuses `MinionAbilities.thornsReflect`). Pairs with a tanky minion in the room. **Tinkered "Iron Thorns":** reflect **50%** and also catches **ranged** attackers. VFX: bramble/spike silhouettes erupting at the attacker's feet on reflect (custom path, not a ring). |
+
+VFX bar for all three: organic + detailed, no generic rings (user reminder in this session). Ambient persistent VFX (tar pool, void sigil) go in dedicated per-room renderers modelled on `CobwebRenderer`/`FountainRenderer`; event bursts (mire root, thorns reflect, silence pulse) compose from `AbilityVfx`.
 
 ---
 

@@ -13,6 +13,7 @@ import { TILE, entryDoorTile, entryDoorWorldCenter, entryDoorSide } from './Dung
 import { minionLabel, roomLabel } from '../util/displayNames.js'
 import { applyCrowdSeparation } from '../util/crowdSeparation.js'
 import { AbilityVfx }        from '../ui/AbilityVfx.js'
+import { applyMinionScaling } from '../entities/Minion.js'
 
 const TS = Balance.TILE_SIZE
 
@@ -2829,7 +2830,10 @@ export class AISystem {
     // floored slow group so a web/chill noticeably drags a confident mover but
     // can't push the step low enough to trip the stagnation/oscillation watchdogs.
     const minionSlowMul = MinionAbilities.slowMult(adv, this._scene?.time?.now ?? 0)
-    const slowMul  = Math.max(0.5, speedMul * nerveMul * creepMul * minionSlowMul)
+    // Tar Pit room — halve movement while inside (slows fleers too; minions
+    // are immune via the helper's room check).
+    const tarPitMul = this._tarPitSlowMul(adv)
+    const slowMul  = Math.max(0.5, speedMul * nerveMul * creepMul * minionSlowMul * tarPitMul)
     const stepPx   = (adv.stats.speed * slowMul * fleeMul * songMul * cheaterSpdMul * roarSpdMul * berserkMul * cohesionMul * TS * delta) / 1000
 
     if (stepPx >= dist || dist < 0.5) {
@@ -3544,6 +3548,17 @@ export class AISystem {
     // "Familiar" rooms = the starter set
     const isFamiliar = (room.definitionId ?? '').startsWith('starter_')
     return isFamiliar ? 1 : Balance.PARANOID_SPEED_MULTIPLIER
+  }
+
+  // Tar Pit (room 2026-06-17) — adventurers wading through an active Tar Pit
+  // move at half speed. Folded into the FLOORED slow group at the call site
+  // (so it stacks with webs/chills but the 0.5 floor keeps it from tripping
+  // the stagnation/oscillation watchdogs). Minions are immune — it only
+  // mires the invaders, never the dungeon's own units.
+  _tarPitSlowMul(adv) {
+    const room = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
+    if (!room || room.definitionId !== 'tar_pit' || room.isActive === false) return 1
+    return 0.5
   }
 
   // Nerve-driven body language (AI overhaul). Reads adv.mood (set by NerveSystem):
@@ -5201,7 +5216,7 @@ export class AISystem {
           const tx = adv.tileX, ty = adv.tileY
           const baseStats = revenantDef.baseStats ?? { hp: 50, attack: 10, defense: 5, speed: 1 }
           this._gameState.minions ??= []
-          this._gameState.minions.push({
+          const revenant = {
             instanceId:    `revenant_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             definitionId:  revenantDef.id,
             name:          'Revenant',
@@ -5218,7 +5233,17 @@ export class AISystem {
             tags: [...(revenantDef.tags ?? []), 'undead'],
             equippedGear: [], killHistory: [], evolutionHistory: [],
             timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
-          })
+          }
+          // Scale to the current boss level at spawn so Catacombs revenants
+          // don't lag the boss's power curve (matches roster minions, which
+          // are created via createMinion({bossLevel})). Without this they sit
+          // at flat T2 stats until the next BOSS_LEVELED_UP rescale.
+          applyMinionScaling(
+            revenant,
+            this._gameState.boss?.level ?? 1,
+            this._gameState.meta?.dayNumber ?? 1,
+          )
+          this._gameState.minions.push(revenant)
           EventBus.emit('CATACOMBS_REVENANT_RAISED', {
             roomId: deathRoom.instanceId,
             fromAdv: adv.instanceId,
@@ -5328,6 +5353,11 @@ export class AISystem {
     // a flat 1000-gold bounty. Hard override so it's exactly 1000 (no pact /
     // event / veteran inflation, and no double with the normal kill gold).
     if (adv._shadowMonarch) goldGained = 1000
+    // Wishing Well boon bounty — an adventurer blessed by a Wishing Well
+    // (the rare good-for-them flip) drops bonus gold when killed, so the
+    // room pays off even on its boon outcome. Added after the hard
+    // overrides so it layers on top rather than being clobbered.
+    if (adv.flags?.wishingWellBoon) goldGained += Balance.WISHING_WELL_BOON_KILL_GOLD ?? 15
     this._gameState.player.gold += goldGained
     this._gameState.player.totalKills++
     // Record the loot drop on both the live adv (the ADVENTURER_DIED

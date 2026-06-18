@@ -20,6 +20,7 @@
 import { EventBus } from './EventBus.js'
 import { Balance, passiveIncomeMul }  from '../config/balance.js'
 import { getEligibleClasses } from '../util/classSpawn.js'
+import { applyMinionScaling } from '../entities/Minion.js'
 
 export class RoomBehaviorSystem {
   constructor(scene, gameState) {
@@ -339,6 +340,14 @@ export class RoomBehaviorSystem {
         equippedGear: [], killHistory: [], evolutionHistory: [],
         timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
       }
+      // Scale the Risen Bones to the current boss level at spawn so the
+      // Crypt stays relevant late-game (matches roster minions). Without
+      // this they sit at flat T1 stats — useless next to a high-level boss.
+      applyMinionScaling(
+        m,
+        this._gameState.boss?.level ?? 1,
+        this._gameState.meta?.dayNumber ?? 1,
+      )
       this._gameState.minions ??= []
       this._gameState.minions.push(m)
       EventBus.emit('CRYPT_SPAWNED', { minion: m, roomId: room.instanceId })
@@ -400,6 +409,7 @@ export class RoomBehaviorSystem {
       const m = this._makeGarrison(mimicDef, room, {
         tileX: x, tileY: y,
         namePrefix: 'Mimic',
+        scaleToBoss: true,
         extra: {
           isMimicVaultSpawn: true,
           isMimic:    true,
@@ -558,6 +568,7 @@ export class RoomBehaviorSystem {
     const cy = room.gridY + Math.floor(room.height / 2)
     const m = this._makeGarrison(def, room, {
       tileX: cx, tileY: cy,
+      scaleToBoss: true,
       extra: { isHallOfTrialsSpawn: true },
     })
     this._gameState.minions.push(m)
@@ -603,6 +614,18 @@ export class RoomBehaviorSystem {
       this._fireWatchtowerStrike(adventurer, room)
     }
 
+    // Tar Pit (room 2026-06-17) — the base 50% slow is applied per-tick in
+    // AISystem movement (_tarPitSlowMul). The tinkered "Sucking Mire" upgrade
+    // ALSO roots the adventurer briefly on entry so they're stuck in the muck
+    // for a beat — a free window for adjacent traps/minions. Fires once per
+    // entry (this hook is per room-change). Re-uses the standard _rootedUntil
+    // status that AISystem already honours.
+    if (room.definitionId === 'tar_pit' && room.isActive !== false && this._isTinkered('tar_pit')) {
+      const now = this._scene?.time?.now ?? 0
+      adv._rootedUntil = Math.max(adv._rootedUntil ?? 0, now + 750)
+      EventBus.emit('TAR_PIT_MIRED', { adventurer: adv, roomId: room.instanceId })
+    }
+
     // Room redesign 2026-04-30 — Wishing Well: coin flip once per day per adv.
     if (room.definitionId === 'wishing_well') {
       const today = this._gameState.meta.dayNumber
@@ -621,34 +644,46 @@ export class RoomBehaviorSystem {
     // the bite-on-reveal-then-engage mechanic was retired entirely.
   }
 
+  // Disorienting Gate (2026-06-17 rework). The old version had a 5% bucket
+  // (15% tinkered) that teleported the adventurer INTO the boss chamber — a
+  // room the PLAYER builds that occasionally handed an invader a free trip
+  // to the boss. Reworked to a pure setback: scatter them to a random
+  // NON-boss room, weighted toward rooms FAR from the boss chamber (so an
+  // advancing adventurer is flung back toward the entrance, never given a
+  // shortcut to their goal), and wipe their path so they must re-route.
   _teleportFromWanderingGate(adv, gateRoom) {
-    const rooms = (this._gameState.dungeon.rooms ?? []).filter(r =>
-      r.isActive !== false && r.definitionId !== 'wandering_gate'
+    const allRooms = (this._gameState.dungeon.rooms ?? []).filter(r => r.isActive !== false)
+    const candidates = allRooms.filter(r =>
+      r.definitionId !== 'wandering_gate' &&
+      r.definitionId !== 'boss_chamber' &&
+      r.instanceId   !== gateRoom.instanceId
     )
-    const boss = rooms.find(r => r.definitionId === 'boss_chamber')
-    const neighbors = (this._scene?.dungeonGrid?.getNeighborRooms?.(gateRoom.instanceId) ?? [])
-      .filter(r => r.definitionId !== 'wandering_gate' && r.isActive !== false)
-    const anyBuilt = rooms.filter(r => r.definitionId !== 'boss_chamber')
-
-    // Tinkerer's Workshop "Skewed Gate" — boss-chamber teleport chance
-    // bumped from 5% to 15% when the type is upgraded. Re-slices the
-    // probability buckets so neighbor / any-built / boss sum to 1.0:
-    //   default: 60% neighbor / 35% any-built / 5% boss
-    //   tinkered: 55% neighbor / 30% any-built / 15% boss
-    const tinkeredGate = this._isTinkered('wandering_gate')
-    const neighborMax = tinkeredGate ? 0.55 : 0.60
-    const anyBuiltMax = tinkeredGate ? 0.85 : 0.95
-    const roll = Math.random()
-    let target = null
-    if (roll < neighborMax && neighbors.length > 0) {
-      target = neighbors[Math.floor(Math.random() * neighbors.length)]
-    } else if (roll < anyBuiltMax && anyBuilt.length > 0) {
-      target = anyBuilt[Math.floor(Math.random() * anyBuilt.length)]
-    } else if (boss) {
-      target = boss
+    if (candidates.length === 0) return
+    const boss = allRooms.find(r => r.definitionId === 'boss_chamber')
+    const distToBoss = (r) => {
+      if (!boss) return 1
+      const cx = r.gridX + r.width / 2,      cy = r.gridY + r.height / 2
+      const bx = boss.gridX + boss.width / 2, by = boss.gridY + boss.height / 2
+      return Math.hypot(cx - bx, cy - by)
     }
-    // Fallbacks if buckets were empty (very small dungeons)
-    if (!target && anyBuilt.length > 0) target = anyBuilt[Math.floor(Math.random() * anyBuilt.length)]
+    // Tinkerer's Workshop "Skewed Gate" — when upgraded, always flings them
+    // to the single room FARTHEST from the boss (maximum setback) instead
+    // of a weighted roll.
+    const tinkeredGate = this._isTinkered('wandering_gate')
+    let target
+    if (tinkeredGate && boss) {
+      target = candidates.reduce((a, b) => (distToBoss(b) > distToBoss(a) ? b : a))
+    } else if (!boss) {
+      target = candidates[Math.floor(Math.random() * candidates.length)]
+    } else {
+      // Distance-weighted roll (squared) — strongly favours deep rooms near
+      // the entrance over rooms one step from the boss.
+      const weighted = candidates.map(r => { const d = distToBoss(r); return { r, w: d * d + 1 } })
+      const total = weighted.reduce((s, x) => s + x.w, 0)
+      let roll = Math.random() * total
+      target = weighted[weighted.length - 1].r
+      for (const x of weighted) { roll -= x.w; if (roll <= 0) { target = x.r; break } }
+    }
     if (!target) return
 
     const tx = target.gridX + Math.floor(target.width / 2)
@@ -795,6 +830,19 @@ export class RoomBehaviorSystem {
       timesKilledAndRespawned: 0, lastAttackAt: 0, currentTargetId: null,
       ...(opts.extra ?? {}),
     }
+    // Scale to the current boss level at spawn (opt-in). Garrison spawners
+    // that pass un-scaled def.baseStats (Hall of Trials, Mimic Vault) set
+    // scaleToBoss so their occupants keep pace with the boss's power curve,
+    // matching roster minions (created via createMinion({bossLevel})).
+    // Throne Room does NOT set it — it pre-scales via statsOverride (base
+    // × 2 doubler × boss mult), so scaling again here would double-count.
+    if (opts.scaleToBoss) {
+      applyMinionScaling(
+        m,
+        this._gameState.boss?.level ?? 1,
+        this._gameState.meta?.dayNumber ?? 1,
+      )
+    }
     this._gameState.minions ??= []
     return m
   }
@@ -868,20 +916,30 @@ export class RoomBehaviorSystem {
   }
 
   _rollWishingWell(adv) {
-    // Tinkerer's Workshop "Cursed Well" — coin lands on CURSE 70% of
-    // the time (was 50/50) when the type is upgraded.
-    const curseChance = this._isTinkered('wishing_well') ? 0.70 : 0.50
-    const heads = Math.random() >= curseChance
-    if (heads) {
-      // Buff: +3 ATK, +20 maxHp, full heal
+    // Flip the odds (2026-06-17 rework). The well used to BUFF the
+    // adventurer on heads (50%) — half the time the player's own room
+    // strengthened an invader. Now it's mostly a curse with a RARE small
+    // boon, and a boon'd adventurer drops bonus gold when killed (see the
+    // wishingWellBoon path in AISystem kill-gold), so even the
+    // good-for-them outcome pays the player off.
+    //   default               : 25% boon / 75% Marked
+    //   tinkered "Cursed Well" : 10% boon / 90% Marked
+    const boonChance = this._isTinkered('wishing_well') ? 0.10 : 0.25
+    const boon = Math.random() < boonChance
+    if (boon) {
+      // Small buff (dialled down from +3 ATK / +20 maxHp / full heal):
+      // +2 ATK / +10 maxHp + a 10-HP top-up, no free full heal. Flagged so
+      // the kill-gold path pays a bounty when this adventurer dies.
       adv.stats ??= {}
-      adv.stats.attack = (adv.stats.attack ?? 0) + 3
+      adv.stats.attack = (adv.stats.attack ?? 0) + 2
       adv.resources ??= { hp: 0, maxHp: 0 }
-      adv.resources.maxHp = (adv.resources.maxHp ?? 0) + 20
-      adv.resources.hp = adv.resources.maxHp
+      adv.resources.maxHp = (adv.resources.maxHp ?? 0) + 10
+      adv.resources.hp = Math.min(adv.resources.maxHp, (adv.resources.hp ?? 0) + 10)
+      adv.flags ??= {}
+      adv.flags.wishingWellBoon = true
       EventBus.emit('WISHING_WELL_BOON', { adventurer: adv })
     } else {
-      // Tails: Marked — +50% damage from minions for the rest of the day.
+      // Marked — +50% damage from minions for the rest of the day.
       adv.flags ??= {}
       adv.flags.marked = true
       adv.flags.markedExpiresOnDay = this._gameState.meta.dayNumber

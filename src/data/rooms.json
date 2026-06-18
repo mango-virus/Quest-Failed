@@ -3231,7 +3231,7 @@
             "chaos"
         ],
         "onAdventurerEnter": "wanderingGate_teleport",
-        "description": "On entry, % chance to teleport adventurer: 60% nearby room, 35% any built room, 5% Boss Chamber.",
+        "description": "On entry, teleports the adventurer to a random room — heavily favouring those far from the boss, flinging them back toward the entrance and scrambling their path. Never the Boss Chamber.",
         "flavorText": "Step in. Step out. Hopefully not the same room.",
         "theme": null,
         "doorTheme": null,
@@ -3403,6 +3403,512 @@
                 "sat": -1,
                 "bright": -0.05,
                 "contrast": -0.6
+            }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
+        }
+    },
+    {
+        "id": "tar_pit",
+        "name": "Tar Pit",
+        "category": "special",
+        "width": 8,
+        "height": 8,
+        "tileLayout": [
+            [
+                "corner",
+                null,
+                "wall_r",
+                null,
+                "wall_l",
+                null,
+                {
+                    "id": "corner",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "corner",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "corner",
+                    "rot": 180
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ]
+        ],
+        "connectionPoints": [],
+        "goldCost": 30,
+        "costStep": 22,
+        "powerCostToUnlock": 0,
+        "unlockLevel": 4,
+        "placementRules": {
+            "minDepthFromBoss": 0,
+            "maxPerDungeon": 3,
+            "fixed": false,
+            "maxPerDungeonByBossLevel": {
+                "4": 1,
+                "5": 1,
+                "6": 2,
+                "7": 2,
+                "8": 3,
+                "9": 3,
+                "10": 3
+            }
+        },
+        "tags": [
+            "special",
+            "control",
+            "slow"
+        ],
+        "onAdventurerEnter": "tarPit_onEnter",
+        "description": "Adventurers caught inside wade at half speed (Sucking Mire upgrade also roots them on entry). A chokepoint — route the path through it into your traps and minions. Does not slow your minions.",
+        "flavorText": "Slow down. Stay a while. Stay forever.",
+        "theme": null,
+        "doorTheme": null,
+        "colorAdjust": {
+            "walls": {
+                "sat": -1
+            },
+            "floor": {
+                "sat": -0.5,
+                "bright": -0.55,
+                "hue": 20,
+                "contrast": 0.1
+            }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
+        }
+    },
+    {
+        "id": "silence_ward",
+        "name": "Silence Ward",
+        "category": "utility",
+        "width": 8,
+        "height": 8,
+        "tileLayout": [
+            [
+                "corner",
+                null,
+                "wall_r",
+                null,
+                "wall_l",
+                null,
+                {
+                    "id": "corner",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "corner",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "corner",
+                    "rot": 180
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ]
+        ],
+        "connectionPoints": [],
+        "goldCost": 34,
+        "costStep": 0,
+        "powerCostToUnlock": 0,
+        "unlockLevel": 6,
+        "placementRules": {
+            "minDepthFromBoss": 0,
+            "maxPerDungeon": 2,
+            "fixed": false,
+            "maxPerDungeonByBossLevel": {
+                "6": 1,
+                "7": 1,
+                "8": 2,
+                "9": 2,
+                "10": 2
+            }
+        },
+        "tags": [
+            "utility",
+            "anti_caster",
+            "silence",
+            "aura"
+        ],
+        "description": "Aura: adventurers in this room and any directly door-connected room cannot use class abilities — no Cleric heals, no Mage or Necromancer spells, no Bard songs. Dead Zone upgrade also makes the silenced take +15% damage. Place it around your kill rooms.",
+        "flavorText": "In here, no one is listening. Not even the gods.",
+        "theme": null,
+        "doorTheme": null,
+        "colorAdjust": {
+            "walls": {
+                "sat": -1
+            },
+            "floor": {
+                "sat": -1,
+                "bright": -0.18,
+                "hue": 200,
+                "contrast": -0.2
+            }
+        },
+        "doorSkin": {
+            "closed": "basic_door_closed_skin",
+            "open": "basic_open",
+            "locked": "basic_locked"
+        }
+    },
+    {
+        "id": "thorn_hall",
+        "name": "Bramble Hall",
+        "category": "combat",
+        "width": 8,
+        "height": 8,
+        "tileLayout": [
+            [
+                "corner",
+                null,
+                "wall_r",
+                null,
+                "wall_l",
+                null,
+                {
+                    "id": "corner",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                "floor1",
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor1",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "corner",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_l",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "corner",
+                    "rot": 180
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ]
+        ],
+        "connectionPoints": [],
+        "goldCost": 32,
+        "costStep": 24,
+        "powerCostToUnlock": 0,
+        "unlockLevel": 5,
+        "placementRules": {
+            "minDepthFromBoss": 0,
+            "maxPerDungeon": 3,
+            "fixed": false,
+            "maxPerDungeonByBossLevel": {
+                "5": 1,
+                "6": 1,
+                "7": 2,
+                "8": 2,
+                "9": 3,
+                "10": 3
+            }
+        },
+        "tags": [
+            "combat",
+            "thorns",
+            "reflect"
+        ],
+        "description": "Choked with barbed brambles. An adventurer who makes a melee attack while inside takes 30% of the damage they deal back as thorns. Wrap it around a tanky minion. Iron Thorns upgrade: 50% reflect, and ranged attackers get pricked too.",
+        "flavorText": "Every blow you land, the briars return.",
+        "theme": null,
+        "doorTheme": null,
+        "colorAdjust": {
+            "walls": {
+                "sat": -1
+            },
+            "floor": {
+                "sat": -0.35,
+                "hue": 78,
+                "bright": -0.28,
+                "contrast": 0.05
             }
         },
         "doorSkin": {
@@ -4265,7 +4771,7 @@
             "buff_or_debuff"
         ],
         "onAdventurerEnter": "wishingWell_coinFlip",
-        "description": "Coin flip on entry — Heads: the adventurer gains +ATK/+HP; Tails: Marked, taking +50% minion damage that day.",
+        "description": "Coin flip on entry — usually Marked (taking +50% minion damage that day); rarely a small boon to the adventurer, who then drops bonus gold when slain.",
         "flavorText": "Wish carefully. The well listens to one in two.",
         "theme": null,
         "doorTheme": null,

@@ -41,6 +41,9 @@ const ROOM_EMOJI = {
   hall_of_madness:     '🤯',
   throne_room:         '👑',
   sanctum:             '✨',
+  tar_pit:             '🛢️',
+  silence_ward:        '🔇',
+  thorn_hall:          '🌵',
 }
 
 export class TinkererPicker {

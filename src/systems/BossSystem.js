@@ -5364,15 +5364,17 @@ export class BossSystem {
       }
 
       // Room redesign 2026-04-30 — Sanctum: boss regenerates between fight
-      // rounds (8 HP per round per active Sanctum). Caps at maxHp.
+      // rounds, 1.5% of maxHP per active Sanctum. Caps at maxHp.
+      // %-based (was a flat 8/round) so it stays relevant — Sanctum unlocks
+      // at boss lv15 (~5,600 HP), where a flat 8/round was negligible.
       if (boss.hp > 0) {
         const sanctumCount = (this._gameState.dungeon.rooms ?? [])
           .filter(r => r.definitionId === 'sanctum' && r.isActive !== false).length
         if (sanctumCount > 0) {
           // Tinkerer's Workshop "Sanctum's Heart" — regen rate doubled
-          // when the Sanctum type is upgraded (16/round instead of 8).
+          // (3% maxHP/round instead of 1.5%) when the Sanctum is upgraded.
           const sanctumMul = (this._gameState._tinkeredRoomTypes ?? []).includes('sanctum') ? 2 : 1
-          const regen = 8 * sanctumCount * sanctumMul
+          const regen = Math.round((boss.maxHp ?? 0) * 0.015 * sanctumCount * sanctumMul)
           const before = boss.hp
           boss.hp = Math.min(boss.maxHp, boss.hp + regen)
           if (boss.hp > before) {

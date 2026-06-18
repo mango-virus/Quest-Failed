@@ -447,9 +447,38 @@ export class ClassAbilitySystem {
     return true
   }
 
+  // Silence Ward coverage — the Set of room instanceIds where casting is
+  // suppressed: each active Silence Ward plus every room directly door-
+  // connected to it (excluding boss chamber / entry halls, which are never
+  // silenced so the boss fight + escape routes aren't affected). Returns null
+  // when no ward is built. Recomputed each tick — cheap (few wards).
+  _silenceWardCoverage() {
+    const rooms = this._gameState.dungeon?.rooms ?? []
+    const wards = rooms.filter(r => r.definitionId === 'silence_ward' && r.isActive !== false)
+    if (wards.length === 0) return null
+    const grid = this._scene?.dungeonGrid
+    const ids = new Set()
+    for (const w of wards) {
+      ids.add(w.instanceId)
+      const neighbors = grid?.getNeighborRooms?.(w.instanceId) ?? []
+      for (const n of neighbors) {
+        if (n.isActive === false) continue
+        if (n.definitionId === 'boss_chamber' || n.definitionId === 'entry_hall') continue
+        ids.add(n.instanceId)
+      }
+    }
+    return ids
+  }
+
   update(_delta) {
     const now = this._scene.time.now
     const antiMagicRoomIds = this._gameState._antiMagicRoomIds ?? null
+    // Silence Ward (room 2026-06-17) — recompute the set of room instanceIds
+    // where casting is suppressed (each active ward + its door-connected
+    // neighbours) once per tick, and stamp it on gameState so CombatSystem
+    // (Dead Zone +damage) and the renderer can read the same set.
+    const wardRoomIds = this._silenceWardCoverage()
+    this._gameState._silenceWardRoomIds = wardRoomIds ? [...wardRoomIds] : null
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) continue
       this._tickActiveBuffs(adv, now)
@@ -459,6 +488,11 @@ export class ClassAbilitySystem {
       const silenced = (
         antiMagicRoomIds && antiMagicRoomIds.length > 0 &&
         _advInAntiMagicRoom(adv, this._gameState, antiMagicRoomIds)
+      ) || (
+        // Silence Ward room — same suppression, sourced from a player-built
+        // room aura rather than the beholder boss.
+        wardRoomIds && wardRoomIds.size > 0 &&
+        _advInRoomSet(adv, this._gameState, wardRoomIds)
       ) || (
         // Beholder TYRANT'S GAZE — per-adv silence ray (day active). Blocks all
         // class-ability casts for the window; buff timers still tick out.
@@ -2421,6 +2455,32 @@ function _advInAntiMagicRoom(adv, gameState, antiMagicRoomIds) {
   const rooms = gameState?.dungeon?.rooms ?? []
   for (const r of rooms) {
     if (!antiMagicRoomIds.includes(r.instanceId)) continue
+    if (tx >= r.gridX && tx < r.gridX + r.width &&
+        ty >= r.gridY && ty < r.gridY + r.height) return true
+  }
+  return false
+}
+
+// Silence Ward — like _advInAntiMagicRoom but membership is a Set (the ward
+// coverage recomputed each tick). Exported for CombatSystem (Dead Zone) reuse.
+export function advInSilenceWard(adv, gameState) {
+  const ids = gameState?._silenceWardRoomIds
+  if (!Array.isArray(ids) || ids.length === 0) return false
+  const tx = adv?.tileX, ty = adv?.tileY
+  if (typeof tx !== 'number' || typeof ty !== 'number') return false
+  for (const r of (gameState?.dungeon?.rooms ?? [])) {
+    if (!ids.includes(r.instanceId)) continue
+    if (tx >= r.gridX && tx < r.gridX + r.width &&
+        ty >= r.gridY && ty < r.gridY + r.height) return true
+  }
+  return false
+}
+
+function _advInRoomSet(adv, gameState, idSet) {
+  const tx = adv?.tileX, ty = adv?.tileY
+  if (typeof tx !== 'number' || typeof ty !== 'number') return false
+  for (const r of (gameState?.dungeon?.rooms ?? [])) {
+    if (!idSet.has(r.instanceId)) continue
     if (tx >= r.gridX && tx < r.gridX + r.width &&
         ty >= r.gridY && ty < r.gridY + r.height) return true
   }

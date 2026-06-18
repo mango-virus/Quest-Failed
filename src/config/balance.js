@@ -25,6 +25,10 @@ export const Balance = {
 
   // --- Earn rates per adventurer kill ---
   GOLD_PER_KILL: 5,   // 2026-06-02: halved 10→5 (kill income was too rich)
+  // Wishing Well boon bounty — bonus gold dropped when a Wishing-Well-
+  // blessed adventurer is killed (the room's rare boon outcome still pays
+  // the player off). See RoomBehaviorSystem._rollWishingWell + AISystem._kill.
+  WISHING_WELL_BOON_KILL_GOLD: 15,
 
   // --- Hit reaction (getting struck) — flinch/flash sizing (entity-agnostic) ---
   HIT_REACT_MIN_FRAC:  0.015, // hits below this fraction of maxHP don't flinch/flash (chip/DoT)

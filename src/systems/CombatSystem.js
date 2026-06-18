@@ -379,6 +379,15 @@ export class CombatSystem {
       MinionAbilities.revealCamouflage(attacker, this._scene)
     }
 
+    // Silence Ward "Dead Zone" (tinkered) — a silenced adventurer (in the
+    // ward's coverage) takes +15% damage. Reads the per-tick coverage set
+    // stamped by ClassAbilitySystem so there's no per-hit neighbour walk.
+    if (finalDmg > 0 && target?.faction !== 'dungeon' && target?.classId &&
+        (this._gameState._tinkeredRoomTypes ?? []).includes('silence_ward') &&
+        this._inSilenceWard(target)) {
+      finalDmg = Math.max(1, Math.round(finalDmg * 1.15))
+    }
+
     // Dungeon event: Dungeon Pestilence — when an adventurer melees a
     // dungeon-faction minion, they get infected with Blight. AISystem
     // ticks the DoT until the adv dies or escapes.
@@ -501,6 +510,13 @@ export class CombatSystem {
     // straight back (the tree punishes everything that touches it). No-op for non-ents.
     if (finalDmg > 0 && target.faction === 'dungeon' && attacker.faction !== 'dungeon') {
       MinionAbilities.thornsReflect(target, attacker, finalDmg, this._scene)
+    }
+
+    // Bramble Hall (room 2026-06-17) — an adventurer who attacks while standing
+    // inside an active Bramble Hall takes a share of the damage they dealt back
+    // as thorns (room-based, independent of what they hit).
+    if (finalDmg > 0 && attacker.faction !== 'dungeon' && attacker.classId) {
+      this._brambleHallReflect(attacker, finalDmg)
     }
 
     // Lizardman CAMOUFLAGE — a T2+ stalker that lands the KILLING blow vanishes
@@ -952,15 +968,17 @@ export class CombatSystem {
     }
 
     // Phase QW — Armory adjacency buff: dungeon minions in (or adjacent to) an
-    // active Armory room get +2 attack per swing. Cheap room-existence check
+    // active Armory room hit +15% harder per swing. %-based (was a flat +2)
+    // so it keeps pace with minion ATK as the boss levels — a flat bonus
+    // fell off to nothing once minions scaled. Cheap room-existence check
     // since attacker.faction tells us if this is a minion swing.
-    // Tinkerer's Workshop "Weaponsmith" — buff doubled (+4) when the
+    // Tinkerer's Workshop "Weaponsmith" — buff raised to +30% when the
     // Armory type is upgraded.
     const tinkered = this._gameState._tinkeredRoomTypes ?? []
     if (attacker.faction === 'dungeon' && attacker.assignedRoomId) {
       if (this._isAdjacentToActiveArmory(attacker.assignedRoomId)) {
-        const armoryBonus = tinkered.includes('armory') ? 4 : 2
-        raw += armoryBonus
+        const armoryMul = tinkered.includes('armory') ? 1.30 : 1.15
+        raw = Math.floor(raw * armoryMul)
       }
     }
 
@@ -1238,6 +1256,57 @@ export class CombatSystem {
     if (!grid?.getNeighborRooms) return false
     const neighbors = grid.getNeighborRooms(roomId) ?? []
     return neighbors.some(n => n.definitionId === 'armory' && n.isActive !== false)
+  }
+
+  // Bramble Hall reflect — if `attacker` (an adventurer) is standing in an
+  // active Bramble Hall, deal a share of the damage they just dealt back to
+  // them as thorns. 30% melee-only by default; tinkered "Iron Thorns" = 50%
+  // and also catches ranged attackers. VFX (woody thorns erupting around the
+  // attacker + a reflect number) is throttled per-adv so rapid swings don't
+  // spam the screen, but the damage applies on every hit.
+  _brambleHallReflect(attacker, dmgDealt) {
+    if (!attacker?.resources) return 0
+    const grid = this._scene?.dungeonGrid
+    const room = grid?.getRoomAtTile?.(attacker.tileX, attacker.tileY)
+    if (!room || room.definitionId !== 'thorn_hall' || room.isActive === false) return 0
+    const tinkered = (this._gameState._tinkeredRoomTypes ?? []).includes('thorn_hall')
+    const isRanged = (attacker.attackRange ?? 1) > 1.5
+    if (isRanged && !tinkered) return 0   // melee only unless Iron Thorns
+    const frac = tinkered ? 0.50 : 0.30
+    const reflect = Math.max(1, Math.round(dmgDealt * frac))
+    // Don't let thorns kill a scripted/protected adventurer (mirror the
+    // shadow-monarch / light-party / nemesis 10% floor used for direct hits).
+    const floor = (attacker._shadowMonarch || attacker._lightParty || attacker._nemesis)
+      ? Math.max(1, Math.ceil((attacker.resources.maxHp ?? 1) * 0.10)) : 0
+    attacker.resources.hp = Math.max(floor, (attacker.resources.hp ?? 0) - reflect)
+    attacker._lastHitBy = 'thorn_hall'
+    attacker._lastHitType = 'thorns'
+    const s = this._scene
+    const now = s?.time?.now ?? 0
+    if (s && Number.isFinite(attacker.worldX) && now - (attacker._brambleVfxAt ?? -1e9) > 350) {
+      attacker._brambleVfxAt = now
+      AbilityVfx.thornGuardFx?.(s, attacker.worldX, attacker.worldY, { amped: tinkered })
+      AbilityVfx.floatingText?.(s, attacker.worldX, (attacker.worldY ?? 0) - 18, `-${reflect}`, { color: '#7bbf4a', fontSize: '11px' })
+    }
+    EventBus.emit('BRAMBLE_HALL_REFLECT', { adventurer: attacker, roomId: room.instanceId, amount: reflect })
+    return reflect
+  }
+
+  // Is this entity standing in Silence Ward coverage? Reads the per-tick set
+  // (`_silenceWardRoomIds`, room instanceIds) stamped by ClassAbilitySystem
+  // so combat doesn't re-walk the room graph on every hit. Used by the
+  // tinkered "Dead Zone" damage amp.
+  _inSilenceWard(ent) {
+    const ids = this._gameState._silenceWardRoomIds
+    if (!Array.isArray(ids) || ids.length === 0) return false
+    const tx = ent?.tileX, ty = ent?.tileY
+    if (typeof tx !== 'number' || typeof ty !== 'number') return false
+    for (const r of (this._gameState.dungeon?.rooms ?? [])) {
+      if (!ids.includes(r.instanceId)) continue
+      if (tx >= r.gridX && tx < r.gridX + r.width &&
+          ty >= r.gridY && ty < r.gridY + r.height) return true
+    }
+    return false
   }
 
   // Knight Bulwark — a DIRECTIONAL shield-wall. While a Knight's stance is up,

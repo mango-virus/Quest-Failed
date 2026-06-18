@@ -60,6 +60,9 @@ import { CoinBurstRenderer }  from '../ui/CoinBurstRenderer.js'
 import { SellFxRenderer }     from '../ui/SellFxRenderer.js'
 import { TorchRenderer }      from '../ui/TorchRenderer.js'
 import { CobwebRenderer }     from '../ui/CobwebRenderer.js'
+import { TarPitRenderer }     from '../ui/TarPitRenderer.js'
+import { SilenceWardRenderer } from '../ui/SilenceWardRenderer.js'
+import { BrambleHallRenderer } from '../ui/BrambleHallRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { HazardRenderer }     from '../ui/HazardRenderer.js'
@@ -412,6 +415,9 @@ export class Game extends Phaser.Scene {
     this.sellFxRenderer      = track(new SellFxRenderer(this))
     this.torchRenderer       = track(new TorchRenderer(this, this.gameState))
     this.cobwebRenderer      = track(new CobwebRenderer(this, this.gameState))
+    this.tarPitRenderer      = track(new TarPitRenderer(this, this.gameState))
+    this.silenceWardRenderer = track(new SilenceWardRenderer(this, this.gameState))
+    this.brambleHallRenderer = track(new BrambleHallRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
     this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
     this.hazardRenderer      = track(new HazardRenderer(this, this.gameState))
@@ -2090,6 +2096,9 @@ export class Game extends Phaser.Scene {
       rtick('trapBlessRenderer',   () => this.trapBlessRenderer?.update())
       rtick('torchRenderer',       () => this.torchRenderer?.update())
       rtick('cobwebRenderer',      () => this.cobwebRenderer?.update())
+      rtick('tarPitRenderer',      () => this.tarPitRenderer?.update(delta))
+      rtick('silenceWardRenderer', () => this.silenceWardRenderer?.update(delta))
+      rtick('brambleHallRenderer', () => this.brambleHallRenderer?.update(delta))
       rtick('decorRenderer',       () => this.decorRenderer?.update())
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
       rtick('hazardRenderer',      () => this.hazardRenderer?.update())
@@ -2118,6 +2127,9 @@ export class Game extends Phaser.Scene {
       this.trapBlessRenderer?.update()
       this.torchRenderer?.update()
       this.cobwebRenderer?.update()
+      this.tarPitRenderer?.update(delta)
+      this.silenceWardRenderer?.update(delta)
+      this.brambleHallRenderer?.update(delta)
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
       this.hazardRenderer?.update()
