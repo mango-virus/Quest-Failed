@@ -1408,6 +1408,108 @@ VFX bar for all three: organic + detailed, no generic rings (user reminder in th
 
 ---
 
+## Room VFX pass — telegraph every room's effect (LOCKED 2026-06-17, user sign-off)
+
+**Problem:** the 3 new rooms are the ONLY rooms with dynamic VFX. Every other room
+communicates only via static decor + a floor tint + spawned creatures. The player
+often can't tell what a room *does* (an Armory buff, a Watchtower watch, a Sanctum
+regen are all invisible). This pass gives each room a player-readable, organic,
+detailed VFX — held to the same anti-generic bar (each a distinct composition, no
+"objects in a ring round the centre").
+
+**Hard constraints (user, this session):**
+- **Player-only.** VFX is for the player. Adventurers are NPCs driven by mechanics,
+  not by what's on screen — so VFX never needs to "fool" or inform them. This frees
+  the deception rooms (False Exit, Mimic Vault) to carry clear *player* tells; the
+  NPCs still fall for the mechanic regardless.
+- **No decor anchoring.** Decor props are being removed in favour of room skins, so
+  NO VFX may attach to a decor prop (forge/anvil/well/bookshelf/skull-niche/throne-
+  gem/banner). Anchor only to **room geometry** (centre / floor / interior wall line
+  / doorways) or **real gameplay entities** (treasure chests, minions, the mini-boss).
+- **No Barracks VFX** (dropped per user).
+- Persistent ambience → a dedicated per-room renderer (modelled on `TarPitRenderer`).
+  Triggered beats → compose from `AbilityVfx`. A reusable "connected-doorway world
+  positions" helper serves the door-conduit rooms (Armory / Sanctum / Veil / Watchtower).
+
+### HIGH priority — invisible-effect rooms (build first)
+
+- **Armory — "Forge-light & travelling edge".** A drawn ember forge-glow rises from the
+  room CENTRE (heat-haze: irregular breathing warp, deep orange→ash, spitting spark
+  arcs that fall + die). Telegraph: a molten-ember line runs from the room out through
+  each *connected* doorway a short way into the buffed room, pulsing on a ~2s loop, so
+  the player sees the coverage. Trigger (buffed minion swing): a small ember spark-flick
+  at the hit. Composition: heat-source + directional door-conduit.
+- **Watchtower — "The watch-beam".** A slow rotating SEARCHLIGHT CONE (soft gradient,
+  irregular flicker so it's not a hard wedge) sweeps from room centre across connected
+  doorways (~1 rev / 4s); dust motes catch in the beam. Trigger (`WATCHTOWER_FIRST_STRIKE`):
+  the beam snaps to the entering adventurer + a sharp "spotted!" glint, then a converging
+  light-stab. Composition: rotating directional sweep (unique in the set).
+- **Sanctum — "Restorative font".** A drawn luminous light-pool breathes up from room
+  centre (irregular, never a clean disc) shedding slow upward feather/petal-motes that
+  PEEL OFF and flow OUT through connected doorways toward the rooms it regens. Trigger
+  (regen tick): a gentle pulse + 1–2 motes settle/dissolve on the healed unit with a soft
+  "+". Composition: rising font + outward mote-stream. (Differentiate from Pantheon holy
+  ground — this exhales motes outward.)
+- **Veil of Forgetting — "The amnesiac exhale".** Persistent: a thin slow grey churning
+  ground-mist (organic lobed fog, desaturating). Trigger (`VEIL_ERASED_INTEL`, night): the
+  room EXHALES — a pale mist-wave rolls out each connected doorway and faint glyph-scraps
+  (the wiped rooms) drift up + crumble into static. Composition: low fog + outward
+  dissolving exhale.
+- **Wandering Gate — "The spatial tear".** A ragged VERTICAL rift hovers at room centre —
+  torn flickering edges, a dark churning vortex of smeared displaced-room imagery inside,
+  spitting reality-sparks; gentle breathing width. Trigger (`WANDERING_GATE_TELEPORTED`):
+  the rift flares + yanks the adventurer into streaks sucked into the tear, then recoils.
+  Composition: vertical torn rift (unique silhouette; "step here = teleport").
+- **Hall of Madness — "Warping miasma".** No central object — the whole space is afflicted:
+  a sickly heat-warp shimmer over the floor, entities' shadows split into a jittering
+  second shadow (paranoia made visible), half-formed whispering face-wisps surface + melt.
+  Bruised red-violet. Trigger (friendly-fire turn): a red madness-pulse over the afflicted
+  adventurer + a brief cracked-glass flash. Composition: full-room warp + doubled shadows.
+
+### MEDIUM priority — identity & flavour
+
+- **Crypt — "Grave-mist & clawing hands".** Low necrotic ground-mist (sickly green-grey
+  lobed fog) in the floor seams; skeletal hands occasionally claw up from cracks + sink
+  back (anticipation→reach→retract). Trigger (`CRYPT_SPAWNED`): a grave heaves — bone-shard
+  burst + green soul-wisp coalescing into the Risen Bones. Composition: ground fog +
+  vertical claw-ups.
+- **Catacombs — "Death-bloom assembly".** Faint flickering ember-eyes drawn along the
+  interior WALL line (geometry, not niche decor). Trigger (`CATACOMBS_REVENANT_RAISED`): at
+  the corpse tile, bone-shards spiral INWARD + assemble upward into the revenant +
+  violet death-bloom. Composition: converging on-death assembly (distinct from Crypt).
+- **Treasury — "Heap-glow & siren-lure".** A warm gold centre-glow + sharp coin-glints on
+  the actual chest ENTITIES + gold-dust motes; a faint gold glow bleeds out the doorways
+  (the lure). Trigger (`TREASURY_STIPEND`, night): coins spill with a clink + gold sparkle.
+- **Library of Whispers — "Airborne whispers".** Glowing runic script + translucent
+  page-scraps drift through the room AIR (ambient). Trigger (`LIBRARY_FORECAST`, night):
+  pages swirl up + a spectral scrying-glow blooms over room centre, then settles.
+- **Wishing Well — "Fate-shimmer basin".** A drawn luminous basin at room centre whose
+  surface shimmers gold↔violet (the two fates) with fate-wisps curling up. Trigger
+  (`WISHING_WELL_BOON`): gold up-burst + sparkles settle on the adv; (`WISHING_WELL_CURSE`):
+  violet down-pull + a Marked brand. Composition: luminous water (vs tar's opaque pool).
+- **Trap Factory — "Working machine-shop".** Intermittent orange spark-bursts + small
+  steam puffs vent from a drawn central workbench-glow; slow gear-glint. Composition:
+  mechanical sparks + steam.
+- **Hall of Trials — "The crucible".** Heat-shimmer + faint embers rising from a drawn
+  central floor fissure. Trigger (`HALL_OF_TRIALS_SPAWNED`): an ember geyser erupts + the
+  elite rises from it. Composition: heat-crucible + vertical geyser.
+
+### LOW / optional & special
+
+- **Throne Room** (flair only): drifting dark-majesty motes fill the room + a dark
+  crown-flare anchored to the mini-boss ENTITY on `THRONE_MINIBOSS_SPAWNED`.
+- **Guard Post** (optional): a faint sentry alert-glint when a minion sallies.
+- **False Exit** (now player-readable per player-only rule): an inviting daylight-bleed
+  under the door with a faint *wrongness* (light flickers, shadow-wisps crawl back
+  inward); on `FALSE_EXIT_TELEPORTED` the doorway light snuffs + folds the fleer back in.
+- **Mimic Vault** (now free of the mirror-Treasury constraint for the player): a subtle
+  predatory ambiance (a faint hungry shimmer / a too-still wrongness) so the PLAYER can
+  tell it from a real Treasury. The mimics still render as red-tinted chests for the NPC
+  disguise.
+- **None:** Boss Chamber, Entry Hall, Corridor, Barracks.
+
+---
+
 ## Minion types
 
 Different types of minions/monsters should be placeable in my dungeon. minions/monsters that patrol certain areas, guard rooms, or hunt for adventurers themselves.

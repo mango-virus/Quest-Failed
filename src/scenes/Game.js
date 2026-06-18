@@ -63,6 +63,12 @@ import { CobwebRenderer }     from '../ui/CobwebRenderer.js'
 import { TarPitRenderer }     from '../ui/TarPitRenderer.js'
 import { SilenceWardRenderer } from '../ui/SilenceWardRenderer.js'
 import { BrambleHallRenderer } from '../ui/BrambleHallRenderer.js'
+import { WanderingGateRenderer } from '../ui/WanderingGateRenderer.js'
+import { WatchtowerRenderer } from '../ui/WatchtowerRenderer.js'
+import { ArmoryRenderer } from '../ui/ArmoryRenderer.js'
+import { SanctumRenderer } from '../ui/SanctumRenderer.js'
+import { VeilRenderer } from '../ui/VeilRenderer.js'
+import { HallOfMadnessRenderer } from '../ui/HallOfMadnessRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { HazardRenderer }     from '../ui/HazardRenderer.js'
@@ -418,6 +424,12 @@ export class Game extends Phaser.Scene {
     this.tarPitRenderer      = track(new TarPitRenderer(this, this.gameState))
     this.silenceWardRenderer = track(new SilenceWardRenderer(this, this.gameState))
     this.brambleHallRenderer = track(new BrambleHallRenderer(this, this.gameState))
+    this.wanderingGateRenderer = track(new WanderingGateRenderer(this, this.gameState))
+    this.watchtowerRenderer  = track(new WatchtowerRenderer(this, this.gameState))
+    this.armoryRenderer      = track(new ArmoryRenderer(this, this.gameState))
+    this.sanctumRenderer     = track(new SanctumRenderer(this, this.gameState))
+    this.veilRenderer        = track(new VeilRenderer(this, this.gameState))
+    this.hallOfMadnessRenderer = track(new HallOfMadnessRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
     this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
     this.hazardRenderer      = track(new HazardRenderer(this, this.gameState))
@@ -2099,6 +2111,12 @@ export class Game extends Phaser.Scene {
       rtick('tarPitRenderer',      () => this.tarPitRenderer?.update(delta))
       rtick('silenceWardRenderer', () => this.silenceWardRenderer?.update(delta))
       rtick('brambleHallRenderer', () => this.brambleHallRenderer?.update(delta))
+      rtick('wanderingGateRenderer', () => this.wanderingGateRenderer?.update(delta))
+      rtick('watchtowerRenderer',  () => this.watchtowerRenderer?.update(delta))
+      rtick('armoryRenderer',      () => this.armoryRenderer?.update(delta))
+      rtick('sanctumRenderer',     () => this.sanctumRenderer?.update(delta))
+      rtick('veilRenderer',        () => this.veilRenderer?.update(delta))
+      rtick('hallOfMadnessRenderer', () => this.hallOfMadnessRenderer?.update(delta))
       rtick('decorRenderer',       () => this.decorRenderer?.update())
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
       rtick('hazardRenderer',      () => this.hazardRenderer?.update())
@@ -2130,6 +2148,12 @@ export class Game extends Phaser.Scene {
       this.tarPitRenderer?.update(delta)
       this.silenceWardRenderer?.update(delta)
       this.brambleHallRenderer?.update(delta)
+      this.wanderingGateRenderer?.update(delta)
+      this.watchtowerRenderer?.update(delta)
+      this.armoryRenderer?.update(delta)
+      this.sanctumRenderer?.update(delta)
+      this.veilRenderer?.update(delta)
+      this.hallOfMadnessRenderer?.update(delta)
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
       this.hazardRenderer?.update()
