@@ -107,48 +107,49 @@ export class TreasuryRenderer {
     }
   }
 
-  // Deterministic mound: rows of overlapping coins, widest + lowest at the
-  // base, tapering to a peak. Drawn back(top)→front(base) so lower coins
-  // overlap on top. A couple of coins flash a bright glint each pass, and
-  // every few seconds a small avalanche rolls down the front slope.
+  // Top-down (oblique) coin hoard: coins lying FLAT on the floor, scattered
+  // across an OVAL footprint (wider than tall to match the floor angle) and
+  // overlapping denser toward the centre for a LOW heap — not a vertical peak.
+  // Coins near the centre lift a few px to suggest a shallow pile; a couple
+  // catch a travelling glint; coins occasionally SPILL outward across the floor.
   _drawHoard(room, dt, lod, now) {
     const g = this._gCoins, gs = this._gShine
     const cx = (room.gridX + room.width / 2) * TS
-    const baseY = (room.gridY + room.height / 2) * TS + 6   // pile sits a touch low
+    const cy = (room.gridY + room.height / 2) * TS + 4
     const t = this._t
+    const RX = 34, RY = 18   // oval floor footprint
 
-    // mound footprint glow (soft seated shadow)
-    g.fillStyle(0x0a0905, 0.4); g.fillEllipse(cx, baseY + 2, 56, 16)   // ellipse-ok: hoard contact shadow
+    // seated contact shadow under the spread
+    g.fillStyle(0x0a0905, 0.4); g.fillEllipse(cx, cy + RY * 0.55, RX * 2.0, RY * 1.3)   // ellipse-ok: hoard floor shadow
 
-    // rows top→bottom: [coinCount, yLift(up), xHalfSpread, coinR]
-    const rows = lod
-      ? [[3, 16, 10, 4], [5, 6, 18, 4], [7, 0, 26, 4]]
-      : [[1, 26, 0, 3.4], [2, 21, 6, 3.6], [3, 16, 12, 3.8], [4, 10, 18, 4], [6, 4, 24, 4.2], [8, 0, 30, 4.4]]
-    let coinIdx = 0
-    for (const [n, lift, spread, r] of rows) {
-      for (let i = 0; i < n; i++) {
-        const f = n === 1 ? 0.5 : i / (n - 1)
-        // stable jitter per coin (no Math.random in the persistent draw)
-        const j = Math.sin((coinIdx + 1) * 12.9898) * 43758.5
-        const jx = ((j % 1) - 0.5) * spread * 0.18
-        const jy = ((Math.sin((coinIdx + 1) * 4.1) % 1) - 0.5) * 3
-        const x = cx + (f - 0.5) * 2 * spread + jx
-        const y = baseY - lift + jy
-        g.save?.(); g.translateCanvas?.(x, y); VfxShapes.coin(g, r); g.restore?.()
-        // a few coins catch a travelling glint
-        if (!lod) {
-          const flash = Math.sin(t * 1.4 + coinIdx * 0.9)
-          if (flash > 0.93) {
-            gs.fillStyle(C_GLINT, (flash - 0.93) / 0.07)
-            gs.fillCircle(x - r * 0.3, y - r * 0.3, r * 0.5)   // circle-ok: coin glint
-          }
-        }
-        coinIdx++
+    // build coin positions (stable per index — no Math.random in persistent draw)
+    const N = lod ? 14 : 30
+    const coins = []
+    for (let i = 0; i < N; i++) {
+      const a = i * 2.399963          // golden-angle spread
+      const rad = Math.sqrt((i + 0.5) / N)   // 0 (centre) .. 1 (rim), denser centre
+      const x = cx + Math.cos(a) * RX * rad
+      const y = cy + Math.sin(a) * RY * rad
+      const lift = (1 - rad) * 7 + ((i % 3) === 0 ? 3 : 0)   // shallow centre pile + a few stacked
+      const r = 3.4 + (1 - rad) * 1.4 + ((i % 5) === 0 ? 0.8 : 0)
+      coins.push({ x, y: y - lift, baseY: y, r, i })
+    }
+    // back-to-front by floor position so front coins overlap on top
+    coins.sort((p, q) => p.baseY - q.baseY)
+    for (const c of coins) {
+      g.save?.(); g.translateCanvas?.(c.x, c.y)
+      // a few coins lie on-edge (thin) for variety
+      if (c.i % 7 === 3) g.scaleCanvas?.(1, 0.4)
+      VfxShapes.coin(g, c.r)
+      g.restore?.()
+      if (!lod) {
+        const flash = Math.sin(t * 1.4 + c.i * 0.9)
+        if (flash > 0.93) { gs.fillStyle(C_GLINT, (flash - 0.93) / 0.07); gs.fillCircle(c.x - c.r * 0.3, c.y - c.r * 0.3, c.r * 0.5) }   // circle-ok: coin glint
       }
     }
 
     if (lod) return
-    // periodic avalanche down the front slope
+    // occasional spill — a couple of coins slide OUTWARD across the floor and settle
     let arr = this._avById[room.instanceId]
     if (!arr) { arr = []; this._avById[room.instanceId] = arr }
     const next = this._nextAvAt[room.instanceId]
@@ -157,16 +158,15 @@ export class TreasuryRenderer {
       this._nextAvAt[room.instanceId] = now + 2500 + Math.random() * 3500
       const m = 2 + Math.floor(Math.random() * 3)
       for (let i = 0; i < m; i++) {
-        arr.push({ x: cx + (Math.random() - 0.5) * 16, y: baseY - 22, vx: (Math.random() - 0.5) * 18, vy: 4, r: 3 + Math.random() * 1.5, life: 0, maxLife: 0.9 + Math.random() * 0.5, spin: (Math.random() - 0.5) * 8, rot: 0 })
+        const a = Math.random() * TAU
+        arr.push({ x: cx, y: cy - 3, vx: Math.cos(a) * (30 + Math.random() * 30), vy: Math.sin(a) * (16 + Math.random() * 16), r: 3 + Math.random(), life: 0, maxLife: 0.7 + Math.random() * 0.5, rot: 0, spin: (Math.random() - 0.5) * 10 })
       }
     }
     for (let i = arr.length - 1; i >= 0; i--) {
       const c = arr[i]
-      c.life += dt; c.vy += 120 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.spin * dt
-      // settle when reaching the base
-      if (c.y >= baseY + (Math.random() - 0.5) * 2 || c.life >= c.maxLife) { arr.splice(i, 1); continue }
+      c.life += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vx *= 0.9; c.vy *= 0.9; c.rot += c.spin * dt; c.spin *= 0.95
+      if (c.life >= c.maxLife) { arr.splice(i, 1); continue }
       g.save?.(); g.translateCanvas?.(c.x, c.y); g.rotateCanvas?.(c.rot)
-      // rolling coin reads as a thin ellipse when on-edge — approximate with a squashed coin
       VfxShapes.coin(g, c.r)
       g.restore?.()
     }
