@@ -76,6 +76,10 @@ import { LibraryRenderer } from '../ui/LibraryRenderer.js'
 import { WishingWellRenderer } from '../ui/WishingWellRenderer.js'
 import { TrapFactoryRenderer } from '../ui/TrapFactoryRenderer.js'
 import { HallOfTrialsRenderer } from '../ui/HallOfTrialsRenderer.js'
+import { ThroneRoomRenderer } from '../ui/ThroneRoomRenderer.js'
+import { FalseExitRenderer } from '../ui/FalseExitRenderer.js'
+import { MimicVaultRenderer } from '../ui/MimicVaultRenderer.js'
+import { GuardPostRenderer } from '../ui/GuardPostRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { HazardRenderer }     from '../ui/HazardRenderer.js'
@@ -444,6 +448,10 @@ export class Game extends Phaser.Scene {
     this.wishingWellRenderer = track(new WishingWellRenderer(this, this.gameState))
     this.trapFactoryRenderer = track(new TrapFactoryRenderer(this, this.gameState))
     this.hallOfTrialsRenderer = track(new HallOfTrialsRenderer(this, this.gameState))
+    this.throneRoomRenderer  = track(new ThroneRoomRenderer(this, this.gameState))
+    this.falseExitRenderer   = track(new FalseExitRenderer(this, this.gameState))
+    this.mimicVaultRenderer  = track(new MimicVaultRenderer(this, this.gameState))
+    this.guardPostRenderer   = track(new GuardPostRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
     this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
     this.hazardRenderer      = track(new HazardRenderer(this, this.gameState))
@@ -2138,6 +2146,10 @@ export class Game extends Phaser.Scene {
       rtick('wishingWellRenderer', () => this.wishingWellRenderer?.update(delta))
       rtick('trapFactoryRenderer', () => this.trapFactoryRenderer?.update(delta))
       rtick('hallOfTrialsRenderer', () => this.hallOfTrialsRenderer?.update(delta))
+      rtick('throneRoomRenderer',  () => this.throneRoomRenderer?.update(delta))
+      rtick('falseExitRenderer',   () => this.falseExitRenderer?.update(delta))
+      rtick('mimicVaultRenderer',  () => this.mimicVaultRenderer?.update(delta))
+      rtick('guardPostRenderer',   () => this.guardPostRenderer?.update(delta))
       rtick('decorRenderer',       () => this.decorRenderer?.update())
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
       rtick('hazardRenderer',      () => this.hazardRenderer?.update())
@@ -2182,6 +2194,10 @@ export class Game extends Phaser.Scene {
       this.wishingWellRenderer?.update(delta)
       this.trapFactoryRenderer?.update(delta)
       this.hallOfTrialsRenderer?.update(delta)
+      this.throneRoomRenderer?.update(delta)
+      this.falseExitRenderer?.update(delta)
+      this.mimicVaultRenderer?.update(delta)
+      this.guardPostRenderer?.update(delta)
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
       this.hazardRenderer?.update()
