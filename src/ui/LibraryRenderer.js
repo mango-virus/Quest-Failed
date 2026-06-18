@@ -93,17 +93,37 @@ export class LibraryRenderer {
   }
 
   _page(g, x, y, s, rot, alpha) {
-    // a parchment scrap — a small quad with a slight tumble (rot squashes width)
-    const w = s * (0.5 + 0.5 * Math.abs(Math.cos(rot)))   // foreshorten as it tumbles
+    // a curling parchment scrap — a quad foreshortened by its tumble, with a
+    // top-edge curl, a folded corner, writing lines, and edge shading so it
+    // reads as paper, not a flat rect.
+    const w = s * (0.42 + 0.58 * Math.abs(Math.cos(rot)))   // foreshorten as it tumbles
     const h = s
-    g.fillStyle(COL_PAGE2, 0.6 * alpha)
-    g.fillRect(x - w / 2 + 0.8, y - h / 2 + 0.8, w, h)   // rect-ok: page drop-shadow (geometric by fiction)
-    g.fillStyle(COL_PAGE, 0.9 * alpha)
-    g.fillRect(x - w / 2, y - h / 2, w, h)               // rect-ok: parchment scrap
-    // faint writing lines
-    g.lineStyle(0.6, COL_PAGE2, 0.6 * alpha)
-    g.lineBetween(x - w * 0.3, y - h * 0.18, x + w * 0.3, y - h * 0.18)
-    g.lineBetween(x - w * 0.3, y + h * 0.12, x + w * 0.2, y + h * 0.12)
+    const curl = Math.sin(rot) * w * 0.18                   // top edge leans (the curl)
+    const L = x - w / 2, R = x + w / 2, Tp = y - h / 2, B = y + h / 2
+    // drop shadow
+    g.fillStyle(0x14110a, 0.4 * alpha)
+    this._quad(g, L + 1, Tp + 1.4, R + 1, Tp + 1.4, R + 1, B + 1.4, L + 1, B + 1.4)
+    // body (top edge offset by curl)
+    g.fillStyle(COL_PAGE, 0.92 * alpha)
+    this._quad(g, L + curl, Tp, R + curl, Tp, R, B, L, B)
+    // curled top lip (lighter)
+    g.fillStyle(0xe8dcb0, 0.9 * alpha)
+    this._quad(g, L + curl, Tp, R + curl, Tp, R + curl * 0.5, Tp + h * 0.16, L + curl * 0.5, Tp + h * 0.16)
+    // bottom shadow band
+    g.fillStyle(COL_PAGE2, 0.55 * alpha)
+    this._quad(g, L, B - h * 0.18, R, B - h * 0.18, R, B, L, B)
+    // folded corner (bottom-right triangle)
+    g.fillStyle(COL_PAGE2, 0.85 * alpha)
+    g.beginPath(); g.moveTo(R, B - h * 0.32); g.lineTo(R, B); g.lineTo(R - w * 0.3, B); g.closePath(); g.fillPath()
+    // writing lines
+    g.lineStyle(0.6, 0x7a6e48, 0.6 * alpha)
+    g.lineBetween(L + w * 0.18, Tp + h * 0.34, R - w * 0.16, Tp + h * 0.34)
+    g.lineBetween(L + w * 0.18, Tp + h * 0.52, R - w * 0.22, Tp + h * 0.52)
+    g.lineBetween(L + w * 0.18, Tp + h * 0.70, R - w * 0.4, Tp + h * 0.70)
+  }
+
+  _quad(g, x1, y1, x2, y2, x3, y3, x4, y4) {
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4); g.closePath(); g.fillPath()
   }
 
   _script(g, x, y, s, alpha, seed) {

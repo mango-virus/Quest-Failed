@@ -8,6 +8,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { VfxShapes } from './AbilityVfx.js'
 
 const TS  = Balance.TILE_SIZE
 const WT  = Balance.WALL_THICKNESS
@@ -110,41 +111,38 @@ export class HallOfMadnessRenderer {
     g.fillPoints(pts, true)
   }
 
+  // Whisper-faces surface in the murk as detailed wail-faces (the shared
+  // AbilityVfx `_drawWailFace` — a lobed teardrop head with hollow eyes + a
+  // wailing mouth). Each is a spawned graphics that fades in → drifts up →
+  // fades out, so it reads at ability fidelity instead of stacked ovals.
   _faces(g, room, cx, cy, rx, ry, dt) {
-    let arr = this._facesByRoom[room.instanceId]
-    if (!arr) { arr = []; this._facesByRoom[room.instanceId] = arr }
-    if (arr.length < 3 && Math.sin(this._t * 3.1 + room.gridX) > 0.6) {
-      arr.push({
-        x: cx + (Math.random() - 0.5) * rx * 1.3,
-        y: cy + (Math.random() - 0.5) * ry * 1.3,
-        life: 0, maxLife: 1.6 + Math.random() * 1.2,
-        size: 9 + Math.random() * 6, seed: Math.random() * TAU,
-      })
-    }
-    for (let i = arr.length - 1; i >= 0; i--) {
-      const f = arr[i]
-      f.life += dt
-      if (f.life >= f.maxLife) { arr.splice(i, 1); continue }
-      const a = Math.sin((f.life / f.maxLife) * Math.PI)   // fade in→out (full strength)
-      this._drawFace(g, f.x, f.y + Math.sin(f.life * 1.5 + f.seed) * 3, f.size, a)
-    }
+    const now = this._scene.time?.now ?? 0
+    let next = this._faceNextAt?.[room.instanceId]
+    this._faceNextAt ??= {}
+    if (next == null) { this._faceNextAt[room.instanceId] = now + 400 + Math.random() * 900; return }
+    if (now < next) return
+    this._faceNextAt[room.instanceId] = now + 900 + Math.random() * 1400
+    this._spawnFace(
+      cx + (Math.random() - 0.5) * rx * 1.3,
+      cy + (Math.random() - 0.5) * ry * 1.3,
+      9 + Math.random() * 6,
+    )
   }
 
-  // a pallid face surfacing in the murk — a haze head, hollow eyes, an open
-  // wailing mouth. More opaque than before so it actually reads.
-  _drawFace(g, x, y, s, alpha) {
-    // dark socket-halo behind so the pale face pops off the floor
-    g.fillStyle(COL_MURK, 0.5 * alpha)
-    g.fillCircle(x, y, s * 1.15)   // circle-ok: face shadow-halo
-    // pallid haze head
-    g.fillStyle(COL_FACE, 0.42 * alpha)
-    g.fillCircle(x, y, s)          // circle-ok: pallid face haze
-    // hollow eyes
-    g.fillStyle(0x0a0410, 0.85 * alpha)
-    g.fillEllipse(x - s * 0.36, y - s * 0.16, s * 0.36, s * 0.5)   // ellipse-ok: hollow eye socket
-    g.fillEllipse(x + s * 0.36, y - s * 0.16, s * 0.36, s * 0.5)   // ellipse-ok: hollow eye socket
-    // open wailing mouth
-    g.fillEllipse(x, y + s * 0.5, s * 0.32, s * 0.62)             // ellipse-ok: open mouth
+  _spawnFace(x, y, s) {
+    try {
+      const sc = this._scene
+      const fg = sc.add.graphics().setDepth(DEPTH_MIASMA + 0.15).setPosition(x, y).setAlpha(0)
+      VfxShapes.wailFace(fg, s, COL_FACE)
+      sc.tweens.add({
+        targets: fg, alpha: { from: 0, to: 0.9 }, y: y - 10 - s * 0.4,
+        duration: 700, ease: 'Sine.easeOut',
+        onComplete: () => sc.tweens.add({
+          targets: fg, alpha: 0, y: fg.y - 8, duration: 650, ease: 'Sine.easeIn',
+          onComplete: () => { try { fg.destroy() } catch {} },
+        }),
+      })
+    } catch (err) { /* non-fatal */ }
   }
 
   // friendly-fire beat — a red madness-pulse + a brief cracked-glass flash

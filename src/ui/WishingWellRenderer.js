@@ -10,6 +10,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { VfxShapes } from './AbilityVfx.js'
 
 const TS  = Balance.TILE_SIZE
 const WT  = Balance.WALL_THICKNESS
@@ -25,6 +26,9 @@ export class WishingWellRenderer {
   constructor(scene, gameState) {
     this._scene = scene
     this._gameState = gameState
+    // submerged coins sit UNDER the luminous water (normal blend); the water
+    // shimmer + wisps + runes go on the ADD layer on top.
+    this._gCoins = scene.add.graphics().setDepth(DEPTH_WELL - 0.1)
     this._g = scene.add.graphics().setDepth(DEPTH_WELL)
     try { this._g.setBlendMode(Phaser.BlendModes.ADD) } catch {}
     this._t = 0
@@ -35,14 +39,14 @@ export class WishingWellRenderer {
   destroy() {
     EventBus.off('WISHING_WELL_BOON',  this._onBoon, this)
     EventBus.off('WISHING_WELL_CURSE', this._onCurse, this)
-    try { this._g?.destroy() } catch {}
-    this._g = null
+    try { this._g?.destroy(); this._gCoins?.destroy() } catch {}
+    this._g = this._gCoins = null
   }
 
   update(delta) {
     if (!this._g) return
     this._t += Math.min(50, delta ?? 16) / 1000
-    this._g.clear()
+    this._g.clear(); this._gCoins.clear()
     const cam = this._scene.cameras?.main
     const lod = cam && cam.zoom < 0.5
     for (const room of (this._gameState.dungeon?.rooms ?? [])) {
@@ -68,11 +72,40 @@ export class WishingWellRenderer {
     const fate = 0.5 + 0.5 * Math.sin(t * 0.6)   // 0 gold ↔ 1 violet
     const surf = this._lerpCol(COL_GOLD, COL_VIOLET, fate)
 
+    // 0) submerged offering-coins resting at the basin bottom (detailed coins,
+    //    dimmed + wobbling slightly as if seen through water).
+    if (!lod) {
+      const gc = this._gCoins
+      const coinN = Math.max(5, Math.round(rad / 7))
+      for (let i = 0; i < coinN; i++) {
+        const a = (i / coinN) * TAU + i * 1.3
+        const rr = rad * (0.18 + (i % 3) * 0.2)
+        const ccx = cx + Math.cos(a) * rr + Math.sin(t + i) * 1.2
+        const ccy = cy + Math.sin(a) * rr * 0.9 + Math.cos(t * 0.8 + i) * 1.0
+        gc.save?.(); gc.translateCanvas?.(ccx, ccy)
+        VfxShapes.coin(gc, 2.6 + (i % 2))
+        gc.restore?.()
+      }
+      // a watery dim wash over the coins (cool tint)
+      gc.fillStyle(0x123040, 0.35); gc.fillCircle(cx, cy, rad)   // circle-ok: water dimming over coins
+    }
+
     // 1) basin glow — soft luminous pool
     this._blob(g, cx, cy, rad, t, surf, 0.14, 2)
     this._blob(g, cx, cy, rad * 0.7, t * 1.2, surf, 0.18, 5)
 
     if (lod) { return }
+
+    // fate-runes carved around the rim, glowing in the current fate colour
+    const runes = 8
+    for (let i = 0; i < runes; i++) {
+      const a = (i / runes) * TAU + t * 0.1
+      const rx = cx + Math.cos(a) * rad * 1.04, ry = cy + Math.sin(a) * rad * 1.04
+      const fl = 0.3 + 0.4 * (0.5 + 0.5 * Math.sin(t * 1.5 + i))
+      g.lineStyle(1.2, surf, fl)
+      g.lineBetween(rx - 2, ry - 2, rx + 2, ry + 1)
+      g.lineBetween(rx + 1, ry - 2.5, rx - 1, ry + 2.5)
+    }
 
     // 2) concentric surface RIPPLES expanding from the centre (water rings,
     //    fading at the rim) — reads as a still pool catching light.

@@ -9,6 +9,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { VfxShapes } from './AbilityVfx.js'
 
 const TS  = Balance.TILE_SIZE
 const WT  = Balance.WALL_THICKNESS
@@ -97,6 +98,15 @@ export class HallOfTrialsRenderer {
     for (const p of pts) {
       gH.fillStyle(COL_MAGMA, 0.06 * pulse)
       gH.fillCircle(p.x, p.y, 9)   // circle-ok: fissure heat-glow blob
+    }
+    // real layered flame-licks rising from points along the fissure (flicker
+    // their height; reuse the shared AbilityVfx flame so they read as fire).
+    for (let i = 1; i < pts.length - 1; i += 2) {
+      const p = pts[i]
+      const h = 10 + 7 * Math.abs(Math.sin(t * 6 + i * 1.3))
+      gH.save?.(); gH.translateCanvas?.(p.x, p.y)
+      VfxShapes.flame(gH, h, 3.4, Math.sin(t * 4 + i) * 1.6)
+      gH.restore?.()
     }
     // ambient embers drifting up
     if ((t % 0.5) < dt * 1.5) {

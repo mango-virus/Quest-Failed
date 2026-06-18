@@ -962,6 +962,23 @@ export const VfxPalette = {
   arcane: { color: 0xff5fbf, accent: 0x66e0ff },
   blood:  { color: 0xcc1133, accent: 0xff5566 },
 }
+// Detailed silhouette drawers shared with the room-ambience renderers
+// (CatacombsRenderer, HallOfMadnessRenderer, WishingWellRenderer, …) so room
+// VFX compose from the SAME bone/eye/coin/flame shapes as the abilities — not
+// hand-rolled flat shapes. Each draws in LOCAL coords into a Graphics `g`
+// (the caller positions/rotates/scales the graphics). (Function decls are
+// hoisted, so referencing them here before their definitions is fine.)
+export const VfxShapes = {
+  spectralEye: _drawSpectralEye,   // (g, s, color) — additive
+  wailFace:    _drawWailFace,      // (g, s, color)
+  coin:        _drawCoin,          // (g, r)
+  flame:       _drawFlame,         // (g, h, w, tipDX) — base 0,0, tip at -h
+  flameTongue: _drawFlameTongue,   // (g, h, w)
+  soulWisp:    _drawSoulWisp,      // (g, s, color)
+  boneSpike:   _drawBoneSpike,     // (g, h, bw, lean, bone)
+  boneChip:    _drawBoneChip,      // (g, s, bone)
+}
+
 function _pal(opts = {}) {
   const p = opts.palette && VfxPalette[opts.palette]
   if (p) { if (opts.color == null) opts.color = p.color; if (opts.accent == null) opts.accent = p.accent }
@@ -5313,7 +5330,7 @@ export const AbilityVfx = {
       g.lineStyle(s * 0.14, bone, 1); g.beginPath(); g.moveTo(-s * 0.34, s * 0.12); g.lineTo(tj.x, tj.y); g.strokePath()
       g.fillStyle(joint, 1); g.fillCircle(tj.x, tj.y, s * 0.09)
     }
-    const hands = 2 + Math.round(Math.random())
+    const hands = o.hands ?? (2 + Math.round(Math.random()))
     for (let i = 0; i < hands; i++) {
       const hx = x + (i - (hands - 1) / 2) * 13 + (Math.random() - 0.5) * 6
       const g = scene.add.graphics().setPosition(hx, y + 12).setDepth(o.depth + i * 0.1).setScale(0.8).setAlpha(0).setAngle((Math.random() - 0.5) * 24); made.push(g)
