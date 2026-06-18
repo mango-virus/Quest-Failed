@@ -69,6 +69,13 @@ import { ArmoryRenderer } from '../ui/ArmoryRenderer.js'
 import { SanctumRenderer } from '../ui/SanctumRenderer.js'
 import { VeilRenderer } from '../ui/VeilRenderer.js'
 import { HallOfMadnessRenderer } from '../ui/HallOfMadnessRenderer.js'
+import { CryptRenderer } from '../ui/CryptRenderer.js'
+import { CatacombsRenderer } from '../ui/CatacombsRenderer.js'
+import { TreasuryRenderer } from '../ui/TreasuryRenderer.js'
+import { LibraryRenderer } from '../ui/LibraryRenderer.js'
+import { WishingWellRenderer } from '../ui/WishingWellRenderer.js'
+import { TrapFactoryRenderer } from '../ui/TrapFactoryRenderer.js'
+import { HallOfTrialsRenderer } from '../ui/HallOfTrialsRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
 import { BloodSplatRenderer } from '../ui/BloodSplatRenderer.js'
 import { HazardRenderer }     from '../ui/HazardRenderer.js'
@@ -430,6 +437,13 @@ export class Game extends Phaser.Scene {
     this.sanctumRenderer     = track(new SanctumRenderer(this, this.gameState))
     this.veilRenderer        = track(new VeilRenderer(this, this.gameState))
     this.hallOfMadnessRenderer = track(new HallOfMadnessRenderer(this, this.gameState))
+    this.cryptRenderer       = track(new CryptRenderer(this, this.gameState))
+    this.catacombsRenderer   = track(new CatacombsRenderer(this, this.gameState))
+    this.treasuryRenderer    = track(new TreasuryRenderer(this, this.gameState))
+    this.libraryRenderer     = track(new LibraryRenderer(this, this.gameState))
+    this.wishingWellRenderer = track(new WishingWellRenderer(this, this.gameState))
+    this.trapFactoryRenderer = track(new TrapFactoryRenderer(this, this.gameState))
+    this.hallOfTrialsRenderer = track(new HallOfTrialsRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
     this.bloodSplatRenderer  = track(new BloodSplatRenderer(this, this.gameState))
     this.hazardRenderer      = track(new HazardRenderer(this, this.gameState))
@@ -2117,6 +2131,13 @@ export class Game extends Phaser.Scene {
       rtick('sanctumRenderer',     () => this.sanctumRenderer?.update(delta))
       rtick('veilRenderer',        () => this.veilRenderer?.update(delta))
       rtick('hallOfMadnessRenderer', () => this.hallOfMadnessRenderer?.update(delta))
+      rtick('cryptRenderer',       () => this.cryptRenderer?.update(delta))
+      rtick('catacombsRenderer',   () => this.catacombsRenderer?.update(delta))
+      rtick('treasuryRenderer',    () => this.treasuryRenderer?.update(delta))
+      rtick('libraryRenderer',     () => this.libraryRenderer?.update(delta))
+      rtick('wishingWellRenderer', () => this.wishingWellRenderer?.update(delta))
+      rtick('trapFactoryRenderer', () => this.trapFactoryRenderer?.update(delta))
+      rtick('hallOfTrialsRenderer', () => this.hallOfTrialsRenderer?.update(delta))
       rtick('decorRenderer',       () => this.decorRenderer?.update())
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
       rtick('hazardRenderer',      () => this.hazardRenderer?.update())
@@ -2154,6 +2175,13 @@ export class Game extends Phaser.Scene {
       this.sanctumRenderer?.update(delta)
       this.veilRenderer?.update(delta)
       this.hallOfMadnessRenderer?.update(delta)
+      this.cryptRenderer?.update(delta)
+      this.catacombsRenderer?.update(delta)
+      this.treasuryRenderer?.update(delta)
+      this.libraryRenderer?.update(delta)
+      this.wishingWellRenderer?.update(delta)
+      this.trapFactoryRenderer?.update(delta)
+      this.hallOfTrialsRenderer?.update(delta)
       this.decorRenderer?.update()
       this.bloodSplatRenderer?.update()
       this.hazardRenderer?.update()
