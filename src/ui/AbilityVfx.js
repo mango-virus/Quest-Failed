@@ -977,6 +977,8 @@ export const VfxShapes = {
   soulWisp:    _drawSoulWisp,      // (g, s, color)
   boneSpike:   _drawBoneSpike,     // (g, h, bw, lean, bone)
   boneChip:    _drawBoneChip,      // (g, s, bone)
+  bloodPool:   _drawBloodPool,     // (g, r, color)
+  bloodDroplet: _drawBloodDroplet, // (g, s)
 }
 
 function _pal(opts = {}) {
