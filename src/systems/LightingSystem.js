@@ -35,6 +35,16 @@ const LIGHT_DEPTH = 9.5
 const BOSS_LIGHT_DEPTH = 6.5
 const MAX_EPHEMERAL = 40         // perf cap on simultaneous flashes
 
+// BLOOM CORE — a tighter, brighter additive glow co-located with each light, so
+// the bright SOURCE itself (torch flame, spell cast, boss) visibly blooms — not
+// just the broad floor pool. Uses the HOT (sharp-centre) texture over the soft
+// pool, ADD-blended → the centre reads as an over-bright bloom that bleeds into
+// its surroundings. This restores the soft glow the old scene post-FX bloom gave,
+// but the 2D way: a per-source halo composited additively, so the base pixel art
+// stays perfectly crisp and it's resize-safe (no offscreen render target).
+const CORE_R_FRAC     = 0.46     // core radius as a fraction of the light radius
+const CORE_ALPHA_MULT = 0.95     // core peak alpha relative to the light's alpha
+
 // Per-archetype boss light tint — a little flavour (hot demon, sickly myconid,
 // violet lich…). Falls back to a warm ember for anything unlisted.
 const BOSS_LIGHT_COLOR = {
@@ -112,6 +122,29 @@ export class LightingSystem {
     return spr
   }
 
+  // Bright bloom-core sprite (hot texture) paired with a light pool. `depth` sits
+  // just above the pool so the source glows over it.
+  _makeCore(x, y, r, color, alpha, depth) {
+    if (!this._tex) return null
+    const spr = this._scene.add.image(x, y, this._tex)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(depth)
+      .setTint(color)
+      .setAlpha(alpha)
+    spr.setScale((r * CORE_R_FRAC) / TEX_R)
+    return spr
+  }
+
+  // Position / alpha / scale a light's bloom core to match its pool.
+  _syncCore(rec, x, y, alpha, scaleMul = 1) {
+    const c = rec.core
+    if (!c) return
+    c.setVisible(true)
+    c.setPosition(x, y)
+    if (alpha != null) c.setAlpha(Math.max(0, alpha * CORE_ALPHA_MULT))
+    c.setScale(((rec.baseR ?? TS) * CORE_R_FRAC / TEX_R) * scaleMul)
+  }
+
   _registerBossLight() {
     const b = this._gameState?.boss
     const color = BOSS_LIGHT_COLOR[b?.definitionId] ?? BOSS_LIGHT_FALLBACK
@@ -119,7 +152,8 @@ export class LightingSystem {
     // sharper/brighter pool at the same alpha.
     const sprite = this._makeSprite(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0.0, true)
     sprite.setDepth(BOSS_LIGHT_DEPTH)   // under the boss sprite — pools on the floor, no tint
-    this._lights.set('boss', { sprite, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.3, pulse: 0.12, seed: 1.7, color })
+    const core = this._makeCore(b?.worldX ?? 0, b?.worldY ?? 0, TS * 2.8, color, 0, BOSS_LIGHT_DEPTH + 0.05)
+    this._lights.set('boss', { sprite, core, follow: () => this._bossPos(), baseR: TS * 2.8, baseAlpha: 0.3, pulse: 0.12, seed: 1.7, color })
   }
 
   _bossPos() {
@@ -140,6 +174,7 @@ export class LightingSystem {
     const color = opts.color ?? 0xffffff
     if (!rec) {
       rec = { sprite: this._makeSprite(0, 0, r, color, 0, !!opts.soft), seed: Math.random() * 6.28 }
+      rec.core = this._makeCore(0, 0, r, color, 0, LIGHT_DEPTH + 0.05)
       this._lights.set(id, rec)
     }
     rec.follow = opts.follow ?? rec.follow
@@ -148,11 +183,12 @@ export class LightingSystem {
     rec.pulse = opts.pulse ?? 0
     rec.color = color
     rec.sprite.setTint(color)
+    if (rec.core) rec.core.setTint(color)
   }
 
   removeLight(id) {
     const rec = this._lights.get(id)
-    if (rec) { try { rec.sprite.destroy() } catch (e) {} this._lights.delete(id) }
+    if (rec) { try { rec.sprite.destroy(); rec.core?.destroy() } catch (e) {} this._lights.delete(id) }
   }
 
   // Reposition + (optionally) set the live alpha on an EXTERNALLY-DRIVEN light —
@@ -166,6 +202,7 @@ export class LightingSystem {
     rec.sprite.setVisible(true)
     rec.sprite.setPosition(x, y)
     if (alpha != null) rec.sprite.setAlpha(alpha)
+    this._syncCore(rec, x, y, alpha)
   }
 
   // Transient burst of light — grows + fades, then self-destroys. Call from any
@@ -176,16 +213,22 @@ export class LightingSystem {
     if (this._ephemeral.length >= MAX_EPHEMERAL) return null
     const o = { color: 0xff8a44, radius: TS * 2.4, durationMs: 380, intensity: 0.85, ...opts }
     const spr = this._makeSprite(x, y, o.radius * 0.7, o.color, o.intensity)
-    const rec = { sprite: spr }
+    // Bright bloom core so the cast/explosion blooms, not just lights the floor.
+    const core = this._makeCore(x, y, o.radius * 0.7, o.color, o.intensity, LIGHT_DEPTH + 0.1)
+    const rec = { sprite: spr, core }
     this._ephemeral.push(rec)
     this._scene.tweens.add({
       targets: spr, scale: (o.radius / TEX_R) * 1.35, alpha: 0,
       duration: o.durationMs, ease: 'Quad.easeOut',
       onComplete: () => {
-        try { spr.destroy() } catch (e) {}
+        try { spr.destroy(); core?.destroy() } catch (e) {}
         const i = this._ephemeral.indexOf(rec)
         if (i >= 0) this._ephemeral.splice(i, 1)
       },
+    })
+    if (core) this._scene.tweens.add({
+      targets: core, scale: ((o.radius * CORE_R_FRAC) / TEX_R) * 1.5, alpha: 0,
+      duration: o.durationMs, ease: 'Quad.easeOut',
     })
     return spr
   }
@@ -198,20 +241,21 @@ export class LightingSystem {
       // alpha'd by their owner via moveLight(); skip them here.
       if (!rec.follow) continue
       const pos = rec.follow()
-      if (!pos) { rec.sprite.setVisible(false); continue }
+      if (!pos) { rec.sprite.setVisible(false); if (rec.core) rec.core.setVisible(false); continue }
       rec.sprite.setVisible(true)
       rec.sprite.setPosition(pos.x, pos.y)
       // gentle breathing pulse on alpha + scale
       const wob = rec.pulse ? rec.pulse * Math.sin(now / 520 + rec.seed) : 0
       rec.sprite.setAlpha(Math.max(0, rec.baseAlpha * (1 + wob)))
       rec.sprite.setScale((rec.baseR / TEX_R) * (1 + wob * 0.4))
+      this._syncCore(rec, pos.x, pos.y, rec.baseAlpha * (1 + wob), 1 + wob * 0.4)
     }
   }
 
   destroy() {
-    for (const [, rec] of this._lights) { try { rec.sprite.destroy() } catch (e) {} }
+    for (const [, rec] of this._lights) { try { rec.sprite.destroy(); rec.core?.destroy() } catch (e) {} }
     this._lights.clear()
-    for (const rec of this._ephemeral) { try { rec.sprite.destroy() } catch (e) {} }
+    for (const rec of this._ephemeral) { try { rec.sprite.destroy(); rec.core?.destroy() } catch (e) {} }
     this._ephemeral = []
   }
 }

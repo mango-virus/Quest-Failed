@@ -21,14 +21,10 @@
 const { app, BrowserWindow, protocol, net, Menu, shell } = require('electron')
 const path = require('node:path')
 
-// Render at the display's native physical resolution (DPI-independent) so the
-// game canvas is crisp on a HiDPI / fractionally-scaled monitor (e.g. 125%).
-// Without this, Chromium sizes the canvas in CSS pixels and the OS upscales it
-// → blur. (Known limitation: on a HiDPI monitor, RESIZING the window can let
-// Windows re-stretch it until the next clean repaint — see the resize note in
-// the README. A full DPR-aware canvas in-engine is blocked by Phaser RESIZE not
-// supporting a separate render resolution.) Must be set before app 'ready'.
-app.commandLine.appendSwitch('force-device-scale-factor', '1')
+// Let each monitor render at its true device pixel ratio so text/UI rasterize at
+// the screen's native resolution (crisp). The DOM HUD is laid out fluidly at the
+// window's real size (no fixed-1920 buffer scaled to fit), so there is no
+// non-integer-scale blur to compensate for. Must be set before app 'ready'.
 app.commandLine.appendSwitch('high-dpi-support', '1')
 const fs = require('node:fs')
 const { Readable } = require('node:stream')
@@ -119,11 +115,11 @@ function registerProtocols() {
 
 function createWindow() {
   const win = new BrowserWindow({
-    // The game now renders at the window's native resolution (Phaser Scale.RESIZE
-    // — the drawing buffer tracks the window size), so it stays crisp at ANY size
-    // or aspect. The window is therefore freely resizable/maximizable with no
-    // sharpness trade-off. A 1600×900 default content area is a comfortable
-    // windowed size; the player can resize or go fullscreen (F11) freely.
+    // The game renders at the window's native resolution (the canvas via Phaser
+    // Scale.RESIZE, the DOM HUD via a fluid layout), so it stays crisp at ANY size
+    // or aspect — the window is freely resizable/maximizable with no sharpness
+    // trade-off. A 1600×900 default content area is a comfortable windowed size;
+    // the player can resize or go fullscreen (F11) freely.
     useContentSize: true,
     width: 1600,
     height: 900,

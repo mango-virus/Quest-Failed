@@ -1245,7 +1245,6 @@ body {
 .overlay {
   position: absolute; inset: 0;
   background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(2px);
   /* Sits above the MainMenu screen (z:100) so OPTIONS / LEADERBOARD
      opened from the title actually render on top of it. Decorative
      stage::after gradients at z:200 are pointer-events:none, so they
@@ -1271,6 +1270,14 @@ body {
 }
 .overlay > .modal {
   animation: panel-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Now that the HUD renders at native size (no zoom-to-fit), a modal sized in
+     fixed px (e.g. 1400×840) must not exceed the window or it clips off-screen.
+     Cap to the viewport; the body already scrolls (overflow:auto). No effect at
+     normal window sizes — only kicks in when the window is smaller than the
+     modal's design size. */
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
 }
 .overlay > .modal.unfurl {
   animation: scroll-unfurl 360ms cubic-bezier(0.6, 0, 0.2, 1);
@@ -1410,13 +1417,13 @@ body {
 #hud-root[hidden] { display: none; }
 
 #hud-stage {
+  /* Fluid: the stage fills the window at native resolution (no fixed 1920×1080
+     buffer scaled with `zoom`). Pixel fonts and pixel art therefore render at the
+     screen's true pixel grid — crisp at any window size — instead of being
+     fractionally scaled (which softened everything). The HUD chrome inside is
+     edge-anchored / flex-centered, so it reflows naturally to the real size. */
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1920px;
-  height: 1080px;
-  transform-origin: center;
-  transform: translate(-50%, -50%);
+  inset: 0;
   pointer-events: none;
 }
 
@@ -8431,7 +8438,24 @@ body {
    Tinted by --cov-acc (boss/theme accent). Token aliases let the ported
    prototype rules (var(--acc)/--mute/etc.) resolve to the game palette.
    ============================================================ */
-.overlay.qf-cov-layer { background: rgba(5,3,7,0.985); backdrop-filter: blur(5px) saturate(.75); -webkit-backdrop-filter: blur(5px) saturate(.75); }
+/* bg is ~98.5% opaque, so the frosted-glass backdrop-filter was near-invisible —
+   and backdrop-filter promotes a composited layer that the HUD's `zoom` then
+   bitmap-scales, blurring the whole overlay. Dropped for crispness. */
+.overlay.qf-cov-layer { background: rgba(5,3,7,0.985); }
+
+/* ── Overlay crispness ──────────────────────────────────────────────────────
+   The DOM HUD scales to the window via CSS `zoom` (hud/stageScale.js). Any
+   element with `filter`/`backdrop-filter` becomes a CACHED composited layer that
+   `zoom` bitmap-scales → blurry (worst on small windows). Inside the coverage
+   overlays we strip those effect-layers so text/icons stay razor-crisp; glows
+   are re-added below as `box-shadow` (which does NOT promote a layer). */
+.qf-cov, .qf-cov * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  will-change: auto !important;
+  contain: none !important;
+}
 .qf-cov {
   --acc: var(--cov-acc, var(--blood));
   --accDk: color-mix(in srgb, var(--cov-acc, var(--blood)) 48%, #000);
@@ -8445,7 +8469,9 @@ body {
   animation: qf-cov-in .42s cubic-bezier(.2,.8,.2,1) both;
 }
 .qf-cov * { box-sizing: border-box; }
-@keyframes qf-cov-in { from { transform: translateY(16px) scale(.985); opacity: .4; } to { transform: none; opacity: 1; } }
+/* Fade-only entrance (NO transform): a transform animation with fill:both leaves
+   the panel on a composited layer that the HUD zoom bitmap-scales → blur. */
+@keyframes qf-cov-in { from { opacity: 0; } to { opacity: 1; } }
 .qf-cov::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 6; pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb,var(--acc) 80%,transparent) 22%, color-mix(in srgb,var(--acc) 80%,transparent) 78%, transparent); }
 .qf-cov-atmo { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
@@ -8770,7 +8796,9 @@ body {
 .qf-ac-med { position: relative; display: flex; gap: 12px; padding: 11px 13px; align-items: center;
   background: linear-gradient(180deg,#16121f,#100c16); border: 1px solid color-mix(in srgb,var(--sc) 40%,var(--line2)); box-shadow: 0 3px 0 rgba(0,0,0,.4); }
 .qf-ac-med[data-leg="true"] { box-shadow: 0 3px 0 rgba(0,0,0,.4), 0 0 16px color-mix(in srgb,var(--sc) 28%,transparent); }
-.qf-ac-med[data-locked="true"] .qf-ac-disc { filter: grayscale(.7) brightness(.6); }
+/* Locked dimming via opacity, NOT filter:grayscale — `filter` would composite
+   the disc into a layer the HUD zoom bitmap-scales (blur). */
+.qf-ac-med[data-locked="true"] .qf-ac-disc { opacity: .4; }
 .qf-ac-med[data-locked="true"] .qf-ac-mname, .qf-ac-med[data-locked="true"] .qf-ac-mdesc { color: var(--text-dim); }
 .qf-ac-disc { position: relative; flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 38% 32%, color-mix(in srgb,var(--sc) 22%,#0a0710), #0a0710 78%);
