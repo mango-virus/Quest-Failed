@@ -1,5 +1,6 @@
 import { SaveSystem }         from '../systems/SaveSystem.js'
 import { EventBus }           from '../systems/EventBus.js'
+import { effectiveUiScale }   from '../hud/stageScale.js'
 import { DungeonGrid, TILE }  from '../systems/DungeonGrid.js'
 import { AISystem }           from '../systems/AISystem.js'
 import { PersonalitySystem }  from '../systems/PersonalitySystem.js'
@@ -657,6 +658,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
     this.scale.off('resize', this._onSceneResize, this)
+    if (this._resizeSettleTimer != null) { clearTimeout(this._resizeSettleTimer); this._resizeSettleTimer = null }
     if (this._onTabVisibleBound) {
       window.removeEventListener('focus', this._onTabVisibleBound)
       document.removeEventListener('visibilitychange', this._onTabVisibleBound)
@@ -1308,26 +1310,35 @@ export class Game extends Phaser.Scene {
 
   // Minimum zoom that still fits the full dungeon map in the viewport.
   // Shrinks as the map expands so the player can always zoom out to see everything.
-  // Side / top / bottom HUD chrome dimensions in UI design units (kept in
-  // sync with HudScene.LEFT_COL_W + COL_PAD*2, RIGHT_COL_W + COL_PAD*2,
-  // BOSS_TOP_BAR_HEIGHT, ACTION_BAR_HEIGHT). Used to derive the central
-  // play area in canvas pixels for the camera-clamp logic.
+  // The DOM HUD chrome footprint in LOGICAL (CSS) pixels — these MUST match the
+  // --hud-side / --hud-top / --hud-bottom CSS vars in hud/styles.css. The DOM HUD
+  // renders at a FIXED logical size (scaled only by the UI-scale zoom), so the
+  // gameplay camera reserves the same fixed footprint — converted to canvas px —
+  // rather than a fraction of the viewport. (The old min(sw/1280,sh/720) scaling
+  // assumed the HUD shrank/grew with the window; once the HUD became native
+  // fixed-px, that under-reserved at small windows and the dungeon ran behind the
+  // panels, e.g. the boss appearing to walk outside the room.)
   static get _PLAY_AREA_INSETS() {
-    return { left: 200 + 12 * 2, right: 220 + 12 * 2, top: 56, bottom: 76 + 6 }
+    return { left: 320, right: 320, top: 96, bottom: 116 }
   }
 
-  // The play area is the sub-rectangle of the canvas not covered by HUD
-  // chrome. Returned in canvas pixels.
+  // The play area is the sub-rectangle of the canvas not covered by HUD chrome,
+  // returned in canvas pixels. The HUD footprint is `logical px × uiScale`
+  // (the DOM zoom) × `canvas/CSS ratio` (the device pixel ratio).
   _computePlayArea() {
     const sw  = this.scale.width
     const sh  = this.scale.height
-    const sf  = Math.min(sw / 1280, sh / 720)
+    const uiS = effectiveUiScale()
+    const cssW = (typeof window !== 'undefined' && window.innerWidth)  || sw
+    const cssH = (typeof window !== 'undefined' && window.innerHeight) || sh
+    const rx  = sw / cssW   // canvas px per CSS px on X (≈ devicePixelRatio)
+    const ry  = sh / cssH
     const ins = Game._PLAY_AREA_INSETS
     return {
-      left:   ins.left   * sf,
-      right:  ins.right  * sf,
-      top:    ins.top    * sf,
-      bottom: ins.bottom * sf,
+      left:   ins.left   * uiS * rx,
+      right:  ins.right  * uiS * rx,
+      top:    ins.top    * uiS * ry,
+      bottom: ins.bottom * uiS * ry,
       sw, sh,
     }
   }
@@ -1517,23 +1528,26 @@ export class Game extends Phaser.Scene {
     this._clampCameraToPlayArea()
   }
 
-  // Fires when Phaser's scale manager resizes the canvas. The camera's own
-  // viewport update (cam.width/height) is also bound to this same event, and
-  // listener order isn't guaranteed — so we defer one rAF to make sure cam
-  // state has settled before we sample / restore the centred world point.
+  // Fires (repeatedly) while Phaser's scale manager resizes the canvas. A
+  // *continuous* window drag emits this every frame, so we must NOT re-anchor on
+  // each event — doing so re-centres the camera every frame and the dungeon/boss
+  // visibly chase the cursor around during the drag. Instead DEBOUNCE: capture
+  // the look-point at the START of a drag burst (it drifts as the burst runs),
+  // and only re-anchor once the drag has SETTLED. This keeps the view stable
+  // during the drag and correctly framed on release.
   _onSceneResize() {
     if (!this._cam) return
-    // Snapshot the world point the player was looking at BEFORE the resize
-    // settles, taken from the most recent update() tick. midPoint computed
-    // mid-resize would mix the new viewport size with old scrollX, returning
-    // a wrong world point.
-    const wX = this._camWorldCX
-    const wY = this._camWorldCY
-    if (this._pendingResizeRaf) cancelAnimationFrame(this._pendingResizeRaf)
-    this._pendingResizeRaf = requestAnimationFrame(() => {
-      this._pendingResizeRaf = null
-      this._reanchorCamera(wX, wY)
-    })
+    if (this._resizeSettleTimer == null) {
+      // Start of a burst — snapshot the pre-drag look-point (used for the day
+      // phase; the build phase re-anchors on the chamber inside _reanchorCamera).
+      this._resizeAnchorX = this._camWorldCX
+      this._resizeAnchorY = this._camWorldCY
+    }
+    clearTimeout(this._resizeSettleTimer)
+    this._resizeSettleTimer = setTimeout(() => {
+      this._resizeSettleTimer = null
+      this._reanchorCamera(this._resizeAnchorX, this._resizeAnchorY)
+    }, 160)
   }
 
   // Re-anchor the world camera on `(wX, wY)` — the player's last look-point —
@@ -1542,8 +1556,33 @@ export class Game extends Phaser.Scene {
   // degenerate (a mid-relayout 0×0 collapse) so a transient never writes a
   // garbage scroll/zoom. Returns true once it has anchored successfully.
   _reanchorCamera(wX, wY) {
-    if (!this._cam || !this.scene.isActive()) return false
+    // Re-frame whenever the dungeon is on screen — INCLUDING the build/night
+    // phase, when the Game scene is PAUSED (it still renders, but isActive() is
+    // false while paused). The old `!isActive()` bail meant resizing during the
+    // build phase never re-framed: the canvas shrank but the camera kept its old
+    // scroll/zoom, cropping the room off-screen so the boss appeared to drift
+    // outside its walls. Only skip when the scene is fully stopped/sleeping (no
+    // render) or the viewport is mid-relayout degenerate.
+    if (!this._cam) return false
+    if (!this.scene.isActive() && !this.scene.isPaused()) return false
     if (this.scale.width < 2 || this.scale.height < 2) return false
+    // Phaser only auto-resizes the cameras of ACTIVE scenes on a canvas resize.
+    // During the build/night phase the Game scene is paused, so its camera
+    // viewport (cam.width/height → centerX/Y) goes stale — the re-anchor math
+    // below would then frame against the OLD viewport and leave the dungeon
+    // cropped. Sync the viewport to the live canvas first.
+    if (this._cam.width !== this.scale.width || this._cam.height !== this.scale.height) {
+      this._cam.setSize(this.scale.width, this.scale.height)
+    }
+    // During the BUILD phase (NightPhase is the active UI scene) the live
+    // look-point (_camWorldCX/Y) drifts across a resize: Phaser resizes the
+    // camera viewport, an update() tick then recomputes the look-point as the
+    // world point now at the (shifted) play-area centre, so re-anchoring on it
+    // just re-preserves the stale, off-centre frame — the room ends up cropped
+    // and the boss appears to walk outside it. Anchor on the boss chamber
+    // instead so a resize always re-centres the dungeon. During play (DayPhase)
+    // we keep the player's look-point so combat isn't jerked around.
+    if (this.scene.manager?.isActive('NightPhase')) { wX = undefined; wY = undefined }
     if (wX === undefined || wY === undefined) {
       const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
       wX = boss ? (boss.gridX + boss.width  / 2) * TS : 0
