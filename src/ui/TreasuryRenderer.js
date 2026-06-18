@@ -119,9 +119,6 @@ export class TreasuryRenderer {
     const t = this._t
     const RX = 34, RY = 18   // oval floor footprint
 
-    // seated contact shadow under the spread
-    g.fillStyle(0x0a0905, 0.4); g.fillEllipse(cx, cy + RY * 0.55, RX * 2.0, RY * 1.3)   // ellipse-ok: hoard floor shadow
-
     // build coin positions (stable per index — no Math.random in persistent draw)
     const N = lod ? 14 : 30
     const coins = []
