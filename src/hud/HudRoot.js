@@ -444,19 +444,7 @@ export class HudRoot {
   }
 }
 
-// Feature-flag check: the new DOM HUD is the default. The original Phaser
-// chrome (BossTopBar / ActionBar / MiniMapPanel / BuildMenu / KnowledgePin
-// / DungeonLog) still ships and can be re-enabled with `?newhud=0` (URL)
-// or `localStorage.newhud = '0'`. Useful as a fallback while overlays
-// (Phase 34C) are still being ported.
-export function isNewHudEnabled() {
-  try {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('newhud') === '0') return false
-    if (params.get('newhud') === '1') return true
-    if (localStorage.getItem('newhud') === '0') return false
-    return true
-  } catch {
-    return true
-  }
-}
+// The DOM HUD is the only path. The legacy Phaser chrome (BossTopBar /
+// ActionBar / MiniMapPanel / BuildMenu / KnowledgePin / DungeonLog) and the
+// `?newhud=0` / `localStorage.newhud='0'` fallback flag that selected it were
+// retired 2026-06-18 (UI_POLISH_PLAN P0-6).

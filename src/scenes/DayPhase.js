@@ -146,12 +146,8 @@ export class DayPhase extends Phaser.Scene {
     // Defer adventurer spawn until the DAY phase-change cinematic
     // finishes (2.8s). Otherwise adventurers march in behind/under the
     // cinematic and the "DAWN BREAKS · THE INVASION" framing is lost.
-    // Detection: when the new DOM HUD is on, PhaseTransition will emit
-    // PHASE_TRANSITION_FINISHED at the cinematic's end. Under legacy
-    // (`?newhud=0`) there's no cinematic so we spawn immediately. A
-    // fallback timer guards against the event never firing (defensive).
-    let _useNewHud = true
-    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
+    // PhaseTransition emits PHASE_TRANSITION_FINISHED at the cinematic's
+    // end; a fallback timer guards against the event never firing.
     const spawnNow = () => {
       if (this._didSpawnToday) return
       this._didSpawnToday = true
@@ -199,23 +195,18 @@ export class DayPhase extends Phaser.Scene {
       // Saboteur).
       EventBus.emit('DAY_WAVE_INFO', this._waveInfo())
     }
-    if (_useNewHud) {
-      const onFinish = ({ phase } = {}) => {
-        if (phase !== 'day') return
-        EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
-        spawnNow()
-      }
-      EventBus.on('PHASE_TRANSITION_FINISHED', onFinish)
-      // Defensive fallback — if the cinematic gets cancelled or its
-      // emit never lands, still spawn at 2.9s so the day isn't soft-
-      // locked.
-      this.time.delayedCall(2900, () => {
-        EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
-        spawnNow()
-      })
-    } else {
+    const onFinish = ({ phase } = {}) => {
+      if (phase !== 'day') return
+      EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
       spawnNow()
     }
+    EventBus.on('PHASE_TRANSITION_FINISHED', onFinish)
+    // Defensive fallback — if the cinematic gets cancelled or its emit never
+    // lands, still spawn at 2.9s so the day isn't soft-locked.
+    this.time.delayedCall(2900, () => {
+      EventBus.off('PHASE_TRANSITION_FINISHED', onFinish)
+      spawnNow()
+    })
   }
 
   // Brief camera pan + zoom to the entry hall(s) so the player can watch the

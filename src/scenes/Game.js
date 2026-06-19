@@ -44,13 +44,10 @@ import { PhylacteryRenderer } from '../ui/PhylacteryRenderer.js'
 import { FungalCorpseRenderer } from '../ui/FungalCorpseRenderer.js'
 import { PersistentCorpseRenderer } from '../ui/PersistentCorpseRenderer.js'
 import { TrapBlessRenderer } from '../ui/TrapBlessRenderer.js'
-import { MinionInspector }    from '../ui/MinionInspector.js'
 import { ChatBubbles }        from '../ui/ChatBubbles.js'
 import { KnowledgeOverlay }   from '../ui/KnowledgeOverlay.js'
-import { WantedPoster }       from '../ui/WantedPoster.js'
 // ReplayGhostRenderer removed 2026-05-21 (prior-run path trail cut at
 // user request) — file kept in repo, just no longer imported/constructed.
-import { BossFightOverlay }    from '../ui/BossFightOverlay.js'
 import { SunderedFloorRenderer } from '../ui/SunderedFloorRenderer.js'
 import { TunnelPortalRenderer } from '../ui/TunnelPortalRenderer.js'
 import { CartographerOverlay }   from '../ui/CartographerOverlay.js'
@@ -398,20 +395,11 @@ export class Game extends Phaser.Scene {
     this.fungalCorpseRenderer = track(new FungalCorpseRenderer(this, this.gameState))
     this.persistentCorpseRenderer = track(new PersistentCorpseRenderer(this, this.gameState))
     this.trapBlessRenderer = track(new TrapBlessRenderer(this, this.gameState))
-    // MinionInspector and WantedPoster have DOM ports under the new HUD
-    // (src/hud/MinionInspectorOverlay.js + the ToastQueue 'bounty' kind).
-    // Gate the Phaser constructions so they don't double-fire under the
-    // DOM HUD — both would otherwise sit obscured behind the chrome.
-    let _useNewHud = true
-    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
-    if (!_useNewHud) {
-      this.minionInspector   = track(new MinionInspector(this, this.gameState))
-    }
+    // MinionInspector and WantedPoster were Phaser-only chrome; the DOM HUD
+    // owns those surfaces now (ToastQueue 'bounty' kind + the DOM inspector),
+    // so the legacy Phaser constructions were dropped with P0-6.
     this.chatBubbles         = track(new ChatBubbles(this, this.gameState))
     this.knowledgeOverlay      = track(new KnowledgeOverlay(this, this.gameState, this.knowledgeSystem))
-    if (!_useNewHud) {
-      this.wantedPoster      = track(new WantedPoster(this, this.gameState))
-    }
     // Replay Ghost trail removed at user request (2026-05-21) — a
     // returning Hero no longer draws their prior-run path on the dungeon
     // floor. ReplayGhostRenderer.js stays in the repo (removal-not-

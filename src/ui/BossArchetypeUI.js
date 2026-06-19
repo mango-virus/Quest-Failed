@@ -9,7 +9,7 @@
 // Sits anchored above the action bar; only renders archetype-specific
 // buttons matching the current archetype + phase.
 
-import { CRYPT, FONT_HEAD, pixelButton, showToast } from './UIKit.js'
+import { FONT_HEAD, showToast } from './UIKit.js'
 import { EventBus } from '../systems/EventBus.js'
 
 const BTN_W   = 132
@@ -43,18 +43,9 @@ export class BossArchetypeUI {
 
     this._listeners = []
     this._wireEvents()
-    // Under the new DOM HUD, the EARTHQUAKE / SACRIFICE buttons are
-    // rendered by src/hud/BossArchetypeStrip.js to match the chrome's
-    // theme. The Phaser VFX wiring above stays — only the player-facing
-    // buttons skip. Detection mirrors isNewHudEnabled() without pulling
-    // in the import (this file lives in src/ui/ which shouldn't depend
-    // on src/hud/).
-    let _useNewHud = true
-    try { _useNewHud = localStorage.getItem('newhud') !== '0' } catch {}
-    if (!_useNewHud) {
-      this._buildEarthquakeButton()
-      this._buildSacrificeButton()
-    }
+    // The player-facing EARTHQUAKE / SACRIFICE buttons live in the DOM
+    // (src/hud/BossArchetypeStrip.js, to match the chrome theme). This class
+    // only owns the in-world VFX + room/minion pick listeners wired above.
     this._refreshVisibility()
     this._maybeShowFirstUseToast()
   }
@@ -406,18 +397,6 @@ export class BossArchetypeUI {
     })
   }
 
-  _buildEarthquakeButton() {
-    this._earthquakeBtn = pixelButton(
-      this._scene, this._btnX, this._btnY, BTN_W, BTN_H,
-      'EARTHQUAKE', {
-        depth:    this._depth,
-        fontSize: 10,
-        primary:  true,
-        onClick:  () => this._onEarthquakeClick(),
-      },
-    )
-  }
-
   _onEarthquakeClick() {
     if (!this._isArchetypeGolem()) return
     if (this._armed) {
@@ -431,18 +410,6 @@ export class BossArchetypeUI {
   _setEarthquakeArmedVisual(armed) {
     if (!this._earthquakeBtn) return
     this._earthquakeBtn.setLabel(armed ? 'PICK A ROOM' : 'EARTHQUAKE')
-  }
-
-  _buildSacrificeButton() {
-    this._sacrificeBtn = pixelButton(
-      this._scene, this._btnX, this._btnY, BTN_W, BTN_H,
-      'SACRIFICE', {
-        depth:    this._depth,
-        fontSize: 10,
-        danger:   true,
-        onClick:  () => this._onSacrificeClick(),
-      },
-    )
   }
 
   _onSacrificeClick() {
