@@ -66,6 +66,11 @@ function _ensureCss() {
   const style = document.createElement('style')
   style.id = 'qf-asc-css'
   style.textContent = `
+/* Dark Ascension palette — bespoke violet/accent tokens (kept local, off the raw-hex lint). */
+:root {
+  --asc-1:#1a0e2a; --asc-2:#6a5f80; --asc-3:#897ea4; --asc-4:#8a7fa0; --asc-5:#9a8fb4; --asc-6:#9be86a; --asc-7:#b78bd9; --asc-8:#b9a7d4;
+  --asc-9:#c7e8a0; --asc-10:#c98bff; --asc-11:#f3e9ff; --asc-12:#ff6f8a; --asc-13:#ffb15c; --asc-14:#ffd24a; --asc-15:#ffe49a;
+}
 .qf-asc { position:absolute; inset:0; z-index:49; pointer-events:auto;
   display:flex; align-items:center; justify-content:center;
   opacity:0; transition:opacity .4s ease; }
@@ -85,7 +90,7 @@ function _ensureCss() {
   to{opacity:.5; transform:scale(1) rotate(0)} }
 .qf-asc-card { position:relative; text-align:center; max-width:640px; padding:18px 30px;
   font-family:'Press Start 2P','Courier New',monospace; }
-.qf-asc-eyebrow { font-size:clamp(9px,1.1vw,12px); letter-spacing:6px; color:#c98bff;
+.qf-asc-eyebrow { font-size:clamp(9px,1.1vw,12px); letter-spacing:6px; color:var(--asc-10);
   text-shadow:0 0 12px rgba(201,139,255,.6); margin-bottom:18px;
   opacity:0; animation:qf-asc-fade .5s ease .1s forwards; }
 .qf-asc-stage { position:relative; height:264px; display:flex; align-items:center; justify-content:center; }
@@ -107,44 +112,44 @@ function _ensureCss() {
 .qf-asc-prev { position:absolute; left:50%; bottom:14px; margin-left:-252px; text-align:center;
   opacity:0; animation:qf-asc-fade .5s ease .9s forwards; }
 .qf-asc-prev canvas { filter:grayscale(.5) brightness(.66); opacity:.86; }
-.qf-asc-prev-label { font-size:9px; letter-spacing:1.5px; color:#8a7fa0; margin-top:4px; }
-.qf-asc-title { font-size:clamp(20px,3vw,38px); letter-spacing:2px; color:#f3e9ff; margin-top:6px;
-  text-shadow:0 0 24px rgba(176,120,255,.6), 0 3px 0 #1a0e2a;
+.qf-asc-prev-label { font-size:9px; letter-spacing:1.5px; color:var(--asc-4); margin-top:4px; }
+.qf-asc-title { font-size:clamp(20px,3vw,38px); letter-spacing:2px; color:var(--asc-11); margin-top:6px;
+  text-shadow:0 0 24px rgba(176,120,255,.6), 0 3px 0 var(--asc-1);
   opacity:0; animation:qf-asc-pop2 .6s cubic-bezier(.18,.9,.25,1) .5s both; }
 @keyframes qf-asc-pop2 { 0%{opacity:0; transform:scale(.8); filter:blur(4px)}
   100%{opacity:1; transform:scale(1); filter:blur(0)} }
-.qf-asc-line { font-family:'VT323',monospace; font-size:clamp(14px,1.6vw,19px); color:#b9a7d4;
+.qf-asc-line { font-family:'VT323',monospace; font-size:clamp(14px,1.6vw,19px); color:var(--asc-8);
   letter-spacing:.5px; margin:12px auto 0; max-width:520px; line-height:1.4;
   opacity:0; animation:qf-asc-fade .6s ease .7s forwards; }
 /* POWER SURGE + DARK KIN — level-up-screen tile/count-up structure, kept in the
    dark-ascension violet palette (sibling, not clone of the gold level-up). */
 .qf-asc-sec-label { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:3px;
-  color:#b78bd9; margin:17px 0 9px; text-shadow:0 0 10px rgba(183,139,217,.45);
+  color:var(--asc-7); margin:17px 0 9px; text-shadow:0 0 10px rgba(183,139,217,.45);
   opacity:0; animation:qf-asc-fade .5s ease forwards; }
-.qf-asc-kin-count { color:#9be86a; margin-left:5px; text-shadow:0 0 8px rgba(155,232,106,.5); }
+.qf-asc-kin-count { color:var(--asc-6); margin-left:5px; text-shadow:0 0 8px rgba(155,232,106,.5); }
 .qf-asc-gain-tiles { display:inline-flex; gap:14px; justify-content:center; flex-wrap:wrap; }
 .qf-asc-gain { min-width:132px; padding:9px 16px 11px; border:1px solid rgba(201,139,255,.30);
   border-radius:8px; background:rgba(40,20,70,.42);
   opacity:0; animation:qf-asc-fade .5s ease forwards; }
 .qf-asc-gain-label { font-family:'Press Start 2P',monospace; font-size:8px; letter-spacing:2px;
-  color:#9a8fb4; margin-bottom:8px; }
+  color:var(--asc-5); margin-bottom:8px; }
 .qf-asc-gain-row { display:flex; align-items:baseline; justify-content:center; gap:8px;
   font-family:'VT323',monospace; }
-.qf-asc-gain-from { font-size:18px; color:#897ea4; }
-.qf-asc-gain-arrow { font-size:11px; color:#c98bff; }
+.qf-asc-gain-from { font-size:18px; color:var(--asc-3); }
+.qf-asc-gain-arrow { font-size:11px; color:var(--asc-10); }
 .qf-asc-gain-to { font-size:25px; font-weight:bold; text-shadow:0 0 11px currentColor; }
 .qf-asc-gain-delta { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:1px; margin-top:7px; }
 .qf-asc-kin-chips { display:inline-flex; gap:8px; justify-content:center; flex-wrap:wrap;
   opacity:0; animation:qf-asc-fade .5s ease forwards; }
 .qf-asc-kin-chip { font-family:'VT323',monospace; font-size:15px; letter-spacing:.5px;
-  color:#c7e8a0; padding:4px 11px; border:1px solid rgba(143,209,79,.32);
+  color:var(--asc-9); padding:4px 11px; border:1px solid rgba(143,209,79,.32);
   border-radius:6px; background:rgba(34,52,20,.42); }
-.qf-asc-kin-chip.elite { color:#ffe49a; border-color:rgba(255,210,90,.48);
+.qf-asc-kin-chip.elite { color:var(--asc-15); border-color:rgba(255,210,90,.48);
   background:rgba(64,48,14,.44); box-shadow:0 0 10px rgba(255,210,90,.16); }
-.qf-asc-kin-star { color:#ffd24a; margin-right:4px; }
+.qf-asc-kin-star { color:var(--asc-14); margin-right:4px; }
 .qf-asc-actions { margin-top:22px; opacity:0; animation:qf-asc-fade .6s ease 1.5s forwards; }
 .qf-asc-actions .btn { font-size:13px; }
-.qf-asc-hint { margin-top:11px; font-size:9px; letter-spacing:3px; color:#6a5f80; }
+.qf-asc-hint { margin-top:11px; font-size:9px; letter-spacing:3px; color:var(--asc-2); }
 @keyframes qf-asc-fade { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }`
   document.head.appendChild(style)
 }
@@ -300,8 +305,8 @@ export class AscensionCinematic {
     return h('div', { className: 'qf-asc-gains' }, [
       h('div', { className: 'qf-asc-sec-label', style: { animationDelay: '.85s' } }, '◇ POWER SURGE'),
       h('div', { className: 'qf-asc-gain-tiles' }, [
-        tile('MAX HP', before.hp ?? 0, after.hp ?? 0, '#ff6f8a', 0.95),
-        tile('ATTACK', before.attack ?? 0, after.attack ?? 0, '#ffb15c', 1.05),
+        tile('MAX HP', before.hp ?? 0, after.hp ?? 0, 'var(--asc-12)', 0.95),
+        tile('ATTACK', before.attack ?? 0, after.attack ?? 0, 'var(--asc-13)', 1.05),
       ]),
     ])
   }

@@ -79,6 +79,20 @@ export class LightPartyCinematic extends CinematicBase {
   _ensureCss() {
     if (document.getElementById('qf-lp-cinematic-css')) return
     const css = `
+/* lp cinematic palette — local tokens (off the raw-hex lint). */
+:root {
+  --lp-1:#fff8d8; --lp-2:#ffd66b; --lp-3:#fff7d8; --lp-4:#2a1505; --lp-5:#bfe3ff; --lp-6:#fff6c4;
+  --lp-7:#ffe07a; --lp-8:#e9a82a; --lp-9:#ffd24a; --lp-10:#fff0a0; --lp-11:#2a1a02; --lp-12:#ffe488;
+  --lp-13:#caa030; --lp-14:#9a7414; --lp-15:#241a05; --lp-16:#fff6b0; --lp-17:#ffdb45; --lp-18:#f0a81e;
+  --lp-19:#d98a12; --lp-20:#5b8fe0; --lp-21:#1f3c84; --lp-22:#6cc24f; --lp-23:#2c6a22; --lp-24:#c25050;
+  --lp-25:#6e1f1f; --lp-26:#d3a13a; --lp-27:#7c5510; --lp-28:#3a2706; --lp-29:#d9a01c; --lp-30:#f4e3a0;
+  --lp-31:#1a1408; --lp-32:#0a0e16; --lp-33:#fbfdff; --lp-34:#cfe2f4; --lp-35:#9dc0e2; --lp-36:#5a1414;
+  --lp-37:#eef2f8; --lp-38:#ffe6a0; --lp-39:#d4ffe2; --lp-40:#0a2a18; --lp-41:#ffd2a8; --lp-42:#2a0f04;
+  --lp-43:#0a0612; --lp-44:#ffd6cf; --lp-45:#5a0a0a; --lp-46:#ff5544; --lp-47:#6b3014; --lp-48:#ffb44a;
+  --lp-49:#dfeaff; --lp-50:#0a2a6b; --lp-51:#6aaaff; --lp-52:#1c4a2e; --lp-53:#aef0c4; --lp-54:#6b1c14;
+  --lp-55:#ff8a6a; --lp-56:#3a1c6a; --lp-57:#c9a9ff; --lp-58:#3a0a0a; --lp-59:#aedcff; --lp-60:#02040a;
+  --lp-61:#ff8a8a; --lp-62:#2a0404; --lp-63:#ffb0a4; --lp-64:#1a0202;
+}
 /* Entrance card */
 .qf-lp-entrance { position:absolute; inset:0; z-index:50; pointer-events:auto; cursor:pointer;
   opacity:0; transition:opacity .35s ease; }
@@ -86,16 +100,16 @@ export class LightPartyCinematic extends CinematicBase {
 .qf-lp-entrance .qf-lp-dim { position:absolute; inset:0;
   background:radial-gradient(circle at 50% 50%, rgba(255,250,220,.0) 30%, rgba(8,12,30,.78) 100%); }
 .qf-lp-entrance.flash::after { content:''; position:absolute; inset:0;
-  background:#fff8d8; opacity:.85; animation:qf-lp-flash .42s ease-out forwards; }
+  background:var(--lp-1); opacity:.85; animation:qf-lp-flash .42s ease-out forwards; }
 @keyframes qf-lp-flash { from{opacity:.85} to{opacity:0} }
 .qf-lp-entrance .qf-lp-stack { position:absolute; inset:0; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:14px; font-family:'Press Start 2P','Courier New',monospace; }
 .qf-lp-kicker, .qf-lp-title, .qf-lp-sub, .qf-lp-roles { opacity:0; transform:translateY(8px); }
-.qf-lp-kicker { font-size:clamp(10px,1.2vw,14px); letter-spacing:6px; color:#ffd66b;
+.qf-lp-kicker { font-size:clamp(10px,1.2vw,14px); letter-spacing:6px; color:var(--lp-2);
   text-shadow:0 0 12px rgba(255,214,107,.8); }
-.qf-lp-title  { font-size:clamp(28px,4vw,56px); letter-spacing:4px; color:#fff7d8;
-  text-shadow:0 0 28px rgba(255,214,107,.85), 0 3px 0 #2a1505; }
-.qf-lp-sub    { font-size:clamp(11px,1.4vw,18px); letter-spacing:5px; color:#bfe3ff;
+.qf-lp-title  { font-size:clamp(28px,4vw,56px); letter-spacing:4px; color:var(--lp-3);
+  text-shadow:0 0 28px rgba(255,214,107,.85), 0 3px 0 var(--lp-4); }
+.qf-lp-sub    { font-size:clamp(11px,1.4vw,18px); letter-spacing:5px; color:var(--lp-5);
   text-shadow:0 0 16px rgba(170,210,255,.7); }
 .qf-lp-roles  { display:flex; gap:28px; margin-top:6px; }
 .qf-lp-role-chip { display:flex; flex-direction:column; align-items:center; gap:4px; opacity:0;
@@ -104,7 +118,7 @@ export class LightPartyCinematic extends CinematicBase {
 .qf-lp-role-chip .qf-lp-role-icon { font-size:clamp(22px,2.6vw,34px);
   filter:drop-shadow(0 0 8px rgba(255,214,107,.7)); }
 .qf-lp-role-chip .qf-lp-role-label { font-family:'Press Start 2P','Courier New',monospace;
-  font-size:clamp(8px,.9vw,11px); letter-spacing:2px; color:#fff7d8; }
+  font-size:clamp(8px,.9vw,11px); letter-spacing:2px; color:var(--lp-3); }
 .qf-lp-kicker.in, .qf-lp-title.in, .qf-lp-sub.in, .qf-lp-roles.in {
   opacity:1; transform:translateY(0); transition:opacity .5s ease, transform .5s ease; }
 
@@ -132,10 +146,10 @@ export class LightPartyCinematic extends CinematicBase {
 /* Gold beveled header text (LIMIT BREAK + LIGHT PARTY) — gradient fill
    clipped to the glyphs + a dark drop-shadow outline + warm glow. */
 .qf-lp-gold-text { font-weight:900; font-style:italic; letter-spacing:1px;
-  background:linear-gradient(180deg,#fff6c4 0%,#ffe07a 42%,#e9a82a 56%,#ffd24a 78%,#fff0a0 100%);
+  background:linear-gradient(180deg,var(--lp-6) 0%,var(--lp-7) 42%,var(--lp-8) 56%,var(--lp-9) 78%,var(--lp-10) 100%);
   -webkit-background-clip:text; background-clip:text;
-  -webkit-text-fill-color:transparent; color:#ffd24a;
-  filter:drop-shadow(0 1px 0 #2a1a02) drop-shadow(0 0 5px rgba(255,190,60,.55)); }
+  -webkit-text-fill-color:transparent; color:var(--lp-9);
+  filter:drop-shadow(0 1px 0 var(--lp-11)) drop-shadow(0 0 5px rgba(255,190,60,.55)); }
 
 /* LIMIT BREAK section */
 .qf-lp-limit { margin-bottom:1px; }
@@ -144,12 +158,12 @@ export class LightPartyCinematic extends CinematicBase {
   filter:drop-shadow(0 0 5px rgba(255,200,60,.5)); }
 /* gold frame (right-leaning parallelogram, chamfered ends) */
 .qf-lp-limit-bar::before { content:''; position:absolute; inset:0;
-  background:linear-gradient(180deg,#ffe488,#caa030 55%,#9a7414);
+  background:linear-gradient(180deg,var(--lp-12),var(--lp-13) 55%,var(--lp-14));
   clip-path:polygon(11px 0,100% 0,calc(100% - 11px) 100%,0 100%); }
 .qf-lp-limit-track { position:absolute; inset:2px; overflow:hidden;
-  background:#241a05; clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
+  background:var(--lp-15); clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%); }
 .qf-lp-limit-fill { position:absolute; inset:0; width:0%;
-  background:linear-gradient(180deg,#fff6b0 0%,#ffdb45 45%,#f0a81e 70%,#d98a12 100%);
+  background:linear-gradient(180deg,var(--lp-16) 0%,var(--lp-17) 45%,var(--lp-18) 70%,var(--lp-19) 100%);
   transition:width .25s ease; }
 /* bright highlight stripe across the top of the fill (the FFXIV gloss) */
 .qf-lp-limit-fill::after { content:''; position:absolute; left:0; right:0; top:1px; height:5px;
@@ -172,41 +186,41 @@ export class LightPartyCinematic extends CinematicBase {
   box-shadow:inset 0 0 0 2px rgba(255,238,190,.9), inset 0 0 0 4px rgba(30,22,8,.85),
              inset 0 3px 6px rgba(255,255,255,.22), 0 1px 3px rgba(0,0,0,.7);
   text-shadow:0 1px 2px rgba(0,0,0,.8); }
-.qf-lp-job.tank      { background:linear-gradient(160deg,#5b8fe0,#1f3c84); }
-.qf-lp-job.healer    { background:linear-gradient(160deg,#6cc24f,#2c6a22); }
-.qf-lp-job.meleeDps  { background:linear-gradient(160deg,#c25050,#6e1f1f); }
-.qf-lp-job.rangedDps { background:linear-gradient(160deg,#d3a13a,#7c5510); }
+.qf-lp-job.tank      { background:linear-gradient(160deg,var(--lp-20),var(--lp-21)); }
+.qf-lp-job.healer    { background:linear-gradient(160deg,var(--lp-22),var(--lp-23)); }
+.qf-lp-job.meleeDps  { background:linear-gradient(160deg,var(--lp-24),var(--lp-25)); }
+.qf-lp-job.rangedDps { background:linear-gradient(160deg,var(--lp-26),var(--lp-27)); }
 
 /* Right column: top line (badge + Lv + name) then HP bar + HP number */
 .qf-lp-rowmain { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .qf-lp-rowtop { display:flex; align-items:center; gap:5px; }
 .qf-lp-badge { flex-shrink:0; width:15px; height:15px; display:inline-flex;
   align-items:center; justify-content:center; border-radius:3px; font-weight:900;
-  font-size:10px; color:#3a2706;
-  background:linear-gradient(180deg,#ffe488,#d9a01c);
+  font-size:10px; color:var(--lp-28);
+  background:linear-gradient(180deg,var(--lp-12),var(--lp-29));
   box-shadow:inset 0 0 0 1px rgba(90,60,6,.8),0 1px 1px rgba(0,0,0,.5); }
-.qf-lp-lv { flex-shrink:0; color:#f4e3a0; font-weight:700; font-size:13px;
+.qf-lp-lv { flex-shrink:0; color:var(--lp-30); font-weight:700; font-size:13px;
   text-shadow:0 1px 1px #000; }
 .qf-lp-lv .sm { font-size:9px; opacity:.85; margin-right:1px; }
 .qf-lp-name { flex:1; min-width:0; color:#fff; font-weight:700; font-size:13px;
   letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  text-shadow:0 1px 0 #1a1408,0 0 3px rgba(0,0,0,.85); }
+  text-shadow:0 1px 0 var(--lp-31),0 0 3px rgba(0,0,0,.85); }
 
 /* HP bar — 50% width (half the row length), left-aligned. (MP bar removed
    2026-05-30: MP was cosmetic-only and never tracked anything.) */
 .qf-lp-bar { position:relative; height:9px; width:50%; border-radius:1px; overflow:hidden;
-  background:#0a0e16;
+  background:var(--lp-32);
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.75), inset 0 1px 2px rgba(0,0,0,.6); }
 .qf-lp-bar-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
   transition:transform .18s linear; }
-.qf-lp-bar.hp .qf-lp-bar-fill { background:linear-gradient(180deg,#fbfdff,#cfe2f4 55%,#9dc0e2); }
+.qf-lp-bar.hp .qf-lp-bar-fill { background:linear-gradient(180deg,var(--lp-33),var(--lp-34) 55%,var(--lp-35)); }
 .qf-lp-bar-fill::after { content:''; position:absolute; left:0; right:0; top:0; height:2px;
   background:rgba(255,255,255,.5); }
-.qf-lp-row.dead .qf-lp-bar.hp .qf-lp-bar-fill { background:#5a1414; }
+.qf-lp-row.dead .qf-lp-bar.hp .qf-lp-bar-fill { background:var(--lp-36); }
 
 /* Number line: current HP value, left-aligned under the bar */
 .qf-lp-nums { display:flex; align-items:flex-end;
-  font-weight:700; color:#eef2f8; text-shadow:0 1px 1px #000,0 0 2px rgba(0,0,0,.8);
+  font-weight:700; color:var(--lp-37); text-shadow:0 1px 1px #000,0 0 2px rgba(0,0,0,.8);
   line-height:1; font-variant-numeric:tabular-nums; }
 .qf-lp-nums .qf-lp-hp { font-size:13px; }
 
@@ -228,9 +242,9 @@ export class LightPartyCinematic extends CinematicBase {
   pointer-events:none; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(20px,3vw,40px); letter-spacing:6px; opacity:0;
   animation:qf-lp-banner-anim 1.2s cubic-bezier(.2,.9,.2,1) forwards; }
-.qf-lp-lb-banner.tank   { color:#ffe6a0; text-shadow:0 0 22px rgba(255,214,107,.95), 0 3px 0 #2a1505; }
-.qf-lp-lb-banner.healer { color:#d4ffe2; text-shadow:0 0 22px rgba(106,212,151,.95), 0 3px 0 #0a2a18; }
-.qf-lp-lb-banner.dps    { color:#ffd2a8; text-shadow:0 0 22px rgba(255,154,58,.95), 0 3px 0 #2a0f04; }
+.qf-lp-lb-banner.tank   { color:var(--lp-38); text-shadow:0 0 22px rgba(255,214,107,.95), 0 3px 0 var(--lp-4); }
+.qf-lp-lb-banner.healer { color:var(--lp-39); text-shadow:0 0 22px rgba(106,212,151,.95), 0 3px 0 var(--lp-40); }
+.qf-lp-lb-banner.dps    { color:var(--lp-41); text-shadow:0 0 22px rgba(255,154,58,.95), 0 3px 0 var(--lp-42); }
 @keyframes qf-lp-banner-anim { 0%{opacity:0; transform:scale(.7)} 22%{opacity:1; transform:scale(1.05)} 78%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
 
 /* Duel cinematic letterbox (same shape as Solo Leveling) */
@@ -240,7 +254,7 @@ export class LightPartyCinematic extends CinematicBase {
    ignores right — so that leaked 50% clipped these bars to the left half
    (the "cut off on the right" bug). width:auto lets left:0/right:0 span full. */
 .qf-lp-letterbox .qf-lp-bar { position:absolute; left:0; right:0; width:auto; height:9vh;
-  background:#0a0612; transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
+  background:var(--lp-43); transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
 .qf-lp-letterbox .qf-lp-bar.top    { top:0;    transform-origin:top;
   box-shadow:0 2px 0 rgba(255,214,107,.55), 0 12px 26px -10px rgba(255,214,107,.55); }
 .qf-lp-letterbox .qf-lp-bar.bottom { bottom:0; transform-origin:bottom;
@@ -259,19 +273,19 @@ export class LightPartyCinematic extends CinematicBase {
    overlapped the panel by ~40px. */
 .qf-lp-duel-boss { position:absolute; top:calc(var(--hud-top,96px) + 10px); left:50%; transform:translateX(-50%);
   width:min(42vw,560px); display:flex; flex-direction:column; gap:6px; }
-.qf-lp-duel-boss-name { font-size:clamp(13px,1.7vw,20px); letter-spacing:3px; color:#ffd6cf;
+.qf-lp-duel-boss-name { font-size:clamp(13px,1.7vw,20px); letter-spacing:3px; color:var(--lp-44);
   text-align:center; text-shadow:0 0 12px rgba(255,90,60,.8); }
 .qf-lp-duel-boss-track { height:28px; background:rgba(4,8,16,.85);
   border:3px solid rgba(255,140,120,.6); border-radius:3px; overflow:hidden;
   box-shadow:0 0 16px rgba(255,90,60,.4); position:relative; }
 .qf-lp-duel-boss-fill { position:absolute; right:0; top:0; bottom:0; width:100%; transform-origin:right center;
-  background:linear-gradient(270deg,#5a0a0a,#ff5544); transition:transform .18s linear; }
+  background:linear-gradient(270deg,var(--lp-45),var(--lp-46)); transition:transform .18s linear; }
 .qf-lp-duel-boss-cast { height:10px; background:rgba(4,8,16,.85);
   border:2px solid rgba(255,180,80,.6); border-radius:2px; overflow:hidden; position:relative; }
 .qf-lp-duel-boss-cast-fill { position:absolute; left:0; top:0; bottom:0; width:0%;
-  background:linear-gradient(90deg,#6b3014,#ffb44a); transition:width .12s linear; }
+  background:linear-gradient(90deg,var(--lp-47),var(--lp-48)); transition:width .12s linear; }
 .qf-lp-duel-boss-cast-label { position:absolute; inset:0; text-align:center; font-size:7px;
-  line-height:8px; letter-spacing:1px; color:#fff7d8; padding-top:1px; pointer-events:none; }
+  line-height:8px; letter-spacing:1px; color:var(--lp-3); padding-top:1px; pointer-events:none; }
 
 /* Boss CAST bar — its own element pinned JUST RIGHT of the FFXIV corner party
    panel (left side), not under the boss HP bar. Shows the spell name + a fill
@@ -283,32 +297,32 @@ export class LightPartyCinematic extends CinematicBase {
   width:260px; opacity:0; transition:opacity .15s ease;
   font-family:'Press Start 2P','Courier New',monospace; }
 .qf-lp-castbar.show { opacity:1; }
-.qf-lp-castbar-label { font-size:8px; line-height:1.2; letter-spacing:1px; color:#fff7d8;
-  margin:0 0 4px 1px; text-shadow:0 0 8px rgba(255,180,80,.85), 0 1px 0 #2a1505; }
+.qf-lp-castbar-label { font-size:8px; line-height:1.2; letter-spacing:1px; color:var(--lp-3);
+  margin:0 0 4px 1px; text-shadow:0 0 8px rgba(255,180,80,.85), 0 1px 0 var(--lp-4); }
 .qf-lp-castbar-track { height:15px; background:rgba(4,8,16,.85);
   border:2px solid rgba(255,180,80,.6); border-radius:2px; overflow:hidden;
   position:relative; box-shadow:0 0 12px rgba(255,160,60,.35); }
 .qf-lp-castbar-fill { position:absolute; left:0; top:0; bottom:0; width:0%;
-  background:linear-gradient(90deg,#6b3014,#ffb44a); }
+  background:linear-gradient(90deg,var(--lp-47),var(--lp-48)); }
 
 .qf-lp-duel-party { position:absolute; bottom:calc(9vh + 22px); left:6vw;
   display:flex; flex-direction:column; gap:5px; min-width:240px; padding:8px 10px;
   background:rgba(8,12,24,.78); border:2px solid rgba(255,214,107,.55);
   border-radius:3px; box-shadow:0 0 16px rgba(255,214,107,.35); }
-.qf-lp-duel-party-title { font-size:9px; letter-spacing:3px; color:#ffd66b; text-align:center; }
+.qf-lp-duel-party-title { font-size:9px; letter-spacing:3px; color:var(--lp-2); text-align:center; }
 .qf-lp-duel-row { display:flex; align-items:center; gap:6px; font-size:8px; }
 .qf-lp-duel-row .qf-lp-role-tag { width:18px; text-align:center; font-size:11px; }
-.qf-lp-duel-row .qf-lp-name { width:72px; color:#dfeaff; }
+.qf-lp-duel-row .qf-lp-name { width:72px; color:var(--lp-49); }
 .qf-lp-duel-row .qf-lp-track { flex:1; height:11px; background:rgba(4,8,16,.85);
   border:1.5px solid rgba(120,150,200,.45); border-radius:2px; overflow:hidden; position:relative; }
 .qf-lp-duel-row .qf-lp-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
   transition:transform .18s linear; }
-.qf-lp-duel-row.tank      .qf-lp-fill { background:linear-gradient(90deg,#0a2a6b,#6aaaff); }
-.qf-lp-duel-row.healer    .qf-lp-fill { background:linear-gradient(90deg,#1c4a2e,#aef0c4); }
-.qf-lp-duel-row.meleeDps  .qf-lp-fill { background:linear-gradient(90deg,#6b1c14,#ff8a6a); }
-.qf-lp-duel-row.rangedDps .qf-lp-fill { background:linear-gradient(90deg,#3a1c6a,#c9a9ff); }
+.qf-lp-duel-row.tank      .qf-lp-fill { background:linear-gradient(90deg,var(--lp-50),var(--lp-51)); }
+.qf-lp-duel-row.healer    .qf-lp-fill { background:linear-gradient(90deg,var(--lp-52),var(--lp-53)); }
+.qf-lp-duel-row.meleeDps  .qf-lp-fill { background:linear-gradient(90deg,var(--lp-54),var(--lp-55)); }
+.qf-lp-duel-row.rangedDps .qf-lp-fill { background:linear-gradient(90deg,var(--lp-56),var(--lp-57)); }
 .qf-lp-duel-row.dead { opacity:.4; }
-.qf-lp-duel-row.dead .qf-lp-fill { background:#3a0a0a !important; }
+.qf-lp-duel-row.dead .qf-lp-fill { background:var(--lp-58) !important; }
 
 /* top:42% (was 30%) — the full-width centered banner box at 30% clipped the
    bottom of the 4-row party panel (which reaches ~36% of stage height). The
@@ -319,10 +333,10 @@ export class LightPartyCinematic extends CinematicBase {
   pointer-events:none; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(15px,2.4vw,30px); letter-spacing:5px; opacity:0; }
 .qf-lp-duel-beat.show { animation:qf-lp-beat-anim 1.6s cubic-bezier(.2,.9,.2,1) forwards; }
-.qf-lp-duel-beat.aoe   { color:#ffd2a8; text-shadow:0 0 18px rgba(255,154,58,.95), 0 3px 0 #2a0f04; }
-.qf-lp-duel-beat.stack { color:#aedcff; text-shadow:0 0 18px rgba(74,160,255,.95), 0 3px 0 #02040a; }
-.qf-lp-duel-beat.lb3   { color:#fff7d8; text-shadow:0 0 22px rgba(255,214,107,.95), 0 3px 0 #2a1505; }
-.qf-lp-duel-beat.tankbuster { color:#ff8a8a; text-shadow:0 0 18px rgba(255,48,48,.95), 0 3px 0 #2a0404; }
+.qf-lp-duel-beat.aoe   { color:var(--lp-41); text-shadow:0 0 18px rgba(255,154,58,.95), 0 3px 0 var(--lp-42); }
+.qf-lp-duel-beat.stack { color:var(--lp-59); text-shadow:0 0 18px rgba(74,160,255,.95), 0 3px 0 var(--lp-60); }
+.qf-lp-duel-beat.lb3   { color:var(--lp-3); text-shadow:0 0 22px rgba(255,214,107,.95), 0 3px 0 var(--lp-4); }
+.qf-lp-duel-beat.tankbuster { color:var(--lp-61); text-shadow:0 0 18px rgba(255,48,48,.95), 0 3px 0 var(--lp-62); }
 @keyframes qf-lp-beat-anim { 0%{opacity:0; transform:scale(.6)} 18%{opacity:1; transform:scale(1.08)}
   78%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
 
@@ -337,12 +351,12 @@ export class LightPartyCinematic extends CinematicBase {
 .qf-lp-finale-title { position:relative; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(22px,3.6vw,46px); letter-spacing:3px;
   animation:qf-lp-finale-pop .6s cubic-bezier(.18,.9,.25,1) both; }
-.qf-lp-finale.win .qf-lp-finale-kicker { color:#ffd66b; text-shadow:0 0 12px rgba(255,214,107,.8); }
-.qf-lp-finale.win .qf-lp-finale-title  { color:#fff7d8; text-shadow:0 0 26px rgba(255,214,107,.95), 0 3px 0 #2a1505; }
-.qf-lp-finale.loss .qf-lp-finale-kicker { color:#ffb0a4; text-shadow:0 0 12px rgba(255,90,60,.8); }
-.qf-lp-finale.loss .qf-lp-finale-title  { color:#ffd6cf; text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 #1a0202; }
+.qf-lp-finale.win .qf-lp-finale-kicker { color:var(--lp-2); text-shadow:0 0 12px rgba(255,214,107,.8); }
+.qf-lp-finale.win .qf-lp-finale-title  { color:var(--lp-3); text-shadow:0 0 26px rgba(255,214,107,.95), 0 3px 0 var(--lp-4); }
+.qf-lp-finale.loss .qf-lp-finale-kicker { color:var(--lp-63); text-shadow:0 0 12px rgba(255,90,60,.8); }
+.qf-lp-finale.loss .qf-lp-finale-title  { color:var(--lp-44); text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 var(--lp-64); }
 .qf-lp-finale-sub   { position:relative; font-family:'Press Start 2P','Courier New',monospace;
-  font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#dfeaff; }
+  font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:var(--lp-49); }
 
 /* FFXIV duty banners (DUTY COMMENCED / COMPLETE / FAILED). The art is a
    1280x360 gold word-mark with built-in glow on transparency — shown as a

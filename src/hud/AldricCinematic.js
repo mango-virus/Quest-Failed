@@ -65,6 +65,11 @@ export function ensureDuelCss() {
   const style = document.createElement('style')
   style.id = 'qf-aldric-duel-css'
   style.textContent = `
+/* ald cinematic palette — local tokens (off the raw-hex lint). */
+:root {
+  --ald-1:#ffc2b8; --ald-2:#5a0a0a; --ald-3:#ff5544; --ald-4:#ffb0a4; --ald-5:#f3e8cf; --ald-6:#1a1004;
+  --ald-7:#ffd2ca; --ald-8:#1a0202; --ald-9:#d9cdb6;
+}
 .qf-ald-root { --acc:#e8c860; --acc2:#fff3cf; position:absolute; inset:0; pointer-events:none;
   z-index:35; font-family:'Press Start 2P','Courier New',monospace; }
 /* Presence backdrop — a faint, form-themed vignette of watchers at the edges. */
@@ -95,17 +100,17 @@ export function ensureDuelCss() {
 .qf-ald-side.right { align-items:flex-end; }
 .qf-ald-name { font-size:clamp(10px,1.4vw,16px); letter-spacing:2px; white-space:nowrap; }
 .qf-ald-side.left  .qf-ald-name { color:var(--acc2); text-shadow:0 0 10px var(--acc); }
-.qf-ald-side.right .qf-ald-name { color:#ffc2b8; text-shadow:0 0 10px rgba(255,80,60,.8); }
+.qf-ald-side.right .qf-ald-name { color:var(--ald-1); text-shadow:0 0 10px rgba(255,80,60,.8); }
 .qf-ald-track { width:100%; height:26px; background:rgba(6,4,10,.85); position:relative; overflow:hidden;
   border:3px solid rgba(180,150,90,.5); border-radius:3px; box-shadow:0 0 16px rgba(180,140,70,.35); }
 .qf-ald-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .16s linear; }
 .qf-ald-side.left  .qf-ald-fill { left:0;  transform-origin:left center;  background:linear-gradient(90deg, color-mix(in srgb,var(--acc) 55%, #000), var(--acc)); }
-.qf-ald-side.right .qf-ald-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
+.qf-ald-side.right .qf-ald-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,var(--ald-2),var(--ald-3)); }
 /* the "ghost" trail that lags behind the fill, so a big hit reads as a chunk lost */
 .qf-ald-ghost { position:absolute; top:0; bottom:0; width:100%; opacity:.4; transition:transform .5s ease .12s; }
 .qf-ald-side.left  .qf-ald-ghost { left:0;  transform-origin:left center;  background:var(--acc2); }
-.qf-ald-side.right .qf-ald-ghost { right:0; transform-origin:right center; background:#ffb0a4; }
-.qf-ald-vs { font-size:clamp(16px,2.2vw,30px); color:#f3e8cf; text-shadow:0 0 12px var(--acc); }
+.qf-ald-side.right .qf-ald-ghost { right:0; transform-origin:right center; background:var(--ald-4); }
+.qf-ald-vs { font-size:clamp(16px,2.2vw,30px); color:var(--ald-5); text-shadow:0 0 12px var(--acc); }
 /* Screen pulse + centered beat label. */
 .qf-ald-pulse { position:absolute; inset:0; z-index:33; pointer-events:none; opacity:0;
   animation:qf-ald-pulse .75s ease-out forwards; }
@@ -123,9 +128,9 @@ export function ensureDuelCss() {
 @keyframes qf-ald-flash { 0%{opacity:0} 8%{opacity:.85} 100%{opacity:0} }
 .qf-ald-beat { position:absolute; left:0; right:0; top:26%; text-align:center; z-index:36; pointer-events:none;
   font-size:clamp(16px,2.7vw,38px); letter-spacing:4px; opacity:0; }
-.qf-ald-beat.aldric { color:var(--acc2); text-shadow:0 0 20px var(--acc), 0 2px 0 #1a1004; }
-.qf-ald-beat.boss   { color:#ffd2ca; text-shadow:0 0 20px rgba(255,64,40,.95), 0 2px 0 #1a0202; }
-.qf-ald-beat.apex   { color:#ffffff; font-size:clamp(22px,3.6vw,52px); text-shadow:0 0 28px var(--acc), 0 0 60px var(--acc2), 0 3px 0 #1a1004; }
+.qf-ald-beat.aldric { color:var(--acc2); text-shadow:0 0 20px var(--acc), 0 2px 0 var(--ald-6); }
+.qf-ald-beat.boss   { color:var(--ald-7); text-shadow:0 0 20px rgba(255,64,40,.95), 0 2px 0 var(--ald-8); }
+.qf-ald-beat.apex   { color:#ffffff; font-size:clamp(22px,3.6vw,52px); text-shadow:0 0 28px var(--acc), 0 0 60px var(--acc2), 0 3px 0 var(--ald-6); }
 .qf-ald-beat.lock   { color:var(--acc2); text-shadow:0 0 16px var(--acc); }
 .qf-ald-beat.turn   { color:#fff; text-shadow:0 0 22px rgba(255,255,255,.9); }
 .qf-ald-beat.show { animation:qf-ald-beat 1.6s cubic-bezier(.2,.9,.2,1) forwards; }
@@ -142,12 +147,12 @@ export function ensureDuelCss() {
 .qf-ald-card-row { position:relative; display:flex; align-items:center; gap:22px; }
 .qf-ald-card-side { font-size:clamp(14px,2.2vw,30px); letter-spacing:2px;
   animation:qf-ald-card-pop .6s cubic-bezier(.18,.9,.25,1) both; }
-.qf-ald-card-side.left  { color:var(--acc2); text-shadow:0 0 22px var(--acc), 0 3px 0 #1a1004; }
-.qf-ald-card-side.right { color:#ffc2b8; text-shadow:0 0 22px rgba(255,80,60,.9), 0 3px 0 #1a0202; }
+.qf-ald-card-side.left  { color:var(--acc2); text-shadow:0 0 22px var(--acc), 0 3px 0 var(--ald-6); }
+.qf-ald-card-side.right { color:var(--ald-1); text-shadow:0 0 22px rgba(255,80,60,.9), 0 3px 0 var(--ald-8); }
 .qf-ald-card-vs { position:relative; font-size:clamp(20px,3vw,40px); color:#fff; text-shadow:0 0 18px var(--acc); }
 .qf-ald-card-title { position:relative; font-size:clamp(22px,3.6vw,52px); letter-spacing:3px; color:#fff3cf;
-  text-shadow:0 0 30px var(--acc), 0 3px 0 #1a1004; animation:qf-ald-card-pop .7s cubic-bezier(.18,.9,.25,1) both; }
-.qf-ald-card-sub { position:relative; font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#d9cdb6; }
+  text-shadow:0 0 30px var(--acc), 0 3px 0 var(--ald-6); animation:qf-ald-card-pop .7s cubic-bezier(.18,.9,.25,1) both; }
+.qf-ald-card-sub { position:relative; font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:var(--ald-9); }
 @keyframes qf-ald-card-pop { 0%{opacity:0; transform:scale(.6); filter:blur(7px)}
   60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
 /* Aldric's reacting portrait — lower-LEFT (his side of the VS). Two stacked

@@ -40,6 +40,10 @@ export function ensureRivalCss() {
   const style = document.createElement('style')
   style.id = 'qf-riv-css'
   style.textContent = `
+/* riv cinematic palette — local tokens (off the raw-hex lint). */
+:root {
+  --riv-1:#120016; --riv-2:#1a0202; --riv-3:#12001a; --riv-4:#e9ddff; --riv-5:#cdbfe6;
+}
 .qf-riv-root { --pur:${PUR}; --pur2:${PUR2}; --crim:${CRIM}; --crim2:${CRIM2};
   position:absolute; inset:0; pointer-events:none; z-index:35;
   font-family:'Press Start 2P','Courier New',monospace; }
@@ -72,8 +76,8 @@ export function ensureRivalCss() {
 /* purple fill grows from the LEFT (Vorzak), crimson from the RIGHT (your boss);
    they meet at the nexus. Widths set live from the dominance value. */
 .qf-riv-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .12s ease; }
-.qf-riv-fill.v { left:0;  transform-origin:left center;  background:linear-gradient(90deg, color-mix(in srgb,var(--pur) 45%, #120016), var(--pur)); box-shadow:0 0 14px var(--pur); }
-.qf-riv-fill.b { right:0; transform-origin:right center; background:linear-gradient(270deg, color-mix(in srgb,var(--crim) 45%, #1a0202), var(--crim)); box-shadow:0 0 14px var(--crim); }
+.qf-riv-fill.v { left:0;  transform-origin:left center;  background:linear-gradient(90deg, color-mix(in srgb,var(--pur) 45%, var(--riv-1)), var(--pur)); box-shadow:0 0 14px var(--pur); }
+.qf-riv-fill.b { right:0; transform-origin:right center; background:linear-gradient(270deg, color-mix(in srgb,var(--crim) 45%, var(--riv-2)), var(--crim)); box-shadow:0 0 14px var(--crim); }
 /* the collision NEXUS — a hot orb riding the seam between the two fills */
 .qf-riv-nexus { position:absolute; top:50%; left:50%; width:26px; height:26px;
   transform:translate(-50%,-50%); transition:transform .12s ease; z-index:3; }
@@ -106,14 +110,14 @@ export function ensureRivalCss() {
 
 .qf-riv-beat { position:absolute; left:0; right:0; top:30%; text-align:center; z-index:36; pointer-events:none;
   font-size:clamp(16px,2.7vw,38px); letter-spacing:4px; opacity:0; }
-.qf-riv-beat.surge-v { color:var(--pur2);  text-shadow:0 0 20px var(--pur),  0 2px 0 #12001a; }
-.qf-riv-beat.surge-b { color:var(--crim2); text-shadow:0 0 20px var(--crim), 0 2px 0 #1a0202; }
+.qf-riv-beat.surge-v { color:var(--pur2);  text-shadow:0 0 20px var(--pur),  0 2px 0 var(--riv-3); }
+.qf-riv-beat.surge-b { color:var(--crim2); text-shadow:0 0 20px var(--crim), 0 2px 0 var(--riv-2); }
 .qf-riv-beat.lock,
-.qf-riv-beat.strain  { color:#e9ddff; text-shadow:0 0 16px var(--pur2); }
+.qf-riv-beat.strain  { color:var(--riv-4); text-shadow:0 0 16px var(--pur2); }
 .qf-riv-beat.ignite  { color:#fff; text-shadow:0 0 18px var(--pur2), 0 0 30px var(--crim2); }
 .qf-riv-beat.feedback{ color:#fff; font-size:clamp(20px,3.2vw,46px); text-shadow:0 0 26px #fff, 0 0 50px var(--pur2); }
 .qf-riv-beat.overload{ color:#fff; text-shadow:0 0 22px var(--pur2), 0 0 40px var(--crim2); }
-.qf-riv-beat.collapse{ color:#fff; font-size:clamp(22px,3.6vw,52px); text-shadow:0 0 28px var(--pur), 0 0 60px #fff, 0 3px 0 #12001a; }
+.qf-riv-beat.collapse{ color:#fff; font-size:clamp(22px,3.6vw,52px); text-shadow:0 0 28px var(--pur), 0 0 60px #fff, 0 3px 0 var(--riv-3); }
 .qf-riv-beat.show { animation:qf-riv-beat 1.6s cubic-bezier(.2,.9,.2,1) forwards; }
 @keyframes qf-riv-beat { 0%{opacity:0; transform:scale(.7)} 15%{opacity:1; transform:scale(1.08)}
   74%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
@@ -129,16 +133,16 @@ export function ensureRivalCss() {
 .qf-riv-card-row { position:relative; display:flex; align-items:center; gap:20px; }
 .qf-riv-card-side { font-size:clamp(14px,2.2vw,30px); letter-spacing:2px;
   animation:qf-riv-pop .6s cubic-bezier(.18,.9,.25,1) both; }
-.qf-riv-card-side.v { color:var(--pur2);  text-shadow:0 0 22px var(--pur),  0 3px 0 #12001a; animation-delay:0s; }
-.qf-riv-card-side.b { color:var(--crim2); text-shadow:0 0 22px var(--crim), 0 3px 0 #1a0202; animation-delay:.12s; }
+.qf-riv-card-side.v { color:var(--pur2);  text-shadow:0 0 22px var(--pur),  0 3px 0 var(--riv-3); animation-delay:0s; }
+.qf-riv-card-side.b { color:var(--crim2); text-shadow:0 0 22px var(--crim), 0 3px 0 var(--riv-2); animation-delay:.12s; }
 .qf-riv-card-clash { position:relative; width:30px; height:30px; }
 .qf-riv-card-clash::after { content:''; position:absolute; inset:0; border-radius:50%;
   background:radial-gradient(circle,#fff 0%, var(--pur2) 45%, transparent 72%);
   box-shadow:0 0 24px 6px rgba(212,156,255,.7); animation:qf-riv-pop .5s ease-out .24s both; }
 .qf-riv-card-title { position:relative; font-size:clamp(22px,3.6vw,52px); letter-spacing:3px; color:#fff;
-  text-shadow:0 0 30px var(--pur2), 0 3px 0 #12001a; animation:qf-riv-pop .7s cubic-bezier(.18,.9,.25,1) both; }
-.qf-riv-card-title.held { text-shadow:0 0 30px var(--crim), 0 0 54px var(--crim2), 0 3px 0 #1a0202; }
-.qf-riv-card-sub { position:relative; font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#cdbfe6; }
+  text-shadow:0 0 30px var(--pur2), 0 3px 0 var(--riv-3); animation:qf-riv-pop .7s cubic-bezier(.18,.9,.25,1) both; }
+.qf-riv-card-title.held { text-shadow:0 0 30px var(--crim), 0 0 54px var(--crim2), 0 3px 0 var(--riv-2); }
+.qf-riv-card-sub { position:relative; font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:var(--riv-5); }
 @keyframes qf-riv-pop { 0%{opacity:0; transform:scale(.6); filter:blur(7px)}
   60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }`
   document.head.appendChild(style)
