@@ -30,7 +30,7 @@
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
-| 3 — Discoverability & onboarding | 5 | 3 |
+| 3 — Discoverability & onboarding | 5 | 4 |
 | 4 — Final discipline | 3 | 0 |
 
 ---
@@ -293,10 +293,12 @@
   - [x] Undiscovered entries show a locked/"???" state; reveal on first encounter. *(CDP-verified as a NON-mango player at boss level 1: 18/21 minions, 19/24 rooms, 8/8 traps locked with "Unlocks at boss level N"; adventurers 1/18 with only the encountered class revealed. Reveals as boss levels up / foes are faced. Zero errors.)*
 - **Files:** `src/hud/CodexOverlay.js`, `src/hud/styles.css`.
 
-### P3-4 — Pact-seal entrance feedback `[S]` ⬜
+### P3-4 — Pact-seal entrance feedback `[S]` ✅ *(2026-06-19)*
 - **Problem:** A newly-sealed pact just appears in the TopBar buff slot — no celebration in the chrome.
-- **Acceptance:** [ ] Staggered slide/pop (+ optional "NEW" flag) on `PACT_SEALED`.
-- **Files:** `src/hud/TopBar.js`, `styles.css`.
+- **Design (built):** `TopBar._renderBuffSlots({ animateNewest })` — only the `PACT_SEALED` path passes the flag (the generic re-render on deactivate does not), so only the just-sealed slot (last in `activeMechanics`) animates. `_playBuffSealFx(slot, color)` sets `--nc` to the pact's rarity colour and adds `.qf-buff-slot-new` (CSS: `qf-buff-pop` slide+overshoot 0.44s, a rarity-glow `::before` flash ring, a staggered glyph fade-in) plus a brief **"NEW"** flag. The pop/glow are MOTION (added only when `isReducedMotion()` is false); the "NEW" flag is opacity-only and self-fades (any next re-render clears it), so it shows under reduced motion too. No `forwards` on the pop, so the slot returns to its resting/hover transform afterward.
+- **Acceptance:**
+  - [x] Staggered slide/pop (+ "NEW" flag) on `PACT_SEALED`. *(CDP-verified: newest slot gets `.qf-buff-slot-new` + `--nc` (rarity colour) + `qf-buff-pop` 0.44s + "NEW" tag; reduced-motion seal → no pop class but tag still present; magnified screenshot eyeballed — tidy, legible, rarity-coloured.)*
+- **Files:** `src/hud/TopBar.js`, `src/hud/styles.css`.
 
 ### P3-5 — Boss-portrait fallback glyph `[S]` ⬜
 - **Problem:** Archetypes without a portrait PNG (lich) show a bare gradient on the hero portrait button.

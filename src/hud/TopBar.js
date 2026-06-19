@@ -15,6 +15,7 @@ import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { ascensionInfo } from '../config/acts.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
+import { isReducedMotion } from './motion.js'
 
 export class TopBar {
   constructor(gameState) {
@@ -241,7 +242,10 @@ export class TopBar {
     }
   }
 
-  _renderBuffSlots() {
+  // `opts.animateNewest` (set only from the PACT_SEALED path) plays a one-shot
+  // slide/pop + rarity glow + "NEW" flag on the just-sealed slot so a freshly
+  // forged pact gets a beat of celebration in the chrome — not just appear.
+  _renderBuffSlots(opts = {}) {
     const slotsEl = this._refs.buffSlots
     if (!slotsEl) return
     const all = this._gameState.activeMechanics ?? []
@@ -250,7 +254,9 @@ export class TopBar {
     // into a "+N" overflow chip the player can hover to read.
     const shown     = all.slice(-VISIBLE)
     const hiddenIds = all.slice(0, Math.max(0, all.length - VISIBLE))
+    const newestIdx = shown.length - 1   // the just-sealed pact is last in `shown`
     const slots = []
+    let newestSlot = null, newestColor = null
     for (let i = 0; i < VISIBLE; i++) {
       const id = shown[i]
       const m = id ? this._resolveMechanic(id) : null
@@ -277,11 +283,22 @@ export class TopBar {
         }, m.glyph),
         isLegendary && h('span', { className: 'qf-buff-legendary-pip blink' }),
       ])
+      if (i === newestIdx) { newestSlot = slot; newestColor = m.color }
       slots.push(slot)
     }
     if (hiddenIds.length > 0) slots.push(this._buffOverflowChip(hiddenIds))
     slotsEl.replaceChildren(...slots)
+    if (opts.animateNewest && newestSlot) this._playBuffSealFx(newestSlot, newestColor)
     this._applyBuffSuppress()   // re-apply the Inquisition "sealed" dim after a re-render
+  }
+
+  // One-shot entrance feedback on a freshly-sealed buff slot. The "NEW" flag
+  // self-fades via CSS (and any next re-render clears it); the pop/glow are
+  // motion and so are gated on the reduced-motion preference.
+  _playBuffSealFx(slot, color) {
+    slot.style.setProperty('--nc', color || '#fff')
+    if (!isReducedMotion()) slot.classList.add('qf-buff-slot-new')
+    slot.appendChild(h('span', { className: 'pix qf-buff-new-tag' }, 'NEW'))
   }
 
   // Toggle the Inquisition "sealed" dim on the buff slots from `_inqSuppress`.
@@ -406,7 +423,7 @@ export class TopBar {
       el.classList.add('pop')
     })
     // Re-render buff slots when a new pact seals or one drops off.
-    sub('PACT_SEALED',     () => this._renderBuffSlots())
+    sub('PACT_SEALED',     () => this._renderBuffSlots({ animateNewest: true }))
     sub('PACT_DEACTIVATED', () => this._renderBuffSlots())
 
     // Act / Kingdom-Response eyebrow (KR P4). ACT_STARTED paints the fixed

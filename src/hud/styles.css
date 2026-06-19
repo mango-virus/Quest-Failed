@@ -1739,6 +1739,46 @@ html.gamepad-active #qf-cursor { display: none; }
   box-shadow: 0 0 4px var(--blood-glow);
 }
 
+/* Pact-seal entrance feedback (P3-4) — a freshly-sealed pact pops/slides into
+   its buff slot with a rarity-coloured glow ring + a brief "NEW" flag, instead
+   of just appearing. --nc = the pact's rarity colour (set inline per slot). The
+   pop/glow are MOTION (added only when reduced-motion is off); the NEW flag is
+   opacity-only so it's reduced-motion-safe and shows either way. No `forwards`
+   on the pop so the slot returns to its resting/hover transform afterward. */
+.qf-buff-slot-new { animation: qf-buff-pop .44s cubic-bezier(.34, 1.56, .64, 1); z-index: 3; }
+.qf-buff-slot-new .qf-buff-glyph { animation: qf-buff-glyph-in .34s ease-out .1s backwards; }
+.qf-buff-slot-new::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 2px;
+  border: 1px solid var(--nc, #fff); pointer-events: none; z-index: 4;
+  animation: qf-buff-seal-flash .62s ease-out forwards;
+}
+@keyframes qf-buff-pop {
+  0%   { transform: translateY(7px) scale(.5);    opacity: 0; }
+  55%  { transform: translateY(-2px) scale(1.16); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes qf-buff-glyph-in {
+  from { opacity: 0; transform: scale(.3) rotate(-14deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes qf-buff-seal-flash {
+  0%   { opacity: .95; transform: scale(1.25); box-shadow: 0 0 13px 2px var(--nc, #fff); }
+  100% { opacity: 0;   transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+.qf-buff-new-tag {
+  position: absolute; top: -8px; right: -6px; z-index: 5; pointer-events: none;
+  font-size: 6px; letter-spacing: .06em; line-height: 1; padding: 2px 3px;
+  color: #0a0710; background: var(--nc, #fff); border: 1px solid rgba(0, 0, 0, .5);
+  box-shadow: 0 0 6px var(--nc, #fff), 0 1px 2px rgba(0, 0, 0, .6);
+  animation: qf-buff-new-tag 2.1s ease forwards;
+}
+@keyframes qf-buff-new-tag {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* "+N" overflow chip — pacts beyond the 4 slots. Hover drops the list. */
 .qf-buff-overflow { cursor: help; }
 .qf-buff-overflow-num {
