@@ -6287,6 +6287,77 @@ html.gamepad-active #qf-cursor { display: none; }
   min-width: 240px;
 }
 
+/* ---------- WelcomeIntro onboarding (P3-2) — paced 3-step first-run teach ---------- */
+.qf-intro { position: relative; display: flex; flex-direction: column; height: 100%;
+  min-height: 460px; gap: var(--space-4, 16px); }
+.qf-intro-skip { position: absolute; top: -6px; right: 0; z-index: 3;
+  font-family: var(--sil); font-size: 10px; letter-spacing: 2px; color: var(--text-mute);
+  background: none; border: none; cursor: pointer; padding: 4px 6px; transition: color .14s; }
+.qf-intro-skip:hover { color: var(--text); }
+.qf-intro-step { flex: 1; display: flex; flex-direction: column; justify-content: center;
+  gap: var(--space-5, 24px); }
+
+/* Step 1 — hero + loop */
+.qf-intro-hero { display: flex; align-items: center; gap: var(--space-5, 24px); }
+.qf-intro-hero-art { flex: 0 0 auto; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6)); }
+.qf-intro-hero-art canvas, .qf-intro-hero-art img { image-rendering: pixelated; max-width: 120px; max-height: 120px; }
+.qf-intro-hero-copy { flex: 1; min-width: 0; }
+.qf-intro-tagline { font-size: clamp(18px, 2.6vw, 30px); letter-spacing: 3px; color: #fff3cf;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--blood) 60%, transparent), 0 2px 0 #1a0206; }
+.qf-intro-lede { font-family: var(--body); font-size: 15px; line-height: 1.5; color: var(--text); margin-top: 10px; }
+.qf-intro-loop { display: flex; align-items: stretch; gap: 10px; }
+.qf-intro-phase { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px; padding: 14px 12px; border-radius: var(--radius-md, 7px);
+  background: rgba(20,14,22,0.5); border: 1px solid var(--line-2); border-top: 2px solid var(--line-bright); }
+.qf-intro-phase.night { border-top-color: var(--rumor); }
+.qf-intro-phase.day   { border-top-color: var(--blood); }
+.qf-intro-phase.grow  { border-top-color: var(--gold); }
+.qf-intro-phase-art { height: 60px; display: flex; align-items: flex-end; justify-content: center; }
+.qf-intro-phase-art canvas, .qf-intro-phase-art img { image-rendering: pixelated; }
+.qf-intro-phase-glyph { font-size: 34px; line-height: 60px; }
+.qf-intro-phase-head { font-size: 11px; letter-spacing: 1.5px; color: var(--gold); }
+.qf-intro-phase-body { font-family: var(--body); font-size: 12px; line-height: 1.4; color: var(--text-mute); }
+.qf-intro-arrow { align-self: center; color: var(--text-dim); font-size: 18px; }
+
+/* Step 2 — controls */
+.qf-intro-step-head { font-size: clamp(16px, 2.2vw, 24px); letter-spacing: 3px; text-align: center; }
+.qf-intro-ctl-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5, 24px); }
+.qf-intro-ctl-group { font-size: 9px; letter-spacing: 2px; color: var(--text-mute); margin-bottom: 8px; }
+.qf-intro-ctl { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.qf-intro-ctl-label { font-family: var(--body); font-size: 13px; color: var(--text); }
+.qf-intro-ctl-keys { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.qf-intro-kbd { font-family: var(--sil); font-size: 10px; color: var(--text); background: var(--bg-2);
+  border: 1px solid var(--line-bright); border-bottom-width: 2px; border-radius: 4px; padding: 2px 6px; min-width: 14px;
+  text-align: center; }
+.qf-intro-ctl-foot { margin-top: 6px; display: flex; flex-direction: column; gap: 6px;
+  font-family: var(--body); font-size: 12px; color: var(--text-mute); text-align: center; }
+
+/* Step 3 — dark pacts */
+.qf-intro-pact { display: flex; align-items: center; gap: var(--space-5, 24px); }
+.qf-intro-pact-sigil { flex: 0 0 auto; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;
+  font-size: 54px; color: color-mix(in srgb, var(--info) 70%, #fff); border-radius: var(--radius-lg, 12px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--info) 24%, #0a0610), #07040c);
+  border: 1px solid color-mix(in srgb, var(--info) 55%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--info) 32%, transparent); }
+.qf-intro-pact-copy { flex: 1; min-width: 0; }
+.qf-intro-pact-eg { font-family: var(--term); font-size: 16px; color: var(--info); margin-top: 10px; font-style: italic; }
+.qf-intro-pact-rars { font-family: var(--body); font-size: 12px; color: var(--text-mute); margin-top: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.qf-intro-rar { font-size: 11px; color: var(--rc); padding: 2px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--rc) 60%, transparent); }
+
+/* Footer — checkbox + dots + nav */
+.qf-intro-foot { display: flex; align-items: center; gap: var(--space-4, 16px); }
+.qf-intro-foot-spacer, .qf-intro-checkrow { flex: 1; }
+.qf-intro-checkrow { display: flex; align-items: center; gap: 9px; background: none; border: none; cursor: pointer;
+  padding: 0; }
+.qf-intro-dots { display: flex; gap: 7px; }
+.qf-intro-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-bright); transition: background .18s, transform .18s; }
+.qf-intro-dot.on { background: var(--blood); transform: scale(1.25); }
+.qf-intro-nav { flex: 1; display: flex; justify-content: flex-end; gap: 10px; }
+
 /* ---------- TutorialOverlay ---------- */
 .qf-tutorial-body {
   flex: 1;

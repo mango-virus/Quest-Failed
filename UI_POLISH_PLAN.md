@@ -30,7 +30,7 @@
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
-| 3 — Discoverability & onboarding | 5 | 1 |
+| 3 — Discoverability & onboarding | 5 | 2 |
 | 4 — Final discipline | 3 | 0 |
 
 ---
@@ -276,12 +276,14 @@
   - [x] Each `qf-bb-mode`/`qf-bb-menu` button has a tooltip explaining its tool/semantics. *(CDP-verified in-game: all 8 buttons carry a correct `data-tip` with the live key — PLACE·B, MOVE·M, UPGRADE·U, SELL·X, ROSTER·R, MAP·K, INTEL·I, MENU·ESC; `::after` content resolves, base opacity 0, tooltip box renders [screenshot].)*
 - **Files:** `src/hud/BottomBar.js`, `src/hud/styles.css`.
 
-### P3-2 — WelcomeIntro → real onboarding `[L]` ⬜
+### P3-2 — WelcomeIntro → real onboarding `[L]` ✅ *(2026-06-19)*
 - **Problem:** The first screen a buyer sees is a 3-paragraph text wall.
+- **Decisions (user, 2026-06-19):** trigger = **"All first-run players, replaces companion intro"** (the paced onboarding is the single canonical first-run teach for everyone; the companion just does her normal day-1 barks — `open()` no longer defers to `NPC_DELIVER_INTRO`); imagery = **"Real in-game sprites + snapshots"**.
+- **Design (built):** rebuilt `WelcomeIntroOverlay` as a paced **3-step** intro in the crypt `Overlay` shell, with real imagery: **THE LOOP** (the chosen boss as the hero via `animatedBossSprite` + "YOU ARE THE DUNGEON" + a 3-phase NIGHT→DAY→GROW loop using a real minion `pixelSprite('skeleton')` / adventurer `snapshotAdventurer('knight')` / boss-mini), **CONTROLS** (live keybinds from the rebindable store via `getBind`/`keyLabel` + camera + gamepad note), **DARK PACTS** (sigil + the devil's-bargain explainer + the 6 rarity chips). Footer = progress dots + BACK/NEXT (last = "ENTER THE DUNGEON") + the tutorial-hints opt-in (persists `meta.tutorialEnabled` + `qf.gameplay.tutorials`). SKIP button + Esc both skip. Still gated on `meta.introSeen`; dev test-stage still skips it. Finish emits `INTRO_DISMISSED`.
 - **Acceptance:**
-  - [ ] Paced 2–3 step intro with imagery, the core "you are the dungeon" loop, controls reference, and a "what's a Dark Pact" beat.
-  - [ ] Still first-run-gated; skippable on repeat.
-- **Files:** `src/hud/WelcomeIntroOverlay.js`, `styles.css`.
+  - [x] Paced 2–3 step intro with imagery, the core "you are the dungeon" loop, controls reference, and a "what's a Dark Pact" beat. *(CDP-verified: step 0 tagline + boss hero art + 3 phase sprites; step 1 "CONTROLS" 10 rows w/ live key "B"; step 2 "DARK PACTS" sigil + 6 rarities; nav dots track; screenshot confirms a polished, store-worthy first screen.)*
+  - [x] Still first-run-gated; skippable on repeat. *(`introSeen` gate; SKIP/Esc; finish sets `introSeen=true` + persists the hint choice + emits `INTRO_DISMISSED` + closes clean — all verified, zero errors.)*
+- **Files:** `src/hud/WelcomeIntroOverlay.js`, `src/hud/styles.css`.
 
 ### P3-3 — Codex locked / "???" states `[M]` ⬜
 - **Problem:** Every Codex entry is always fully revealed — no discovery feel.
