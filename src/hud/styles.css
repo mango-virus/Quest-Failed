@@ -1654,6 +1654,15 @@ html.gamepad-active #qf-cursor { display: none; }
     linear-gradient(180deg, var(--bg-2), var(--bg-0));
   image-rendering: pixelated;
 }
+/* Fallback emblem (P3-5) — centred glyph shown when no portrait PNG loads, so
+   the hero portrait button is never an empty gradient. */
+.qf-boss-sprite-glyph {
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
 
 .qf-boss-info { width: 230px; }
 

@@ -30,7 +30,7 @@
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
-| 3 — Discoverability & onboarding | 5 | 4 |
+| 3 — Discoverability & onboarding | 5 | 5 |
 | 4 — Final discipline | 3 | 0 |
 
 ---
@@ -300,10 +300,12 @@
   - [x] Staggered slide/pop (+ "NEW" flag) on `PACT_SEALED`. *(CDP-verified: newest slot gets `.qf-buff-slot-new` + `--nc` (rarity colour) + `qf-buff-pop` 0.44s + "NEW" tag; reduced-motion seal → no pop class but tag still present; magnified screenshot eyeballed — tidy, legible, rarity-coloured.)*
 - **Files:** `src/hud/TopBar.js`, `src/hud/styles.css`.
 
-### P3-5 — Boss-portrait fallback glyph `[S]` ⬜
-- **Problem:** Archetypes without a portrait PNG (lich) show a bare gradient on the hero portrait button.
-- **Acceptance:** [ ] Per-archetype fallback glyph/emblem instead of empty gradient.
-- **Files:** `src/hud/TopBar.js`.
+### P3-5 — Boss-portrait fallback glyph `[S]` ✅ *(2026-06-19)*
+- **Problem:** An archetype without a portrait PNG shows a bare gradient on the hero portrait button. *(Note: the original "lich has no portrait" was stale — all 12 shipped archetypes now have a `*_p.png` and their ids match the filenames, so this is defensive polish for future archetypes / id-file mismatches / failed loads.)*
+- **Design (built):** `BOSS_GLYPHS` map (per-archetype emblem, '☠' default) in `TopBar.js`. `_renderBossSprite()` now paints the glyph FIRST (`.qf-boss-sprite-glyph` + `textContent`, clears any bg) so the button is never an empty gradient, then probes `assets/ui/bestiary/portraits/{id}_p.png`: `onload` swaps in the art (clears glyph + class), a 404 leaves the glyph in place (no broken-image icon). CSS centres the glyph (`display:grid; place-items:center`).
+- **Acceptance:**
+  - [x] Per-archetype fallback glyph/emblem instead of empty gradient. *(CDP-verified all 4 paths: orc → real art; gnoll → 🐺 painted synchronously then swapped to art on load; banshee (404) → ☠ default persists, no stale bg / no broken image; magnified screenshot eyeballed — centred emblem on the gradient frame.)*
+- **Files:** `src/hud/TopBar.js`, `src/hud/styles.css`.
 
 ---
 

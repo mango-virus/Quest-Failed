@@ -17,6 +17,16 @@ import { ascensionInfo } from '../config/acts.js'
 import { SfxVolume } from '../systems/SfxVolume.js'
 import { isReducedMotion } from './motion.js'
 
+// Per-archetype fallback emblem for the hero portrait button, shown whenever the
+// bestiary portrait PNG is missing / fails to load (a future archetype with no
+// art, an id→file mismatch, an offline asset) so the button is never a bare
+// gradient. Keyed by the `the_`-stripped archetype id; '☠' is the generic default.
+const BOSS_GLYPHS = {
+  beholder: '👁', demon: '😈', myconid: '🍄', wraith: '👻',
+  gnoll: '🐺', golem: '🗿', lich: '💀', lizardman: '🐍',
+  orc: '🪓', vampire: '🦇', succubus: '💋', slime: '🟢',
+}
+
 export class TopBar {
   constructor(gameState) {
     this._gameState = gameState
@@ -369,22 +379,28 @@ export class TopBar {
   // assets/ui/bestiary/portraits/{id}_p.png. bestiary IDs drop any
   // leading `the_` prefix (gameState may use `the_lich`, asset is `lich`).
   _renderBossSprite() {
-    if (!this._refs.bossSprite) return
+    const el = this._refs.bossSprite
+    if (!el) return
     const rawId = this._gameState.player?.bossArchetypeId || ''
     const id = String(rawId).replace(/^the_/, '')
-    this._refs.bossSprite.dataset.archetype = id
+    el.dataset.archetype = id
+    // Always paint a per-archetype emblem first, so the portrait is never a bare
+    // gradient while the art loads (or if it never does). The probe below swaps
+    // it for the real portrait on success and leaves it in place on a 404.
+    el.classList.add('qf-boss-sprite-glyph')
+    el.textContent = BOSS_GLYPHS[id] || '☠'
+    el.style.backgroundImage = ''
+    if (!id) return
     // Set background-image instead of an inner <img> so we keep CSS sizing.
     // image-rendering: pixelated is inherited from the .qf-boss-sprite rule.
-    if (!id) return
-    // Probe via Image so a 404 (e.g. lich has no portrait file) leaves the
-    // underlying gradient placeholder visible instead of stamping a broken
-    // image icon onto the panel.
     const probe = new Image()
     probe.onload = () => {
-      this._refs.bossSprite.style.backgroundImage = `url('${probe.src}')`
-      this._refs.bossSprite.style.backgroundSize = 'contain'
-      this._refs.bossSprite.style.backgroundRepeat = 'no-repeat'
-      this._refs.bossSprite.style.backgroundPosition = 'center'
+      el.textContent = ''
+      el.classList.remove('qf-boss-sprite-glyph')
+      el.style.backgroundImage = `url('${probe.src}')`
+      el.style.backgroundSize = 'contain'
+      el.style.backgroundRepeat = 'no-repeat'
+      el.style.backgroundPosition = 'center'
     }
     probe.src = `assets/ui/bestiary/portraits/${id}_p.png`
   }
