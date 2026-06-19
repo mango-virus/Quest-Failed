@@ -794,6 +794,19 @@ export class MainMenuOverlay {
     this._save = SaveSystem.hasSave() ? SaveSystem.load() : null
     this._refreshSaveDependentUI()
     this._refreshMenuItems()
+    this._refreshDevChip()
+  }
+
+  // The DEV TOOLS chip is mango-only. It's rendered once in _renderInner and
+  // lives at the menu root (NOT inside the grid that _refreshMenuItems rebuilds),
+  // so a name change away from 'mango' would otherwise leave it stranded. Add or
+  // remove it to match the live cheat-name state on every name change.
+  _refreshDevChip() {
+    if (!this._el) return
+    const existing = this._el.querySelector('.qcm-dev')
+    const should = PlayerProfile.isCheatName()
+    if (should && !existing) this._el.appendChild(this._buildDevChip())
+    else if (!should && existing) existing.remove()
   }
 
   // ─── Keybinds: grid navigation + select + quit ─────────────────────────
