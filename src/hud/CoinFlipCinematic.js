@@ -21,6 +21,11 @@ import { domShake } from './screenShake.js'
 const FLIP_DELAY_MS  = 550    // idle beat before the toss begins
 const FLIP_DUR_MS    = 2400   // toss + spin duration (matches CSS qf-cf-toss)
 const AUTO_CLOSE_MS  = 3800   // after the (final) reveal, before auto-dismiss
+// Soft-lock guard (P2-5): EventSystem normally answers GAMBLER_DOUBLE_REQUEST
+// synchronously with GAMBLER_DOUBLE_RESULT. If that reply never arrives
+// (handler missing / threw), this is how long we wait before resolving the
+// stranded overlay ourselves so it can't lock the screen.
+const DOUBLE_RESULT_TIMEOUT_MS = 1500
 
 export class CoinFlipCinematic {
   constructor() {
@@ -278,6 +283,19 @@ export class CoinFlipCinematic {
     this._footerEl.replaceChildren(
       h('div', { className: 'qf-coinflip-hint' }, 'the imp grins…'),
     )
+    // Arm the soft-lock guard BEFORE emitting: a synchronous (or any) reply
+    // runs _onDoubleResult → _runFlip → _clearTimers, which cancels this; only
+    // a missing reply lets it fire and close the otherwise-stranded overlay.
+    this._after(DOUBLE_RESULT_TIMEOUT_MS, () => {
+      if (!this._el || !this._awaitingDouble) return
+      this._awaitingDouble = false
+      if (this._footerEl) {
+        this._footerEl.replaceChildren(
+          h('div', { className: 'qf-coinflip-hint' }, 'the imp vanishes with the wager…'),
+        )
+      }
+      this._after(900, () => this._dismiss())
+    })
     EventBus.emit('GAMBLER_DOUBLE_REQUEST')
   }
 

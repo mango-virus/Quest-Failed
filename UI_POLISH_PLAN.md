@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 4 |
+| 2 — Hero moments & game feel | 6 | 5 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -247,9 +247,11 @@
   - [x] Convert fills to `transform: scaleX()`; drop Rival's `linear` easing. *(CDP-verified in Electron — all fills compute the right matrix + origin + `transition-property: transform`: Rival fillV `scaleX(.7)`/origin-left, fillB `scaleX(.3)`/origin-right, nexus `translateX(149.8px)` w/ `transform` transition [no `left`/`linear`]; Aldric left `scaleX(.4)`/origin-left + right `scaleX(.9)`/origin-right; Solo `scaleX(.3)`; Light Party boss `scaleX(.6)`/origin-right; BossFightOverlay fill `transition: transform, background` + origin-left.)*
 - **Files:** `BossFightOverlay.js`, `SoloLevelingCinematic.js`, `AldricCinematic.js`, `LightPartyCinematic.js`, `RivalShowdownCinematic.js`, `styles.css`.
 
-### P2-5 — CoinFlip soft-lock fallback `[S]` ⬜
-- **Problem:** If `GAMBLER_DOUBLE_RESULT` never arrives, the overlay soft-locks.
-- **Acceptance:** [ ] Timeout fallback resolves/closes safely.
+### P2-5 — CoinFlip soft-lock fallback `[S]` ✅ *(2026-06-19)*
+- **Problem:** If `GAMBLER_DOUBLE_RESULT` never arrives, the overlay soft-locks — after DOUBLE OR NOTHING, `_chooseDouble` sets `_awaitingDouble=true` (which blocks click-to-dismiss) and there's no auto-close, so a missing/errored EventSystem reply strands it on "the imp grins…" forever.
+- **Design (built):** `_chooseDouble` now arms a tracked `_after(DOUBLE_RESULT_TIMEOUT_MS=1500, …)` guard **before** emitting `GAMBLER_DOUBLE_REQUEST`. A reply (synchronous or not) runs `_onDoubleResult → _runFlip → _clearTimers`, which cancels the guard; only a genuinely-missing reply lets it fire — it clears `_awaitingDouble`, shows "the imp vanishes with the wager…", and `_dismiss()`es after a 900ms beat. Doubly safe: the guard also early-returns if `!_awaitingDouble`, so a late/stale fire can't dismiss a live round-2 flip.
+- **Acceptance:**
+  - [x] Timeout fallback resolves/closes safely. *(CDP-verified both paths in Electron: with a reply → `_awaitingDouble` clears, round-2 flip runs [`_round:2`], and the overlay is still present 1700ms later [guard cancelled, no wrongful dismiss]; with NO reply → the stranded overlay auto-dismisses [`_el` null, DOM gone] instead of soft-locking.)*
 - **Files:** `src/hud/CoinFlipCinematic.js`.
 
 ### P2-6 — Extract `CinematicKit` + tokenize/clean cinematics `[L]` ⬜
