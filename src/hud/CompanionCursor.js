@@ -55,17 +55,19 @@ export class CompanionCursor {
 
   mount() {
     if (this._mounted) return
-    // mousemove on document captures every pointer move regardless of
+    // pointermove on document captures every pointer move regardless of
     // which element is under the cursor — important because the dungeon
-    // canvas + DOM HUD overlay every part of the viewport.
-    document.addEventListener('mousemove', this._moveHandler)
+    // canvas + DOM HUD overlay every part of the viewport. (pointermove, not
+    // mousemove, so a preventDefault'd drag like the volume faders — which
+    // suppresses compat mouse events — doesn't freeze the trail mid-drag.)
+    document.addEventListener('pointermove', this._moveHandler)
     for (const evt of PLACEMENT_EVENTS) EventBus.on(evt, this._burstHandler)
     this._mounted = true
   }
 
   unmount() {
     if (!this._mounted) return
-    document.removeEventListener('mousemove', this._moveHandler)
+    document.removeEventListener('pointermove', this._moveHandler)
     for (const evt of PLACEMENT_EVENTS) EventBus.off(evt, this._burstHandler)
     this._mounted = false
   }

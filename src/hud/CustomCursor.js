@@ -159,7 +159,12 @@ export function installCustomCursor() {
   _el.style.transform = 'translate(-100px, -100px)'
   document.body.appendChild(_el)
   _setFrame('normal')
-  window.addEventListener('mousemove', _onMove, { passive: true })
+  // Track on pointermove, NOT mousemove: a drag that calls
+  // pointerdown.preventDefault() (e.g. the volume faders) suppresses the
+  // compatibility mouse events for that interaction, which would freeze a
+  // mousemove-based cursor mid-drag. Pointer events still fire (and bubble from
+  // a setPointerCapture target), so the arrow keeps following during drags.
+  window.addEventListener('pointermove', _onMove, { passive: true })
   window.addEventListener('mousedown', _onDown)
   window.addEventListener('mouseup',   _onUp)
   window.addEventListener('mouseout',  _onOutOfWindow)
