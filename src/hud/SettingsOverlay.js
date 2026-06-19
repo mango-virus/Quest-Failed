@@ -29,6 +29,7 @@ import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { applyUiScale } from './stageScale.js'
 import { KEYBIND_DEFAULTS, getAllBinds, setBind, resetBinds, isReserved, findConflict, keyLabel } from './HudKeybinds.js'
+import { applyReduceMotion } from './motion.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
@@ -40,6 +41,7 @@ const STORE_KEYS = {
   scanlines: 'qf.video.scanlines',
   vignette:  'qf.video.vignette',
   shake:     'qf.video.shake',
+  reduceMotion: 'qf.video.reduceMotion',
   particles: 'qf.video.particles',
   palette:   'qf.video.palette',
   fullscreen: 'qf.video.fullscreen',
@@ -55,7 +57,7 @@ const DEFAULTS = {
   master: 70, music: 20, sfx: 80, voice: 65,
   speechSfx: true, muteUnfocused: true,
   scanlines: true, vignette: true, dungeonVignette: true,
-  shake: true, particles: 'high',
+  shake: true, reduceMotion: 'auto', particles: 'high',
   palette: 'crypt', fullscreen: false, uiScale: 'auto',
   confirmRun: true, autosave: true, tutorials: true,
   companion: 'normal',
@@ -146,6 +148,9 @@ export class SettingsOverlay {
       root.classList.toggle('crt-vignette',  !!s.vignette)
       root.classList.toggle('dungeon-vignette', !!s.dungeonVignette)
     }
+    // Reduced motion → html.reduce-motion. Pass the (draft) setting so the
+    // VIDEO tab previews live; on Apply/Cancel the saved value is re-applied.
+    applyReduceMotion(s.reduceMotion)
     const wantFs = !!s.fullscreen
     const inFs = !!document.fullscreenElement
     if (wantFs && !inFs) {
@@ -380,6 +385,9 @@ export class SettingsOverlay {
       this._lever('EDGE VIGNETTE', 'vignette'),
       this._lever('DUNGEON VIGNETTE', 'dungeonVignette'),
       this._lever('SCREEN SHAKE', 'shake'),
+      this._seg('REDUCE MOTION', 'reduceMotion', [
+        { v: 'auto', l: 'AUTO' }, { v: 'on', l: 'ON' }, { v: 'off', l: 'OFF' },
+      ]),
       this._seg('PARTICLES', 'particles', [
         { v: 'off', l: 'OFF' }, { v: 'low', l: 'LOW' }, { v: 'med', l: 'MED' }, { v: 'high', l: 'HIGH' },
       ]),

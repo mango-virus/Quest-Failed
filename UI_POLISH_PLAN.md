@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 2 |
+| 1 — Input & accessibility | 7 | 3 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -149,13 +149,19 @@
   - [x] Live: rebind worked, conflict/reserved blocked, reset restored, persisted across a reload (`sell→c` survived). Panel renders polished (screenshot). Zero console errors.
 - **Files:** `src/hud/HudKeybinds.js` (store + data-driven handler), `src/hud/SettingsOverlay.js` (rebinding UI), `src/scenes/NightPhase.js` (R reads live bind).
 
-### P1-4 — Reduced-motion setting + finish fallbacks `[M]` ⬜
+### P1-4 — Reduced-motion setting + finish fallbacks `[M]` ✅ *(2026-06-19)*
 - **Problem:** No in-game reduced-motion toggle (only partial OS-media-query coverage); 5 cinematics ignore it.
+- **Design (deep-spec 2026-06-19):** a JS-driven `html.reduce-motion` class is the single source, fed by setting + OS so the setting can override OS in both directions.
+  - **`src/hud/motion.js`** (new): `isReducedMotion()` = `setting==='on' || (setting!=='off' && matchMedia('(prefers-reduced-motion: reduce)').matches)`; `applyReduceMotion()` toggles `document.documentElement.classList['reduce-motion']`; self-installs an `mql` `change` listener for live OS changes. Setting key `qf.video.reduceMotion` ∈ {auto,on,off}, default **auto**.
+  - **Setting:** VIDEO tab seg **REDUCE MOTION — AUTO / ON / OFF** (consistent with PARTICLES). `_applyVideoFlags` calls `applyReduceMotion`; `STORE_KEYS`/`DEFAULTS` get the new key.
+  - **CSS:** one global `html.reduce-motion *,::before,::after { animation-duration/iteration + transition-duration → ~instant }` reset — covers ALL declarative motion in one place (the 5 cinematics' injected `@keyframes`, coin spin, day-stamp slam, champion pulse, KRI, titlefx). **Cleaner than copying KRI's block into each of the 5 cinematic files** (deviation from the bullet below, same goal, less drift). Reconcile the existing scattered `@media (prefers-reduced-motion: reduce/no-preference)` blocks → drive off the class so OFF truly overrides.
+  - **JS juice:** `runCountUp()` (`countUp.js`) early-returns when reduced (numbers render at final value, no climb/sound) — covers treasury + all result-screen count-ups. (Screen shake already has its own toggle.)
 - **Acceptance:**
-  - [ ] Settings toggle (sets `--reduced-motion` / a class) honored alongside `@media (prefers-reduced-motion)`.
-  - [ ] Add fallbacks to Aldric / LightParty / Rival / Ascension / CoinFlip cinematics (copy KingdomResponseIntro's block).
-  - [ ] Gate chrome juice (treasury count-up, coin spin, day-stamp slam, champion pulse).
-- **Files:** `src/hud/SettingsOverlay.js`, `src/hud/styles.css`, the cinematic files.
+  - [x] REDUCE MOTION seg (AUTO/ON/OFF) in Settings VIDEO sets `html.reduce-motion`; helper folds OS pref (AUTO→OS, ON→true, OFF→false — live-verified). Renders consistent with the other segs (screenshot).
+  - [x] The 5 cinematics + KRI freeze under the class — global reset drove the menu glow `3.4s → 1e-05s`; grep confirms all 5 cinematics use `forwards`/`both` fill so reveals hold their END state (no vanish); boss-fight bar + an act-intro card render fully visible under reduced motion (screenshot).
+  - [x] Chrome juice gated: count-up instant (countUp.js early-returns when reduced — verified stays `1200` vs `0`); coin spin / day-stamp slam / champion pulse are CSS → frozen by the global reset.
+  - [x] Live: ON freezes (`1e-05s`), OFF restores (`3.4s`), AUTO follows OS, persists (`localStorage['qf.video.reduceMotion']`); zero console errors.
+- **Files:** new `src/hud/motion.js`, `src/main.js` (early apply on import — chosen over HudRoot so the class is set before the menu renders), `src/hud/SettingsOverlay.js`, `src/hud/styles.css` (one global reset), `src/hud/countUp.js`.
 
 ### P1-5 — Text-size setting `[M]` ⬜
 - **Problem:** No text-scaling option (`VISUAL_STANDARDS §7`).

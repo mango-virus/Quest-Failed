@@ -8102,6 +8102,29 @@ body {
 @keyframes qcm-cm-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* ============================================================
+   Reduced motion (UI_POLISH_PLAN P1-4)
+   The `reduce-motion` class on <html> is toggled by src/hud/motion.js from
+   the in-game REDUCE MOTION setting folded with the OS prefers-reduced-motion
+   query (so the setting overrides the OS in both directions). This single
+   reset neutralises ALL declarative motion — including the cinematics' own
+   injected @keyframes, since their elements live in the global DOM and these
+   !important duration overrides win. Animations still run to their END state
+   (duration ~0 rather than `animation: none`) so fade/slide-in reveals land
+   visible instead of vanishing. JS-driven motion that CSS can't reach (the
+   count-up number climb) checks isReducedMotion() at its source instead.
+   ============================================================ */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ============================================================
    Crypt overlay shell (Overlay.js `shell:'crypt'`) — the redesign modal
    frame shared by the front-end overlays. Centered ◆ eyebrow + title,
    faint brick + vignette atmosphere, corner rivets, top-right ✕, footer.

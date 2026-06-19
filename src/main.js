@@ -42,6 +42,9 @@ import { installFocusMute } from './hud/focusMute.js'
 // Importing here just installs the key listener (idempotent); the
 // overlay itself only mounts when toggled on. Zero-cost when hidden.
 import './hud/PerfHud.js'
+// Reduced-motion: apply the html.reduce-motion class at boot (before the menu
+// + its entrance animations render) from the setting folded with the OS pref.
+import './hud/motion.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'

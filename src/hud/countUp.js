@@ -22,6 +22,7 @@
 // teardown doesn't leave the loop sound playing or write to dead DOM.
 
 import { SfxVolume } from '../systems/SfxVolume.js'
+import { isReducedMotion } from './motion.js'
 
 const ITEM_DURATION_MS = 850   // per-number climb duration
 const MIN_STAGGER_MS   = 150   // min spacing between two numbers starting
@@ -134,6 +135,10 @@ function entranceEndMs(el) {
 // ── Runner ─────────────────────────────────────────────────────────
 export function runCountUp(rootEl) {
   if (!rootEl) return () => {}
+  // Reduced motion (P1-4): skip the climb + its sound entirely. The final
+  // values are already rendered in the DOM, so leaving them is the no-motion
+  // presentation.
+  if (isReducedMotion()) return () => {}
 
   const items = []
   for (const el of rootEl.querySelectorAll('.cu')) {
