@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 5 |
+| 0 — Foundation & sweep | 7 | 6 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -80,8 +80,8 @@
   - ⏭ **Deferred to Phase 4:** migrating the remaining ~70 *purely-local* intra-component z-index literals (they don't affect cross-component stacking — a big sweep with regression risk belongs in the discipline pass). Also flagged: `.qf-archdec` CSS is orphaned by P0-1's delete — fold into the P4 dead-CSS sweep.
 - **Files:** `src/hud/styles.css`.
 
-### P0-6 — Resolve the `?newhud=0` legacy fallback `[L]` ⏭ *(DECIDED: retire — execution deferred to next session)*
-- **Decision (user, 2026-06-18):** **RETIRE it.** The DOM HUD becomes the only path. Execution deferred to a fresh focused session (it threads through gameplay-critical paths — verify carefully, don't rush at session end).
+### P0-6 — Resolve the `?newhud=0` legacy fallback `[L]` ✅ *(f3be8426 strip + delete commit)*
+- **Decision (user, 2026-06-18):** **RETIRE it.** The DOM HUD becomes the only path. ✅ Done 2026-06-18 in two commits (strip code paths → delete orphaned files). Verified in the running game (fresh demon run): boot, night build, BEGIN DAY → real wave spawns, boss-fight cinematic, INFERNAL PACT archetype day-action, a DOM overlay — all clean, zero console errors. Minor deviation from the sketch below: `isNewHudEnabled()` was **deleted** (HudScene was its only code caller) rather than forced to `return true`.
 - **Scope already mapped (so next session moves fast):**
   - **Force flag on:** `HudRoot.isNewHudEnabled()` (HudRoot.js:452) → `return true`; remove the local `_useNewHud` localStorage reads in the sites below.
   - **`HudScene.js` → DOM-only rewrite:** drop the `else` legacy-chrome block (BossTopBar/MiniMapPanel/BuildMenu/KnowledgePin/DungeonLog/ActionBar + backing rects), the whole Phaser `this._popups` suite + `_closeAllPopups`/`_isPopupOpen`/`togglePopup`/`wirePopup` + every `!useNewHud` wire + the legacy `onPhaseChange`; keep the HudRoot (DOM) build/teardown + `BossArchetypeUI`.
@@ -90,9 +90,9 @@
   - **`BossArchetypeUI.js` (49–57):** remove the `!_useNewHud` button-build branch (+ the now-dead `_buildEarthquakeButton`/`_buildSacrificeButton`). DOM `BossArchetypeStrip` owns the buttons.
   - **Delete legacy files** (imported only by the above — re-grep each first): `src/ui/{BossTopBar,ActionBar,KnowledgePin,DungeonLog,BuildMenu,BuildMenuTooltip,MiniMapPanel,BossFightOverlay,EventBanner}.js`, all of `src/ui/popups/*` (12 files), `src/ui/{MinionInspector,WantedPoster}.js`. Watch for a shared popup-frame base used only by the deleted popups.
   - **⚠ Keep** (run under the new HUD, NOT gated): `ChatBubbles`, `KnowledgeOverlay`, `BossArchetypeUI` itself, `applyUiCamera`/`UIKit`.
-- **Acceptance (next session):**
-  - [ ] Two stages/commits: (1) strip the code paths, (2) delete the orphaned files.
-  - [ ] Verify in Electron/preview: boot, night build, **BEGIN DAY → real wave spawns**, a **boss-fight cinematic**, archetype day-action buttons, and the DOM overlays — all clean, zero console errors.
+- **Acceptance:**
+  - [x] Two stages/commits: (1) strip the code paths, (2) delete the orphaned files.
+  - [x] Verify in Electron/preview: boot, night build, **BEGIN DAY → real wave spawns**, a **boss-fight cinematic**, archetype day-action buttons, and the DOM overlays — all clean, zero console errors.
 - **Files:** `src/scenes/HudScene.js`, `src/scenes/Game.js`, `src/scenes/DayPhase.js`, `src/hud/HudRoot.js`, `src/ui/BossArchetypeUI.js`, + the legacy files above.
 
 ### P0-7 — Reconcile stale docs `[S]` ⬜
