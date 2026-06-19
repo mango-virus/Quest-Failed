@@ -2080,10 +2080,11 @@ html.gamepad-active #qf-cursor { display: none; }
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  /* Scale the whole console up a touch (layout-aware zoom keeps click targets
-     aligned + everything proportional). It stays centered in the bottom strip
-     and within the --hud-bottom height. */
-  zoom: 1.15;
+  /* Scale the whole console up (layout-aware zoom keeps click targets aligned +
+     everything proportional). It stays centered in the bottom strip; the ~936px
+     console at 1.5x ≈ 1400px fits the play area on 1920+ screens, and the bottom
+     corners are clear (the minimap sits top-left, not a full-height column). */
+  zoom: 1.5;
   background: var(--bg-2);
   box-shadow:
     inset 0 0 0 1px var(--bg-0),
