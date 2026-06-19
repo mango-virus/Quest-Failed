@@ -16,7 +16,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { isActsEnabled } from '../config/acts.js'
-import { animatedBossSprite, snapshotAdventurer, snapshotMinion } from './inGameSnapshot.js'
+import { animatedBossSprite, animatedMinion, animatedAdventurer } from './inGameSnapshot.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 import { getBind, keyLabel } from './HudKeybinds.js'
 
@@ -121,10 +121,13 @@ export class WelcomeIntroOverlay {
   // sheet is on-demand (AdventurerBaseLoader), so the DAY slot starts as a glyph
   // and swaps in the real knight sprite the instant its sheet finishes loading.
   _stepLoop() {
+    this._advFilled = false   // re-fill the DAY slot on each step-0 render
     const archId = String(this._gameState?.player?.bossArchetypeId ?? 'orc').replace(/^the_/, '')
     const boss = animatedBossSprite(archId, 116)
     if (boss?.stop) this._stopFns.push(boss.stop)
-    const minion = snapshotMinion('goblin1', 56)   // real (minion sheets load with the run)
+    const minionAnim = animatedMinion('goblin1', 56)   // looping idle (sheets load with the run)
+    if (minionAnim?.stop) this._stopFns.push(minionAnim.stop)
+    const minion = minionAnim?.el || null
     const bossMini = animatedBossSprite(archId, 56)
     if (bossMini?.stop) this._stopFns.push(bossMini.stop)
     // DAY adventurer — real sprite, loaded on demand + swapped in (see _fillAdventurer).
@@ -164,20 +167,27 @@ export class WelcomeIntroOverlay {
     ]
   }
 
-  // Load the adventurer base sheet on demand and swap the REAL sprite into the
-  // DAY slot the moment it's ready. Placeholder stays the ⚔ glyph (never a
+  // Load the adventurer base sheet on demand and swap the REAL looping-idle
+  // sprite into the DAY slot the moment it's ready (its idle anim registers on
+  // load — registerBaseAnimsForKey). Placeholder stays the ⚔ glyph (never a
   // procedural sprite). No-ops cleanly if the overlay closes mid-load.
   _fillAdventurer(size, cls = 'knight', vId = 'v01') {
     const put = () => {
-      const real = snapshotAdventurer(cls, size, vId)
-      if (real && this._advSlot && this._overlay) { this._advSlot.replaceChildren(real); return true }
-      return !!real
+      if (this._advFilled) return true
+      const a = animatedAdventurer(cls, size, vId)
+      if (a?.el && this._advSlot && this._overlay) {
+        this._advFilled = true
+        if (a.stop) this._stopFns.push(a.stop)
+        this._advSlot.replaceChildren(a.el)
+        return true
+      }
+      return false
     }
     if (put()) return
     const scene = window.__game?.scene?.getScene?.('Game')
     if (!scene) return
     if (ensureAdventurerBaseSheet(scene, cls, vId)) { put(); return }
-    scene.load.once(`filecomplete-spritesheet-adv-${cls}-${vId}`, () => setTimeout(put, 30))
+    scene.load.once(`filecomplete-spritesheet-adv-${cls}-${vId}`, () => setTimeout(put, 50))
     // Safety poll in case the file-complete event is missed (shared loader batch).
     let tries = 0
     const poll = () => { if (!this._overlay || put() || tries++ > 20) return; setTimeout(poll, 200) }

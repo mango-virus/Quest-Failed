@@ -201,9 +201,8 @@ export function snapshotTrap(spriteKey, size = 64, frameIdx = 0) {
 // `{ el, stop }` — the caller MUST call stop() when removing the
 // element, otherwise the frame timer leaks. Returns null when the
 // boss sheet/anim isn't loaded (caller falls back to a static image).
-export function animatedBossSprite(archId, size = 200) {
-  if (!archId) return null
-  const anim = window.__game?.anims?.get?.(`${archId}-idle-down`)
+function _animatedFromAnim(animKey, size, { className, cacheKey } = {}) {
+  const anim = window.__game?.anims?.get?.(animKey)
   if (!anim || !Array.isArray(anim.frames) || anim.frames.length === 0) return null
 
   const frames = []
@@ -219,7 +218,7 @@ export function animatedBossSprite(archId, size = 200) {
   if (frames.length === 0) return null
 
   const { canvas, ctx } = _makeCanvas(size, size)
-  canvas.className = 'qf-snap qf-snap-boss'
+  canvas.className = className || 'qf-snap'
 
   // Boss sheets carry generous transparent padding, and each boss fills
   // a different fraction of its frame — so a plain frame-fit makes them
@@ -229,7 +228,7 @@ export function animatedBossSprite(archId, size = 200) {
   //     so the idle bob never clips and the sprite never scale-jitters
   //   * per-boss → each boss is cropped to ITS own pixels, so they all
   //     end up a consistent, box-filling size whatever the sheet padding
-  const crop = _bossIdleCrop(archId, frames)
+  const crop = _idleUnionCrop(cacheKey || animKey, frames)
 
   // Aspect-fit the cropped sprite into the box — computed once (every
   // idle frame shares one frame size).
@@ -262,13 +261,33 @@ export function animatedBossSprite(archId, size = 200) {
   return { el: canvas, stop: () => clearInterval(timer) }
 }
 
+// Looping idle boss sprite (`<archId>-idle-down`). { el, stop } or null.
+export function animatedBossSprite(archId, size = 200) {
+  if (!archId) return null
+  return _animatedFromAnim(`${archId}-idle-down`, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + archId })
+}
+
+// Looping idle sprite for a placed-minion def (`minion-<id>-idle-down`). The
+// minion sheets load with the run, so this is ready in-game. { el, stop } or null.
+export function animatedMinion(defId, size = 64) {
+  if (!defId) return null
+  return _animatedFromAnim(`minion-${defId}-idle-down`, size, { className: 'qf-snap qf-snap-minion', cacheKey: 'min:' + defId })
+}
+
+// Looping idle sprite for an adventurer class (`adv-<cls>-<vId>-idle-down`).
+// Requires the on-demand base sheet to be loaded first (AdventurerBaseLoader).
+export function animatedAdventurer(cls, size = 64, vId = 'v01') {
+  if (!cls) return null
+  return _animatedFromAnim(`adv-${cls}-${vId}-idle-down`, size, { className: 'qf-snap qf-snap-adv', cacheKey: 'adv:' + cls + ':' + vId })
+}
+
 // Tight crop rect for a boss's idle loop — the union of the alpha
 // bounds of every idle frame, cached per boss. Coordinates are local
 // to a frame's cut rect (all idle frames share one frame size). Falls
 // back to the full frame if the alpha can't be read (tainted canvas).
-const _bossIdleCropCache = new Map()
-function _bossIdleCrop(archId, frames) {
-  if (_bossIdleCropCache.has(archId)) return _bossIdleCropCache.get(archId)
+const _idleCropCache = new Map()
+function _idleUnionCrop(cacheKey, frames) {
+  if (_idleCropCache.has(cacheKey)) return _idleCropCache.get(cacheKey)
   const fw = frames[0].sw
   const fh = frames[0].sh
   const full = { x: 0, y: 0, w: fw, h: fh }
@@ -294,7 +313,7 @@ function _bossIdleCrop(archId, frames) {
       }
     }
   } catch (_) {
-    _bossIdleCropCache.set(archId, full)
+    _idleCropCache.set(cacheKey, full)
     return full
   }
   let crop = full
@@ -308,7 +327,7 @@ function _bossIdleCrop(archId, frames) {
       h: Math.min(fh - y, uMaxY - uMinY + 1 + m * 2),
     }
   }
-  _bossIdleCropCache.set(archId, crop)
+  _idleCropCache.set(cacheKey, crop)
   return crop
 }
 
