@@ -152,6 +152,21 @@ img { image-rendering: pixelated; }
   --dur-base: 240ms;   /* standard transitions */
   --dur-slow: 400ms;   /* deliberate reveals */
   --dur-hero: 800ms;   /* cinematic / signature moments */
+
+  /* Z-INDEX bands — the global cross-component stacking order (see
+     UI_POLISH_PLAN.md P0-5). Use these for anything that stacks against OTHER
+     components; purely-local child z-indexes can stay as small literals.
+     Order: chrome < menu < overlay < select < TOAST < cinematic < transition
+     < boot < debug. Toasts sit above menus/overlays but below cinematics. */
+  --z-chrome: 60;          /* HUD panels, drawers, tooltips */
+  --z-menu: 100;           /* main-menu backdrop */
+  --z-overlay: 150;        /* coverage overlays / menus (roster, map, pause, knowmap) */
+  --z-select: 200;         /* full-screen select flows (archetype / companion) */
+  --z-toast: 8000;         /* notifications — ABOVE menus/overlays, BELOW cinematics */
+  --z-cinematic: 9000;     /* full-screen cinematics, unlock, blocking event decisions */
+  --z-transition: 9999;    /* phase transition / name entry / tutorial NPC */
+  --z-boot: 100000;        /* boot splash */
+  --z-debug: 2147483640;   /* dev cursor / debug — always on top */
 }
 
 /* ---------- Palette: "Necrotic Green" ---------- */
@@ -3561,7 +3576,7 @@ body {
   align-items: center;
   gap: 8px;
   pointer-events: none;
-  z-index: 30;
+  z-index: var(--z-toast);   /* above menus/overlays, below cinematics (P0-5) */
 }
 /* Standard toast — crypt-console chip: beveled panel, accent edge + glow
    driven by the inline `--accent` colour, matching the HUD panels. */
@@ -8485,7 +8500,7 @@ body {
 /* pointer-events: auto — #hud-stage is pointer-events:none and that inherits,
    so without re-enabling it here the whole popup (backdrop + buttons) is
    unclickable. */
-.qf-cf-layer { position: absolute; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; font-family: var(--body); pointer-events: auto; }
+.qf-cf-layer { position: absolute; inset: 0; z-index: var(--z-cinematic); display: flex; align-items: center; justify-content: center; font-family: var(--body); pointer-events: auto; }
 .qf-cf-layer.closing { opacity: 0; transition: opacity .2s ease; }
 .qf-cf-back { position: absolute; inset: 0; background: rgba(6,3,9,.82); backdrop-filter: blur(4px) saturate(.75); -webkit-backdrop-filter: blur(4px) saturate(.75); animation: qf-cf-fade .22s ease-out; }
 @keyframes qf-cf-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -8647,7 +8662,7 @@ body {
    ====================================================================== */
 .qf-un-layer {
   --bone: var(--text); --mute: var(--text-mute); --line2: var(--line-2); --danger: var(--blood-glow);
-  position: absolute; inset: 0; z-index: 160; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: var(--z-cinematic); display: flex; flex-direction: column; align-items: center; justify-content: center;
   /* Mounted into #hud-stage (pointer-events:none) — MUST opt back in or the
      CLAIM / NEXT / SKIP buttons are dead (clicks fall through to the canvas). */
   pointer-events: auto;
@@ -9756,7 +9771,7 @@ body {
 .qf-eventconfirm {
   position: absolute;
   inset: 0;
-  z-index: 160;
+  z-index: var(--z-cinematic);
   display: flex;
   align-items: center;
   justify-content: center;

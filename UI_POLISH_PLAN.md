@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 4 |
+| 0 — Foundation & sweep | 7 | 5 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -71,11 +71,13 @@
   - [x] Boots clean with the pref on, gesture path error-free (preview). ⚠ Actual fullscreen entry to be eyeballed in Electron (the preview iframe sandboxes the Fullscreen API).
 - **Files:** `src/hud/HudRoot.js`.
 
-### P0-5 — z-index token band + toast stacking `[M]` ⬜
+### P0-5 — z-index token band + toast stacking `[M]` ✅ *(pending commit)*
 - **Problem:** ~30 ad-hoc z-index literals (order lives only in comments); toasts at `z:30` sit *below* modals/cinematics so a notification fired during an overlay hides behind it.
+- **Decision (user):** toasts sit **above menus/overlays, below cinematics**.
 - **Acceptance:**
-  - [ ] Add a `--z-*` band to `:root` (e.g. chrome / overlay / confirm / cinematic / toast / boot / debug) and migrate the literals.
-  - [ ] **Decide & implement** toast layering: either lift toasts into the notification band (above modals, below boot/debug) or deliberately document modal-suppression. *(Decision — capture verbatim.)*
+  - [x] Added a `--z-*` band to `:root` (chrome < menu < overlay < select < **toast** < cinematic < transition < boot < debug), documenting the global order.
+  - [x] Toasts → `--z-toast` (8000): verified **above** an open overlay (150) and below the 9000 cinematic band. Bumped the three cinematic/blocking layers stuck at 160 (`.qf-cf-layer` CoinFlip, `.qf-un-layer` Unlock, `.qf-eventconfirm`) to `--z-cinematic` so the invariant holds. Zero console errors.
+  - ⏭ **Deferred to Phase 4:** migrating the remaining ~70 *purely-local* intra-component z-index literals (they don't affect cross-component stacking — a big sweep with regression risk belongs in the discipline pass). Also flagged: `.qf-archdec` CSS is orphaned by P0-1's delete — fold into the P4 dead-CSS sweep.
 - **Files:** `src/hud/styles.css`.
 
 ### P0-6 — Resolve the `?newhud=0` legacy fallback `[M]` ⬜ *(decision)*
