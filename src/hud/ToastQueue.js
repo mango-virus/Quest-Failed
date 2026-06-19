@@ -20,7 +20,13 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
 
-const MAX_TOASTS = 4
+// Cap the simultaneous stack low so a burst (end-of-day kill/leak/damage
+// cascade) can't climb up into the dungeon view. Combined with the compact
+// (eyebrow-less) toasts + same-kind coalescing, the stack stays in the lower
+// strip above the action bar, clear of the central action. Newest sits at the
+// bottom; when a 4th arrives the oldest (top) trims off, so what just happened
+// is always visible.
+const MAX_TOASTS = 3
 const TOAST_TTL  = 6500
 const FADE_OUT   = 280
 
@@ -34,24 +40,43 @@ const FADE_OUT   = 280
 const COALESCE_WINDOW_MS    = 1500
 const MAX_COALESCE_CONTEXTS = 3
 
+// Each category gets a DISTINCT accent hue so they never read alike — the
+// accent drives the seal, eyebrow, edge, glow and the card's colour wash, so
+// one colour per category is what makes them tell-apart-able at a glance.
+// Frequent kinds claim their own spot on the wheel: red / orange / cyan /
+// gold / green / blue / purple / grey.
 const KIND_STYLE = {
-  level:  { color: 'var(--gold)',      glyph: '★' },
-  pact:   { color: 'var(--info)',      glyph: '▣' },
-  kill:   { color: 'var(--blood)',     glyph: '☠' },
-  damage: { color: 'var(--warn)',      glyph: '⚠' },
-  leak:   { color: 'var(--warn)',      glyph: '◈' },
-  gold:   { color: 'var(--gold)',      glyph: '◐' },
-  bounty: { color: 'var(--gold)',      glyph: '★' },
-  info:   { color: 'var(--text-mute)', glyph: '◇' },
-  // Achievement unlock — bright-gold trophy chip. Same color family as
-  // level / bounty (celebratory) but distinct glyph so the player can
-  // pick it out of a busy run-end toast wash.
+  level:  { color: 'var(--xp, #4a8fb8)',         glyph: '★' },  // MILESTONE — blue (XP/power)
+  pact:   { color: 'var(--info)',                glyph: '▣' },  // PACT — purple (arcane)
+  kill:   { color: 'var(--blood)',               glyph: '☠' },  // COMBAT — red (death)
+  damage: { color: 'var(--warn)',                glyph: '⚠' },  // BREACH — orange (alarm)
+  leak:   { color: 'var(--rumor)',               glyph: '◈' },  // INTEL — cyan (knowledge)
+  gold:   { color: 'var(--gold)',                glyph: '◐' },  // TREASURE — gold (money)
+  bounty: { color: '#b07a3c',                    glyph: '★' }, // BOUNTY — leather brown (wanted poster)
+  info:   { color: 'var(--text-mute)',           glyph: '◇' },  // NOTICE — neutral grey
+  success:{ color: 'var(--poison)',              glyph: '✓' },  // BUILD — green (confirm)
+  // Achievement unlock — bright-gold trophy chip; distinct glyph so the
+  // player can pick it out of a busy run-end toast wash.
   achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
   // Gold-tier achievement unlock — same trophy but bigger, brighter,
   // longer-dwell, with a "RARE TROPHY" eyebrow above the title and a
   // gold particle burst on arrival. Triggered when `def.tier === 'gold'`
   // on the unlocked achievement (the gold tier in `src/data/achievements.json`).
   legendary_achievement: { color: 'var(--gold-bright, #ffd964)', glyph: '🏆' },
+}
+
+// Visual tier per kind. MAJOR = headline events get the bigger hero card +
+// spring-pop entrance + stronger accent glow; STANDARD = routine status reads
+// as a compact chip. Both share the crypt-console frame, so the stack still
+// looks like one family — the tier just sets the weight. A caller can force a
+// tier via opts.tier (e.g. to elevate a dramatic one-off). Kinds absent here
+// fall through to 'standard'.
+const KIND_TIER = {
+  level:                 'major',
+  pact:                  'major',
+  bounty:                'major',
+  achievement:           'major',
+  legendary_achievement: 'major',
 }
 
 // Bounty toasts get a longer dwell — they're the parchment-poster replacement
@@ -74,29 +99,28 @@ export class ToastQueue {
   _push(kind, title, subtitle, opts = {}) {
     const meta = KIND_STYLE[kind] || KIND_STYLE.info
     const flavor = opts.flavor || null
+    // Eyebrow only when a caller supplies one (e.g. legendary's "✦ GOLD ✦").
+    // Per-category labels were removed — the distinct accent colour + glyph
+    // already differentiate the kinds, and dropping the line keeps the toast
+    // compact (less vertical stack height).
     const eyebrow = opts.eyebrow || null
     const isLegendary = kind === 'legendary_achievement'
-    // Build the toast root. Legendary toasts get an extra wrapper class
-    // for the gold-burst frame + the optional eyebrow line ("RARE
-    // TROPHY") above the title.
+    const tier = opts.tier || KIND_TIER[kind] || 'standard'
+    // Build the toast root. All colour (accent edge, glyph, title, glow) is
+    // driven off one inline `--accent` CSS var so the stylesheet owns the look
+    // and tiers/variants compose cleanly. Legendary keeps its own gold frame
+    // class; bounty its parchment class.
     const t = h('div', {
-      className: `toast qf-toast${flavor ? ' qf-toast-bounty' : ''}${isLegendary ? ' qf-toast-legendary' : ''}`,
-      style: { borderLeftColor: meta.color, boxShadow: `inset 4px 0 0 ${meta.color}, 0 8px 24px rgba(0,0,0,0.5), 0 0 18px ${meta.color}33` },
+      className: `toast qf-toast qf-toast--${tier}${flavor ? ' qf-toast-bounty' : ''}${isLegendary ? ' qf-toast-legendary' : ''}`,
+      style: { '--accent': meta.color },
     }, [
+      // Accent light-sweep that passes across once on arrival (attention-grab).
+      h('div', { className: 'qf-toast-sweep' }),
       h('div', { className: 'qf-toast-row' }, [
-        h('span', {
-          className: 'pix qf-toast-glyph',
-          style: { color: meta.color, textShadow: `0 0 6px ${meta.color}` },
-        }, meta.glyph),
+        h('span', { className: 'pix qf-toast-glyph' }, meta.glyph),
         h('div', { className: 'qf-toast-titlecol' }, [
-          eyebrow && h('div', {
-            className: 'pix qf-toast-eyebrow',
-            style: { color: meta.color },
-          }, eyebrow),
-          h('div', {
-            className: 'pix qf-toast-title',
-            style: { color: meta.color },
-          }, title),
+          eyebrow  && h('div', { className: 'pix qf-toast-eyebrow' }, eyebrow),
+          h('div', { className: 'pix qf-toast-title' }, title),
           subtitle && h('div', { className: 'qf-toast-subtitle' }, subtitle),
           flavor   && h('div', { className: 'qf-toast-flavor' }, flavor),
         ]),
@@ -142,14 +166,21 @@ export class ToastQueue {
   //                      caller swap to a special headline at certain
   //                      thresholds (e.g. "PARTY WIPED" at full-wave
   //                      kill count). Defaults to "<baseTitle> × N".
+  //   value            — optional numeric amount (e.g. a sale's gold) summed
+  //                      across the batch into c.valueSum, available to the
+  //                      titleFormatter (4th arg) so it can show the total.
+  //   coalesceWhileAlive — fold for as long as the prior toast is still on
+  //                      screen (not just within COALESCE_WINDOW_MS). Used for
+  //                      sells, so a later sale merges into the visible card.
   _pushCoalesced(kind, key, baseTitle, baseSubtitle, contextItem, opts = {}) {
     this._coalesce ??= {}
     const now = performance.now()
     const c = this._coalesce[key]
-    const stillActive = c && c.entry && !c.entry._dismissing
-      && (now - c.lastAt) < COALESCE_WINDOW_MS
+    const withinWindow = opts.coalesceWhileAlive ? true : (now - (c?.lastAt ?? -1e9)) < COALESCE_WINDOW_MS
+    const stillActive = c && c.entry && !c.entry._dismissing && withinWindow
     if (stillActive) {
       c.count += 1
+      c.valueSum = (c.valueSum ?? 0) + (opts.value ?? 0)
       if (contextItem && !c.contexts.includes(contextItem)
           && c.contexts.length < MAX_COALESCE_CONTEXTS) {
         c.contexts.push(contextItem)
@@ -164,6 +195,8 @@ export class ToastQueue {
             + (c.count > c.contexts.length ? `, +${c.count - c.contexts.length} more` : '')
           : c.baseSubtitle
       }
+      // Quick bump so the player notices the card just updated.
+      this._bump(c.entry.el)
       // Reset dismissal so the toast lives through the burst.
       clearTimeout(c.entry._dismiss)
       c.entry._dismiss = setTimeout(() => this._dismiss(c.entry), TOAST_TTL)
@@ -172,14 +205,29 @@ export class ToastQueue {
     // First fire (or stale window) — push a normal toast and bookkeep.
     this._push(kind, baseTitle, baseSubtitle)
     const entry = this._toasts[this._toasts.length - 1]
-    this._coalesce[key] = {
+    const rec = {
       entry,
       baseTitle,
       baseSubtitle: baseSubtitle ?? '',
       contexts: contextItem ? [contextItem] : [],
       count: 1,
+      valueSum: opts.value ?? 0,
       lastAt: now,
     }
+    this._coalesce[key] = rec
+    // Render via the formatter immediately so a value (e.g. the sale's gold)
+    // shows on the FIRST toast, not only once a second event folds in.
+    const titleEl = entry?.el?.querySelector('.qf-toast-title')
+    if (titleEl) this._renderCoalescedTitle(titleEl, rec, opts.titleFormatter)
+  }
+
+  // Re-trigger a quick scale "bump" so an in-place update (a coalesced card
+  // gaining a count / summing a value) reads as a change, not a static card.
+  _bump(el) {
+    if (!el) return
+    el.classList.remove('qf-toast-bump')
+    void el.offsetWidth   // force reflow so the animation restarts
+    el.classList.add('qf-toast-bump')
   }
 
   // Render the title slot for a coalesced toast. Default rendering is
@@ -190,7 +238,7 @@ export class ToastQueue {
   _renderCoalescedTitle(titleEl, c, titleFormatter) {
     titleEl.textContent = ''
     const custom = titleFormatter
-      ? titleFormatter(c.baseTitle, c.count, c.entry)
+      ? titleFormatter(c.baseTitle, c.count, c.entry, c)
       : null
     if (custom != null) {
       titleEl.appendChild(document.createTextNode(custom))
@@ -218,11 +266,11 @@ export class ToastQueue {
     // the toast stack naturally as the player scrolls / resizes.
     toastEl.appendChild(burst)
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      // Fountain leftward (toward the game area). The toast sits on
-      // the right edge of the HUD, so particles flying right would
-      // clip off-screen — bias angles to [120°, 240°] (a 120° arc
-      // opening to the LEFT) for a clean fan-out into the play area.
-      const baseAngle = 120 + Math.random() * 120
+      // Fountain UPWARD into the play area. The toast now docks bottom-
+      // centre (above the action bar), so bias angles to [200°, 340°] (a
+      // 140° arc opening UPWARD) — particles flying down would clip into
+      // the action bar.
+      const baseAngle = 200 + Math.random() * 140
       const distance  = 70 + Math.random() * 90
       const dx = Math.cos(baseAngle * Math.PI / 180) * distance
       const dy = Math.sin(baseAngle * Math.PI / 180) * distance
@@ -380,11 +428,25 @@ export class ToastQueue {
     // so they stop rendering behind the DOM TopBar.
     // Payload: { message, type?, duration? }
     //   type: 'info' (default) | 'error' | 'success'
-    sub('SHOW_TOAST', ({ message, type } = {}) => {
+    sub('SHOW_TOAST', ({ message, type, coalesceKey, value, valueLabel } = {}) => {
       if (!message) return
       const kind = type === 'error'   ? 'damage'
-                 : type === 'success' ? 'level'
+                 : type === 'success' ? 'success'
                  : 'info'
+      // Opt-in coalescing: repeats of the same coalesceKey fold into one
+      // updating card while it's on screen, summing `value` (e.g. several
+      // sells → "Sold ×2 · +34 gold"). CSS uppercases the rendered title.
+      if (coalesceKey) {
+        const fmt = (base, count, _entry, c) => {
+          const sum = c?.valueSum ?? 0
+          const cnt = count > 1 ? ` ×${count}` : ''
+          const val = (sum > 0 && valueLabel) ? ` · +${sum} ${valueLabel}` : ''
+          return `${base}${cnt}${val}`
+        }
+        this._pushCoalesced(kind, `show:${coalesceKey}`, message, null, null,
+          { value, titleFormatter: fmt, coalesceWhileAlive: true })
+        return
+      }
       this._push(kind, message, null)
     })
     // BOUNTY POSTED — replaces the parchment WantedPoster surface.

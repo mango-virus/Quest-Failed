@@ -825,22 +825,45 @@ body {
 }
 .combat-float { animation: combat-float 1200ms ease-out forwards; }
 
-/* Toast slide-in from right */
+/* Toast motion — toasts dock bottom-centre (above the action bar), so they
+   rise up on arrival and sink on dismissal. */
 @keyframes toast-in {
-  0%   { opacity: 0; transform: translateX(110%); }
-  20%  { opacity: 1; transform: translateX(-6px); }
-  100% { opacity: 1; transform: translateX(0); }
+  0%   { opacity: 0; transform: translateY(18px) scale(0.96); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes toast-out {
-  0%   { opacity: 1; transform: translateX(0); }
-  100% { opacity: 0; transform: translateX(110%); }
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+/* Major-tier entrance — a bigger spring pop for headline events (boss level,
+   pact, achievement, bounty). Legendary is excluded (it runs its own pulse). */
+@keyframes toast-in-major {
+  0%   { opacity: 0; transform: translateY(22px) scale(0.9); }
+  55%  { opacity: 1; transform: translateY(0) scale(1.04); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Glyph stamp — the leading symbol pops in on arrival. */
+@keyframes toast-glyph-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 .toast {
-  animation: toast-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: toast-in var(--dur-base) var(--ease-spring) both;
 }
 .toast.leaving {
-  animation: toast-out 280ms cubic-bezier(0.6, 0, 0.2, 1) both;
+  animation: toast-out var(--dur-base) var(--ease-in) both;
 }
+/* Bump — a quick scale pop re-triggered when a coalesced card updates in place
+   (count/value change), so the change is noticed. Re-added via JS after a
+   reflow. Defined after .toast so it wins the `animation` shorthand. */
+@keyframes toast-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.qf-toast-bump { animation: toast-bump 260ms var(--ease-spring); }
 
 /* Dungeon log row hover highlight */
 .log-row:hover {
@@ -3556,38 +3579,150 @@ body {
 .qf-log-text { word-break: break-word; }
 
 /* ---------- Toast queue ---------- */
+/* Docked bottom-centre, just above the action bar (top-right is now the
+   minimap/treasury zone). Anchored by `bottom` so the stack grows UPWARD —
+   newest sits closest to the action bar, older rise and trim off the top. */
 .qf-toasts {
   position: absolute;
-  top: calc(var(--hud-top) + 12px);
-  right: calc(var(--hud-side) + 16px);
+  bottom: calc(var(--hud-bottom) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   pointer-events: none;
   z-index: 30;
 }
+/* Standard toast — crypt-console chip: beveled panel, accent edge + glow
+   driven by the inline `--accent` colour, matching the HUD panels. */
 .qf-toast {
-  min-width: 280px;
-  max-width: 340px;
-  padding: 10px 12px 10px 18px;
-  background: var(--bg-1);
+  position: relative;
+  overflow: visible;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 10px 14px 10px 16px;
+  /* Subtle category-colour wash so a gold reward reads gold, a red breach
+     reads red — identity at a glance, while staying dark/legible. */
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent, transparent) 9%, var(--bg-2)),
+    color-mix(in srgb, var(--accent, transparent) 4%, var(--bg-1)));
   border: 1px solid var(--line-2);
+  box-shadow:
+    inset 4px 0 0 var(--accent, var(--text-mute)),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.04),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 0 16px color-mix(in srgb, var(--accent, transparent) 20%, transparent);
   pointer-events: none;
 }
+/* Gothic L-bracket corners in the accent colour (the panels' "designed frame"
+   identity) — pure pseudo-elements, ::before draws the top two corners,
+   ::after the bottom two, each from a crossed pair of gradients. */
+.qf-toast::before,
+.qf-toast::after {
+  content: '';
+  position: absolute;
+  left: -1px; right: -1px;
+  height: 9px;
+  z-index: 3;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent));
+  background-size: 2px 9px, 9px 2px, 2px 9px, 9px 2px;
+}
+.qf-toast::before { top: -1px;    background-position: 0 0, 0 0, 100% 0, 100% 0; }
+.qf-toast::after  { bottom: -1px; background-position: 0 100%, 0 100%, 100% 100%, 100% 100%; }
+/* Light-sweep overlay — a soft accent band that passes across once on arrival.
+   Clipped to the card; sits under the content row. */
+.qf-toast-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.qf-toast-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 45%;
+  background: linear-gradient(100deg,
+    transparent,
+    color-mix(in srgb, var(--accent, #fff) 32%, transparent),
+    transparent);
+  transform: translateX(-160%);
+  animation: toast-sweep 620ms var(--ease-out) 100ms both;
+}
+@keyframes toast-sweep { to { transform: translateX(360%); } }
+.qf-toast-row { position: relative; z-index: 1; }
+/* Major tier — headline events (boss level, pact, achievement, bounty). Bigger
+   footprint, stronger accent edge + glow, spring-pop entrance. Legendary keeps
+   its own gold frame/pulse (box-shadow + animation are !important there). */
+.qf-toast--major {
+  min-width: 300px;
+  padding: 12px 16px 12px 18px;
+  border-color: color-mix(in srgb, var(--accent, var(--line-2)) 55%, var(--line-2));
+  --major-shadow:
+    inset 5px 0 0 var(--accent, var(--text-mute)),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.05),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 0 26px color-mix(in srgb, var(--accent, transparent) 32%, transparent);
+  box-shadow: var(--major-shadow);
+}
+.qf-toast--major:not(.qf-toast-legendary) {
+  animation:
+    toast-in-major var(--dur-slow) var(--ease-spring) both,
+    toast-major-glow 1500ms var(--ease-out) both;
+}
+/* One-shot glow swell on arrival for headline events. */
+@keyframes toast-major-glow {
+  0%, 100% { box-shadow: var(--major-shadow); }
+  35% {
+    box-shadow:
+      inset 5px 0 0 var(--accent, var(--text-mute)),
+      inset 1px 1px 0 rgba(255, 255, 255, 0.05),
+      inset -1px -1px 0 rgba(0, 0, 0, 0.6),
+      0 8px 24px rgba(0, 0, 0, 0.55),
+      0 0 46px color-mix(in srgb, var(--accent, transparent) 55%, transparent);
+  }
+}
+.qf-toast--major .qf-toast-glyph { width: 36px; height: 36px; font-size: 18px; }
+.qf-toast--major .qf-toast-title { font-size: 10px; letter-spacing: 1.5px; }
 .qf-toast-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .qf-toast-glyph {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   font-size: 14px;
   line-height: 1;
+  color: var(--accent, var(--text));
+  background: color-mix(in srgb, var(--accent, transparent) 16%, var(--bg-0));
+  border: 1px solid color-mix(in srgb, var(--accent, var(--line-2)) 60%, transparent);
+  box-shadow:
+    inset 0 0 7px color-mix(in srgb, var(--accent, transparent) 28%, transparent),
+    0 0 7px color-mix(in srgb, var(--accent, transparent) 22%, transparent);
+  text-shadow: 0 0 6px var(--accent, transparent);
+  animation: toast-glyph-pop var(--dur-base) var(--ease-spring) both;
 }
 .qf-toast-titlecol {
   flex: 1;
   min-width: 0;
 }
 .qf-toast-title {
+  color: var(--accent, var(--text));
   font-size: 9px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -3648,6 +3783,7 @@ body {
 /* Eyebrow line — small label above the title for special toasts.
    Currently used by the legendary-achievement toast variant only. */
 .qf-toast-eyebrow {
+  color: var(--accent, var(--text-mute));
   font-size: 8px;
   letter-spacing: 3px;
   margin-bottom: 4px;
