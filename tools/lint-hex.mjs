@@ -33,9 +33,9 @@ const ART_ALLOWLIST = new Set([
   'NemesisPortrait.js',
 ])
 
-const HEX_RE     = /#[0-9a-fA-F]{3,8}\b/g
-const VAR_DEF_RE = /--[\w-]+\s*:\s*#[0-9a-fA-F]{3,8}\b/   // `--foo: #abc` (token def)
-const OK_RE      = /\/\/\s*hex-ok:/
+const HEX_RE       = /#[0-9a-fA-F]{3,8}\b/g
+const VAR_VALUE_RE = /--[\w-]+\s*:\s*$/   // text right before a hex → it's a `--foo: #abc` value
+const OK_RE        = /\/\/\s*hex-ok:/
 
 // Achromatic = all RGB channels equal (black/white/grey) → no hue → can't retint.
 function isAchromatic(hex) {
@@ -52,14 +52,14 @@ function countLintable(src) {
   let count = 0
   for (const line of src.split('\n')) {
     if (OK_RE.test(line)) continue
-    const isVarDef = VAR_DEF_RE.test(line)
-    const hits = line.match(HEX_RE)
-    if (!hits) continue
-    for (const hx of hits) {
+    HEX_RE.lastIndex = 0
+    let m
+    while ((m = HEX_RE.exec(line)) !== null) {
+      const hx = m[0]
       if (isAchromatic(hx)) continue
-      // A var-def line exempts ONLY the hex that is the property value; any
-      // EXTRA hex on the same line still counts.
-      if (isVarDef && line.indexOf(hx) === line.search(VAR_DEF_RE) + line.match(VAR_DEF_RE)[0].indexOf(hx)) continue
+      // Exempt every hex that is the VALUE of a CSS custom property (`--foo: #abc`)
+      // — handles several `--foo: #a; --bar: #b;` defs on one line.
+      if (VAR_VALUE_RE.test(line.slice(0, m.index))) continue
       count++
     }
   }

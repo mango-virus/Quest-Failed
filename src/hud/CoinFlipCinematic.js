@@ -28,9 +28,117 @@ const AUTO_CLOSE_MS  = 3800   // after the (final) reveal, before auto-dismiss
 // stranded overlay ourselves so it can't lock the screen.
 const DOUBLE_RESULT_TIMEOUT_MS = 1500
 
+// Self-injected styles (P4-1) — the cinematic owns its CSS like the other
+// cinematics (ensureDuelCss etc.) rather than living in the global styles.css.
+// The bespoke gold/crimson palette is expressed as local custom properties
+// (--cf-* gambler, --cfd-* demon) so it retints by scope and stays off the
+// raw-hex lint. Idempotent: guarded by the style element id.
+export function ensureCoinflipCss() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('qf-coinflip-css')) return
+  const style = document.createElement('style')
+  style.id = 'qf-coinflip-css'
+  style.textContent = `
+.qf-coinflip {
+  --cf-gold: #f0c93c;  --cf-gold-br: #ffe27a;  --cf-ink: #1a1206;  --cf-rim: #6e520e;
+  --cf-h1: #ffe9a0;  --cf-h2: #f0c43c;  --cf-h3: #b8841c;
+  --cf-t1: #e8d49a;  --cf-t2: #c9a63a;  --cf-t3: #8f6716;
+  --cf-facelabel: #4a3408;
+  --cf-win: #7bf0a0;  --cf-win-sh: #062b13;  --cf-lose: #ff7a7a;  --cf-lose-sh: #2b0606;
+  --cf-muted: #b9a98a;  --cf-win2: #8ff0aa;  --cf-lose2: #ff9a9a;  --cf-hint: #8a7c58;
+  --cf-risky-tx: #ffd2d2;  --cf-risky-bd: #d23847;  --cf-risky-bg: #240608;  --cf-risky-bg2: #380a0e;
+  --cf-safe-tx: #9bf0b4;   --cf-safe-bd: #3ad86a;   --cf-safe-bg: #06180c;   --cf-safe-bg2: #0a2614;
+  position: absolute; inset: 0; z-index: 9000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 280ms ease;
+}
+.qf-coinflip.show    { opacity: 1; pointer-events: auto; }
+.qf-coinflip.closing { opacity: 0; transition: opacity 340ms ease; }
+.qf-coinflip-dim { position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(60,44,8,0.55) 0%, rgba(4,3,1,0.92) 70%); }
+.qf-coinflip-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.qf-coinflip-kicker { font-family: var(--pix); font-size: 11px; letter-spacing: 6px;
+  color: var(--cf-gold); text-shadow: 0 0 10px rgba(240,201,60,0.7); opacity: 0; }
+.qf-coinflip.show .qf-coinflip-kicker { animation: qf-cf-fadedown 420ms ease-out 120ms both, qf-cf-kicker 1.4s ease-in-out 540ms infinite; }
+.qf-coinflip-title { font-family: var(--pix); font-size: 26px; letter-spacing: 3px;
+  color: var(--cf-gold-br); text-shadow: 2px 2px 0 var(--cf-ink), 0 0 20px rgba(240,201,60,0.6); margin-bottom: 26px; opacity: 0; }
+.qf-coinflip.show .qf-coinflip-title { animation: qf-cf-fadedown 460ms ease-out 60ms both; }
+.qf-coinflip-coinwrap { position: relative; width: 150px; height: 150px; perspective: 760px; }
+.qf-coinflip.flipping .qf-coinflip-coinwrap { animation: qf-cf-toss 2400ms 1 both; }
+.qf-coinflip-coin { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(0deg); }
+.qf-coinflip-face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 5px solid var(--cf-rim);
+  box-shadow: inset 0 0 0 4px rgba(255,244,200,0.35), inset 0 -10px 22px rgba(80,56,4,0.8), 0 0 34px rgba(240,201,60,0.55); }
+.qf-coinflip-face.heads { background: radial-gradient(circle at 38% 32%, var(--cf-h1) 0%, var(--cf-h2) 46%, var(--cf-h3) 100%); transform: rotateY(0deg); }
+.qf-coinflip-face.tails { background: radial-gradient(circle at 38% 32%, var(--cf-t1) 0%, var(--cf-t2) 46%, var(--cf-t3) 100%); transform: rotateY(180deg); }
+.qf-coinflip-glyph { font-size: 56px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5)); }
+.qf-coinflip-facelabel { font-family: var(--pix); font-size: 11px; letter-spacing: 2px; color: var(--cf-facelabel); }
+.qf-coinflip-result { margin-top: 30px; text-align: center; opacity: 0; }
+.qf-coinflip.revealed .qf-coinflip-result { animation: qf-cf-pop 460ms cubic-bezier(0.2,1.4,0.4,1) both; }
+.qf-coinflip-verdict { font-family: var(--pix); font-size: 34px; letter-spacing: 4px; }
+.qf-coinflip-result.win  .qf-coinflip-verdict { color: var(--cf-win);  text-shadow: 3px 3px 0 var(--cf-win-sh),  0 0 24px rgba(123,240,160,0.7); }
+.qf-coinflip-result.lose .qf-coinflip-verdict { color: var(--cf-lose); text-shadow: 3px 3px 0 var(--cf-lose-sh), 0 0 24px rgba(255,122,122,0.7); }
+.qf-coinflip-payout { margin-top: 12px; font-family: var(--pix); font-size: 17px; letter-spacing: 2px; color: var(--cf-gold-br); display: flex; align-items: center; justify-content: center; gap: 12px; }
+.qf-coinflip-payout .arrow { color: var(--cf-gold); }
+.qf-coinflip-old { color: var(--cf-muted); }
+.qf-coinflip-new { font-size: 22px; }
+.qf-coinflip-result.win  .qf-coinflip-new { color: var(--cf-win2); }
+.qf-coinflip-result.lose .qf-coinflip-new { color: var(--cf-lose2); }
+.qf-coinflip-hint { margin-top: 26px; font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--cf-hint); opacity: 0; }
+.qf-coinflip.revealed .qf-coinflip-hint { animation: qf-cf-fadein 500ms ease 700ms both, qf-cf-kicker 1.6s ease-in-out 1200ms infinite; }
+.qf-coinflip-stake { margin-top: 22px; font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--cf-muted); opacity: 0; }
+.qf-coinflip.revealed .qf-coinflip-stake { animation: qf-cf-fadein 400ms ease 620ms both; }
+.qf-coinflip-choices { display: flex; gap: 16px; justify-content: center; margin-top: 14px; opacity: 0; }
+.qf-coinflip.revealed .qf-coinflip-choices { animation: qf-cf-fadein 420ms ease 760ms both; }
+.qf-coinflip-btn { font-family: var(--pix); font-size: 12px; letter-spacing: 2px; padding: 12px 22px; cursor: pointer;
+  background: var(--cf-ink); color: var(--cf-gold-br); border: 2px solid var(--cf-rim); box-shadow: 3px 3px 0 #000;
+  transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease; }
+.qf-coinflip-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #000; }
+.qf-coinflip-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 #000; }
+.qf-coinflip-btn.risky { color: var(--cf-risky-tx); border-color: var(--cf-risky-bd); background: var(--cf-risky-bg); text-shadow: 0 0 8px rgba(210,56,71,0.7); }
+.qf-coinflip-btn.risky:hover { background: var(--cf-risky-bg2); }
+.qf-coinflip-btn.safe { color: var(--cf-safe-tx); border-color: var(--cf-safe-bd); background: var(--cf-safe-bg); }
+.qf-coinflip-btn.safe:hover { background: var(--cf-safe-bg2); }
+.qf-coinflip-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.qf-coinflip.landed .qf-coinflip-flash { animation: qf-cf-flash 460ms ease-out both; }
+@keyframes qf-cf-fadedown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes qf-cf-fadein   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes qf-cf-kicker   { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes qf-cf-pop      { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+@keyframes qf-cf-flash    { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+@keyframes qf-cf-toss {
+  0%   { transform: translateY(0);      animation-timing-function: cubic-bezier(0.18,0.62,0.34,1); }
+  50%  { transform: translateY(-172px); animation-timing-function: cubic-bezier(0.64,0,0.78,0.42); }
+  100% { transform: translateY(0); }
+}
+/* The Demon's Wager — sinister crimson/black theme: redefines the same palette
+   vars on the demon scope, so every rule above retints automatically. */
+.qf-coinflip-demon {
+  --cfd-red: #ff5560;  --cfd-red-br: #ff8a8a;  --cfd-ink: #1a0303;  --cfd-rim: #5a0c12;
+  --cfd-h1: #ffb0b0;  --cfd-h2: #c83040;  --cfd-h3: #6a0c14;
+  --cfd-t1: #d0a0a0;  --cfd-t2: #8a2030;  --cfd-t3: #3a0408;
+}
+.qf-coinflip-demon .qf-coinflip-dim { background: radial-gradient(ellipse at center, rgba(80,8,12,0.65) 0%, rgba(4,1,1,0.96) 70%); }
+.qf-coinflip-demon .qf-coinflip-kicker { color: var(--cfd-red); text-shadow: 0 0 10px rgba(255,90,96,0.65); }
+.qf-coinflip-demon .qf-coinflip-title { color: var(--cfd-red-br); text-shadow: 2px 2px 0 var(--cfd-ink), 0 0 22px rgba(220,40,50,0.7); }
+.qf-coinflip-demon .qf-coinflip-face { border-color: var(--cfd-rim);
+  box-shadow: inset 0 0 0 4px rgba(255,180,180,0.28), inset 0 -10px 22px rgba(60,6,10,0.85), 0 0 36px rgba(220,40,50,0.55); }
+.qf-coinflip-demon .qf-coinflip-face.heads { background: radial-gradient(circle at 38% 32%, var(--cfd-h1) 0%, var(--cfd-h2) 46%, var(--cfd-h3) 100%); }
+.qf-coinflip-demon .qf-coinflip-face.tails { background: radial-gradient(circle at 38% 32%, var(--cfd-t1) 0%, var(--cfd-t2) 46%, var(--cfd-t3) 100%); }
+.qf-coinflip-demon .qf-coinflip-payout .arrow { color: var(--cfd-red); }
+.qf-coinflip-demon .qf-coinflip-result.win  .qf-coinflip-verdict { color: var(--cfd-red-br); }
+.qf-coinflip-demon .qf-coinflip-result.lose .qf-coinflip-verdict { color: var(--cfd-red); }
+.qf-coinflip-demon .qf-coinflip-result.win  .qf-coinflip-new { color: var(--cfd-h1); }
+.qf-coinflip-demon .qf-coinflip-result.lose .qf-coinflip-new { color: var(--cfd-h2); }
+`
+  document.head.appendChild(style)
+}
+
 export class CoinFlipCinematic extends CinematicBase {
   constructor() {
     super()   // _timers / _detached + the tracked-timer helpers
+    ensureCoinflipCss()
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
     this._cancelTween = null

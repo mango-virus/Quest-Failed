@@ -1,10 +1,10 @@
 {
   "_comment": "Grandfathered chromatic raw-hex counts per src/hud/*.js file. Regenerate with: npm run lint-hex -- --update. Counts may only DROP (a ratchet); new raw hex fails the build.",
-  "total": 480,
+  "total": 470,
   "files": {
     "src/hud/AchievementsOverlay.js": 12,
     "src/hud/ActIntro.js": 11,
-    "src/hud/AldricCinematic.js": 22,
+    "src/hud/AldricCinematic.js": 21,
     "src/hud/ArchetypeSelectOverlay.js": 3,
     "src/hud/AscensionCinematic.js": 16,
     "src/hud/BossFightOverlay.js": 2,
@@ -15,7 +15,7 @@
     "src/hud/ConfirmPopup.js": 3,
     "src/hud/DevMenu.js": 12,
     "src/hud/DevToolsOverlay.js": 5,
-    "src/hud/EventBanner.js": 45,
+    "src/hud/EventBanner.js": 36,
     "src/hud/FullLogOverlay.js": 6,
     "src/hud/GameOverOverlay.js": 1,
     "src/hud/GameRequestsOverlay.js": 1,
