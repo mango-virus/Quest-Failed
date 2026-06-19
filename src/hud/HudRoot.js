@@ -29,7 +29,6 @@ import { WelcomeIntroOverlay }  from './WelcomeIntroOverlay.js'
 import { TutorialOverlay }      from './TutorialOverlay.js'
 import { LongGameOverlay }      from './LongGameOverlay.js'
 import { BossLevelUpOverlay }   from './BossLevelUpOverlay.js'
-import { HotkeyHints }          from './HotkeyHints.js'
 import { InspectPopup }         from './InspectPopup.js'
 import { PhaseTransition }      from './PhaseTransition.js'
 import { PostWaveOverlay }      from './PostWaveOverlay.js'
@@ -108,12 +107,9 @@ export class HudRoot {
     // peeks into the lower-left of the dungeon view. Pure renderer;
     // NpcDirector (a Game-scene system) drives it.
     this._npc         = new NpcCompanion(this._gameState)
-    // (Removed 2026-06-09) The in-game JamPortalCorner badge was deleted
-    // alongside the title-screen Venture button. portal.js SDK stays.
-    // HotkeyHints strip removed at user request — the bottom-bar
-    // buttons (PLACE/MOVE/SELL, speed, etc.) make the hint redundant.
-    // The HotkeyHints class file stays in the repo per the project's
-    // removal-not-deletion policy; just isn't mounted.
+    // (The in-game JamPortalCorner badge and the HotkeyHints strip were
+    // removed earlier; their dead module files were deleted in the UI-polish
+    // sweep — UI_POLISH_PLAN.md P0-1. portal.js SDK stays.)
     this._panels.push(
       this._topBar, this._bottomBar,
       this._leftPanels, this._rightPanels, this._toastQueue,
@@ -135,8 +131,7 @@ export class HudRoot {
     this._welcomeIntro    = new WelcomeIntroOverlay(this._gameState)
     // Unified hover inspector for rooms, minions, adventurers, and
     // dropped loot. Supersedes the old RoomTooltip (two-tab, room-only)
-    // and MinionInspectorOverlay (full-screen modal) — both files
-    // remain in the repo, just no longer mounted.
+    // and the MinionInspectorOverlay full-screen modal (both since removed).
     this._inspectPopup    = new InspectPopup(this._gameState)
     this._phaseTrans      = new PhaseTransition(this._gameState)
     this._postWaveOverlay = new PostWaveOverlay(this._gameState)
