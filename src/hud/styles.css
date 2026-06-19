@@ -215,6 +215,77 @@ img { image-rendering: pixelated; }
   --glow-blood: 0 0 28px rgba(255, 128, 48, 0.45);
 }
 
+/* ==========================================================================
+   ACCESSIBILITY COLOR MODES (UI_POLISH_PLAN P1-6)
+   Orthogonal to the aesthetic THEME above: these apply GLOBALLY (menu +
+   in-game + overlays) and persist (colorMode.js toggles the <html> class at
+   boot). Each is scoped to BOTH `html.<mode>` AND `html.<mode> #hud-root`
+   with !important so it beats an active `#hud-root.palette-*` theme (which
+   redeclares these tokens at ID specificity) for the in-game subtree, while
+   the bare `html.<mode>` selector covers the menu / boot splash. Only the
+   semantic accent + surface tokens are remapped — layout/structure untouched.
+   ========================================================================== */
+
+/* ---------- Colorblind-safe (Okabe-Ito based) ----------
+   The critical red/green pair blood(danger/HP)↔poison(minions) becomes
+   vermillion↔teal so it stays separable for deuteranopia / protanopia (the
+   common ~8%-of-men types). The warm trio blood/warn/gold is separated by
+   hue+lightness and backstopped by the text labels those controls already
+   carry. */
+html.cb-safe, html.cb-safe #hud-root {
+  --blood: #d55e00 !important;        /* vermillion */
+  --blood-glow: #ff7a33 !important;
+  --blood-deep: #8a3d00 !important;
+  --hp: #d55e00 !important;
+  --hp-low: #ff7a33 !important;
+  --poison: #009e73 !important;       /* bluish green / teal */
+  --rumor: #56b4e9 !important;        /* sky blue */
+  --warn: #e69f00 !important;         /* amber */
+  --gold: #efc000 !important;         /* golden yellow */
+  --gold-bright: #ffd83a !important;
+  --info: #cc79a7 !important;         /* reddish purple */
+  --xp: #0072b2 !important;           /* deep blue */
+  --xp-bright: #56b4e9 !important;
+  --glow-blood: 0 0 24px rgba(213, 94, 0, 0.4) !important;
+  --glow-gold: 0 0 16px rgba(239, 192, 0, 0.4) !important;
+  --glow-rumor: 0 0 14px rgba(86, 180, 233, 0.4) !important;
+}
+
+/* ---------- High contrast ----------
+   White text, darkened surfaces, brightened borders + accents — token-only,
+   so the layered crypt look stays intact (no structural overrides). */
+html.high-contrast, html.high-contrast #hud-root {
+  --text: #ffffff !important;
+  --text-mute: #d6cec0 !important;
+  --text-dim: #a89e96 !important;
+  --text-faint: #7a7068 !important;
+  --void: #000000 !important;
+  --bg-0: #060409 !important;
+  --bg-1: #0b0810 !important;
+  --bg-2: #120d18 !important;
+  --bg-3: #181220 !important;
+  --bg-elev: #221a2a !important;
+  --line: #6e5c68 !important;
+  --line-2: #8c7282 !important;
+  --line-bright: #b88ea0 !important;
+  --blood: #ff4458 !important;
+  --blood-glow: #ff7d8c !important;
+  --blood-deep: #a02234 !important;
+  --gold: #ffcb5c !important;
+  --gold-bright: #ffe08a !important;
+  --rumor: #7ce0f0 !important;
+  --poison: #8ed85a !important;
+  --warn: #ffb95c !important;
+  --info: #d2acf2 !important;
+  --hp: #ff4458 !important;
+  --hp-low: #ff7d8c !important;
+  --xp: #6cc8e8 !important;
+  --xp-bright: #9ce0ff !important;
+  --glow-blood: 0 0 24px rgba(255, 68, 88, 0.5) !important;
+  --glow-gold: 0 0 16px rgba(255, 203, 92, 0.5) !important;
+  --glow-rumor: 0 0 14px rgba(124, 224, 240, 0.5) !important;
+}
+
 /* ---------- Root layout ---------- */
 body {
   font-family: var(--mono);

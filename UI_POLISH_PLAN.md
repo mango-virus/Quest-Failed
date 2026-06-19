@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 6 |
+| 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -174,10 +174,14 @@
   - [x] UI SCALE seg relabelled **"UI & TEXT SIZE"** + finer **110%** step added (AUTO/100/110/125/150/200). `uiScalePref()` coerces `'1.1'`→`1.1` (range 0.5–3); selecting 110% → `effectiveUiScale()===1.1` and `--ui-scale` var = 1.1 (zoom applies). Verified via import (the Boot wedge blocked a full screenshot; the DOM seg + scaling logic confirmed). Zero console errors.
 - **Files:** `src/hud/SettingsOverlay.js`.
 
-### P1-6 — Colorblind / high-contrast `[L]` ⏸ *(stretch)*
+### P1-6 — Colorblind / high-contrast `[L]` ✅ *(2026-06-19)*
 - **Problem:** No colorblind/high-contrast palette.
-- **Acceptance:** [ ] Optional palette variant(s) selectable in Settings. *(Deferable; revisit after P1-1..5.)*
-- **Files:** `src/hud/styles.css` (palette vars), `SettingsOverlay.js`.
+- **Decisions (user, 2026-06-19 — verbatim):** modes = **"Colorblind-safe + High Contrast"** (OFF / COLORBLIND-SAFE / HIGH CONTRAST — one tuned CB palette + a contrast mode); reach = **"DOM HUD + menus + overlays"** (the in-dungeon canvas reads its own color source — Balance/sprites/Phaser — so it's a separate follow-up, flagged below).
+- **Design (built):** accessibility color modes are a **separate, global, persistent axis** from the aesthetic THEME (which only retints `#hud-root` in-game and isn't even re-applied on boot). New `src/hud/colorMode.js` (parallel to `motion.js`) reads `qf.video.colorMode ∈ {off,cbsafe,contrast}` (default off) and toggles `html.cb-safe`/`html.high-contrast`; self-applies on import (imported early in `main.js` so it's set before the menu renders). CSS blocks override the semantic accent/surface tokens, scoped to **both `html.<mode>` AND `html.<mode> #hud-root`** with `!important` so they beat an active `#hud-root.palette-*` theme's ID-specificity redefinitions (verified) while also covering the menu. **Colorblind-safe** = Okabe-Ito based: the critical red/green pair blood↔poison becomes **vermillion (#d55e00) ↔ teal (#009e73)**, separable for deuteranopia/protanopia; the warm trio (blood/warn/gold) split by hue+lightness, backstopped by existing control labels. **High contrast** = white text, darkened surfaces, brightened borders + accents (token-only — crypt layering intact). Surfaced as a **COLOR MODE** `_seg` in Settings → VIDEO (grouped with REDUCE MOTION / UI & TEXT SIZE / PARTICLES), routed through `_applyVideoFlags` so construct/APPLY/CANCEL/RESET all handle it.
+- **Out of scope (noted):** the in-dungeon **canvas** (unit HP bars, minimap dots, entity/status tints, VFX) reads Balance/sprites/Phaser, not the CSS tokens — a separate future item for a complete colorblind story.
+- **Acceptance:**
+  - [x] Optional palette variant(s) selectable in Settings. *(CDP-verified live in the Electron build: COLOR MODE seg [OFF/COLORBLIND/CONTRAST] in VIDEO; live apply [`html.cb-safe`/`html.high-contrast`] + CANCEL revert; tokens remap [blood #c8334a→#d55e00 cbsafe / #ff4458 contrast; poison →#009e73 / #8ed85a]; **beats an active `.palette-necro` theme** on `#hud-root`; APPLY persists `qf.video.colorMode` and **re-applies on boot** [menu `--text`→#fff under contrast]; high-contrast menu + cb-safe Codex screenshots render clean.)*
+- **Files:** new `src/hud/colorMode.js`, `src/main.js` (boot import), `src/hud/styles.css` (palette blocks), `src/hud/SettingsOverlay.js` (COLOR MODE seg + store key/default + apply path).
 
 ### P1-7 — Name input validation `[S]` ✅ *(2026-06-19)*
 - **Problem:** Name pipeline only checks non-empty — no length floor, profanity filter, or dupe check before a *public* leaderboard.

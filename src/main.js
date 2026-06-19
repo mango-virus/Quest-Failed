@@ -46,6 +46,10 @@ import './hud/PerfHud.js'
 // Reduced-motion: apply the html.reduce-motion class at boot (before the menu
 // + its entrance animations render) from the setting folded with the OS pref.
 import './hud/motion.js'
+// Accessibility color modes (colorblind-safe / high-contrast): apply the
+// html.cb-safe / html.high-contrast class at boot from the saved setting, so
+// the palette is in place before the menu renders. UI_POLISH_PLAN P1-6.
+import './hud/colorMode.js'
 
 // Future scenes registered here as they are built in later phases:
 // import { BossFight }     from './scenes/BossFight.js'

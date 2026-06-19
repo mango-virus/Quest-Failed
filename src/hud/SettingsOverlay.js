@@ -30,6 +30,7 @@ import { GameRequests } from '../systems/GameRequests.js'
 import { applyUiScale } from './stageScale.js'
 import { KEYBIND_DEFAULTS, getAllBinds, setBind, resetBinds, isReserved, findConflict, keyLabel } from './HudKeybinds.js'
 import { applyReduceMotion } from './motion.js'
+import { applyColorMode } from './colorMode.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
@@ -43,6 +44,7 @@ const STORE_KEYS = {
   shake:     'qf.video.shake',
   reduceMotion: 'qf.video.reduceMotion',
   particles: 'qf.video.particles',
+  colorMode: 'qf.video.colorMode',
   palette:   'qf.video.palette',
   fullscreen: 'qf.video.fullscreen',
   uiScale:   'qf.video.uiScale',
@@ -57,7 +59,7 @@ const DEFAULTS = {
   master: 70, music: 20, sfx: 80, voice: 65,
   speechSfx: true, muteUnfocused: true,
   scanlines: true, vignette: true, dungeonVignette: true,
-  shake: true, reduceMotion: 'auto', particles: 'high',
+  shake: true, reduceMotion: 'auto', particles: 'high', colorMode: 'off',
   palette: 'crypt', fullscreen: false, uiScale: 'auto',
   confirmRun: true, autosave: true, tutorials: true,
   companion: 'normal',
@@ -151,6 +153,9 @@ export class SettingsOverlay {
     // Reduced motion → html.reduce-motion. Pass the (draft) setting so the
     // VIDEO tab previews live; on Apply/Cancel the saved value is re-applied.
     applyReduceMotion(s.reduceMotion)
+    // Accessibility color mode → html.cb-safe / html.high-contrast (same
+    // draft-preview / saved-revert lifecycle as reduced motion).
+    applyColorMode(s.colorMode)
     const wantFs = !!s.fullscreen
     const inFs = !!document.fullscreenElement
     if (wantFs && !inFs) {
@@ -179,7 +184,8 @@ export class SettingsOverlay {
       this._draft.companion = 'normal'
     }
     if (k === 'palette') this._applyPalette(v)
-    if (k === 'scanlines' || k === 'vignette' || k === 'fullscreen' || k === 'dungeonVignette') {
+    if (k === 'scanlines' || k === 'vignette' || k === 'fullscreen' || k === 'dungeonVignette' ||
+        k === 'reduceMotion' || k === 'colorMode') {
       this._applyVideoFlags(this._draft)
     }
     if (k === 'uiScale') applyUiScale(this._uiScalePref(v))   // live preview
@@ -399,6 +405,11 @@ export class SettingsOverlay {
       this._lever('SCREEN SHAKE', 'shake'),
       this._seg('REDUCE MOTION', 'reduceMotion', [
         { v: 'auto', l: 'AUTO' }, { v: 'on', l: 'ON' }, { v: 'off', l: 'OFF' },
+      ]),
+      // Accessibility palette (colorblind-safe / high-contrast). Applies
+      // globally + persists; orthogonal to the THEME tab's dungeon palette.
+      this._seg('COLOR MODE', 'colorMode', [
+        { v: 'off', l: 'OFF' }, { v: 'cbsafe', l: 'COLORBLIND' }, { v: 'contrast', l: 'CONTRAST' },
       ]),
       this._seg('PARTICLES', 'particles', [
         { v: 'off', l: 'OFF' }, { v: 'low', l: 'LOW' }, { v: 'med', l: 'MED' }, { v: 'high', l: 'HIGH' },
