@@ -311,13 +311,14 @@
 
 ## Phase 4 — Final discipline
 
-### P4-1 — Raw-hex lint rule + token sweep `[M]` ⬜
+### P4-1 — Raw-hex lint rule + token sweep `[M]` 🟡 *(in progress, 2026-06-19)*
 - **Problem:** Hundreds of raw `#hex` values in `src/hud/*.js` (cinematics/event/meta) won't retint under boss palettes (`VISUAL_STANDARDS §1`).
+- **Scope decision (user, 2026-06-19): "Ratchet + targeted."** ~640 raw hex, but most are legitimate (sprite palettes, achromatic structure, intentional per-cinematic identity) so a literal full sweep is churn. Instead: a ratchet lint that grandfathers the current count and blocks NEW hex, plus a targeted sweep of clearly token-mappable colours + the cinematic local-var conversion. The "exact-match" chrome hexes turned out to mostly live in colour-constant maps / particle arrays / swatch previews (feed canvas/Phaser/colour-math) so they're grandfathered, not blind-converted.
 - **Acceptance:**
-  - [ ] Lint rule bans raw `#hex` in `src/hud/*.js` (allowlist genuine sprite palettes, e.g. `sprites.js`); add to the pre-commit hook.
-  - [ ] Sweep remaining hex → palette/`--z-*` tokens (most done inline in Phases 2–3); add `--silver`/`--bronze` tokens for ranks.
-  - [ ] **(Deferred from P2-6)** Self-inject the CoinFlip CSS (the ~275-line `.qf-coinflip*` block in `styles.css`) into `CoinFlipCinematic.js` like the other cinematics, and sweep the cinematics' bespoke-palette hex (Solo blue / Rival purple/crimson / FFXIV gold) → local CSS vars/tokens.
-- **Files:** `tools/` (lint), `src/hud/*.js`, `styles.css`.
+  - [x] Lint rule bans NEW raw `#hex` in `src/hud/*.js` (ratchet). *(`tools/lint-hex.mjs` — grandfathers per-file chromatic count in `tools/hex-baseline.json`; exemptions: art files [sprites/inGameSnapshot/NemesisPortrait], achromatic greys, `--name: #hex` var defs, `// hex-ok:` lines; `--update` regenerates the only-ever-lower baseline. Wired into package.json + pre-commit hook. Verified pass/fail/exemptions. Commit `12f187f2`.)*
+  - [x] `--silver`/`--bronze` rank tokens added; leaderboard podium rank-2/3 use them (zero visual change). *(`12f187f2`.)* Broad hex→token sweep handled by the ratchet (grandfathered + no-new).
+  - [ ] **(Deferred from P2-6)** Self-inject CoinFlip CSS + cinematics' bespoke palette → local vars. **Progress:** ✅ CoinFlip self-injected + `--cf-*`/`--cfd-*` local vars (`e6b11b6a`); ✅ SoloLeveling → `--sl-*` (`0dd45acb`). **Remaining cinematics:** Ascension, Aldric *(note: dynamic per-form `--acc`/`--acc2` — don't blind-rewrite)*, Rival, KingdomResponse *(`#d4a648` == global `--gold`)*, LightParty *(87 hexes — biggest)*. Proven scripted pattern: replace hex→`var()` then prepend a namespaced `:root{ --x:#hex }` block; verify "each hex appears once" + lint + in-game var resolution.
+- **Files:** `tools/lint-hex.mjs`, `tools/hex-baseline.json`, `src/hud/*.js`, `src/hud/styles.css`, `package.json`, `tools/hooks/pre-commit`.
 
 ### P4-2 — Helper de-dup `[M]` ⬜
 - **Problem:** Duplicated logic: MVP-minion reducer, pact-id humanizers, leaderboard `_bossPortrait`/`rankColor`, `CAT_COLOR` triplicated across 3 knowledge surfaces.
