@@ -8220,6 +8220,8 @@ html.reduce-motion *::after {
 .qf-op-name { font-family: var(--pix); font-size: 14px; color: var(--text); background: #0a0710; border: 2px solid var(--line-2);
   padding: 11px 13px; outline: none; transition: border-color .12s; }
 .qf-op-name:focus { border-color: var(--acc); }
+/* P1-7 — inline name-validation error in the Settings identity field. */
+.qf-op-nameerr { font-family: var(--pix); font-size: 10px; color: var(--warn, #ff9a3c); margin-top: 6px; }
 .qf-op-titlesel { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
   font-family: var(--pix); font-size: 12px; color: var(--gold); background: #0a0710; border: 2px solid var(--gold); padding: 11px 13px;
   box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 22%, transparent); }
@@ -10502,6 +10504,14 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-nameentry-input:focus {
   border-color: var(--blood);
   box-shadow: 0 0 0 1px var(--blood), 0 0 14px rgba(220, 60, 80, 0.30);
+}
+/* P1-7 — inline validation error under the name input. */
+.qf-nameentry-error {
+  font-family: var(--pix);
+  font-size: 11px;
+  color: var(--warn, #ff9a3c);
+  text-align: center;
+  margin: 8px 0 0;
 }
 .qf-nameentry-actions {
   display: flex;

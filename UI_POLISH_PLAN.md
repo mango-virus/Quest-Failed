@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 3 |
+| 1 — Input & accessibility | 7 | 4 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -174,11 +174,15 @@
 - **Acceptance:** [ ] Optional palette variant(s) selectable in Settings. *(Deferable; revisit after P1-1..5.)*
 - **Files:** `src/hud/styles.css` (palette vars), `SettingsOverlay.js`.
 
-### P1-7 — Name input validation `[S]` ⬜
+### P1-7 — Name input validation `[S]` ✅ *(2026-06-19)*
 - **Problem:** Name pipeline only checks non-empty — no length floor, profanity filter, or dupe check before a *public* leaderboard.
+- **Decisions (user, 2026-06-19):** dupe = **normalize-only** (offline-safe; true uniqueness stays a server concern); profanity = **lenient** (curated, no innocent-substring false positives).
+- **Design:** shared `PlayerProfile.validateName(raw) → {ok, value, reason}` (NAME_MIN 2 / NAME_MAX 16; trim + collapse internal whitespace; reject blank/punctuation-only; lenient leet-normalized block list curated to unambiguous terms — omits ass/cum/sex/shit/spic/rape/cock stems). `NameEntryOverlay` gained an optional `validate` opt + inline `.qf-nameentry-error` (clears on input); the player-name callers (MainMenuOverlay + the SettingsOverlay identity field via `_commitName`) pass it. Minion rename stays non-empty-only (local cosmetic, not public).
 - **Acceptance:**
-  - [ ] Length min/max, profanity filter, dupe/normalization handling, clear inline error.
-- **Files:** `src/hud/NameEntryOverlay.js`, `PlayerProfile.setName`.
+  - [x] Length min/max + profanity + whitespace normalization + clear inline error — all live-verified.
+  - [x] No false positives: Assassin / Hispanic / therapist / Cockburn / Shitij / mango all pass; blocked: empty, `a` (short), 17-char, `!!!`, `fuckyou`, `N1GG3R` (leet), `f u c k` (spaced). `"  Dark   Lord  "` → `Dark Lord`.
+  - [x] Both UI paths show the inline ⚠ error + keep the bad value out (NameEntryOverlay stays open; Settings field shows error — screenshot); cheat name `mango` still passes; zero console errors.
+- **Files:** `src/systems/PlayerProfile.js` (validateName + block list), `src/hud/NameEntryOverlay.js`, `src/hud/MainMenuOverlay.js`, `src/hud/SettingsOverlay.js`, `src/hud/styles.css`.
 
 ---
 

@@ -269,13 +269,14 @@ export class SettingsOverlay {
       h('div', { className: 'qf-op-idf' }, [
         h('span', { className: 'l' }, '⚔ DARK LORD’S NAME'),
         h('input', {
-          className: 'qf-op-name', value: name, maxLength: 18,
+          className: 'qf-op-name', value: name, maxLength: 16,
           on: {
             change: (e) => this._commitName(e.currentTarget.value),
             blur:   (e) => this._commitName(e.currentTarget.value),
             keydown: (e) => { if (e.key === 'Enter') e.currentTarget.blur() },
           },
         }),
+        this._nameError && h('div', { className: 'qf-op-nameerr' }, `⚠ ${this._nameError}`),
       ]),
       h('div', { className: 'qf-op-idf' }, titles.length
         ? [
@@ -304,9 +305,17 @@ export class SettingsOverlay {
   }
 
   _commitName(v) {
-    const n = (v || '').trim()
-    if (!n || n === PlayerProfile.getName().trim()) return
-    PlayerProfile.setName(n)
+    const r = PlayerProfile.validateName(v)
+    if (!r.ok) {
+      // Reject: surface the reason inline; the input reverts to the saved name
+      // on re-render (the invalid text wasn't valid to keep).
+      this._nameError = r.reason
+      this._rerender()
+      return
+    }
+    this._nameError = null
+    if (r.value === PlayerProfile.getName().trim()) { this._rerender(); return }
+    PlayerProfile.setName(r.value)
     EventBus.emit('NAME_CHANGED')
     this._rerender()   // titles are per-name → re-resolve the dropdown
   }

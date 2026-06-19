@@ -35,9 +35,15 @@ export class NameEntryOverlay {
       cancelLabel:  opts.cancelLabel  ?? 'CANCEL',
       onConfirm:    opts.onConfirm    ?? (() => {}),
       onCancel:     opts.onCancel     ?? (() => {}),
+      // Optional (raw) => { ok, value, reason } validator (P1-7). When set,
+      // a failed submit shows `reason` inline and keeps the modal open; a
+      // pass forwards the cleaned `value` to onConfirm. Without it, the
+      // legacy non-empty gate applies (minion rename etc.).
+      validate:     opts.validate     ?? null,
     }
     this._el     = null
     this._input  = null
+    this._errEl  = null
     this._closed = false
     this._keyHandler = (e) => this._onKey(e)
   }
@@ -60,6 +66,12 @@ export class NameEntryOverlay {
           maxlength: MAX_LEN,
           value: this._opts.initial,
           ref: (el) => { this._input = el },
+          on: { input: () => this._clearError() },
+        }),
+        h('div', {
+          className: 'qf-nameentry-error',
+          ref: (el) => { this._errEl = el },
+          style: { display: 'none' },
         }),
         h('div', { className: 'qf-nameentry-actions' }, [
           h('button', {
@@ -95,11 +107,31 @@ export class NameEntryOverlay {
   }
 
   _submit() {
-    const name = (this._input?.value ?? '').trim()
+    const raw = this._input?.value ?? ''
+    if (this._opts.validate) {
+      const r = this._opts.validate(raw)
+      if (!r || !r.ok) { this._showError(r?.reason || 'Invalid name.'); return }
+      const cb = this._opts.onConfirm
+      this.close()
+      cb(r.value)
+      return
+    }
+    const name = raw.trim()
     if (!name) return                  // mirror Phaser version's non-empty gate
     const cb = this._opts.onConfirm
     this.close()
     cb(name)
+  }
+
+  _showError(msg) {
+    if (!this._errEl) return
+    this._errEl.textContent = `⚠ ${msg}`
+    this._errEl.style.display = ''
+    this._input?.focus()
+  }
+
+  _clearError() {
+    if (this._errEl) this._errEl.style.display = 'none'
   }
 
   _cancel() {

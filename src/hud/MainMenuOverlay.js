@@ -595,6 +595,7 @@ export class MainMenuOverlay {
       instruction:  'A boss without a name is just another beast. Enter yours before you take the throne.',
       initial:      '',
       confirmLabel: 'BEGIN REIGN',
+      validate:     (raw) => PlayerProfile.validateName(raw),
       onConfirm: (n) => {
         PlayerProfile.setName(n)
         this._nameEntry = null

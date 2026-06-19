@@ -242,8 +242,55 @@ function _writeUnlockedSet(name, set) {
   } catch {}
 }
 
+// ── Name validation (UI_POLISH_PLAN P1-7) ──────────────────────────────
+// The player name feeds the PUBLIC leaderboard, so the entry points run it
+// through PlayerProfile.validateName() for length + whitespace normalisation
+// + a deliberately LENIENT profanity gate. The block list is curated to
+// unambiguous terms that essentially never appear inside an innocent name, so
+// real names that merely contain a substring — Assassin, Dickens, Hispanic,
+// therapist, Shitij, Cockburn — are never false-flagged.
+export const NAME_MIN = 2
+export const NAME_MAX = 16
+
+// Leetspeak / look-alike → letter, applied before matching so "f4gg0t" /
+// "n1gg3r" don't slip past.
+const _LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '9': 'g', '@': 'a', '$': 's', '!': 'i', '|': 'i' }
+
+// Short, curated block list. Intentionally OMITS ambiguous stems (ass / cum /
+// sex / shit / spic / rape / cock) that collide with real names.
+const _BLOCKED = [
+  'fuck', 'cunt', 'nigger', 'nigga', 'faggot', 'retard',
+  'chink', 'kike', 'wetback', 'tranny', 'molest',
+]
+
+function _normalizeForMatch(s) {
+  return String(s).toLowerCase()
+    .replace(/[0-9@$!|]/g, c => _LEET[c] ?? c)
+    .replace(/[^a-z]/g, '')      // strip spaces/punct so "f u c k" → "fuck"
+}
+
+function _hasProfanity(s) {
+  const n = _normalizeForMatch(s)
+  return _BLOCKED.some(w => n.includes(w))
+}
+
+// Normalise + validate a candidate name. Returns { ok, value, reason } where
+// `value` is the cleaned name to store (trimmed, internal whitespace
+// collapsed) and `reason` is a short inline-error message when !ok.
+function _validateName(raw) {
+  const value = String(raw ?? '').trim().replace(/\s+/g, ' ')
+  if (!value)                       return { ok: false, value: '',    reason: 'Enter a name.' }
+  if (!/[a-z0-9]/i.test(value))     return { ok: false, value,        reason: 'Use letters or numbers.' }
+  if (value.length < NAME_MIN)      return { ok: false, value,        reason: `At least ${NAME_MIN} characters.` }
+  if (value.length > NAME_MAX)      return { ok: false, value,        reason: `At most ${NAME_MAX} characters.` }
+  if (_hasProfanity(value))         return { ok: false, value,        reason: 'Please choose a different name.' }
+  return { ok: true, value, reason: null }
+}
+
 export const PlayerProfile = {
   getName()     { return localStorage.getItem(NAME_KEY) ?? '' },
+  // Shared name policy for the player-name entry points (P1-7).
+  validateName(raw) { return _validateName(raw) },
   setName(name) {
     const prev = localStorage.getItem(NAME_KEY) ?? ''
     const next = (name ?? '').trim()
