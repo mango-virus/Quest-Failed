@@ -28,7 +28,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { applyUiScale } from './stageScale.js'
-import { KEYBIND_DEFAULTS } from './HudKeybinds.js'
+import { KEYBIND_DEFAULTS, getAllBinds, setBind, resetBinds, isReserved, findConflict, keyLabel } from './HudKeybinds.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
@@ -189,7 +189,7 @@ export class SettingsOverlay {
 
   _rerender() { this._overlay.setBody(this._renderBody()) }
 
-  _selectTab(id) { this._tab = id; this._titleOpen = false; this._rerender() }
+  _selectTab(id) { this._stopCapture(); this._tab = id; this._titleOpen = false; this._rerender() }
 
   _consumeTabSwap() {
     const changed = this._tab !== this._lastRenderedTab
@@ -199,6 +199,7 @@ export class SettingsOverlay {
 
   // ─── footer actions ────────────────────────────────────────────────────
   _onApply() {
+    this._stopCapture()
     this._persistAll(this._draft)
     this._savedState = { ...this._draft }
     this._applyAudio(this._draft)
@@ -210,6 +211,7 @@ export class SettingsOverlay {
   }
 
   _onCancel() {
+    this._stopCapture()
     this._applyPalette(this._savedState.palette)
     this._applyVideoFlags(this._savedState)
     this._applyAudio(this._savedState)
@@ -486,11 +488,94 @@ export class SettingsOverlay {
       ])))
   }
 
+  // Display rows for the CONTROLS panel: one per binding, with the four
+  // GAME SPEED slots collapsed into a single row of caps. Derived from
+  // KEYBIND_DEFAULTS so it can't drift from the real bindings.
+  _controlRows() {
+    const rows = []
+    let speedRow = null
+    for (const d of KEYBIND_DEFAULTS) {
+      if (d.id.startsWith('speed')) {
+        if (!speedRow) { speedRow = { label: 'GAME SPEED', ids: [] }; rows.push(speedRow) }
+        speedRow.ids.push(d.id)
+      } else {
+        rows.push({ label: d.action, ids: [d.id] })
+      }
+    }
+    return rows
+  }
+
   _keys() {
-    return h('div', { className: 'qf-op-keys' },
-      KEYBIND_DEFAULTS.map(b => h('div', { className: 'qf-op-key' }, [
-        h('span', { className: 'a' }, b.action),
-        h('span', { className: 'caps' }, b.keys.map(k => h('span', { className: 'qf-op-cap' }, k))),
-      ])))
+    const binds = getAllBinds()
+    return h('div', { className: 'qf-op-keys' }, [
+      ...this._controlRows().map(row => h('div', { className: 'qf-op-key' }, [
+        h('span', { className: 'a' }, row.label),
+        h('span', { className: 'caps' }, row.ids.map(id => {
+          const capturing = this._capturing === id
+          return h('button', {
+            className: 'qf-op-cap' + (capturing ? ' capturing' : ''),
+            on: { click: () => capturing ? this._stopCapture(true) : this._startCapture(id) },
+          }, capturing ? 'PRESS…' : keyLabel(binds[id]))
+        })),
+      ])),
+      this._captureErr && h('div', { className: 'qf-op-keyerr' }, `⚠ ${this._captureErr}`),
+      h('div', { className: 'qf-op-keynote' },
+        'Click a key, then press the new one. Esc always cancels / closes / pauses.'),
+      h('button', {
+        className: 'btn qf-op-keyreset',
+        on: { click: () => { this._stopCapture(); resetBinds(); this._rerender() } },
+      }, '↺ RESET TO DEFAULTS'),
+    ])
+  }
+
+  // Begin listening for a new key for binding `id`. The capture listener runs
+  // in the capture phase so it pre-empts both HudKeybinds and the Overlay's
+  // own Esc-to-close. Rejects reserved / conflicting / navigation keys with an
+  // inline message and keeps listening; Esc cancels.
+  _startCapture(id) {
+    this._stopCapture()
+    this._capturing = id
+    this._captureErr = null
+    this._captureHandler = (e) => {
+      e.preventDefault(); e.stopPropagation()
+      const raw = e.key
+      if (raw === 'Escape') { this._stopCapture(true); return }
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(raw)) return   // wait for a real key
+      if (['Tab', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(raw)) {
+        this._captureErr = `${raw} can't be bound`; this._rerender(); return
+      }
+      const key = raw === ' ' ? ' ' : raw.toLowerCase()
+      if (key !== ' ' && key.length !== 1) { this._captureErr = 'Unsupported key'; this._rerender(); return }
+      if (isReserved(key)) { this._captureErr = `'${keyLabel(key)}' is reserved`; this._rerender(); return }
+      const conflict = findConflict(key, id)
+      if (conflict) {
+        const name = KEYBIND_DEFAULTS.find(d => d.id === conflict)?.action ?? conflict
+        this._captureErr = `'${keyLabel(key)}' is already bound to ${name}`; this._rerender(); return
+      }
+      setBind(id, key)        // persists + emits KEYBINDS_CHANGED (live)
+      this._capturing = null
+      this._captureErr = null
+      this._removeCaptureHandler()
+      this._rerender()
+    }
+    window.addEventListener('keydown', this._captureHandler, true)
+    this._rerender()
+  }
+
+  _removeCaptureHandler() {
+    if (this._captureHandler) {
+      window.removeEventListener('keydown', this._captureHandler, true)
+      this._captureHandler = null
+    }
+  }
+
+  // Stop any in-progress capture. `rerender` redraws (used when the user
+  // cancels via Esc or by clicking the cap again); callers tearing the panel
+  // down pass nothing.
+  _stopCapture(rerender = false) {
+    this._removeCaptureHandler()
+    this._capturing = null
+    this._captureErr = null
+    if (rerender) this._rerender()
   }
 }

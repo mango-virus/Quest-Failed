@@ -8,6 +8,7 @@ import { Balance }       from '../config/balance.js'
 import { PALETTE, glowPanel, glowRect, makeBar, drawRoomIcon, spawnEmbers, applyUiCamera, showToast } from '../ui/UIKit.js'
 import { ThemeManager, spriteCoverage } from '../systems/ThemeManager.js'
 import { PauseManager }   from '../systems/PauseManager.js'
+import { getBind }        from '../hud/HudKeybinds.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { minionLabel }    from '../util/displayNames.js'
 import { rollRivalDungeonSprites } from '../util/rivalDungeon.js'
@@ -1784,7 +1785,16 @@ export class NightPhase extends Phaser.Scene {
       this._confirmPlacement(this._previewTileX, this._previewTileY)
     })
 
-    this.input.keyboard.on('keydown-R', () => {
+    // Contextual roster/rotate key (UI_POLISH_PLAN P1-1/P1-3). Bound key is
+    // read live from the rebindable store (default R), so a generic keydown +
+    // event.key lookup replaces the fixed keydown-R. When a room/trap is held
+    // for placement it rotates; otherwise it opens the Minion Roster.
+    this.input.keyboard.on('keydown', (e) => {
+      const key = (e.key || '').toLowerCase()
+      if (key !== getBind('roster')) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       if (this._selectedKind === 'room') {
         this._rotation = (this._rotation + 90) % 360
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
@@ -1797,9 +1807,8 @@ export class NightPhase extends Phaser.Scene {
         if (this._heldMoveTrap) this._heldMoveTrap.facing = this._trapFacing
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
       } else if (!this._selectedKind && !this._toolMode) {
-        // Contextual R (UI_POLISH_PLAN P1-1): when nothing is held for
-        // placement and no tool is armed, R opens the Minion Roster — unless a
-        // modal overlay is already up (then the player is in a menu).
+        // Nothing held + no tool armed → open the roster, unless a modal
+        // overlay is already up (then the player is in a menu).
         if (!document.querySelector('#hud-stage .overlay')) EventBus.emit('OPEN_MINION_ROSTER')
       }
     })

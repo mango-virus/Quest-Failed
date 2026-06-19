@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 1 |
+| 1 — Input & accessibility | 7 | 2 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -138,11 +138,16 @@
   - [ ] Visible focus ring; works on main menu, in-game, overlays.
 - **Files:** HUD-wide; likely a new focus/nav manager + `Overlay.js`/`HudRoot.js` hooks.
 
-### P1-3 — Rebindable controls `[M]` ⬜
+### P1-3 — Rebindable controls `[M]` ✅ *(2026-06-18)*
 - **Problem:** Settings CONTROLS tab is view-only.
+- **Decisions (user, 2026-06-18 — verbatim):** scope = **"Everything"** (all bindings rebindable, incl. speed slots, Space, contextual R); conflict = **"Block + tell me"** (reject + inline message, keep listening; reserved keys also blocked).
+- **Design:** central bind store in `src/hud/HudKeybinds.js` — `KEYBIND_DEFAULTS` (each row `{id, action, defaultKey, phase}`; GAME SPEED split into 4 slot ids speed1–4; ROSTER+ROTATE merged into one contextual `roster` id) + `loadBinds()/setBind()/resetBinds()/getBind()` over `localStorage['qf.controls.binds']`, emitting `KEYBINDS_CHANGED`. HudKeybinds builds a key→action map from the live binds (rebuilt on change) and routes DOM-owned actions. NightPhase's R handler reads the live `roster` bind (contextual rotate/roster preserved). Reserved (un-bindable): `w/a/s/d` (camera), modifiers, Tab/Enter/Arrows. **Esc stays a permanent universal close/cancel/pause** (overlay-close + NightPhase cancel are wired into ~20 files; not rerouted) — the PAUSE row rebinds an *additional* pause key via HudKeybinds (Esc always works); noted in the panel.
 - **Acceptance:**
-  - [ ] Interactive rebinding UI; persists to settings; conflict detection; reset-to-default.
-- **Files:** `src/hud/SettingsOverlay.js`, input handler from P1-1.
+  - [x] Interactive rebinding UI in the CONTROLS tab: click a key-cap → "PRESS…" → captures next key; "↺ RESET TO DEFAULTS"; persists to `localStorage['qf.controls.binds']` (immediate-apply, separate from the audio/video draft+Apply flow).
+  - [x] Conflict + reserved detection: blocked with inline "⚠ 'B' is already bound to PLACE / BUILD" / "⚠ 'W' is reserved", keeps listening (live-verified).
+  - [x] HudKeybinds + NightPhase honor the custom binds live (re-read on `KEYBINDS_CHANGED`): rebound MOVE→G armed move while M went dead; ROSTER→T opened the roster. Defaults unchanged when nothing customized.
+  - [x] Live: rebind worked, conflict/reserved blocked, reset restored, persisted across a reload (`sell→c` survived). Panel renders polished (screenshot). Zero console errors.
+- **Files:** `src/hud/HudKeybinds.js` (store + data-driven handler), `src/hud/SettingsOverlay.js` (rebinding UI), `src/scenes/NightPhase.js` (R reads live bind).
 
 ### P1-4 — Reduced-motion setting + finish fallbacks `[M]` ⬜
 - **Problem:** No in-game reduced-motion toggle (only partial OS-media-query coverage); 5 cinematics ignore it.
