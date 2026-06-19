@@ -1728,6 +1728,9 @@ export const MinionAbilities = {
 
   // onHit data abilities — ctx carries the struck target + damage dealt.
   runHitAbilities(scene, attacker, target, damageDealt, gameState) {
+    // A dead attacker fires nothing — guards the rare case where the strike that
+    // resolves this onHit also downed the attacker (simultaneous trade).
+    if (!attacker || attacker.aiState === 'dead' || (attacker.resources?.hp ?? 0) <= 0) return
     const abilities = _abilitiesFor(attacker, scene, 'onHit')
     if (!abilities) return
     for (const ab of abilities) {

@@ -420,6 +420,17 @@ export class BossArchetypeSystem {
     return this._gameState?.player?.bossArchetypeId ?? null
   }
 
+  // True when the boss is dead / "resting" and must NOT use any ability: no boss
+  // object, at or below 0 HP, or already defeated this day (`_diedThisDay` is set
+  // in BossSystem._resolveFight and cleared overnight). A single predicate gating
+  // every boss path — passive ticks, day-active abilities, and reactive
+  // empowerments — so a fallen boss can't keep regenerating, spawning, pulsing
+  // auras, banking resources, or casting until it revives at the next dawn.
+  _bossDown() {
+    const b = this._gameState?.boss
+    return !b || (b.hp ?? 0) <= 0 || b._diedThisDay === true
+  }
+
   _findMinion(instanceId) {
     if (!instanceId || instanceId === 'boss' || instanceId === 'unknown') return null
     return this._gameState?.minions?.find(m => m.instanceId === instanceId) ?? null
@@ -428,6 +439,9 @@ export class BossArchetypeSystem {
   // ── ORC: Loot the Fallen ────────────────────────────────────────────────
 
   _onAdvDied(payload) {
+    // A fallen boss banks nothing and spawns nothing — no soul harvest, blood,
+    // ferocity, brimstone, loot/trophy, haunt ghost, or bloodlust while it's down.
+    if (this._bossDown()) return
     // ORC: Loot the Fallen (per-orc kill counter). Just bumps the bonus
     // counter — the live `stats.attack` value is recomputed each frame in
     // `_tickOrc` from `_orcBaseAttack + lootAtkBonus`, then multiplied by
@@ -580,6 +594,8 @@ export class BossArchetypeSystem {
   _onMinionDied(payload) {
     const m = payload?.minion
     if (!m) return
+    // A fallen boss doesn't react to deaths (no slime absorb/respawn etc.).
+    if (this._bossDown()) return
 
     // Slime King — Absorb & Excrete. Runs BEFORE the orc handler bails on
     // non-orc minions so it can fire for any of the player's dungeon
@@ -982,6 +998,7 @@ export class BossArchetypeSystem {
   // ── MITOSIS SURGE (active day ability) — arm → click a room → flood it ──
   _surgeUsesLeft() { return this._gameState?.boss?._slimeSurge?.usesLeft ?? 0 }
   _surgeAvailable() {
+    if (this._bossDown()) return false
     return this._archId() === 'slime' && (this._gameState?.meta?.phase ?? '') === 'day' && this._surgeUsesLeft() > 0
   }
   _armSurge() { if (!this._surgeAvailable()) return; this._surgeArmed = true; EventBus.emit('SLIME_SURGE_ARMED', {}) }
@@ -1021,6 +1038,7 @@ export class BossArchetypeSystem {
   // damage (T4). Room-wide, so it scales with however many heroes are inside.
   _gazeUsesLeft() { return this._gameState?.boss?._beholderGaze?.usesLeft ?? 0 }
   _gazeAvailable() {
+    if (this._bossDown()) return false
     return this._archId() === 'beholder' && (this._gameState?.meta?.phase ?? '') === 'day' && this._gazeUsesLeft() > 0
   }
   _armGaze() { if (!this._gazeAvailable()) return; this._gazeArmed = true; EventBus.emit('BEHOLDER_GAZE_ARMED', {}) }
@@ -1105,6 +1123,7 @@ export class BossArchetypeSystem {
   // empower stacks, room crowd, and act tier.
   _throwUsesLeft() { return this._gameState?.boss?._orcThrow?.usesLeft ?? 0 }
   _throwAvailable() {
+    if (this._bossDown()) return false
     return this._archId() === 'orc' && (this._gameState?.meta?.phase ?? '') === 'day' && this._throwUsesLeft() > 0
   }
   _armThrow() { if (!this._throwAvailable()) return; this._throwArmed = true; EventBus.emit('ORC_TROPHY_THROW_ARMED', {}) }
@@ -1425,6 +1444,7 @@ export class BossArchetypeSystem {
 
   // ── CHANNEL SOULS (active day ability) — arm → click room → fire ──
   _soulChannelAvailable() {
+    if (this._bossDown()) return false
     if (this._archId() !== 'lich') return false
     if ((this._gameState?.meta?.phase ?? '') !== 'day') return false
     return (this._gameState?.boss?.soulEssence ?? 0) >= Balance.LICH_CHANNEL_COST
@@ -1850,7 +1870,7 @@ export class BossArchetypeSystem {
 
   // ── PLAGUE SPIT (day active) — arm → click a room → infect everyone inside ──
   _spitUsesLeft() { return this._gameState?.boss?._lizSpit?.usesLeft ?? 0 }
-  _spitAvailable() { return this._archId() === 'lizardman' && (this._gameState?.meta?.phase ?? '') === 'day' && this._spitUsesLeft() > 0 }
+  _spitAvailable() { return !this._bossDown() && this._archId() === 'lizardman' && (this._gameState?.meta?.phase ?? '') === 'day' && this._spitUsesLeft() > 0 }
   _armSpit() { if (!this._spitAvailable()) return; this._spitArmed = true; EventBus.emit('LIZARD_SPIT_ARMED', {}) }
   _disarmSpit() { this._spitArmed = false; EventBus.emit('LIZARD_SPIT_DISARMED', {}) }
   _fireSpit(payload) {
@@ -1924,6 +1944,7 @@ export class BossArchetypeSystem {
   }
 
   _earthquakeAvailable() {
+    if (this._bossDown()) return false
     if (this._archId() !== 'golem') return false
     if (this._gameState?.meta?.phase !== 'day')  return false
     return this._earthquakeUsesLeft() > 0
@@ -2782,10 +2803,9 @@ export class BossArchetypeSystem {
     }
   }
 
-  // Called from Game.update once per frame. Dispatches per-archetype tick
-  // logic (Lich phylactery damage, Lizardman venom DoT, Myconid spores +
-  // corpse contact, etc). Per-archetype gates are inside each helper.
-  tick(delta) {
+  // Every per-archetype passive/aura/DoT/summon tick. Gated by `_bossDown()`
+  // in `tick()` so none of these fire once the boss has fallen for the day.
+  _tickBossPassives(delta) {
     // Venom stack DoT — runs whenever ANY adv has stacks (Lizardman applies
     // them on hit, Myconid applies them on corpse contact, etc).
     this._tickVenom()
@@ -2822,6 +2842,18 @@ export class BossArchetypeSystem {
     this._tickGolem(this._scene?.time?.now ?? 0)
     // Lizardman THE PLAGUE-BEARER — plague DoT + contagion spread.
     this._tickPlague(this._scene?.time?.now ?? 0)
+  }
+
+  // Called from Game.update once per frame. Dispatches per-archetype tick
+  // logic (Lich phylactery damage, Lizardman venom DoT, Myconid spores +
+  // corpse contact, etc). Per-archetype gates are inside each helper.
+  tick(delta) {
+    // Boss passive/aura/DoT/summon abilities only run while the boss is alive.
+    // Once it has fallen for the day (or is at 0 HP) it is "resting" and must
+    // not keep acting — skip every passive tick. (The lich phylactery management
+    // below has its own _diedThisDay / destroyed handling and still needs to
+    // run regardless, so it sits outside this guard.)
+    if (!this._bossDown()) this._tickBossPassives(delta)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return
@@ -3146,6 +3178,8 @@ export class BossArchetypeSystem {
   _onCombatHit(payload) {
     const dmg = payload?.damage ?? 0
     if (dmg <= 0) return
+    // A fallen boss applies no on-hit riders (e.g. Lizardman venom stacks).
+    if (this._bossDown()) return
 
     // LIZARDMAN — Venom Stack accrual on minion hit.
     if (this._archId() === 'lizardman') {
@@ -3418,6 +3452,7 @@ export class BossArchetypeSystem {
   // ── SEED THE BLOOM (active day ability) — arm → click a room → colonize it ──
   _seedUsesLeft() { return this._gameState?.boss?._myconidSeed?.usesLeft ?? 0 }
   _seedAvailable() {
+    if (this._bossDown()) return false
     return this._archId() === 'myconid' && (this._gameState?.meta?.phase ?? '') === 'day' && this._seedUsesLeft() > 0
   }
   _armSeed() { if (!this._seedAvailable()) return; this._seedArmed = true; EventBus.emit('MYCONID_SEED_ARMED', {}) }
@@ -3836,7 +3871,7 @@ export class BossArchetypeSystem {
 
   // ── SOUND THE HUNT (day active) ────────────────────────────────────────────
   _huntUsesLeft() { return this._gameState?.boss?._gnollHunt?.usesLeft ?? 0 }
-  _huntAvailable() { return this._archId() === 'gnoll' && (this._gameState?.meta?.phase ?? '') === 'day' && this._huntUsesLeft() > 0 }
+  _huntAvailable() { return !this._bossDown() && this._archId() === 'gnoll' && (this._gameState?.meta?.phase ?? '') === 'day' && this._huntUsesLeft() > 0 }
   _armHunt() { if (!this._huntAvailable()) return; this._huntArmed = true; EventBus.emit('GNOLL_HUNT_ARMED', {}) }
   _disarmHunt() { this._huntArmed = false; EventBus.emit('GNOLL_HUNT_DISARMED', {}) }
   _fireHunt(payload) {
@@ -4030,7 +4065,7 @@ export class BossArchetypeSystem {
 
   // ── KISS OF RAPTURE (day active) ───────────────────────────────────────────
   _kissUsesLeft() { return this._gameState?.boss?._succubusKiss?.usesLeft ?? 0 }
-  _kissAvailable() { return this._archId() === 'succubus' && (this._gameState?.meta?.phase ?? '') === 'day' && this._kissUsesLeft() > 0 }
+  _kissAvailable() { return !this._bossDown() && this._archId() === 'succubus' && (this._gameState?.meta?.phase ?? '') === 'day' && this._kissUsesLeft() > 0 }
   _armKiss() { if (!this._kissAvailable()) return; this._kissArmed = true; EventBus.emit('SUCCUBUS_KISS_ARMED', {}) }
   _disarmKiss() { this._kissArmed = false; EventBus.emit('SUCCUBUS_KISS_DISARMED', {}) }
   _fireKiss(payload) {
@@ -4175,7 +4210,7 @@ export class BossArchetypeSystem {
 
   // ── BLOOD RITE (day active) ────────────────────────────────────────────────
   _riteUsesLeft() { return this._gameState?.boss?._vampRite?.usesLeft ?? 0 }
-  _riteAvailable() { return this._archId() === 'vampire' && (this._gameState?.meta?.phase ?? '') === 'day' && this._riteUsesLeft() > 0 }
+  _riteAvailable() { return !this._bossDown() && this._archId() === 'vampire' && (this._gameState?.meta?.phase ?? '') === 'day' && this._riteUsesLeft() > 0 }
   _armRite() { if (!this._riteAvailable()) return; this._riteArmed = true; EventBus.emit('VAMPIRE_RITE_ARMED', {}) }
   _disarmRite() { this._riteArmed = false; EventBus.emit('VAMPIRE_RITE_DISARMED', {}) }
   _fireRite(payload) {
@@ -4592,6 +4627,7 @@ export class BossArchetypeSystem {
   }
 
   _sacrificeAvailable() {
+    if (this._bossDown()) return false
     // The Pact spends Brimstone + auto-burns an imp if one exists; it does NOT
     // require a minion (works on banked Brimstone alone).
     return this._archId() === 'demon'
@@ -4936,6 +4972,7 @@ export class BossArchetypeSystem {
   }
 
   _onTrapTriggered(payload) {
+    if (this._bossDown()) return
     if (this._archId() !== 'wraith') return
     const adv = payload?.adventurer
     if (!adv) return
@@ -4943,6 +4980,7 @@ export class BossArchetypeSystem {
   }
 
   _onMinionObserved(payload) {
+    if (this._bossDown()) return
     if (this._archId() !== 'wraith') return
     const adv = this._gameState?.adventurers?.active?.find(a => a.instanceId === payload?.advId)
     this._addFear(adv, Balance.WRAITH_FEAR_PER_MINION_SIGHTED)
@@ -4952,6 +4990,7 @@ export class BossArchetypeSystem {
   // adventurer's body. AdventurerRenderer keeps dead adv sprites parked
   // until NIGHT_PHASE_STARTED, so room-change is the cleanest trigger.
   _onAdvRoomChanged(payload) {
+    if (this._bossDown()) return
     const archId = this._archId()
     if (archId === 'lich') this._lichOnAdvRoomChanged(payload)
     if (archId !== 'wraith') return
@@ -5165,7 +5204,7 @@ export class BossArchetypeSystem {
 
   // ── NIGHT TERROR (day active) ──────────────────────────────────────────────
   _terrorUsesLeft() { return this._gameState?.boss?._wraithTerror?.usesLeft ?? 0 }
-  _terrorAvailable() { return this._archId() === 'wraith' && (this._gameState?.meta?.phase ?? '') === 'day' && this._terrorUsesLeft() > 0 }
+  _terrorAvailable() { return !this._bossDown() && this._archId() === 'wraith' && (this._gameState?.meta?.phase ?? '') === 'day' && this._terrorUsesLeft() > 0 }
   _armTerror() { if (!this._terrorAvailable()) return; this._terrorArmed = true; EventBus.emit('WRAITH_TERROR_ARMED', {}) }
   _disarmTerror() { this._terrorArmed = false; EventBus.emit('WRAITH_TERROR_DISARMED', {}) }
   _fireTerror(payload) {

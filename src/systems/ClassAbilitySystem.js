@@ -1521,6 +1521,9 @@ export class ClassAbilitySystem {
     const adv = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === id)
       ?? (this._gameState.minions ?? []).find(m => m.instanceId === id && m._raisedClassId === 'bard')
     if (!adv) return
+    // A dead bard doesn't shatter — the COMBAT_HIT that triggers this can be the
+    // lethal blow, so bail if the hit (or anything earlier this frame) downed it.
+    if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
     if (adv.classId !== 'bard' && adv._raisedClassId !== 'bard') return
     const maxHp = adv.resources?.maxHp ?? 0
     if (maxHp <= 0 || (adv._crescendoStacks ?? 0) <= 0) return
