@@ -686,15 +686,73 @@ export class NightPhase extends Phaser.Scene {
     this._emitReadiness()
   }
 
+  // Single source of truth for "can the day begin?" — used by BOTH the
+  // authoritative _beginDay gate (full toast message) AND the action-bar
+  // readiness broadcast (short button blocker). Returns the FIRST failing
+  // check so the two surfaces never disagree on the reason (the old
+  // _emitReadiness only knew about disconnected rooms, so the button always
+  // said "PATH OPEN" even when the real blocker was a missing Entry Hall).
+  //   ready        — boolean
+  //   blocker      — short label for the BEGIN DAY button (e.g. 'PATH OPEN')
+  //   message      — full sentence for the placement-error toast
+  //   disconnected — offending rooms when the blocker is the path case (for flagging)
+  _dungeonReadiness() {
+    const dungeon = this._gameState.dungeon
+    const entries = (dungeon.rooms ?? []).filter(r => r.definitionId === 'entry_hall')
+
+    // 1. An Entry Hall must exist at all.
+    if (entries.length === 0) {
+      return {
+        ready: false,
+        blocker: 'NO ENTRY HALL',
+        message: 'You must place an Entry Hall before starting the day',
+      }
+    }
+
+    // 2. Forced multi-entry — the kingdom mandates a 2nd/3rd Entry Hall at
+    //    boss level 5/10 (entry_hall's maxPerDungeonByBossLevel table).
+    const entryDef = (this.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
+    const requiredEntries = DungeonGridClass.effectiveMaxPerDungeon(
+      entryDef, this._gameState.boss?.level ?? 1) ?? 1
+    if (entries.length < requiredEntries) {
+      const ord = requiredEntries === 3 ? '3rd' : '2nd'
+      return {
+        ready: false,
+        blocker: `NEED ${ord.toUpperCase()} ENTRY`,
+        message: `The kingdom has found another way in — place a ${ord} Entry Hall before the day begins`,
+      }
+    }
+
+    // 3. Every placed room (incl. the boss) must be reachable from an
+    //    entry_hall via the doorway graph — free placement allows islands.
+    const disconnected = this._dungeonGrid.getDisconnectedRooms()
+    if (disconnected.length > 0) {
+      // Use the room's display name from the def cache when available so
+      // 'mimic_vault' surfaces as 'Mimic Vault' (and reads as a ROOM, not
+      // the placeable Mimic minion that shares the prefix).
+      const allRooms = this.cache.json.get('rooms') ?? []
+      const labelFor = r => allRooms.find(d => d.id === r.definitionId)?.name
+        ?? r.definitionId.replace(/_/g, ' ')
+      const names = disconnected.slice(0, 2).map(labelFor).join(', ')
+      const extra = disconnected.length > 2 ? ` +${disconnected.length - 2} more` : ''
+      const noun = disconnected.length === 1 ? 'room' : 'rooms'
+      return {
+        ready: false,
+        blocker: 'PATH OPEN',
+        message: `Disconnected ${noun}: ${names}${extra} — place adjacent to existing rooms`,
+        disconnected,
+      }
+    }
+
+    return { ready: true, blocker: null, message: null }
+  }
+
   // Broadcast whether the dungeon is ready for BEGIN DAY. Drives the action
-  // bar's proactive "⚠ PATH OPEN" blocker (BottomBar). The authoritative gate
-  // still lives in the Begin-Day handler; this just mirrors the main blocker
-  // (a disconnected room island) onto the button so the player sees WHY
+  // bar's proactive "⚠ <reason>" blocker (BottomBar) so the player sees WHY
   // before clicking. Cheap — only fired on room add/remove + night entry.
   _emitReadiness() {
-    const disc = this._dungeonGrid?.getDisconnectedRooms?.() ?? []
-    const ready = disc.length === 0
-    EventBus.emit('DUNGEON_READINESS', { ready, blocker: ready ? null : 'PATH OPEN' })
+    const { ready, blocker } = this._dungeonReadiness()
+    EventBus.emit('DUNGEON_READINESS', { ready, blocker })
   }
 
   // Phase 31D — arm/cancel a build-mode tool. Clicking the action-bar tool
@@ -3391,9 +3449,14 @@ export class NightPhase extends Phaser.Scene {
         const happened = doSell()
         if (happened !== false && sellFx) {
           const refund = sellFx.refund ?? 0
+          // Coalesced + value-summed: rapid sells fold into one updating card
+          // ("Sold ×2 · +34 gold") for as long as it's on screen.
           EventBus.emit('SHOW_TOAST', {
-            message: refund > 0 ? `Sold · +${refund} gold` : 'Sold',
-            type:    'success',
+            message:    'Sold',
+            type:       'success',
+            coalesceKey: 'sold',
+            value:       refund,
+            valueLabel:  'gold',
           })
         }
         this._refreshStats()
@@ -4230,46 +4293,19 @@ export class NightPhase extends Phaser.Scene {
     this._setToolMode(null, 'begin_day')
     this._cancelSelection()
 
-    const dungeon = this._gameState.dungeon
-    const entries = dungeon.rooms.filter(r => r.definitionId === 'entry_hall')
-    if (entries.length === 0) {
-      this._showPlacementError('You must place an Entry Hall before starting the day')
-      return
-    }
-    // Forced multi-entry — the kingdom discovers a 2nd way into the dungeon
-    // at boss level 5 and a 3rd at level 10. The required count matches the
-    // build cap for the current boss level (entry_hall's
-    // maxPerDungeonByBossLevel table), so the day can't begin until every
-    // mandated Entry Hall is placed.
-    const entryDef = (this.cache.json.get('rooms') ?? []).find(d => d.id === 'entry_hall')
-    const requiredEntries = DungeonGridClass.effectiveMaxPerDungeon(
-      entryDef, this._gameState.boss?.level ?? 1) ?? 1
-    if (entries.length < requiredEntries) {
-      const ord = requiredEntries === 3 ? '3rd' : '2nd'
-      this._showPlacementError(
-        `The kingdom has found another way in — place a ${ord} Entry Hall before the day begins`)
-      return
-    }
-
-    // Free placement allows islands, so verify connectivity at day-start.
-    // Every placed room — including the boss — must be reachable from the
-    // entry_hall via the doorway graph.
-    const disconnected = this._dungeonGrid.getDisconnectedRooms()
-    if (disconnected.length > 0) {
-      // Use the room's display name from the def cache when available so
-      // 'mimic_vault' surfaces as 'Mimic Vault' (and reads as a ROOM, not
-      // the placeable Mimic minion that shares the prefix).
-      const allRooms = this.cache.json.get('rooms') ?? []
-      const labelFor = r => allRooms.find(d => d.id === r.definitionId)?.name
-        ?? r.definitionId.replace(/_/g, ' ')
-      const names = disconnected.slice(0, 2).map(labelFor).join(', ')
-      const extra = disconnected.length > 2 ? ` +${disconnected.length - 2} more` : ''
-      const noun = disconnected.length === 1 ? 'room' : 'rooms'
-      this._showPlacementError(`Disconnected ${noun}: ${names}${extra} — place adjacent to existing rooms`)
-      // Surface the offenders visually — pulsing red outline + pan to the
-      // first one. Stays until the player fixes connectivity or the next
-      // successful Begin Day.
-      this._flagDisconnectedRooms(disconnected)
+    // Authoritative gate — same checks (and order) the action-bar blocker
+    // reads via _dungeonReadiness, so the toast reason and the button label
+    // always match.
+    const status = this._dungeonReadiness()
+    if (!status.ready) {
+      this._showPlacementError(status.message)
+      // Disconnected case → surface the offenders visually (pulsing red
+      // outline + pan to the first). Stays until the player fixes it or
+      // the next successful Begin Day.
+      if (status.disconnected?.length) this._flagDisconnectedRooms(status.disconnected)
+      // Keep the button blocker in sync in case state shifted since the last
+      // ROOM_PLACED/REMOVED broadcast.
+      this._emitReadiness()
       return
     }
 
