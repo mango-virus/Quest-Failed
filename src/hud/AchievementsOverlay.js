@@ -32,7 +32,7 @@ import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { Overlay }           from './Overlay.js'
 import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
-import { rankColor as _rankColor, bossPortrait } from './hudShared.js'
+import { rankColor as _rankColor, bossPortrait, dismissNewChip } from './hudShared.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
 import { titleFxClassById, titleFxBorderClassById, titleColorById,
@@ -450,6 +450,7 @@ export class AchievementsOverlay {
       className: 'qf-ac-med',
       dataset: { locked: isUnlocked ? 'false' : 'true', leg: tier === 'gold' ? 'true' : 'false' },
       style: { '--sc': sc, '--catc': catc },
+      on: isNew ? { mouseenter: (e) => this._ackNew(def, e.currentTarget) } : null,
     }, [
       isNew && h('span', { className: 'sil qf-ac-new qf-newchip' }, 'NEW'),
       h('div', { className: 'qf-ac-disc' }, [
@@ -467,6 +468,16 @@ export class AchievementsOverlay {
         this._acRewardChip(def),
       ]),
     ])
+  }
+
+  // Hover-acknowledge a card's NEW chip: fade it out, drop it from the in-memory
+  // snapshot, and persist the id as seen (so it doesn't reappear, and the main-
+  // menu badge clears once every flagged card has been hovered).
+  _ackNew(def, cardEl) {
+    if (this._viewer || !def?.id || !this._newAtOpen?.has(def.id)) return
+    this._newAtOpen.delete(def.id)
+    PlayerProfile.markAchievementsKnown([def.id])
+    dismissNewChip(cardEl?.querySelector('.qf-newchip'))
   }
 
   _acRewardChip(def) {

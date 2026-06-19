@@ -44,6 +44,16 @@ export function bossPortrait(bossId, size, className = 'qf-lb-portrait-img') {
   })
 }
 
+// Dismiss a "NEW" chip (any `.qf-newchip`) with the shared fade-out + scale-up
+// (see styles.css), then remove it from the DOM. Idempotent. Call from a card's
+// hover/select handler — pair it with the surface's "mark seen" so the chip
+// doesn't reappear on reopen.
+export function dismissNewChip(chip) {
+  if (!chip || chip.classList.contains('is-dismissing')) return
+  chip.classList.add('is-dismissing')
+  setTimeout(() => chip.remove(), 240)
+}
+
 // Knowledge-intel category colours — the minimap legend (LeftPanels) + the
 // knowledge-map category filters (KnowledgeMapOverlay). ITEMS is only used by
 // the minimap legend; the knowledge map ignores it.

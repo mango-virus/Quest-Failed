@@ -9215,9 +9215,6 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-lb-podium-card[data-place="1"] > .qf-lb-podium-stats-block {
   z-index: 1;
 }
-.qf-lb-podium-card[data-place="1"] > .qf-lb-podium-new-chip {
-  z-index: 2;
-}
 
 .qf-lb-main {
   flex: 1;
@@ -12052,6 +12049,18 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
   0%, 100% { transform: scale(1);    box-shadow: 0 0 6px rgba(255,217,100,.5); }
   50%      { transform: scale(1.12); box-shadow: 0 0 16px rgba(255,217,100,.95); }
 }
+/* Shared NEW-chip base — every live "NEW" tag (Achievements .qf-ac-new,
+   CompanionSelect .qf-csl-newdot, ArchetypeSelect .qf-bp-coinnew) carries
+   `qf-newchip` so it (a) pulses and (b) can be dismissed consistently:
+   hover/select adds `is-dismissing` (fade + slight scale-up) and
+   dismissNewChip() removes the element ~240ms later. (The leaderboard
+   intentionally has no per-podium chip — viewing the board is the ack.) */
+.qf-newchip {
+  transform-origin: center;
+  animation: qf-newpulse 1.5s ease-in-out infinite;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.qf-newchip.is-dismissing { opacity: 0; transform: scale(1.18); animation: none; pointer-events: none; }
 .qf-csl-bustname { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 8px; text-align: center; padding: 8px 4px; color: var(--text); border-top: 2px solid var(--line); background: #0a0710; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qf-csl-bust.on .qf-csl-bustname { color: var(--acc); }
 .qf-csl-mystery { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: var(--pix, 'Press Start 2P', monospace); font-size: 34px; color: var(--faint); }
@@ -13112,122 +13121,6 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
    single-line ellipsis truncation still applies to the gradient text
    (the base .qf-titlefx uses inline-block, which would break ellipsis). */
 .qf-ach-reward .qf-titlefx { display: inline; }
-
-/* "NEW" chip on an achievement card — top-LEFT corner so it doesn't
-   collide with the rarity badge (top-right). Visual matches the main-menu
-   "NEW" badge (`.qf-mm-item-new`) so the two read as the same signal:
-   red/pink pulsing pixel pill. Painted only on cards whose id was UNSEEN
-   at the moment `AchievementsOverlay.open()` ran (see _newAtOpen logic). */
-.qf-ach-new-chip {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 4px 8px;
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: #fff8e8;
-  background: linear-gradient(180deg, #ff4d6a, #c2304a);
-  border: 2px solid #2a0a0c;
-  box-shadow: 0 0 0 1px #ff8aa0,
-              0 0 10px rgba(255, 77, 106, 0.55),
-              0 2px 0 rgba(0, 0, 0, 0.45);
-  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
-  /* Click-through so the chip never eats card-level events. Card-level
-     `mouseenter` is what dismisses it. */
-  pointer-events: none;
-  z-index: 3;
-  transition: opacity 220ms ease, transform 220ms ease;
-  /* Note: the lock-dim filter lives on `.qf-ach-card-body` (a SUBTREE
-     of the card), not the card itself. The NEW chip is a direct child
-     of the card — sibling of the body — so it's outside the filter
-     scope and renders bright on locked + unlocked cards alike. No
-     filter override needed here (CSS `filter` can't be un-set from a
-     descendant anyway, so a structural fix was the only way). */
-}
-/* Hover-dismiss animation — fade + slight scale-up before DOM removal. */
-.qf-ach-new-chip.is-dismissing {
-  opacity: 0;
-  transform: scale(1.18);
-  animation: none;
-}
-/* Same pulse rhythm as `qf-mm-item-new-pulse` but without the menu's
-   translateY(-50%) anchor (these chips aren't vertically centered on a
-   bar — they sit top-left of the card). Standalone keyframes so adding
-   the menu's anchor transform doesn't double-apply. */
-@keyframes qf-mm-item-new-pulse-static {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 1px #ff8aa0,
-                0 0 10px rgba(255, 77, 106, 0.5),
-                0 2px 0 rgba(0, 0, 0, 0.45);
-  }
-  50% {
-    transform: scale(1.06);
-    box-shadow: 0 0 0 1px #ffb0bc,
-                0 0 22px rgba(255, 77, 106, 0.85),
-                0 2px 0 rgba(0, 0, 0, 0.45);
-  }
-}
-
-/* "NEW" tag on a CompanionSelect card — sits just above the name plate
-   per the design spec. Same red/pink pulsing pill as the achievement +
-   menu badges so all three read as the same kind of signal. `is-dismissing`
-   modifier triggers a fade-out + slight scale-up when hover marks the
-   companion as known (handler removes the element ~260ms later). */
-.qf-cmpsel-new-tag {
-  display: inline-block;
-  margin: 0 auto 4px;
-  padding: 3px 9px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: #fff8e8;
-  background: linear-gradient(180deg, #ff4d6a, #c2304a);
-  border: 2px solid #2a0a0c;
-  box-shadow: 0 0 0 1px #ff8aa0,
-              0 0 12px rgba(255, 77, 106, 0.6),
-              0 2px 0 rgba(0, 0, 0, 0.45);
-  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
-  /* Click-through so the card's own click handler still receives the
-     event — the tag is purely decorative. */
-  pointer-events: none;
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-.qf-cmpsel-new-tag.is-dismissing {
-  opacity: 0;
-  transform: scale(1.18);
-}
-
-/* "NEW" chip on a leaderboard podium card — top-LEFT corner of the
-   card, just outside the rank badge column. Same red/pink pulsing pill
-   as every other NEW-tag surface. Painted only when the underlying
-   player NAME is in the local player's `_newPodiumAtOpen` snapshot —
-   that is, a player who entered the top-3 since the local player
-   last hover-acknowledged them. Hover on the card dismisses; self-rows
-   never paint this chip. */
-.qf-lb-podium-new-chip {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  padding: 4px 9px;
-  font-family: var(--pix);
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: #fff8e8;
-  background: linear-gradient(180deg, #ff4d6a, #c2304a);
-  border: 2px solid #2a0a0c;
-  box-shadow: 0 0 0 1px #ff8aa0,
-              0 0 10px rgba(255, 77, 106, 0.55),
-              0 2px 0 rgba(0, 0, 0, 0.45);
-  animation: qf-mm-item-new-pulse-static 1.8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 5;
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-.qf-lb-podium-new-chip.is-dismissing {
-  opacity: 0;
-  transform: scale(1.18);
-  animation: none;
-}
 
 /* ─────────────────────────────────────────────────────────────────────
    UnlockNotificationOverlay — first-main-menu-open celebration cards

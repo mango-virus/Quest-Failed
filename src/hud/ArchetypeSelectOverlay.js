@@ -26,6 +26,7 @@ import { buildCryptBackdrop } from './menuBackdrop.js'
 import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { UNLOCK_GATES } from '../data/bossUnlocks.js'
+import { dismissNewChip } from './hudShared.js'
 
 function hexToCss(c) {
   if (typeof c === 'number') return '#' + c.toString(16).padStart(6, '0')
@@ -215,18 +216,28 @@ export class ArchetypeSelectOverlay {
     const isNew  = !locked && !this._known.has(a.id)
     const kids = [this._portrait(a.id, a.id === this._selected ? 66 : 52)]
     if (locked) kids.push(h('div', { className: 'qf-bp-coinlock' }, '🔒'))
-    if (isNew)  kids.push(h('span', { className: 'sil qf-bp-coinnew' }, 'NEW'))
+    if (isNew)  kids.push(h('span', { className: 'sil qf-bp-coinnew qf-newchip' }, 'NEW'))
     const coin = h('button', {
       className: 'qf-bp-coin' + (a.id === this._selected ? ' on' : '') + (locked ? ' locked' : ''),
       style: { '--cc': hexToCss(a.color) },
       title: a.name,
       on: {
-        mouseenter: () => HudSfx.playUi('hover'),
+        mouseenter: () => { HudSfx.playUi('hover'); this._ackCoin(a.id) },
         click: () => this._selectCoin(a.id),
       },
     }, kids)
     this._coinRefs[a.id] = coin
     return coin
+  }
+
+  // Acknowledge an unlocked archetype's NEW dot (hover or select) — mark it
+  // known (persisted + in-memory) and fade the dot out in place. No-op for
+  // locked / already-known archetypes.
+  _ackCoin(id) {
+    if (this._isLocked(id) || this._known.has(id)) return
+    PlayerProfile.markBossKnown(id)
+    this._known.add(id)
+    dismissNewChip(this._coinRefs[id]?.querySelector('.qf-bp-coinnew'))
   }
 
   // Footer — optional Reckoning NG+ chip (shown only once the campaign's been
@@ -296,7 +307,7 @@ export class ArchetypeSelectOverlay {
       const img = coin.querySelector('.qf-bp-portimg')
       if (img) { const s = on ? 66 : 52; img.style.width = s + 'px'; img.style.height = s + 'px' }
       const nd = coin.querySelector('.qf-bp-coinnew')
-      if (on && nd) nd.remove()
+      if (on && nd) dismissNewChip(nd)
     }
     this._renderAltar()
     this._renderFoot()

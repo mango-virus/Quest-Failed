@@ -34,6 +34,7 @@ import {
 } from '../systems/companions.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { AchievementSystem } from '../systems/AchievementSystem.js'
+import { dismissNewChip } from './hudShared.js'
 
 const STORE_KEY = 'qf.companion'
 // Number of `?` mystery busts appended to the rail — a constant tease that
@@ -315,12 +316,12 @@ export class CompanionSelectOverlay {
     const isNew  = !locked && !this._known.has(id)
     const portKids = [this._bustImg(c, locked)]
     if (locked) portKids.push(h('div', { className: 'qf-csl-bustshroud' }, '🔒'))
-    if (isNew)  portKids.push(h('span', { className: 'sil qf-csl-newdot' }, 'NEW'))
+    if (isNew)  portKids.push(h('span', { className: 'sil qf-csl-newdot qf-newchip' }, 'NEW'))
     const bust = h('div', {
       className: 'qf-csl-bust' + (locked ? ' locked' : ''),
       dataset: { id },
       on: {
-        mouseenter: () => this._hover(),
+        mouseenter: () => { this._hover(); this._ackBust(id) },
         click: () => this._selectBust(id),
       },
     }, [
@@ -366,20 +367,25 @@ export class CompanionSelectOverlay {
   // ── interaction ─────────────────────────────────────────────────────────
   _hover() { HudSfx.playUi('hover') }
 
+  // Acknowledge an unlocked keeper's NEW dot (hover or select) — mark it known
+  // (persisted + in-memory) and fade the dot out. The rail isn't rebuilt here,
+  // so the dot is dismissed in place. No-op for locked / already-known keepers.
+  _ackBust(id) {
+    if (!this._isUnlocked(id) || this._known.has(id)) return
+    PlayerProfile.markCompanionKnown(id)
+    this._known.add(id)
+    dismissNewChip(this._bustRefs[id]?.querySelector('.qf-csl-newdot'))
+  }
+
   // Select a bust (locked or unlocked). Locked keepers ARE selectable so the
   // player can read their lock message + unlock hint; only CONFIRM is gated.
   _selectBust(id) {
     if (!COMPANIONS[id] || id === this._selected) return
     HudSfx.playUi(this._isUnlocked(id) ? 'click' : 'hover')
     this._selected = id
-    // Dismiss the NEW dot when an unlocked keeper is first selected — remove it
-    // from the rail immediately (the rail isn't rebuilt on select, so without
-    // this the tag would linger until the screen is reopened).
-    if (this._isUnlocked(id) && !this._known.has(id)) {
-      PlayerProfile.markCompanionKnown(id)
-      this._known.add(id)
-      this._bustRefs[id]?.querySelector('.qf-csl-newdot')?.remove()
-    }
+    // Dismiss the NEW dot when an unlocked keeper is selected (shared with the
+    // hover path) — fades out in place; the rail isn't rebuilt on select.
+    this._ackBust(id)
     this._renderStage()
     this._syncRail()
   }
