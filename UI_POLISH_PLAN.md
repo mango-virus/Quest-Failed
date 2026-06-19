@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 2 |
+| 2 — Hero moments & game feel | 6 | 3 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -224,14 +224,21 @@
   - [x] Each set-piece apex emits a brief shake (+ optional hitstop) via the existing EventBus/camera-shake pattern. *(CDP-verified in Electron: `domShake` runs 1 WAAPI anim when shake-on, 0 when shake-off, 0 under reduced-motion; KingdomResponseIntro root confirmed shaking at its apex — live `transform: matrix(… -1.97, 2.63)` mid-shake. Duels remain on BossSystem's camera-shake + hitstop per the decision.)*
 - **Files:** new `src/hud/screenShake.js`; `SoloLevelingCinematic`, `AscensionCinematic`, `KingdomResponseIntro`, `CoinFlipCinematic`.
 
-### P2-3 — VictoryScreen rebuild `[L]` ⬜
+### P2-3 — VictoryScreen rebuild `[L]` ✅ *(2026-06-19)*
 - **Problem:** The trailer moment is static rays + fade-ins, no music, hardcoded hex, no run summary.
+- **Constraint (user):** "audio files come later" → the music cue is wired **dormant** (no asset added), same approach as P2-1.
+- **Design (built):** rebuilt `src/hud/VictoryScreen.js` (self-injected CSS, kept full-bleed at z-60 — the menu's `--z-menu` 100 only competes at the title screen, never in-game). Adds:
+  - **Music** — new `src/systems/VictoryMusic.js` mirroring `GameOverMusic` (ducks gameplay/title layers, syncs to the music slider, loops `victory-music`). DORMANT: `start()` guards on `cache.audio.exists('victory-music')`, so with no file it silences the other layers and plays nothing. ⚠ path gotcha: `TitleMusic`/`GameplayMusic` live in `src/systems/` (not `src/hud/`) — import `./`, not `../hud/`.
+  - **Juice** — `runCountUp(root)` on the 5 stat tickers (staggered cascade, reduced-motion-aware) + a FINITE 22-spark radial burst (CSS custom-prop `--dx/--dy` per spark, no infinite animation → screenshot-safe) + a `domShake` jolt on the VICTORY slam (gated on shake + reduced-motion, P2-2 helper).
+  - **Run summary + FULL LOG** — a 5-tile count-up stat grid (DAYS/SLAIN/CHAMPIONS/BOSS LV/GOLD, GameOver-parity tiles) + the campaign detail rows (Aldric / lost-to-thieves / strategies broken / final form) + a **FULL LOG** button → `FullLogOverlay`, alongside CONTINUE·ETERNAL REIGN + RETURN TO MENU.
+  - **Tokenized** — all gold/purple/red hex → `--gold`/`--gold-bright`/`--info`/`--blood-glow`/`--text` (+ `color-mix` for glows), so it retints under boss palettes + the colorMode accessibility palettes.
+  - **Reduced-motion** — every reveal uses `forwards`/`both` fill so the global `html.reduce-motion` reset freezes them on their END (visible) state; count-up + shake self-gate.
 - **Acceptance:**
-  - [ ] Music cue; particle/`juice` + staggered stat reveal.
-  - [ ] Run-summary content + a FULL LOG button (parity with GameOver).
-  - [ ] Colors tokenized (retints under boss palettes).
-  - [ ] reduced-motion fallback.
-- **Files:** `src/hud/VictoryScreen.js`, `styles.css`.
+  - [x] Music cue; particle/juice + staggered stat reveal. *(CDP-verified in Electron: VictoryMusic imports + is dormant [no `victory-music` file → no-op]; 22 sparks render; count-up cascades 0→742/18650/3/41; VICTORY slam shake fires.)*
+  - [x] Run-summary content + a FULL LOG button (parity with GameOver). *(5 count-up stat tiles + 4 detail rows + FULL LOG button → FullLogOverlay; buttons = CONTINUE·ETERNAL REIGN / FULL LOG / RETURN TO MENU.)*
+  - [x] Colors tokenized (retints under boss palettes). *(GOLD value computes to `rgb(212,166,72)` = the `--gold` token; all accents are tokens/`color-mix`.)*
+  - [x] reduced-motion fallback. *(Under `html.reduce-motion`: title/eyebrow/stat opacity all hold at 1 [content visible], count-up renders final values instantly [742, no climb].)*
+- **Files:** `src/hud/VictoryScreen.js`, new `src/systems/VictoryMusic.js`.
 
 ### P2-4 — HP-bar fills → `transform: scaleX` `[S]` ⬜
 - **Problem:** Bars animate `width` (jank property) across BossFightOverlay + 4 cinematics; Rival nexus animates `left`/`linear`.
