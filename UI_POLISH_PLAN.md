@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 1 |
+| 2 — Hero moments & game feel | 6 | 2 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -215,11 +215,14 @@
   - [x] Cue the marquee beats (ARISE, Aldric blade-lock/final blow, LightParty duty/LB3, Rival verdict/collapse, CoinFlip land/win, DARK ASCENSION) via `HudSfx`, settings-aware + rate-limited. *(CDP-verified in the Electron build: all 7 cinematics + HudSfx import clean; all 11 `sfx-cin-*` keys are dormant [not in cache]; firing all 11 cues throws nothing [graceful no-op]; spy confirmed `cin_kingdom` fires from `_onDrawn` and `cin_bladelock`/`cin_finalblow` from `_onBeat`.)*
 - **Files:** `src/hud/HudSfx.js` (cue tables), `AldricCinematic`, `SoloLevelingCinematic`, `LightPartyCinematic`, `RivalShowdownCinematic`, `AscensionCinematic`, `CoinFlipCinematic`, `KingdomResponseIntro`.
 
-### P2-2 — Screen shake + hitstop on apexes `[M]` ⬜
+### P2-2 — Screen shake + hitstop on apexes `[M]` ✅ *(2026-06-19)*
 - **Problem:** No shake/freeze-frame on climaxes — they lean on a white flash.
+- **Decision (user, 2026-06-19):** duel set-pieces = **"Leave duels camera-only."** The duels (Aldric / Rival / Light Party / Solo) already get camera-shake + hitstop from `BossSystem` (the dungeon view is visible during them), so P2-2 only adds shake to the **pure-DOM** cinematics that dim the canvas (a camera shake wouldn't show behind them) and currently lean on a white flash alone.
+- **Design (built):** new `src/hud/screenShake.js` → `domShake(el, {intensity, durationMs})` jolts a DOM element with a brief decaying random `transform: translate` jitter via the **Web Animations API** (self-reverts — fill defaults to `none` — so no injected CSS; matches the DOM-transform shake `BossFightOverlay` already uses). Gated on **both** the SCREEN SHAKE setting (`userSettings.isShakeEnabled()`) **and** `isReducedMotion()` — JS/WAAPI motion isn't caught by P1-4's global `html.reduce-motion` CSS reset, so it checks explicitly. Wired at the 4 apexes (alongside the P2-1 cues): SoloLeveling ARISE (`_playEntrance`, int 9), Dark Ascension (`_show`, int 9, delayed to ~380ms to land on the form-pop), The Kingdom Responds (`_onDrawn`, int 8, delayed to ~500ms for the name-slam; timer cleared in `_teardown`), CoinFlip land (`_reveal`/`_revealDemon`, int 6 → **11 on a win**).
+- **Hitstop:** the duels already have real hitstop (`BossSystem._hitstop` freezes game time on blade-lock/final-blow/etc.); the static DOM card reveals have no continuous motion to freeze, so no DOM hitstop was built (the "(+ optional hitstop)" is satisfied by the existing duel hitstop).
 - **Acceptance:**
-  - [ ] Each set-piece apex emits a brief shake (+ optional hitstop) via the existing EventBus/camera-shake pattern (`EventFx`/`BossFightOverlay`).
-- **Files:** the cinematic files + shake emit path.
+  - [x] Each set-piece apex emits a brief shake (+ optional hitstop) via the existing EventBus/camera-shake pattern. *(CDP-verified in Electron: `domShake` runs 1 WAAPI anim when shake-on, 0 when shake-off, 0 under reduced-motion; KingdomResponseIntro root confirmed shaking at its apex — live `transform: matrix(… -1.97, 2.63)` mid-shake. Duels remain on BossSystem's camera-shake + hitstop per the decision.)*
+- **Files:** new `src/hud/screenShake.js`; `SoloLevelingCinematic`, `AscensionCinematic`, `KingdomResponseIntro`, `CoinFlipCinematic`.
 
 ### P2-3 — VictoryScreen rebuild `[L]` ⬜
 - **Problem:** The trailer moment is static rays + fade-ins, no music, hardcoded hex, no run summary.

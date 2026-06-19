@@ -16,6 +16,7 @@
 import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { domShake } from './screenShake.js'
 
 const FLIP_DELAY_MS  = 550    // idle beat before the toss begins
 const FLIP_DUR_MS    = 2400   // toss + spin duration (matches CSS qf-cf-toss)
@@ -145,6 +146,7 @@ export class CoinFlipCinematic {
     EventBus.emit('DEMON_WAGER_REVEALED', { won: this._won })
     HudSfx.playUi('cin_coin_land')                          // P2-1 (dormant until file added)
     if (this._won) HudSfx.playUi('cin_coin_win')
+    domShake(this._el, { intensity: this._won ? 11 : 6, durationMs: this._won ? 420 : 260 })   // P2-2
     this._footerEl.replaceChildren(
       h('div', { className: 'qf-coinflip-hint' }, 'click to continue'),
     )
@@ -233,6 +235,8 @@ export class CoinFlipCinematic {
     // GAMBLER_COIN_REVEALED gameplay SFX.
     HudSfx.playUi('cin_coin_land')
     if (this._won) HudSfx.playUi('cin_coin_win')
+    // P2-2 — jolt the coin overlay as it lands; a bigger jolt on a jackpot.
+    domShake(this._el, { intensity: this._won ? 11 : 6, durationMs: this._won ? 420 : 260 })
     // Count the treasury up/down to its new value.
     this._after(180, () => {
       if (!this._newCountEl) return

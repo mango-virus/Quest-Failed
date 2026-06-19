@@ -17,6 +17,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { domShake } from './screenShake.js'
 
 export class SoloLevelingCinematic {
   constructor() {
@@ -246,7 +247,7 @@ export class SoloLevelingCinematic {
     // Staged reveal — each beat adds a class that triggers its CSS anim.
     this._after(280,  () => this._kicker?.classList.add('in'))
     this._after(900,  () => this._title?.classList.add('in'))
-    this._after(1700, () => { this._arise?.classList.add('in'); this._flash(); HudSfx.playUi('cin_arise') })
+    this._after(1700, () => { this._arise?.classList.add('in'); this._flash(); HudSfx.playUi('cin_arise'); domShake(this._el, { intensity: 9, durationMs: 360 }) })
     this._after(3600, () => this._dismissEntrance())
   }
 

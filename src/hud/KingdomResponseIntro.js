@@ -14,6 +14,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { domShake } from './screenShake.js'
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI']
 
@@ -265,6 +266,9 @@ export class KingdomResponseIntro {
     stage.appendChild(this._root)
     requestAnimationFrame(() => this._root?.classList.add('show'))
     HudSfx.playUi('cin_kingdom')   // "THE KINGDOM RESPONDS" apex sting (P2-1; dormant until file added)
+    // P2-2 apex jolt — landed at ~500ms to coincide with the name slam
+    // (qf-kri-slam, .5s). Null-guarded so a dismiss before it fires is safe.
+    this._shakeT = setTimeout(() => domShake(this._root, { intensity: 8, durationMs: 340 }), 500)
 
     // Any key continues. Captured so it doesn't leak to game hotkeys.
     this._keyFn = (e) => { e.preventDefault(); e.stopPropagation(); this._dismiss() }
@@ -287,6 +291,7 @@ export class KingdomResponseIntro {
 
   _teardown() {
     this._cleanupKey()
+    clearTimeout(this._shakeT); this._shakeT = null
     this._root?.remove(); this._root = null
   }
 }
