@@ -106,6 +106,7 @@ img { image-rendering: pixelated; }
   --rumor: #5cc8d8;
   --warn: #e89a3c;
   --info: #b78bd9;
+  --new-chip: #4fd873;   /* "NEW" discovery-badge green (achievements / companion / archetype / menu) */
   /* rank metals (leaderboard podium 1/2/3 — gold reuses --gold-bright) */
   --silver: #d9e2ec;
   --bronze: #e09858;
@@ -8299,12 +8300,12 @@ html.gamepad-active #qf-cursor { display: none; }
 .qf-cm .qcm-grid .qcm-il { font-size: 11px; }
 .qf-cm .qcm-new {
   position: absolute; top: 6px; right: 7px; font-family: var(--sil); font-size: 8px; letter-spacing: .1em;
-  color: #0b0810; background: var(--acc); padding: 2px 5px; transform-origin: center;
+  color: #0b0810; background: var(--new-chip); padding: 2px 5px; transform-origin: center;
   animation: qcm-newpulse 1.5s ease-in-out infinite;
 }
 @keyframes qcm-newpulse {
-  0%,100% { transform: scale(1); box-shadow: 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); }
-  50%     { transform: scale(1.09); box-shadow: 0 0 15px color-mix(in srgb, var(--acc) 90%, transparent); }
+  0%,100% { transform: scale(1); box-shadow: 0 0 5px color-mix(in srgb, var(--new-chip) 45%, transparent); }
+  50%     { transform: scale(1.09); box-shadow: 0 0 15px color-mix(in srgb, var(--new-chip) 90%, transparent); }
 }
 
 /* tactile press — slam-down punch + accent flare + glyph kick */
@@ -8782,7 +8783,7 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-ac-rw.boss { color: var(--gold); border-color: var(--gold); }
 .qf-ac-rw.comp { color: #ff6ba0; border-color: #ff6ba0; }
 .qf-ac-rw.title { color: var(--gold-bright); border-color: var(--gold-bright); }
-.qf-ac-new { position: absolute; top: 8px; right: 9px; font-size: 8px; letter-spacing: .1em; color: #0b0810; background: var(--gold); padding: 1px 4px; }
+.qf-ac-new { position: absolute; top: 8px; right: 9px; font-size: 8px; letter-spacing: .1em; color: #0b0810; background: var(--new-chip); padding: 1px 4px; }
 
 /* ============================================================
    Confirm dialog (ConfirmPopup, crypt redesign, .qf-cf-*). Small centered
@@ -12043,11 +12044,11 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-csl-bustimg { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; image-rendering: auto; pointer-events: none; }
 .qf-csl-bustimg.is-locked { filter: brightness(.22) saturate(.4); }
 .qf-csl-bustshroud { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(6,4,9,.5); }
-.qf-csl-newdot { position: absolute; top: 5px; right: 5px; z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 7px; letter-spacing: .08em; color: #0a0710; background: var(--gold-bright, #ffd964); padding: 2px 4px; transform-origin: center; animation: qf-newpulse 1.5s ease-in-out infinite; }
+.qf-csl-newdot { position: absolute; top: 5px; right: 5px; z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 7px; letter-spacing: .08em; color: #0a0710; background: var(--new-chip); padding: 2px 4px; transform-origin: center; animation: qf-newpulse 1.5s ease-in-out infinite; }
 /* Shared pulse for the gold "NEW" tags (companion rail + boss-picker coins). */
 @keyframes qf-newpulse {
-  0%, 100% { transform: scale(1);    box-shadow: 0 0 6px rgba(255,217,100,.5); }
-  50%      { transform: scale(1.12); box-shadow: 0 0 16px rgba(255,217,100,.95); }
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 6px color-mix(in srgb, var(--new-chip) 50%, transparent); }
+  50%      { transform: scale(1.12); box-shadow: 0 0 16px color-mix(in srgb, var(--new-chip) 95%, transparent); }
 }
 /* Shared NEW-chip base — every live "NEW" tag (Achievements .qf-ac-new,
    CompanionSelect .qf-csl-newdot, ArchetypeSelect .qf-bp-coinnew) carries
@@ -12160,7 +12161,7 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-bp-coin.on .qf-bp-portimg { filter: none; }
 .qf-bp-coin.locked .qf-bp-portimg { filter: brightness(.2) saturate(.3); }
 .qf-bp-coinlock { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; font-size: 20px; opacity: .7; pointer-events: none; }
-.qf-bp-coinnew { position: absolute; top: 3px; right: 3px; z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 6px; letter-spacing: .06em; color: #0a0710; background: var(--gold-bright, #ffd964); padding: 1px 3px; pointer-events: none; transform-origin: center; animation: qf-newpulse 1.5s ease-in-out infinite; }
+.qf-bp-coinnew { position: absolute; top: 3px; right: 3px; z-index: 3; font-family: var(--sil, 'Silkscreen', monospace); font-size: 6px; letter-spacing: .06em; color: #0a0710; background: var(--new-chip); padding: 1px 3px; pointer-events: none; transform-origin: center; animation: qf-newpulse 1.5s ease-in-out infinite; }
 /* footer */
 .qf-bp-foot { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; max-width: 1320px; padding: 6px 40px 26px; position: relative; z-index: 5; }
 .qf-bp-ngchip { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 10px; letter-spacing: .04em; color: #d9b6ff; cursor: pointer; padding: 14px 18px;
