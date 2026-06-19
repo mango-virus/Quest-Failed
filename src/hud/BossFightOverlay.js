@@ -236,12 +236,12 @@ export class BossFightOverlay {
     if (frac > 0.5)        color = 'var(--poison)'
     else if (frac > 0.25)  color = 'var(--gold)'
     else                   color = 'var(--hp-low, #ff5544)'
-    const pct = `${(frac * 100).toFixed(2)}%`
-    this._barFill.style.width      = pct
+    const sx = `scaleX(${frac.toFixed(4)})`
+    this._barFill.style.transform  = sx
     this._barFill.style.background = color
     // White chip-damage ghost — lags behind the fill so HP just lost
     // flashes white then drains away (mirrors the top-bar HP chip bar).
-    if (this._barGhost) this._barGhost.style.width = pct
+    if (this._barGhost) this._barGhost.style.transform = sx
   }
 
   // ─── Slime King multi-bar ─────────────────────────────────────────
@@ -322,10 +322,10 @@ export class BossFightOverlay {
     if (frac > 0.5)        color = 'var(--poison)'
     else if (frac > 0.25)  color = 'var(--gold)'
     else                   color = 'var(--hp-low, #ff5544)'
-    const pct = `${(frac * 100).toFixed(2)}%`
-    bar.fill.style.width      = pct
+    const sx = `scaleX(${frac.toFixed(4)})`
+    bar.fill.style.transform  = sx
     bar.fill.style.background = color
-    if (bar.ghost) bar.ghost.style.width = pct
+    if (bar.ghost) bar.ghost.style.transform = sx
   }
 
   // ─── Resolve ───────────────────────────────────────────────────

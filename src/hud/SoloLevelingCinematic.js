@@ -72,8 +72,8 @@ export class SoloLevelingCinematic {
 .qf-sl-corner-track { position:relative; width:230px; height:15px; background:rgba(4,8,16,.85);
   border:2px solid rgba(120,150,200,.5); border-radius:2px; overflow:hidden;
   box-shadow:0 0 12px rgba(58,139,255,.4); }
-.qf-sl-corner-fill { position:absolute; left:0; top:0; bottom:0; width:100%;
-  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); transition:width .18s linear; }
+.qf-sl-corner-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
+  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); transition:transform .18s linear; }
 .qf-sl-corner-num { position:absolute; right:6px; top:50%; transform:translateY(-50%);
   font-size:8px; color:#dff0ff; text-shadow:0 1px 2px #000; }
 .qf-sl-pulse { position:absolute; inset:0; pointer-events:none; z-index:33; opacity:0;
@@ -122,9 +122,9 @@ export class SoloLevelingCinematic {
 .qf-sl-duelhud .qf-sl-track { width:100%; height:26px; background:rgba(4,8,16,.85);
   border:3px solid rgba(120,150,200,.5); border-radius:3px; overflow:hidden; position:relative;
   box-shadow:0 0 14px rgba(58,139,255,.35); }
-.qf-sl-duelhud .qf-sl-fill { position:absolute; top:0; bottom:0; width:100%; transition:width .16s linear; }
-.qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); }
-.qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
+.qf-sl-duelhud .qf-sl-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .16s linear; }
+.qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  transform-origin:left center;  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); }
+.qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
 .qf-sl-duelhud .qf-sl-vs { font-size:clamp(18px,2.4vw,34px); color:#e8eefc; text-shadow:0 0 12px rgba(120,150,220,.85); }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
@@ -166,7 +166,7 @@ export class SoloLevelingCinematic {
     if (this._duelStarted) return
     if (instanceId != null) this._cornerAdvId = instanceId
     if (!this._cornerHp) this._buildCornerHp(name)
-    if (this._cornerFill) this._cornerFill.style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`
+    if (this._cornerFill) this._cornerFill.style.transform = `scaleX(${Math.max(0, Math.min(1, frac)).toFixed(4)})`
     if (this._cornerNum && hp != null && maxHp != null) this._cornerNum.textContent = `${Math.round(hp)} / ${Math.round(maxHp)}`
   }
 
@@ -358,8 +358,8 @@ export class SoloLevelingCinematic {
   }
 
   _onDuelHp({ advFrac = 1, bossFrac = 1 } = {}) {
-    if (this._advFill)  this._advFill.style.width  = `${Math.round(advFrac  * 100)}%`
-    if (this._bossFill) this._bossFill.style.width = `${Math.round(bossFrac * 100)}%`
+    if (this._advFill)  this._advFill.style.transform  = `scaleX(${Math.max(0, Math.min(1, advFrac)).toFixed(4)})`
+    if (this._bossFill) this._bossFill.style.transform = `scaleX(${Math.max(0, Math.min(1, bossFrac)).toFixed(4)})`
   }
 
   _hideDuelHud() {

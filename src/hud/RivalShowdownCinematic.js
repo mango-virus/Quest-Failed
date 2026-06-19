@@ -70,12 +70,12 @@ export function ensureRivalCss() {
   box-shadow:0 0 18px rgba(120,70,180,.35), inset 0 0 22px rgba(0,0,0,.6); }
 /* purple fill grows from the LEFT (Vorzak), crimson from the RIGHT (your boss);
    they meet at the nexus. Widths set live from the dominance value. */
-.qf-riv-fill { position:absolute; top:0; bottom:0; transition:width .12s linear; }
-.qf-riv-fill.v { left:0;  width:50%; background:linear-gradient(90deg, color-mix(in srgb,var(--pur) 45%, #120016), var(--pur)); box-shadow:0 0 14px var(--pur); }
-.qf-riv-fill.b { right:0; width:50%; background:linear-gradient(270deg, color-mix(in srgb,var(--crim) 45%, #1a0202), var(--crim)); box-shadow:0 0 14px var(--crim); }
+.qf-riv-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .12s ease; }
+.qf-riv-fill.v { left:0;  transform-origin:left center;  background:linear-gradient(90deg, color-mix(in srgb,var(--pur) 45%, #120016), var(--pur)); box-shadow:0 0 14px var(--pur); }
+.qf-riv-fill.b { right:0; transform-origin:right center; background:linear-gradient(270deg, color-mix(in srgb,var(--crim) 45%, #1a0202), var(--crim)); box-shadow:0 0 14px var(--crim); }
 /* the collision NEXUS — a hot orb riding the seam between the two fills */
 .qf-riv-nexus { position:absolute; top:50%; left:50%; width:26px; height:26px;
-  transform:translate(-50%,-50%); transition:left .12s linear; z-index:3; }
+  transform:translate(-50%,-50%); transition:transform .12s ease; z-index:3; }
 .qf-riv-nexus::before { content:''; position:absolute; inset:-7px; border-radius:50%;
   background:radial-gradient(circle, #fff 0%, color-mix(in srgb,var(--pur2) 60%, #fff) 38%, transparent 72%);
   filter:blur(1px); }
@@ -182,6 +182,10 @@ export class RivalShowdownCinematic {
     this._fillV  = h('div', { className: 'qf-riv-fill v' })
     this._fillB  = h('div', { className: 'qf-riv-fill b' })
     this._nexus  = h('div', { className: 'qf-riv-nexus' })
+    // Start 50/50 (the fills are width:100% now; scaleX(.5) each meets at the
+    // centre seam, matching the old width:50% default until the first feed).
+    this._fillV.style.transform = 'scaleX(0.5)'
+    this._fillB.style.transform = 'scaleX(0.5)'
     this._hud = h('div', { className: 'qf-riv-hud' }, [
       h('div', { className: 'qf-riv-names' }, [
         h('div', { className: 'v' }, this._rivalName),
@@ -213,10 +217,15 @@ export class RivalShowdownCinematic {
   // strengths. dom 0→1 = your boss → Vorzak dominant.
   _onDominion({ dom = 0.5 } = {}) {
     const d = Math.max(0, Math.min(1, dom))
-    const pct = `${(d * 100).toFixed(1)}%`
-    if (this._fillV) this._fillV.style.width = pct                       // purple from left
-    if (this._fillB) this._fillB.style.width = `${((1 - d) * 100).toFixed(1)}%` // crimson from right
-    if (this._nexus) this._nexus.style.left  = pct                       // nexus rides the seam
+    // scaleX from each side's anchored edge — they meet at the seam (P2-4).
+    if (this._fillV) this._fillV.style.transform = `scaleX(${d.toFixed(4)})`          // purple from left
+    if (this._fillB) this._fillB.style.transform = `scaleX(${(1 - d).toFixed(4)})`    // crimson from right
+    // Nexus rides the seam via transform (translateX from centre) — no `left`
+    // layout jank. Offset = (d-0.5) × track width, on top of its -50% self-centre.
+    if (this._nexus) {
+      const w = this._nexus.parentElement?.clientWidth || 0
+      this._nexus.style.transform = `translate(calc(-50% + ${((d - 0.5) * w).toFixed(1)}px), -50%)`
+    }
     // Auras swell with their lord's dominance.
     if (this._auraL) this._auraL.style.filter = `brightness(${(0.7 + d * 0.9).toFixed(2)})`
     if (this._auraR) this._auraR.style.filter = `brightness(${(0.7 + (1 - d) * 0.9).toFixed(2)})`

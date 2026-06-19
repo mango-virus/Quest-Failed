@@ -196,8 +196,8 @@ export class LightPartyCinematic {
 .qf-lp-bar { position:relative; height:9px; width:50%; border-radius:1px; overflow:hidden;
   background:#0a0e16;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.75), inset 0 1px 2px rgba(0,0,0,.6); }
-.qf-lp-bar-fill { position:absolute; left:0; top:0; bottom:0; width:100%;
-  transition:width .18s linear; }
+.qf-lp-bar-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
+  transition:transform .18s linear; }
 .qf-lp-bar.hp .qf-lp-bar-fill { background:linear-gradient(180deg,#fbfdff,#cfe2f4 55%,#9dc0e2); }
 .qf-lp-bar-fill::after { content:''; position:absolute; left:0; right:0; top:0; height:2px;
   background:rgba(255,255,255,.5); }
@@ -263,8 +263,8 @@ export class LightPartyCinematic {
 .qf-lp-duel-boss-track { height:28px; background:rgba(4,8,16,.85);
   border:3px solid rgba(255,140,120,.6); border-radius:3px; overflow:hidden;
   box-shadow:0 0 16px rgba(255,90,60,.4); position:relative; }
-.qf-lp-duel-boss-fill { position:absolute; right:0; top:0; bottom:0; width:100%;
-  background:linear-gradient(270deg,#5a0a0a,#ff5544); transition:width .18s linear; }
+.qf-lp-duel-boss-fill { position:absolute; right:0; top:0; bottom:0; width:100%; transform-origin:right center;
+  background:linear-gradient(270deg,#5a0a0a,#ff5544); transition:transform .18s linear; }
 .qf-lp-duel-boss-cast { height:10px; background:rgba(4,8,16,.85);
   border:2px solid rgba(255,180,80,.6); border-radius:2px; overflow:hidden; position:relative; }
 .qf-lp-duel-boss-cast-fill { position:absolute; left:0; top:0; bottom:0; width:0%;
@@ -300,8 +300,8 @@ export class LightPartyCinematic {
 .qf-lp-duel-row .qf-lp-name { width:72px; color:#dfeaff; }
 .qf-lp-duel-row .qf-lp-track { flex:1; height:11px; background:rgba(4,8,16,.85);
   border:1.5px solid rgba(120,150,200,.45); border-radius:2px; overflow:hidden; position:relative; }
-.qf-lp-duel-row .qf-lp-fill { position:absolute; left:0; top:0; bottom:0; width:100%;
-  transition:width .18s linear; }
+.qf-lp-duel-row .qf-lp-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
+  transition:transform .18s linear; }
 .qf-lp-duel-row.tank      .qf-lp-fill { background:linear-gradient(90deg,#0a2a6b,#6aaaff); }
 .qf-lp-duel-row.healer    .qf-lp-fill { background:linear-gradient(90deg,#1c4a2e,#aef0c4); }
 .qf-lp-duel-row.meleeDps  .qf-lp-fill { background:linear-gradient(90deg,#6b1c14,#ff8a6a); }
@@ -601,7 +601,7 @@ export class LightPartyCinematic {
     const m = this._members.find(x => x.instanceId === instanceId)
     if (m) { m.hp = hp ?? m.hp; m.maxHp = maxHp ?? m.maxHp }
     const frac = Math.max(0, Math.min(1, (hp ?? 0) / (maxHp || 1)))
-    bar.fillEl.style.width = `${Math.round(frac * 100)}%`
+    bar.fillEl.style.transform = `scaleX(${frac.toFixed(4)})`
     // FFXIV party list shows the current HP value only (not "hp/maxHp").
     if (bar.numEl) bar.numEl.textContent = this._fmtInt(hp)
     if (hp <= 0) bar.rowEl.classList.add('dead')
@@ -609,7 +609,7 @@ export class LightPartyCinematic {
     // Mirror to duel panel if it's up.
     const duelBar = this._duelPartyBars[instanceId]
     if (duelBar) {
-      duelBar.fillEl.style.width = `${Math.round(frac * 100)}%`
+      duelBar.fillEl.style.transform = `scaleX(${frac.toFixed(4)})`
       if (hp <= 0) duelBar.rowEl.classList.add('dead')
       else         duelBar.rowEl.classList.remove('dead')
     }
@@ -619,13 +619,13 @@ export class LightPartyCinematic {
     if (!adventurer?._lightParty) return
     const bar = this._cornerBars[adventurer.instanceId]
     if (bar) {
-      bar.fillEl.style.width = '0%'
+      bar.fillEl.style.transform = 'scaleX(0)'
       if (bar.numEl) bar.numEl.textContent = '0'
       bar.rowEl.classList.add('dead')
     }
     const dbar = this._duelPartyBars[adventurer.instanceId]
     if (dbar) {
-      dbar.fillEl.style.width = '0%'
+      dbar.fillEl.style.transform = 'scaleX(0)'
       dbar.rowEl.classList.add('dead')
     }
   }
@@ -733,13 +733,13 @@ export class LightPartyCinematic {
     this._duelEl.classList.add('show')
     // Initial HP fill.
     const frac = bossMaxHp > 0 ? bossHp / bossMaxHp : 1
-    this._duelBossFill.style.width = `${Math.round(frac * 100)}%`
+    this._duelBossFill.style.transform = `scaleX(${Math.max(0, Math.min(1, frac)).toFixed(4)})`
   }
 
   _onDuelHp({ bossHp, bossMaxHp, members } = {}) {
     if (this._duelBossFill && bossHp != null && bossMaxHp != null) {
       const frac = Math.max(0, Math.min(1, bossHp / (bossMaxHp || 1)))
-      this._duelBossFill.style.width = `${Math.round(frac * 100)}%`
+      this._duelBossFill.style.transform = `scaleX(${frac.toFixed(4)})`
     }
     // Route member HP straight to the persistent FFXIV corner panel so the
     // bars drain instantly as the boss lands hits (no 100ms wait for the

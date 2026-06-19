@@ -97,13 +97,13 @@ export function ensureDuelCss() {
 .qf-ald-side.right .qf-ald-name { color:#ffc2b8; text-shadow:0 0 10px rgba(255,80,60,.8); }
 .qf-ald-track { width:100%; height:26px; background:rgba(6,4,10,.85); position:relative; overflow:hidden;
   border:3px solid rgba(180,150,90,.5); border-radius:3px; box-shadow:0 0 16px rgba(180,140,70,.35); }
-.qf-ald-fill { position:absolute; top:0; bottom:0; width:100%; transition:width .16s linear; }
-.qf-ald-side.left  .qf-ald-fill { left:0;  background:linear-gradient(90deg, color-mix(in srgb,var(--acc) 55%, #000), var(--acc)); }
-.qf-ald-side.right .qf-ald-fill { right:0; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
+.qf-ald-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .16s linear; }
+.qf-ald-side.left  .qf-ald-fill { left:0;  transform-origin:left center;  background:linear-gradient(90deg, color-mix(in srgb,var(--acc) 55%, #000), var(--acc)); }
+.qf-ald-side.right .qf-ald-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
 /* the "ghost" trail that lags behind the fill, so a big hit reads as a chunk lost */
-.qf-ald-ghost { position:absolute; top:0; bottom:0; width:100%; opacity:.4; transition:width .5s ease .12s; }
-.qf-ald-side.left  .qf-ald-ghost { left:0;  background:var(--acc2); }
-.qf-ald-side.right .qf-ald-ghost { right:0; background:#ffb0a4; }
+.qf-ald-ghost { position:absolute; top:0; bottom:0; width:100%; opacity:.4; transition:transform .5s ease .12s; }
+.qf-ald-side.left  .qf-ald-ghost { left:0;  transform-origin:left center;  background:var(--acc2); }
+.qf-ald-side.right .qf-ald-ghost { right:0; transform-origin:right center; background:#ffb0a4; }
 .qf-ald-vs { font-size:clamp(16px,2.2vw,30px); color:#f3e8cf; text-shadow:0 0 12px var(--acc); }
 /* Screen pulse + centered beat label. */
 .qf-ald-pulse { position:absolute; inset:0; z-index:33; pointer-events:none; opacity:0;
@@ -305,12 +305,12 @@ export class AldricCinematic {
   }
 
   _onHp({ advFrac = 1, bossFrac = 1 } = {}) {
-    const a = `${Math.round(Math.max(0, Math.min(1, advFrac)) * 100)}%`
-    const b = `${Math.round(Math.max(0, Math.min(1, bossFrac)) * 100)}%`
-    if (this._advFill)  this._advFill.style.width  = a
-    if (this._advGhost) this._advGhost.style.width = a
-    if (this._bossFill) this._bossFill.style.width = b
-    if (this._bossGhost)this._bossGhost.style.width= b
+    const a = `scaleX(${Math.max(0, Math.min(1, advFrac)).toFixed(4)})`
+    const b = `scaleX(${Math.max(0, Math.min(1, bossFrac)).toFixed(4)})`
+    if (this._advFill)  this._advFill.style.transform  = a
+    if (this._advGhost) this._advGhost.style.transform = a
+    if (this._bossFill) this._bossFill.style.transform = b
+    if (this._bossGhost)this._bossGhost.style.transform= b
     // His face tracks his own HP — but only when a beat face isn't being held.
     this._advFrac = advFrac
     if (!this._figHolding) this._setFace(this._baseFace())

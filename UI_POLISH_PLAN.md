@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 3 |
+| 2 — Hero moments & game feel | 6 | 4 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -240,11 +240,12 @@
   - [x] reduced-motion fallback. *(Under `html.reduce-motion`: title/eyebrow/stat opacity all hold at 1 [content visible], count-up renders final values instantly [742, no climb].)*
 - **Files:** `src/hud/VictoryScreen.js`, new `src/systems/VictoryMusic.js`.
 
-### P2-4 — HP-bar fills → `transform: scaleX` `[S]` ⬜
+### P2-4 — HP-bar fills → `transform: scaleX` `[S]` ✅ *(2026-06-19)*
 - **Problem:** Bars animate `width` (jank property) across BossFightOverlay + 4 cinematics; Rival nexus animates `left`/`linear`.
+- **Design (built):** every HP-bar fill (+ ghost trails) now keeps `width:100%` and the JS sets `transform: scaleX(frac)`; the CSS transition moved `width → transform`, with `transform-origin` matching the anchored edge (`left center` for `left:0` fills, `right center` for `right:0` fills) so the bar shrinks toward the correct side exactly as before — but GPU-composited, no layout. Converted: `qf-bossfight-bar-fill`/`-ghost` (single + slime bars, `styles.css`), `qf-sl-fill`/`qf-sl-corner-fill` (Solo), `qf-ald-fill`/`qf-ald-ghost` (Aldric), `qf-lp-bar-fill`/`qf-lp-duel-boss-fill` (Light Party). Rival: dominance fills `qf-riv-fill.v`/`.b` → `scaleX` (`width:50%` base → `width:100%` + initial `scaleX(.5)` so they still meet at the centre seam); the **nexus** now rides via `transform: translate(calc(-50% + (d-0.5)×trackWidth px), -50%)` instead of animating `left`; and the `linear` easing was dropped (→ `ease`).
 - **Acceptance:**
-  - [ ] Convert fills to `transform: scaleX()`; drop Rival's `linear` easing.
-- **Files:** `BossFightOverlay.js` + Aldric/Solo/LightParty/Rival, `styles.css`.
+  - [x] Convert fills to `transform: scaleX()`; drop Rival's `linear` easing. *(CDP-verified in Electron — all fills compute the right matrix + origin + `transition-property: transform`: Rival fillV `scaleX(.7)`/origin-left, fillB `scaleX(.3)`/origin-right, nexus `translateX(149.8px)` w/ `transform` transition [no `left`/`linear`]; Aldric left `scaleX(.4)`/origin-left + right `scaleX(.9)`/origin-right; Solo `scaleX(.3)`; Light Party boss `scaleX(.6)`/origin-right; BossFightOverlay fill `transition: transform, background` + origin-left.)*
+- **Files:** `BossFightOverlay.js`, `SoloLevelingCinematic.js`, `AldricCinematic.js`, `LightPartyCinematic.js`, `RivalShowdownCinematic.js`, `styles.css`.
 
 ### P2-5 — CoinFlip soft-lock fallback `[S]` ⬜
 - **Problem:** If `GAMBLER_DOUBLE_RESULT` never arrives, the overlay soft-locks.
