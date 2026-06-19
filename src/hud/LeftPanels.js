@@ -1001,6 +1001,7 @@ export class LeftPanels {
     // The active party learns rooms / traps / minions / items mid-day,
     // so the map can't be place-only — the signature covers all four
     // intel categories (cheap object-key compare each frame).
+    const report = _knowledgeReport()
     const mapSig = [
       Object.keys(report.rooms          ?? {}).sort().join(','),
       Object.keys(report.traps          ?? {}).sort().join(','),
