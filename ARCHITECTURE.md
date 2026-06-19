@@ -67,21 +67,21 @@ Boot → Preload → MainMenu ──▶ CompanionSelect ──▶ ArchetypeSelec
 
 - **Boot / Preload** — asset load (`Preload.js` loads sprites, themes, audio, all `data/*.json`
   into the Phaser JSON cache, and dynamically inits late systems like AchievementSystem).
-- **MainMenu** — under the `newhud` flag this early-returns and mounts the DOM
-  `MainMenuOverlay` instead. portal.js lives here.
+- **MainMenu** — early-returns and mounts the DOM `MainMenuOverlay` (the only
+  menu surface). portal.js lives here.
 - **CompanionSelect / ArchetypeSelect** — pick keeper (companion) + boss archetype. Both have
   DOM-overlay counterparts.
 - **Game** — the persistent world host scene. Owns the dungeon renderer, camera, and most
   world-space systems. Does **not** sleep while NightPhase/DayPhase run on top of it.
 - **NightPhase** — build-mode overlay (placement, MOVE/SELL/UPGRADE tools, wave preview).
 - **DayPhase** — watch-mode overlay (spawns the wave, runs the sim, time-speed control).
-- **HudScene** — always-on overlay; under `newhud` it mostly defers to the DOM HUD and gates
-  its legacy Phaser chrome/popups off.
+- **HudScene** — always-on overlay; builds/tears down the DOM HUD (`HudRoot`) and owns the
+  Phaser-side `BossArchetypeUI` (in-world VFX + room/minion targeting).
 - **EndOfDay** — popup-chain controller (Post-Wave Summary → Boss Level-Up(s) → Dark Pact(s)).
 - **GameOver / Graveyard** — eulogy + persistent adventurer graveyard.
 - **KnowledgeScreen** — legacy full-screen knowledge map (DOM `KnowledgeMapOverlay` is the
   current surface).
-- **Options / Leaderboard / PauseMenu** — aux scenes (DOM overlays are the live surfaces under `newhud`).
+- **Options / Leaderboard / PauseMenu** — aux scenes (DOM overlays are the live surfaces).
 - **RoomTileEditor** — cheat-name-gated in-game authoring tool for rooms, tiles, themes, and
   full-room skins (writes back to disk via File System Access API; see `FsHandle.js`). The old
   standalone TilesetEditor was folded into its ⚙ Themes + 🎨 Skins modals and removed.
@@ -108,13 +108,12 @@ There are **two layered UIs**, and most "UI" work today happens in the DOM layer
    cinematics. Mounted into `#hud-root` / `#hud-stage` via `HudRoot.js`, scaled to the same
    1920×1080 logical stage as the canvas (`stageScale.js`). This is the **default** UI.
 
-**The `newhud` feature flag** (`isNewHudEnabled()` in `HudRoot.js`) defaults **on**.
-`?newhud=0` or `localStorage.newhud='0'` reverts to the legacy Phaser HUD. Throughout the
-code, legacy Phaser chrome modules in `src/ui/` (`BossTopBar`, `ActionBar`, `BuildMenu`,
-`MiniMapPanel`, `KnowledgePin`, `DungeonLog`, everything in `src/ui/popups/`, etc.) are
-**gated off when `newhud` is on** and kept only as the `?newhud=0` fallback
-(removal-not-deletion policy). When touching UI, work in `src/hud/` unless you're
-deliberately maintaining the fallback.
+**The DOM HUD is the only HUD.** The old `newhud` feature flag and the legacy Phaser
+chrome it gated (`BossTopBar`, `ActionBar`, `BuildMenu`, `MiniMapPanel`, `KnowledgePin`,
+`DungeonLog`, and all of `src/ui/popups/*`) were **retired 2026-06-18** (UI_POLISH_PLAN
+P0-6): the flag function, its `?newhud=0` / `localStorage.newhud='0'` branches, and those
+modules were deleted. When touching chrome/menus/panels/popups, work in `src/hud/`.
+(`src/ui/` still hosts the world-space Phaser **renderers** — see layer 1 above.)
 
 DOM↔canvas coordinate bridge: world position → screen px is
 `(worldX − cam.scrollX) × cam.zoom` (FIT mode keeps canvas logical px == stage logical px).
@@ -274,11 +273,13 @@ current counts.
   `BossFightOverlay`, `EventBanner`, `SoloLevelingCinematic`, `LightPartyCinematic`,
   `CoinFlipCinematic`, `ToastQueue`, `UnlockNotificationOverlay`, `DungeonFx` (FX/floating
   numbers). Companion: `NpcCompanion`, `CompanionCursor`.
-- **`src/ui/`** — Phaser canvas renderers (world-space, still active) + **legacy Phaser
-  chrome** kept as the `?newhud=0` fallback (`ActionBar`, `BossTopBar`, `BuildMenu`,
-  `MiniMapPanel`, `KnowledgePin`, `DungeonLog`, `DossierPanel`, `MinionInspector`,
-  `NameEntryPanel`, `AudioControls`, and `src/ui/popups/*`). Each legacy module carries a
-  SUPERSEDED banner pointing at its DOM replacement.
+- **`src/ui/`** — Phaser canvas renderers (world-space): `DungeonRenderer`,
+  `AdventurerRenderer`, `MinionRenderer`, `BossRenderer`, `TrapRenderer`, `ChatBubbles`,
+  `KnowledgeOverlay`, `AbilityVfx`, etc., plus shared primitives (`UIKit.js`) and the
+  `BossArchetypeUI` day-action wiring. The legacy Phaser HUD chrome + `src/ui/popups/*`
+  that used to live here were **deleted in P0-6** (2026-06-18); the DOM HUD (`src/hud/`)
+  is the only chrome now. (A couple of standalone Phaser panels — `DossierPanel`,
+  `NameEntryPanel` — still remain.)
 
 ---
 
@@ -297,7 +298,8 @@ current counts.
 - **GameState stays JSON-serializable** — no class instances inside it.
 - **All content is data-driven JSON** — new content = JSON edit + handler id.
 - **Tile size 32px** via `Balance.TILE_SIZE`. World = tile × 32. Don't hardcode 32.
-- **`newhud` flag** gates DOM vs. legacy Phaser HUD (default DOM). New UI goes in `src/hud/`.
+- **DOM HUD is the only HUD** — all chrome/menus/panels/popups live in `src/hud/` (the old
+  `newhud` flag + legacy Phaser chrome were retired in P0-6). New UI goes in `src/hud/`.
 - **Per-name profile scoping** — player progress keys are `<base>:<name>`; `setName()` emits
   `NAME_CHANGED` so systems re-hydrate. Mango cheat name unlocks everything but is excluded
   from the leaderboard.
@@ -340,5 +342,5 @@ current counts.
 
 - `src/scenes/NightPhase.js.bak` and `src/systems/AISystem.js.bak` — stale backups, safe to delete.
 - Root `fix_mojibake.py` / `fix_mojibake.mjs` — one-off encoding-fix scripts.
-- Legacy `src/ui/` chrome + `src/ui/popups/*` — kept as `?newhud=0` fallback; deletion deferred
-  per removal-not-deletion policy.
+- ~~Legacy `src/ui/` chrome + `src/ui/popups/*`~~ — **deleted in P0-6 (2026-06-18)**; the DOM
+  HUD is the only chrome now.

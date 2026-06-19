@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 6 |
+| 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -95,11 +95,11 @@
   - [x] Verify in Electron/preview: boot, night build, **BEGIN DAY → real wave spawns**, a **boss-fight cinematic**, archetype day-action buttons, and the DOM overlays — all clean, zero console errors.
 - **Files:** `src/scenes/HudScene.js`, `src/scenes/Game.js`, `src/scenes/DayPhase.js`, `src/hud/HudRoot.js`, `src/ui/BossArchetypeUI.js`, + the legacy files above.
 
-### P0-7 — Reconcile stale docs `[S]` ⬜
+### P0-7 — Reconcile stale docs `[S]` ✅ *(2026-06-18)*
 - **Problem:** `ARCHITECTURE.md §4/§9` still describes the removed dual main-menu + fallback.
 - **Acceptance:**
-  - [ ] Update `ARCHITECTURE.md` (and `STATUS.md` if affected) to match reality once P0-6 is decided.
-- **Files:** `ARCHITECTURE.md`, `STATUS.md`.
+  - [x] Updated `ARCHITECTURE.md` (§3 scene list, §4 two-layers + the feature-flag para, §9 `src/ui` description, §11 cross-cutting, §14 cruft), `STATUS.md` (DOM-HUD line), and `DESIGN_COVERAGE.md` (`hud2-flag-flip` row) to reflect that the `newhud` flag + legacy Phaser chrome were retired in P0-6.
+- **Files:** `ARCHITECTURE.md`, `STATUS.md`, `DESIGN_COVERAGE.md`.
 
 ---
 

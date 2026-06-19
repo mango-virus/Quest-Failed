@@ -65,7 +65,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 - Combat (`CombatSystem.js`), pathfinding (A*, knowledge-weighted), boss fight (auto-resolved + cinematic).
 - Knowledge system (4-tier FULL/PARTIAL/RUMOR/UNKNOWN, inheritance, staleness).
 - Economy (boss-level + day cost scaling, treasury stipend, chest passive income).
-- Full DOM HUD (`src/hud/`, ~60 modules) — default on (`newhud` flag). Settings, saves, achievements, leaderboard, companions, cinematics all live.
+- Full DOM HUD (`src/hud/`, ~60 modules) — the only HUD (the legacy Phaser chrome + `newhud` flag were retired in UI-polish P0-6). Settings, saves, achievements, leaderboard, companions, cinematics all live.
 - Audio (SfxSystem + music), VFX/juice (phase transitions, boss-fight overlay, event banners, floating numbers).
 - Meta-progression: per-name `PlayerProfile`, Supabase leaderboard, achievements, companion/boss/title unlocks.
 
