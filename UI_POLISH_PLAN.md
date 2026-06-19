@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 3 |
+| 0 — Foundation & sweep | 7 | 4 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -64,12 +64,12 @@
   - [x] **IncomingWave:** added "Build a Library of Whispers to reveal who's coming." hint, shown only when no Library is placed — verified live.
 - **Files:** `src/hud/KnowledgeMapOverlay.js`, `src/hud/FullLogOverlay.js`, `src/hud/RightPanels.js`, `src/hud/styles.css`.
 
-### P0-4 — Persist & re-apply fullscreen `[S]` ⬜
+### P0-4 — Persist & re-apply fullscreen `[S]` ✅ *(pending commit)*
 - **Problem:** `qf.video.fullscreen` is saved but never re-applied on boot — "saved" setting that's actually session-only.
 - **Acceptance:**
-  - [ ] On boot, read `qf.video.fullscreen` and apply it.
-  - [ ] Toggle → reload (Electron) → state restored.
-- **Files:** `src/hud/SettingsOverlay.js`, boot path (`src/main.js` / `desktop/main.js` as needed).
+  - [x] On boot, `HudRoot._applyInitialVideoClasses` reads `qf.video.fullscreen`; since `requestFullscreen()` needs a user gesture, it re-applies on the **first** interaction via a one-shot listener that self-removes (won't fight a manual Esc/F11 exit). Cleaned up in `destroy()`.
+  - [x] Boots clean with the pref on, gesture path error-free (preview). ⚠ Actual fullscreen entry to be eyeballed in Electron (the preview iframe sandboxes the Fullscreen API).
+- **Files:** `src/hud/HudRoot.js`.
 
 ### P0-5 — z-index token band + toast stacking `[M]` ⬜
 - **Problem:** ~30 ad-hoc z-index literals (order lives only in comments); toasts at `z:30` sit *below* modals/cinematics so a notification fired during an overlay hides behind it.

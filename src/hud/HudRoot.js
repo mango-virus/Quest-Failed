@@ -94,6 +94,24 @@ export class HudRoot {
       r.classList.toggle('scanlines',         get('qf.video.scanlines',       true))
       r.classList.toggle('crt-vignette',      get('qf.video.vignette',        true))
       r.classList.toggle('dungeon-vignette',  get('qf.video.dungeonVignette', true))
+      // Fullscreen can't be entered on load — the HTML Fullscreen API needs a
+      // user gesture — so re-apply the saved pref on the FIRST interaction,
+      // ONCE. Self-removes after firing so it never yanks the player back to
+      // fullscreen after a mid-session manual Esc/F11 exit. (Default off:
+      // only restores if the player actually chose fullscreen.)
+      if (get('qf.video.fullscreen', false) && !document.fullscreenElement) {
+        const enterFs = () => {
+          this._clearFsGesture?.()
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {})
+        }
+        this._clearFsGesture = () => {
+          window.removeEventListener('pointerdown', enterFs, true)
+          window.removeEventListener('keydown', enterFs, true)
+          this._clearFsGesture = null
+        }
+        window.addEventListener('pointerdown', enterFs, true)
+        window.addEventListener('keydown', enterFs, true)
+      }
     } catch {}
   }
 
@@ -377,6 +395,7 @@ export class HudRoot {
     // be using it.
     for (const [event, fn] of (this._phaseListeners || [])) EventBus.off(event, fn)
     this._phaseListeners = []
+    this._clearFsGesture?.()   // drop the one-shot fullscreen-restore gesture listener if it never fired
     this._pauseOverlay?.destroy();   this._pauseOverlay = null
     this._confirmPopup?.destroy();   this._confirmPopup = null
     this._reviveChoicePop?.destroy(); this._reviveChoicePop = null
