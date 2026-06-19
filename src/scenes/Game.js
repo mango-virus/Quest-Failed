@@ -1322,6 +1322,14 @@ export class Game extends Phaser.Scene {
     return { left: 320, right: 320, top: 96, bottom: 116 }
   }
 
+  // A thin breathing margin (logical px) kept between the dungeon view and the
+  // HUD on EVERY side, on top of the panel footprint above — so the dungeon
+  // never sits flush against (or under) the chrome. A small "void" border
+  // reads cleaner and stops the UI from crowding/blocking the dungeon view.
+  // Tunable; scales with uiScale/DPR like the insets do. (Per-axis tweakable
+  // if the top ever needs a different amount than the sides.)
+  static get _VIEW_GUTTER() { return 24 }
+
   // The play area is the sub-rectangle of the canvas not covered by HUD chrome,
   // returned in canvas pixels. The HUD footprint is `logical px × uiScale`
   // (the DOM zoom) × `canvas/CSS ratio` (the device pixel ratio).
@@ -1334,29 +1342,63 @@ export class Game extends Phaser.Scene {
     const rx  = sw / cssW   // canvas px per CSS px on X (≈ devicePixelRatio)
     const ry  = sh / cssH
     const ins = Game._PLAY_AREA_INSETS
+    const g   = Game._VIEW_GUTTER
     return {
-      left:   ins.left   * uiS * rx,
-      right:  ins.right  * uiS * rx,
-      top:    ins.top    * uiS * ry,
-      bottom: ins.bottom * uiS * ry,
+      left:   (ins.left   + g) * uiS * rx,
+      right:  (ins.right  + g) * uiS * rx,
+      top:    (ins.top    + g) * uiS * ry,
+      bottom: (ins.bottom + g) * uiS * ry,
       sw, sh,
     }
   }
 
+  // Padding (in tiles) kept around the placed-room bounding box — this is the
+  // room you get to PAN and BUILD past the current dungeon edge. It needs to be
+  // comfortably bigger than one room (rooms run up to ~14 tiles wide) so you can
+  // pan out far enough to place the next room and move the view around; too
+  // small and the camera feels locked, too large and you reach the empty grid
+  // void. Tunable. (Clamped to the grid in _contentBoundsPx.)
+  static get _CONTENT_PAD_TILES() { return 16 }
+
+  // World-pixel rectangle the camera is allowed to frame: the bounding box
+  // of all placed rooms, padded by _CONTENT_PAD_TILES and clamped to the
+  // grid. This is what kills the black void at the edges — the clamp/zoom
+  // used to be expressed against the FULL grid (gridWidth×gridHeight), most
+  // of which is empty early on, so the player could pan/zoom into nothing.
+  // Falls back to the full grid when no rooms exist yet (nothing to frame).
+  _contentBoundsPx() {
+    const d = this.gameState.dungeon
+    const gw = d.gridWidth, gh = d.gridHeight
+    const rooms = d.rooms || []
+    if (!rooms.length) return { x0: 0, y0: 0, x1: gw * TS, y1: gh * TS }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const r of rooms) {
+      if (r.gridX < minX) minX = r.gridX
+      if (r.gridY < minY) minY = r.gridY
+      if (r.gridX + r.width  > maxX) maxX = r.gridX + r.width
+      if (r.gridY + r.height > maxY) maxY = r.gridY + r.height
+    }
+    const PAD = Game._CONTENT_PAD_TILES
+    minX = Math.max(0,  minX - PAD)
+    minY = Math.max(0,  minY - PAD)
+    maxX = Math.min(gw, maxX + PAD)
+    maxY = Math.min(gh, maxY + PAD)
+    return { x0: minX * TS, y0: minY * TS, x1: maxX * TS, y1: maxY * TS }
+  }
+
   _computeMinZoom() {
-    const { gridWidth, gridHeight } = this.gameState.dungeon
-    const mapPxW = gridWidth  * TS
-    const mapPxH = gridHeight * TS
+    const cb = this._contentBoundsPx()
+    const contentW = cb.x1 - cb.x0
+    const contentH = cb.y1 - cb.y0
     const pa = this._computePlayArea()
     const playW = pa.sw - pa.left - pa.right
     const playH = pa.sh - pa.top  - pa.bottom
-    // Min zoom such that the dungeon FILLS the play area on both axes
-    // (the larger of the two ratios). Prevents the player from zooming
-    // out to a point where excess play-area space appears around the
-    // dungeon — the trade-off is they can't see the whole dungeon at
-    // once if its aspect ratio differs from the play area's; they have
-    // to pan to see the off-screen portion.
-    return Math.max(playW / mapPxW, playH / mapPxH)
+    // Min zoom such that the framed content (rooms + pad) FILLS the play
+    // area on both axes (the larger of the two ratios). Prevents zooming
+    // out far enough to reveal empty grid around the dungeon — the
+    // trade-off is the player can't see the whole content at once if its
+    // aspect ratio differs from the play area's; they pan to see the rest.
+    return Math.max(playW / contentW, playH / contentH)
   }
 
   // Camera scroll clamp + auto-centering, expressed against the *play area*
@@ -1368,14 +1410,19 @@ export class Game extends Phaser.Scene {
   _clampCameraToPlayArea() {
     const cam = this._cam
     if (!cam) return
-    const { gridWidth, gridHeight } = this.gameState.dungeon
-    const mapW = gridWidth  * TS
-    const mapH = gridHeight * TS
+    // Frame the placed rooms (+ pad), NOT the whole grid — see _contentBoundsPx.
+    const cb = this._contentBoundsPx()
+    const mapW = cb.x1 - cb.x0
+    const mapH = cb.y1 - cb.y0
     const pa = this._computePlayArea()
     const playW = pa.sw - pa.left - pa.right
     const playH = pa.sh - pa.top  - pa.bottom
     const playCx = pa.left + playW / 2
     const playCy = pa.top  + playH / 2
+    // Floor the zoom so a shrunk content box (e.g. after a room is removed)
+    // can't leave the camera zoomed out into void. No-op when already above.
+    const minZoom = this._computeMinZoom()
+    if (cam.zoom < minZoom) cam.setZoom(minZoom)
     const z  = cam.zoom
     const cx = cam.centerX
     const cy = cam.centerY
@@ -1394,22 +1441,22 @@ export class Game extends Phaser.Scene {
 
     // [clamp] debug log removed — was leftover from camera-zoom diagnosis.
 
-    // X axis — clamp so dungeon edges align with play-area edges.
+    // X axis — clamp so the content edges align with play-area edges.
     if (playW / z >= mapW) {
-      // Dungeon fits horizontally inside the play area → centre it.
-      cam.scrollX = sxFor(mapW / 2, playCx)
+      // Content fits horizontally inside the play area → centre it.
+      cam.scrollX = sxFor((cb.x0 + cb.x1) / 2, playCx)
     } else {
-      const minScrollX = sxFor(0,    pa.left)
-      const maxScrollX = sxFor(mapW, pa.sw - pa.right)
+      const minScrollX = sxFor(cb.x0, pa.left)
+      const maxScrollX = sxFor(cb.x1, pa.sw - pa.right)
       cam.scrollX = Phaser.Math.Clamp(cam.scrollX, minScrollX, maxScrollX)
     }
 
     // Y axis (mirrors X)
     if (playH / z >= mapH) {
-      cam.scrollY = syFor(mapH / 2, playCy)
+      cam.scrollY = syFor((cb.y0 + cb.y1) / 2, playCy)
     } else {
-      const minScrollY = syFor(0,    pa.top)
-      const maxScrollY = syFor(mapH, pa.sh - pa.bottom)
+      const minScrollY = syFor(cb.y0, pa.top)
+      const maxScrollY = syFor(cb.y1, pa.sh - pa.bottom)
       cam.scrollY = Phaser.Math.Clamp(cam.scrollY, minScrollY, maxScrollY)
     }
   }
@@ -1858,6 +1905,11 @@ export class Game extends Phaser.Scene {
         this._dragOrigin.x - p.x,
         this._dragOrigin.y - p.y,
       )
+      // Clamp the pan immediately. The per-frame update() clamp does NOT run
+      // during the paused night/build phase, so without this a drag pans
+      // freely into the void while building. Input events fire in both phases,
+      // so clamping here bounds the pan during night AND day.
+      if (!this._fightCamActive && !this._duelCamLock && !this._vfxLabActive) this._clampCameraToPlayArea()
     })
 
     this.input.on('pointerup', () => { this._dragOrigin = null })

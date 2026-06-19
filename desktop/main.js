@@ -70,9 +70,17 @@ function serveFile(absPath, contentTypeOverride) {
   const type = contentTypeOverride || MIME[ext] || 'application/octet-stream'
   const stream = fs.createReadStream(absPath)
   // Convert Node stream → web ReadableStream for the Response body.
+  // `cache-control: no-store` keeps Chromium from caching ES modules served
+  // over app://, so an in-app reload always picks up live src/ edits (the game
+  // is served straight from the source tree — see GAME_ROOT). Re-reading local
+  // files per load is negligible; correctness of the dev/reload loop matters more.
   return new Response(Readable.toWeb(stream), {
     status: 200,
-    headers: { 'content-type': type, 'access-control-allow-origin': '*' },
+    headers: {
+      'content-type': type,
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    },
   })
 }
 

@@ -2161,7 +2161,11 @@ body {
    animates open AND closed; the peek handle stays on the screen edge. */
 .qf-build-dock {
   position: absolute;
-  left: 14px; top: 96px; bottom: 96px;
+  /* Start below the boss vitals (.qf-topbar-left), which overflow the
+     reserved --hud-top strip by ~24px (sprite + HP bar + buff/hearts row).
+     At top:96px the CONSTRUCTION header tucked under the boss info; clear
+     it so the menu reads fully and isn't "covered by the boss info". */
+  left: 14px; top: 128px; bottom: 96px;
   display: flex; align-items: stretch;
   pointer-events: auto;
   transition: left .3s cubic-bezier(.3, 1, .4, 1);
