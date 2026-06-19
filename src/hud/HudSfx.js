@@ -124,7 +124,7 @@ export function installHudSfxDelegates() {
   stage.addEventListener('click', (e) => {
     const t = e.target
     if (!(t instanceof Element)) return
-    const btn = t.closest('button, .btn, .qf-mm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
+    const btn = t.closest('button, .btn, .qcm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
     if (!btn) return
     // Distinguish danger buttons by a data attr or known class names so
     // the sacrifice / abandon path gets the descending tone.
@@ -137,7 +137,7 @@ export function installHudSfxDelegates() {
   stage.addEventListener('pointerover', (e) => {
     const t = e.target
     if (!(t instanceof Element)) return
-    const btn = t.closest('button, .btn, .qf-mm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
+    const btn = t.closest('button, .btn, .qcm-item, .qf-bottombar-tool, .qf-bottombar-speed-btn, .qf-bottombar-menu, .qf-tab')
     if (!btn) return
     HudSfx.playUi('hover')
   }, true)

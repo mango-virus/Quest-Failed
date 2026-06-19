@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 0 |
+| 0 — Foundation & sweep | 7 | 2 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -38,20 +38,20 @@
 ## Phase 0 — Foundation & sweep
 *Fast, low-risk. Removes the "broken bits" that most undercut the full-game feel and lays foundations (z-index tokens) the later phases lean on.*
 
-### P0-1 — Delete dead HUD modules `[S]` ⬜
+### P0-1 — Delete dead HUD modules `[S]` ✅ *(a5d4753e)*
 - **Problem:** Five fully-built modules are imported by nothing (cruft; one carries a latent stat bug).
 - **Acceptance:**
-  - [ ] Remove `MinionInspectorOverlay.js` (superseded by `InspectPopup`), `TitlePickerOverlay.js` (+ its `styles.css` block), `ArchetypeDecorOverlay.js`, `JamPortalCorner.js`, `HotkeyHints.js`.
-  - [ ] Grep confirms zero remaining imports/instantiations of each.
-  - [ ] Game boots + main menu/in-game render unchanged.
-- **Files:** `src/hud/{MinionInspectorOverlay,TitlePickerOverlay,ArchetypeDecorOverlay,JamPortalCorner,HotkeyHints}.js`, `src/hud/styles.css`.
+  - [x] Removed `MinionInspectorOverlay.js`, `TitlePickerOverlay.js` (+ its `styles.css` block), `ArchetypeDecorOverlay.js`, `JamPortalCorner.js`, `HotkeyHints.js` — plus the dangling `HotkeyHints` import in `HudRoot.js` and the dead HotkeyHints CSS block.
+  - [x] Grep confirms zero remaining imports/instantiations or orphaned CSS classes.
+  - [x] Game boots + main menu + in-game HUD mount clean, zero console errors (Electron-path preview).
+- **Files:** `src/hud/{MinionInspectorOverlay,TitlePickerOverlay,ArchetypeDecorOverlay,JamPortalCorner,HotkeyHints}.js`, `src/hud/HudRoot.js`, `src/hud/styles.css`.
 
-### P0-2 — Purge stale `qf-mm-*` menu CSS `[S]` ⬜
-- **Problem:** The pre-2026-06-09 main-menu generation's CSS (`qf-mm-*`: playername, titlepill, identity, `*-new-pulse-static`) is dead — the active menu uses `qcm-*`.
+### P0-2 — Purge stale `qf-mm-*` menu CSS `[S]` ✅ *(pending commit)*
+- **Problem:** The pre-2026-06-09 main-menu generation's CSS (`qf-mm-*`: logo/slab/identity/playername/titlepill/items) is dead — the active menu uses `qcm-*`.
 - **Acceptance:**
-  - [ ] Remove dead `qf-mm-*` rules (`styles.css` ~7778–7856, ~13674+).
-  - [ ] Check the 2 `HudSfx.js` `qf-mm-` refs — repoint or remove.
-  - [ ] Main menu visually unchanged in Electron.
+  - [x] Removed the two dead `qf-mm-*` chunks (454 lines) — spliced around the **live** interleaved `.qf-devtools-*` (DevToolsOverlay) block. **Kept** `@keyframes qf-mm-item-new-pulse-static` + its 3 uses — that's LIVE (Achievements/CompanionSelect/Leaderboard "NEW" chips); only its name carries the old prefix.
+  - [x] Repointed the 2 `HudSfx.js` `.qf-mm-item` selectors → `.qcm-item` (the active menu item class).
+  - [x] Main menu visually identical in Electron-path preview (full-res screenshot), zero console errors.
 - **Files:** `src/hud/styles.css`, `src/hud/HudSfx.js`.
 
 ### P0-3 — Fix dead-feel paths `[M]` ⬜
