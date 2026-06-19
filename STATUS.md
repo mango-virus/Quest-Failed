@@ -18,6 +18,11 @@
 > `window.__qfCheck()` (runtime invariants), `window.__qfDev.gallery()` (VFX review); a
 > pre-commit hook runs `verify-docs` + `lint-content`. When to use what → the "Dev tooling"
 > section in `CLAUDE.md`; full reference → `tools/sim/README.md`.
+>
+> 🎨 **UI polish push (active, started 2026-06-18):** the prioritized backlog to take the UI
+> from "polished game" to "polished **Steam** product" lives in **`UI_POLISH_PLAN.md`** —
+> phased (0 sweep → 1 input/accessibility → 2 hero moments → 3 onboarding → 4 discipline),
+> worked one item at a time. Read it before starting UI work.
 
 ---
 
