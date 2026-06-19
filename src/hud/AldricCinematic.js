@@ -14,6 +14,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { HudSfx } from './HudSfx.js'
 
 // Per-form theming. `--acc` is the side/glow colour; `--acc2` the highlight.
 const FORM_THEME = {
@@ -316,6 +317,11 @@ export class AldricCinematic {
   }
 
   _onBeat({ kind, label } = {}) {
+    // Cinematic apex stingers (P2-1) — fired BEFORE the `def` guard below so
+    // the final blow (which has no BEAT entry) still cues. Layered over the
+    // SfxSystem combat hit; dormant until the audio files are added.
+    if (kind === 'bladelock')      HudSfx.playUi('cin_bladelock')
+    else if (kind === 'finalblow') HudSfx.playUi('cin_finalblow')
     const face = ALD_BEAT_FACE[kind]
     if (face) this._beatFace(face)
     const def = BEAT[kind]

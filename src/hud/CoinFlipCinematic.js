@@ -15,6 +15,7 @@
 
 import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { HudSfx } from './HudSfx.js'
 
 const FLIP_DELAY_MS  = 550    // idle beat before the toss begins
 const FLIP_DUR_MS    = 2400   // toss + spin duration (matches CSS qf-cf-toss)
@@ -142,6 +143,8 @@ export class CoinFlipCinematic {
     this._el.classList.add('landed', 'revealed')
     this._result.classList.add(this._won ? 'win' : 'lose')
     EventBus.emit('DEMON_WAGER_REVEALED', { won: this._won })
+    HudSfx.playUi('cin_coin_land')                          // P2-1 (dormant until file added)
+    if (this._won) HudSfx.playUi('cin_coin_win')
     this._footerEl.replaceChildren(
       h('div', { className: 'qf-coinflip-hint' }, 'click to continue'),
     )
@@ -225,6 +228,11 @@ export class CoinFlipCinematic {
     this._el.classList.add('landed', 'revealed')
     this._result.classList.add(this._won ? 'win' : 'lose')
     EventBus.emit('GAMBLER_COIN_REVEALED', { won: this._won })
+    // Cinematic stingers (P2-1; dormant until files added): the coin's landing
+    // thunk, plus a celebratory sting on a win. Layered over the existing
+    // GAMBLER_COIN_REVEALED gameplay SFX.
+    HudSfx.playUi('cin_coin_land')
+    if (this._won) HudSfx.playUi('cin_coin_win')
     // Count the treasury up/down to its new value.
     this._after(180, () => {
       if (!this._newCountEl) return

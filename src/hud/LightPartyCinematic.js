@@ -25,6 +25,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { HudSfx } from './HudSfx.js'
 
 // FFXIV-style job glyphs — role-appropriate so the colored job-icon frame
 // reads at a glance (tank shield / healer staff-of-asclepius / melee blades /
@@ -423,6 +424,10 @@ export class LightPartyCinematic {
     // eslint-disable-next-line no-unused-expressions
     img.offsetHeight
     img.classList.add('show')
+    // DUTY COMMENCED fanfare (P2-1; dormant until file added). Only the
+    // duty-start banner is the marquee beat — complete/failed coincide with the
+    // duel-end and aren't part of the listed cinematic apexes.
+    if (kind === 'commenced') HudSfx.playUi('cin_duty')
     // The animation runs 2600ms; remove a hair after it ends.
     setTimeout(() => img.remove(), 2800)
   }
@@ -760,6 +765,7 @@ export class LightPartyCinematic {
     el.classList.add('show')
     setTimeout(() => el.remove(), 1700)
     if (kind === 'lb3') {
+      HudSfx.playUi('cin_lb3')   // LIMIT BREAK 3 cinematic sting (P2-1; dormant until file added)
       const flash = h('div', { className: 'qf-lp-lb-flash dps' })
       this._stage.appendChild(flash)
       setTimeout(() => flash.remove(), 600)

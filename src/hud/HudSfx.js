@@ -36,6 +36,24 @@ const UI_VOL = {
   unlock_achievement: 1.10,  // achievement card pops in (gold trophy)
   demote:             1.20,  // leaderboard-demotion card — ominous, weighty
   whats_new:          1.10,  // WHAT'S NEW panel auto-pops for a returning player
+  // ── Cinematic apex stingers (UI_POLISH_PLAN P2-1) ──────────────────────
+  // Hero-moment one-shots fired from the full-screen cinematics at their apex
+  // beats. DORMANT until their audio files are added + registered in Preload —
+  // playUi silently no-ops while the key isn't in the Phaser cache (see the
+  // cache-existence guard below), so wiring these ships NO assets. Base gains
+  // are starting points; tune once the real files are in. Louder than UI chips
+  // (these are dramatic beats, not clicks).
+  cin_arise:      1.60,
+  cin_ascension:  1.60,
+  cin_kingdom:    1.55,
+  cin_bladelock:  1.30,
+  cin_finalblow:  1.60,
+  cin_collapse:   1.60,
+  cin_verdict:    1.45,
+  cin_duty:       1.45,
+  cin_lb3:        1.55,
+  cin_coin_land:  1.25,
+  cin_coin_win:   1.55,
 }
 
 // Global UI-boost multiplier — mirrors SfxSystem.SFX_BOOST (1.5) so the
@@ -60,6 +78,21 @@ const UI_KEY = {
   unlock_achievement: 'sfx-unlock-achievement', // achievement card
   demote:             'sfx-boss-death',          // dethroned — "the mighty have fallen"
   whats_new:          'sfx-whats-new',           // WHAT'S NEW auto-pop chime
+  // Cinematic apex stingers (P2-1) — these audio keys are NOT loaded yet; the
+  // game ships no files for them, so each cue no-ops until the file is added to
+  // Preload under the matching key. Add e.g. `this.load.audio('sfx-cin-arise',
+  // 'assets/audio/cin/arise.mp3')` in Preload, then it lights up automatically.
+  cin_arise:      'sfx-cin-arise',
+  cin_ascension:  'sfx-cin-ascension',
+  cin_kingdom:    'sfx-cin-kingdom',
+  cin_bladelock:  'sfx-cin-bladelock',
+  cin_finalblow:  'sfx-cin-finalblow',
+  cin_collapse:   'sfx-cin-collapse',
+  cin_verdict:    'sfx-cin-verdict',
+  cin_duty:       'sfx-cin-duty',
+  cin_lb3:        'sfx-cin-lb3',
+  cin_coin_land:  'sfx-cin-coin-land',
+  cin_coin_win:   'sfx-cin-coin-win',
 }
 
 // Per-cue cooldown (ms) — prevents back-to-back clicks from layering.
@@ -79,6 +112,19 @@ const COOLDOWN = {
   unlock_achievement: 300,
   demote:             300,
   whats_new:          500,  // one-shot per session; long guard so it never layers
+  // Cinematic apex stingers (P2-1) — long guards; each fires at most once per
+  // beat, and a long cooldown stops a re-fired event from layering the sting.
+  cin_arise:      800,
+  cin_ascension:  800,
+  cin_kingdom:    800,
+  cin_bladelock:  350,
+  cin_finalblow:  600,
+  cin_collapse:   800,
+  cin_verdict:    800,
+  cin_duty:       600,
+  cin_lb3:        600,
+  cin_coin_land:  500,
+  cin_coin_win:   500,
 }
 
 const _lastAt = {}

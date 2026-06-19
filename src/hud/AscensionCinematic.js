@@ -20,6 +20,7 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { animatedBossSprite } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
+import { HudSfx } from './HudSfx.js'
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI']
 
@@ -268,6 +269,7 @@ export class AscensionCinematic {
     })
     stage.appendChild(this._root)
     this._timers.push(setTimeout(() => this._root?.classList.add('show'), 30))
+    HudSfx.playUi('cin_ascension')   // DARK ASCENSION apex sting (P2-1; dormant until file added)
     // Cascade the new power numbers (+ kin tally) up from 0, like the level-up.
     this._cuCancel = runCountUp(this._root)
     this._keyFn = (e) => { e.preventDefault(); e.stopPropagation(); this._dismiss() }

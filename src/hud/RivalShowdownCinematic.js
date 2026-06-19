@@ -15,6 +15,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { HudSfx } from './HudSfx.js'
 
 const PUR = '#a24bd9', PUR2 = '#d49cff'   // Vorzak (the usurper) — purple
 const CRIM = '#ff5544', CRIM2 = '#ff9a88' // your boss — crimson
@@ -222,6 +223,7 @@ export class RivalShowdownCinematic {
   }
 
   _onBeat({ kind, label } = {}) {
+    if (kind === 'collapse') HudSfx.playUi('cin_collapse')   // apex finish sting (P2-1; dormant until file added)
     const cls = RIV_BEAT[kind]
     if (!cls || !this._root) return
     const pulse = h('div', { className: `qf-riv-pulse ${cls}` })
@@ -241,6 +243,7 @@ export class RivalShowdownCinematic {
   }
 
   _onEnd({ result, bossName } = {}) {
+    HudSfx.playUi('cin_verdict')   // throne-holds/usurped verdict sting (P2-1; dormant until file added)
     // result='win'  → the BOSS won → Vorzak's beam collapses (you hold the throne).
     // result='loss' → Vorzak won → your boss is usurped.
     const bossWon = result === 'win'

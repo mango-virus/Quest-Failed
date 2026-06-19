@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 0 |
+| 2 — Hero moments & game feel | 6 | 1 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -198,11 +198,22 @@
 ## Phase 2 — Hero moments & game feel
 *The cinematic set-pieces are visually rich but uniformly silent and shake-less; VictoryScreen is the most under-invested screen relative to its trailer importance. Tokenize + de-dup these files as we touch them.*
 
-### P2-1 — Audio on cinematic apexes `[M]` ⬜
+### P2-1 — Audio on cinematic apexes `[M]` ✅ *(2026-06-19)*
 - **Problem:** Every full-screen cinematic beat is silent (`HudSfx` not imported).
+- **User constraint (2026-06-19):** **"for audio, dont add anything, as i will add audio files later."** → wire the cue trigger points + define the expected cue→audio-key tables; add **NO audio files** and **no Preload load calls**. The cues stay **dormant** until the files land (see below).
+- **Design (built):** 11 cinematic apex cues routed through `HudSfx.playUi(cue)` — which already (a) respects mute/volume via `SfxVolume`, (b) rate-limits per-cue, and (c) **silently no-ops when the cue's audio key isn't in the Phaser cache**. So the wiring ships zero assets and zero errors; each cue lights up the moment its file is added to Preload under the matching key. Added a "cinematic apex stingers" group to HudSfx's `UI_VOL` / `UI_KEY` / `COOLDOWN` tables (cue → `sfx-cin-*` audio key). Cues + locations:
+  - `cin_arise` — SoloLeveling `_playEntrance` (the "ARISE." slam)
+  - `cin_ascension` — Ascension `_show` (DARK ASCENSION reveal)
+  - `cin_kingdom` — KingdomResponseIntro `_onDrawn` ("THE KINGDOM RESPONDS")
+  - `cin_bladelock` / `cin_finalblow` — Aldric `_onBeat` (placed BEFORE the `def` early-return so finalblow — which has no `BEAT` entry — still fires)
+  - `cin_collapse` (`_onBeat`) / `cin_verdict` (`_onEnd`) — Rival
+  - `cin_duty` — LightParty `_onDutyBanner` (only `kind==='commenced'` — the duty-start fanfare) / `cin_lb3` — `_onDuelBeat` (`kind==='lb3'`)
+  - `cin_coin_land` (+ `cin_coin_win` on a win) — CoinFlip `_reveal` + `_revealDemon`
+- **⚠ Integration note (overlap with the Phaser `SfxSystem`):** the duels + coin already have *gameplay* SFX via `SfxSystem` (`_onNemesisDuelSfx` finalblow→`sfx-boss-attack`, lock→melee; `_onLpDuelBeat`; `_onCoinRevealed`). These cinematic cues are an additive *dramatic stinger* layer over those. Genuinely-silent (no existing SFX) beats: **ARISE, DARK ASCENSION, THE KINGDOM RESPONDS, DUTY COMMENCED**. For the rest, a `cin_*` file will layer on the combat SFX — the user picks per-file whether to provide one.
+- **To activate later:** drop the file + register in Preload, e.g. `this.load.audio('sfx-cin-arise', 'assets/audio/cin/arise.mp3')`. Keys: `sfx-cin-{arise,ascension,kingdom,bladelock,finalblow,collapse,verdict,duty,lb3,coin-land,coin-win}`.
 - **Acceptance:**
-  - [ ] Cue the marquee beats (ARISE, Aldric blade-lock/final blow, LightParty duty/LB3, Rival verdict/collapse, CoinFlip land/win, DARK ASCENSION) via `HudSfx`, settings-aware + rate-limited.
-- **Files:** `AldricCinematic`, `SoloLevelingCinematic`, `LightPartyCinematic`, `RivalShowdownCinematic`, `AscensionCinematic`, `CoinFlipCinematic`, `KingdomResponseIntro`.
+  - [x] Cue the marquee beats (ARISE, Aldric blade-lock/final blow, LightParty duty/LB3, Rival verdict/collapse, CoinFlip land/win, DARK ASCENSION) via `HudSfx`, settings-aware + rate-limited. *(CDP-verified in the Electron build: all 7 cinematics + HudSfx import clean; all 11 `sfx-cin-*` keys are dormant [not in cache]; firing all 11 cues throws nothing [graceful no-op]; spy confirmed `cin_kingdom` fires from `_onDrawn` and `cin_bladelock`/`cin_finalblow` from `_onBeat`.)*
+- **Files:** `src/hud/HudSfx.js` (cue tables), `AldricCinematic`, `SoloLevelingCinematic`, `LightPartyCinematic`, `RivalShowdownCinematic`, `AscensionCinematic`, `CoinFlipCinematic`, `KingdomResponseIntro`.
 
 ### P2-2 — Screen shake + hitstop on apexes `[M]` ⬜
 - **Problem:** No shake/freeze-frame on climaxes — they lean on a white flash.
