@@ -123,18 +123,12 @@ export class DayPhase extends Phaser.Scene {
     this._setTimeScale(Balance.TIME_SCALE_NORMAL)
 
     this.input.keyboard?.on('keydown-ESC', () => PauseManager.toggle(this))
-    // Time-scale keyboard shortcuts (replaces the bottom-bar buttons that
-    // were removed with the chrome strip). Numeric digits work without modifiers.
-    // SIX maps to 16× (hyper) — only accepted from day HYPER_UNLOCK_DAY (30)
-    // onwards; before then, TWO maps to 2× as usual. _setTimeScale clamps
-    // mismatched scales to the right tier for the current day so the keybind
-    // is safe to leave wired in either state.
+    // SPACE pauses the sim. The game-speed digit keys (1-4 → the four on-screen
+    // speed buttons) now live in the central HUD handler (src/hud/HudKeybinds.js,
+    // UI_POLISH_PLAN P1-1), which emits TIME_SCALE_SET — applied by the
+    // TIME_SCALE_SET listener in _wireHudEvents — so the bar highlight stays in
+    // sync. The old multiplier-named digit keys (1/2/4/8/6) were retired there.
     this.input.keyboard?.on('keydown-SPACE', () => this._setTimeScale(Balance.TIME_SCALE_PAUSED))
-    this.input.keyboard?.on('keydown-ONE',   () => this._setTimeScale(Balance.TIME_SCALE_NORMAL))
-    this.input.keyboard?.on('keydown-TWO',   () => this._setTimeScale(Balance.TIME_SCALE_FAST))
-    this.input.keyboard?.on('keydown-FOUR',  () => this._setTimeScale(Balance.TIME_SCALE_FASTEST))
-    this.input.keyboard?.on('keydown-EIGHT', () => this._setTimeScale(Balance.TIME_SCALE_ULTRA))
-    this.input.keyboard?.on('keydown-SIX',   () => this._setTimeScale(Balance.TIME_SCALE_HYPER))
 
     this._dossierPanel = new DossierPanel(this, this._gameState)
 

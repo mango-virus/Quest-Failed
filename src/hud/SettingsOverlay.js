@@ -28,6 +28,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { applyUiScale } from './stageScale.js'
+import { KEYBIND_DEFAULTS } from './HudKeybinds.js'
 
 const STORE_KEYS = {
   master:    'qf.audio.master',
@@ -74,12 +75,10 @@ const THEMES = [
   { v: 'hellfire', l: 'HELLFIRE', sw: ['#e85820', '#ffcc40', '#f0e0c0', '#160e08'] },
 ]
 
-const KEYBINDS = [
-  { a: 'PLACE / BUILD', keys: ['B'] }, { a: 'MOVE', keys: ['M'] }, { a: 'SELL', keys: ['X'] },
-  { a: 'BEGIN DAY', keys: ['SPACE'] }, { a: 'GAME SPEED', keys: ['1', '2', '3', '4'] },
-  { a: 'KNOWLEDGE MAP', keys: ['K'] }, { a: 'ADVENTURER INTEL', keys: ['I'] },
-  { a: 'MINION ROSTER', keys: ['R'] }, { a: 'PAUSE', keys: ['ESC'] },
-]
+// Keybinding display rows come straight from the central handler's canonical
+// map (src/hud/HudKeybinds.js) so the panel can never drift from the real
+// bindings. ROTATE + ROSTER both show R — that's the contextual binding (R
+// rotates a held piece, else opens the roster).
 
 export class SettingsOverlay {
   constructor(opts = {}) {
@@ -489,8 +488,8 @@ export class SettingsOverlay {
 
   _keys() {
     return h('div', { className: 'qf-op-keys' },
-      KEYBINDS.map(b => h('div', { className: 'qf-op-key' }, [
-        h('span', { className: 'a' }, b.a),
+      KEYBIND_DEFAULTS.map(b => h('div', { className: 'qf-op-key' }, [
+        h('span', { className: 'a' }, b.action),
         h('span', { className: 'caps' }, b.keys.map(k => h('span', { className: 'qf-op-cap' }, k))),
       ])))
   }

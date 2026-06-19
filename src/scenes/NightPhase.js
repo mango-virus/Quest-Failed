@@ -1796,6 +1796,11 @@ export class NightPhase extends Phaser.Scene {
         // _heldMoveTrapOrigin.facing already holds the rollback value for cancel.
         if (this._heldMoveTrap) this._heldMoveTrap.facing = this._trapFacing
         if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
+      } else if (!this._selectedKind && !this._toolMode) {
+        // Contextual R (UI_POLISH_PLAN P1-1): when nothing is held for
+        // placement and no tool is armed, R opens the Minion Roster — unless a
+        // modal overlay is already up (then the player is in a menu).
+        if (!document.querySelector('#hud-stage .overlay')) EventBus.emit('OPEN_MINION_ROSTER')
       }
     })
     this.input.keyboard.on('keydown-ESC', () => {

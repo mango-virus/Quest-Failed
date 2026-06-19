@@ -57,6 +57,7 @@ import { RivalShowdownCinematic } from './RivalShowdownCinematic.js'
 import { ChampionBar }           from './ChampionBar.js'
 import { BossArchetypeStrip }   from './BossArchetypeStrip.js'
 import { NpcCompanion }         from './NpcCompanion.js'
+import { HudKeybinds }          from './HudKeybinds.js'
 import { installHudSfxDelegates } from './HudSfx.js'
 import { EventBus }             from '../systems/EventBus.js'
 
@@ -236,6 +237,10 @@ export class HudRoot {
     this._archetypeStrip   = new BossArchetypeStrip(this._gameState, {
       slot: this._bottomBar?.archetypeSlot ?? null,
     })
+    // Central keyboard shortcuts for the action bar — a thin key→EventBus
+    // router (no DOM of its own). Emits the same events the BottomBar
+    // buttons fire (UI_POLISH_PLAN P1-1).
+    this._keybinds         = new HudKeybinds(this._gameState)
     // Delegated UI click/hover SFX. Idempotent — flips a data attr on the
     // stage so multiple HudRoot rebuilds (e.g. new-run after game-over)
     // don't stack listeners.
@@ -434,6 +439,7 @@ export class HudRoot {
     this._aldric?.destroy();         this._aldric = null
     this._rivalShowdown?.destroy();  this._rivalShowdown = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null
+    this._keybinds?.destroy();        this._keybinds        = null
     const canvas = window.__game?.canvas
     if (this._onPointerMove)  canvas?.removeEventListener('pointermove',  this._onPointerMove)
     if (this._onPointerLeave) canvas?.removeEventListener('pointerleave', this._onPointerLeave)

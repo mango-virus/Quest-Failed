@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 0 |
+| 1 — Input & accessibility | 7 | 1 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -106,13 +106,30 @@
 ## Phase 1 — Input & accessibility
 *Steam-blocking and the biggest single "feels finished" lever. The action bar is currently mouse-only; the project's own `VISUAL_STANDARDS §7` accessibility reqs are unmet.*
 
-### P1-1 — Keyboard bindings for HUD actions `[M]` ⬜
-- **Problem:** No keys for the core action bar (MOVE/SELL/UPGRADE/PLACE/BEGIN-DAY/ROSTER/MAP/INTEL/night-speed) — mouse-only.
+### P1-1 — Keyboard bindings for HUD actions `[M]` ✅ *(2026-06-18)*
+- **Problem:** No keys for the core action bar (MOVE/SELL/UPGRADE/PLACE/BEGIN-DAY/ROSTER/MAP/INTEL/speed) — mouse-only. The Settings CONTROLS tab *documents* a keymap but nothing implements it.
+- **Locked key map (user decisions, 2026-06-18 — verbatim):**
+  | Action | Key | Event emitted | Phase |
+  |---|---|---|---|
+  | PLACE / build drawer | **B** | disarm armed tool → `TOGGLE_BUILD_DRAWER` | night |
+  | MOVE | **M** | `TOOL_MOVE` | night |
+  | UPGRADE | **U** | `TOOL_UPGRADE` | night *(user: "Add U = UPGRADE")* |
+  | SELL | **X** | `TOOL_SELL` | night |
+  | BEGIN DAY | **Space** | `PHASE_TOGGLE_REQUEST` (only if ready) | night |
+  | GAME SPEED (4 buttons) | **1 / 2 / 3 / 4** | `TIME_SCALE_SET {scale: steps[i]}` | day *(user: "1/2/3/4 = the 4 buttons"; early 3=4× 4=8×, day30+ 4=16×; **retire DayPhase's old 1/2/4/8/6**; Space stays = pause in day)* |
+  | KNOWLEDGE MAP | **K** | `OPEN_KNOWLEDGE_MAP` | both |
+  | ADVENTURER INTEL | **I** | `OPEN_ADV_INTEL` | both |
+  | MINION ROSTER | **R** | `OPEN_MINION_ROSTER` | both — **contextual** *(user: "R rotates when placing, opens roster when not")* |
+  | PAUSE / MENU | **Esc** | existing PauseManager / cancel-then-pause | both |
+- **Design:** new `src/hud/HudKeybinds.js` (window-level keydown, owned by HudRoot) emits the **existing** button events — no logic duplication. Contextual R stays owned by NightPhase (it has placement state): rotate when `_selectedKind`/tool armed, else `OPEN_MINION_ROSTER`; HudKeybinds handles R only in **day** (night belongs to NightPhase). Day-speed digits + Space=begin-day are phase-guarded so they never double-fire against DayPhase's Space=pause. Canonical defaults exported from HudKeybinds and consumed by `SettingsOverlay` (single source → feeds P1-3).
 - **Acceptance:**
-  - [ ] A central handler emits the **existing** EventBus events the buttons already fire (no logic duplication).
-  - [ ] Bindings work at night; don't steal focus from DOM text inputs (rename/name fields).
-  - [ ] Defaults documented (feed P1-3).
-- **Files:** `src/scenes/NightPhase.js` (input) / new central handler; events already in `BottomBar.js`.
+  - [x] `HudKeybinds` emits the existing EventBus events (no logic dup); B/M/U/X/Space gated to night, 1-4 to day, K/I/R both. *(live: M/U/X arm, B disarms+toggles drawer, K/I/day-R open overlays, Space→PHASE_TOGGLE_REQUEST)*
+  - [x] Guards: text input focused (digit blocked while input focused, fired after), modifier, key-repeat, phase∉{night,day}, and `.overlay` modal open (Welcome overlay suppressed all keys — confirmed).
+  - [x] Contextual R verified live: room selected → R rotates 0→90° (roster stays closed); idle → R opens roster. No double-fire (HudKeybinds defers R to NightPhase at night).
+  - [x] DayPhase's `1/2/4/8/6` speed keydowns removed; `1-4` drive the 4 visible speed buttons via `TIME_SCALE_SET` (live: 1→1× 2→2× 3→4× 4→8×, bar highlight synced to 8×). Space=pause kept in day.
+  - [x] `SettingsOverlay` CONTROLS panel renders from the shared `KEYBIND_DEFAULTS` (incl. UPGRADE→U + ROTATE/ROSTER both R); verified the import + row data (code-level).
+  - [x] Verified live in Electron-path preview; zero console errors throughout.
+- **Files:** new `src/hud/HudKeybinds.js`, `src/hud/HudRoot.js` (own/destroy it), `src/scenes/NightPhase.js` (contextual R), `src/scenes/DayPhase.js` (drop digit keydowns), `src/hud/SettingsOverlay.js` (real defaults). Events already in `BottomBar.js`.
 
 ### P1-2 — Controller / gamepad navigation `[L]` ⬜
 - **Problem:** No gamepad nav anywhere (Steam Deck "Verified" needs it).
