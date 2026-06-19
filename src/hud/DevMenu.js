@@ -57,14 +57,26 @@ export class DevMenu {
     this._railEl    = null
     this._escFn     = null
     this._activeTab = 'STAGE'
-    if (!PlayerProfile.isCheatName?.()) return
-    this._mount()
+    // The DEV button is mango-only. Track NAME_CHANGED so a mid-run rename away
+    // from 'mango' tears it down (and a rename back restores it) without a reload.
+    this._onNameChanged = () => this._syncCheatVisibility()
+    EventBus.on('NAME_CHANGED', this._onNameChanged)
+    if (PlayerProfile.isCheatName?.()) this._mount()
   }
 
   destroy() {
+    if (this._onNameChanged) { EventBus.off('NAME_CHANGED', this._onNameChanged); this._onNameChanged = null }
     this._closeModal()
     this._btn?.remove()
     this._btn = null
+  }
+
+  // Add or remove the DEV button to match the live cheat-name state. Closes the
+  // open modal too, so a name that loses the cheat can't keep a panel open.
+  _syncCheatVisibility() {
+    const should = !!PlayerProfile.isCheatName?.()
+    if (should && !this._btn) this._mount()
+    else if (!should && this._btn) { this._closeModal(); this._btn.remove(); this._btn = null }
   }
 
   // ── Button ────────────────────────────────────────────────────────────────
