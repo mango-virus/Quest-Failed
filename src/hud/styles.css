@@ -106,6 +106,9 @@ img { image-rendering: pixelated; }
   --rumor: #5cc8d8;
   --warn: #e89a3c;
   --info: #b78bd9;
+  /* rank metals (leaderboard podium 1/2/3 — gold reuses --gold-bright) */
+  --silver: #d9e2ec;
+  --bronze: #e09858;
 
   /* tinted glows */
   --glow-blood: 0 0 24px rgba(255, 68, 88, 0.35);
@@ -13777,10 +13780,10 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
   color: #ffd964;   /* champion gold — bright */
 }
 .qf-unlock-card[data-type="leaderboard"]:has(.qf-unlock-art--leaderboard[data-rank="2"]) {
-  color: #d9e2ec;   /* runner-up silver — cool pale */
+  color: var(--silver);   /* runner-up silver — cool pale */
 }
 .qf-unlock-card[data-type="leaderboard"]:has(.qf-unlock-art--leaderboard[data-rank="3"]) {
-  color: #e09858;   /* podium bronze — warm copper */
+  color: var(--bronze);   /* podium bronze — warm copper */
 }
 
 /* ── Leaderboard top-3 celebration card ─────────────────────────────── */

@@ -42,6 +42,16 @@ else
   echo "[pre-commit] lint-vfx ✓"
 fi
 
+out=$(node tools/lint-hex.mjs 2>&1)
+if [ $? -ne 0 ]; then
+  echo "$out"
+  echo "  ✗ new raw #hex added to a HUD file — prefer a palette token (var(--blood) etc.)"
+  echo "    so it retints under boss palettes, or tag a deliberate one-off: // hex-ok: <reason>"
+  fail=1
+else
+  echo "[pre-commit] lint-hex ✓"
+fi
+
 if [ "$fail" != "0" ]; then
   echo ""
   echo "[pre-commit] commit BLOCKED. Fix the above, or bypass once with:"

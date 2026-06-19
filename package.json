@@ -10,6 +10,7 @@
     "lint-content": "node tools/lint-content.mjs",
     "lint-content:strict": "node tools/lint-content.mjs --strict",
     "lint-vfx": "node tools/lint-vfx.mjs",
+    "lint-hex": "node tools/lint-hex.mjs",
     "phaser:changelog": "node tools/phaser-changelog-search.mjs",
     "serve": "node tools/devserve.mjs",
     "gen-walkers": "node tools/gen-walker-manifest.mjs",
