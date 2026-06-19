@@ -162,7 +162,6 @@ export class LeaderboardOverlay {
     this._onClose = opts.onClose ?? null
     this._tab = 'global'
     this._openRow = null   // expanded ledger row (by name) in the accordion
-    this._selected = null
     this._rows = []
     this._loading = true
     this._error = null
@@ -287,7 +286,6 @@ export class LeaderboardOverlay {
       this._error = e?.message || String(e)
       this._loading = false
     }
-    if (this._rows.length > 0 && !this._selected) this._selected = this._rows[0]
     this._rerender()
   }
 

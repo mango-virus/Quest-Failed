@@ -27,6 +27,14 @@ const BOSS_GLYPHS = {
   orc: '🪓', vampire: '🦇', succubus: '💋', slime: '🟢',
 }
 
+// Coin-tick SFX pacing — the treasury "ka-ching" as flying coins land. The pitch
+// rises with each consecutive tick (a streak) and resets after a gap.
+const COIN_TICK_THROTTLE_MS = 30    // ignore ticks closer together than this (burst overlap)
+const COIN_TICK_RESET_MS    = 240   // gap after which the rising-pitch streak resets
+const COIN_TICK_RATE_BASE   = 1.0   // playback rate (pitch) at streak 0
+const COIN_TICK_RATE_MAX    = 1.9   // pitch ceiling
+const COIN_TICK_RATE_STEP   = 0.045 // pitch gain per consecutive tick
+
 export class TopBar {
   constructor(gameState) {
     this._gameState = gameState
@@ -703,10 +711,10 @@ export class TopBar {
     if (!g?.sound) return
     if (!(g.scene?.scenes ?? []).some(s => s.cache?.audio?.exists?.('sfx-collect-gold'))) return
     const now = performance.now()
-    if (now - this._lastCoinTickAt < 30) return                       // throttle overlapping bursts
-    if (now - this._lastCoinTickAt > 240) this._coinTickStreak = 0     // reset pitch after a gap
+    if (now - this._lastCoinTickAt < COIN_TICK_THROTTLE_MS) return       // throttle overlapping bursts
+    if (now - this._lastCoinTickAt > COIN_TICK_RESET_MS) this._coinTickStreak = 0   // reset pitch after a gap
     this._lastCoinTickAt = now
-    const rate = Math.min(1.9, 1.0 + this._coinTickStreak * 0.045)
+    const rate = Math.min(COIN_TICK_RATE_MAX, COIN_TICK_RATE_BASE + this._coinTickStreak * COIN_TICK_RATE_STEP)
     this._coinTickStreak++
     try { g.sound.play('sfx-collect-gold', { rate, volume: Math.min(3, 1.5 * (SfxVolume.getVolume?.() ?? 1)) }) } catch (e) {}
   }

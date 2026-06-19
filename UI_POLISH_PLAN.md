@@ -327,11 +327,12 @@
   - [x] Consolidate into a shared helper; remove the copies. *(CDP-verified: shared helpers return correct values [mvp top/empty, rankColor mapping, bossPortrait class + `the_`-strip, CAT_COLOR]; Leaderboard + Achievements overlays mount with zero errors; in-game minimap legend dot resolves to the shared `CAT_COLOR.ROOMS` (rgb 92,200,216); zero console errors on reload + boot. Also dropped the grandfathered raw-hex count 315 → 301 by removing the duplicated colour literals.)*
 - **Files:** `src/hud/hudShared.js` (new), `PostWaveOverlay.js`, `GameOverOverlay.js`, `AchievementsOverlay.js`, `LeaderboardOverlay.js`, `LeftPanels.js`, `KnowledgeMapOverlay.js`.
 
-### P4-3 — Misc hygiene `[S]` ⬜
+### P4-3 — Misc hygiene `[S]` 🟡 *(2026-06-19 — 1 micro-item deferred)*
 - **Problem:** Assorted small smells found in review.
 - **Acceptance:**
-  - [ ] `EventBus.off` honors `context`.
-  - [ ] Remove dead `LeaderboardOverlay._selected` + module-level `_bossPortrait` + stale header comment; `ArchetypeSelectOverlay._tipTimer`.
-  - [ ] `BottomBar` header comment includes UPGRADE; name magic numbers (wealth tiers, coin throttle, quiet-count) as constants.
-  - [ ] `LongGameOverlay` "Rare" → data-driven; `PactDetailPopup` honors stage scale.
-- **Files:** `src/systems/EventBus.js`, `LeaderboardOverlay.js`, `ArchetypeSelectOverlay.js`, `BottomBar.js`, `LongGameOverlay.js`, `PactDetailPopup.js`.
+  - [x] `EventBus.off` honors `context` — now `off(event, cb, context)` removes only the matching callback+context (omit context = remove all bindings, back-compat). *CDP-verified: off(cb,ctxA) leaves ctxB; off(cb) clears all.*
+  - [x] Removed dead `LeaderboardOverlay._selected` (only written, never read) + module-level `_bossPortrait` (was dead, removed in P4-2) + `ArchetypeSelectOverlay._tipTimer` (only init/cleared, never set).
+  - [x] `BottomBar` header comment now includes UPGRADE (layout + contract). Coin-tick SFX pacing magic numbers in `TopBar` named as constants (`COIN_TICK_THROTTLE_MS`/`_RESET_MS`/`_RATE_BASE`/`_RATE_MAX`/`_RATE_STEP`). *(No "wealth tiers / quiet-count" magic numbers actually exist in BottomBar/TopBar — the speed steps were already `SPEED_STEPS_*` consts; only the coin-throttle was un-named.)*
+  - [x] `LongGameOverlay` "Rare" → data-driven: `LONG_GAME_TRIGGERED` now carries `grantedRarity` (from the granted pact) and the overlay renders that word. *CDP-verified: emitting `grantedRarity:'epic'` shows "A free Epic pact".*
+  - [ ] **Deferred:** `PactDetailPopup` honor stage scale. Attempted `scale(effectiveUiScale())` + anchor `transform-origin`, but CDP measurement at scale 1.4 showed the `translate(%)`+`scale()`+non-center-origin combo offsets the anchor (right edge 880 not 600). Reverted rather than ship a mis-anchored tooltip. Needs a wrapper-element or a translate-free anchoring scheme — and it's a systemic pattern shared with the canonical `InspectPopup` (also `body`+`fixed`), so better fixed for both together.
+- **Files:** `src/systems/EventBus.js`, `LeaderboardOverlay.js`, `ArchetypeSelectOverlay.js`, `BottomBar.js`, `TopBar.js`, `DungeonMechanicSystem.js`, `LongGameOverlay.js`.

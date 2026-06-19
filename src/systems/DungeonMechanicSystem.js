@@ -1072,6 +1072,7 @@ function _buildHandlerRegistry() {
         // 1) Grant a free random rare pact (offered pool minus active).
         let grantedName = '— none —'
         let grantedId   = null
+        let grantedRarity = 'rare'   // matches the filter below; surfaced so the overlay isn't hardcoded
         const allDefs = system.allDefinitions().filter(d =>
           d.rarity === 'rare' &&
           !system.isActive(d.id) &&
@@ -1081,6 +1082,7 @@ function _buildHandlerRegistry() {
           const pick = allDefs[Math.floor(Math.random() * allDefs.length)]
           grantedId = pick.id
           grantedName = pick.name ?? pick.id
+          grantedRarity = pick.rarity ?? 'rare'
           system.activate(pick.id)
         }
 
@@ -1101,7 +1103,7 @@ function _buildHandlerRegistry() {
         gameState._mechanicFlags.longGameMinionSlotPenalty =
           (gameState._mechanicFlags.longGameMinionSlotPenalty ?? 0) + 1
 
-        EventBus.emit('LONG_GAME_TRIGGERED', { grantedId, grantedName, lostName, day })
+        EventBus.emit('LONG_GAME_TRIGGERED', { grantedId, grantedName, grantedRarity, lostName, day })
       })
     },
     theLongGame_deactivate: ({ gameState }) => {

@@ -13,9 +13,14 @@ class EventBusClass {
     return this
   }
 
-  off(event, callback) {
+  off(event, callback, context) {
     if (!this._listeners[event]) return this
-    this._listeners[event] = this._listeners[event].filter(l => l.callback !== callback)
+    // Honor context when given (mirrors on()): remove only the listener bound to
+    // the SAME callback AND context. Omit context to remove every binding of the
+    // callback (back-compat with the common `off(event, fn)` call).
+    this._listeners[event] = this._listeners[event].filter(
+      l => !(l.callback === callback && (context == null || l.context === context))
+    )
     return this
   }
 

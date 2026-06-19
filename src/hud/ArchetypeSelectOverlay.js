@@ -55,7 +55,6 @@ export class ArchetypeSelectOverlay {
     this._selected = null
     this._ngTier   = 0
     this._known    = new Set()
-    this._tipTimer = null
     this._keyHandler = (e) => this._onKey(e)
   }
 
@@ -92,7 +91,6 @@ export class ArchetypeSelectOverlay {
   }
 
   close() {
-    if (this._tipTimer) { clearTimeout(this._tipTimer); this._tipTimer = null }
     this._el?.remove()
     this._el = null
     window.removeEventListener('keydown', this._keyHandler, true)

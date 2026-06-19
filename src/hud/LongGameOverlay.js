@@ -20,6 +20,10 @@ export class LongGameOverlay {
     const day  = payload.day  ?? '?'
     const got  = payload.grantedName ?? '— none —'
     const lost = payload.lostName    ?? '— none —'
+    // Rarity comes from the granted pact (always 'rare' today, but data-driven
+    // so the copy can't drift if the Long Game ever grants a different tier).
+    const rarity = String(payload.grantedRarity ?? 'rare')
+    const rarityWord = rarity.charAt(0).toUpperCase() + rarity.slice(1)
 
     this._overlay = new Overlay({
       title:    'THE · LONG · GAME',
@@ -35,7 +39,7 @@ export class LongGameOverlay {
           'THE BARGAIN BEARS FRUIT'),
         h('div', { className: 'pix qf-longgame-headline' }, `+ ${String(got).toUpperCase()}`),
         h('div', { className: 'qf-longgame-sub' },
-          'A free Rare pact — sealed without cost.'),
+          `A free ${rarityWord} pact — sealed without cost.`),
         h('div', {
           className: 'pix qf-longgame-section qf-longgame-section-warn',
         }, '— BUT THE PRICE IS PAID —'),

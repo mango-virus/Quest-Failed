@@ -1,7 +1,7 @@
 // BottomBar — DOM port of the design's bottom action console.
 //
 // Layout (one centered pixel-bevel console):
-//   [PLACE] [MOVE] [SELL]  |  PHASE label · BEGIN DAY (night)   |  [ROSTER] [KNOWLEDGE] [ADV INTEL] [MENU]
+//   [PLACE] [MOVE] [UPGRADE] [SELL]  |  PHASE · BEGIN DAY (night) |  [ROSTER] [KNOWLEDGE] [ADV INTEL] [MENU]
 //                          |  PHASE label · 1× 2× 4× 8× (day)   |
 //
 // Event contract is drop-in compatible with the Phaser ActionBar so the
@@ -10,6 +10,7 @@
 //
 //   PLACE     — disarms any active tool (emits the armed tool's toggle event)
 //   MOVE      — emits TOOL_MOVE (NightPhase toggles 'move' mode)
+//   UPGRADE   — emits TOOL_UPGRADE (NightPhase toggles 'upgrade' mode)
 //   SELL      — emits TOOL_SELL (NightPhase toggles 'sell' mode)
 //   BEGIN DAY — emits PHASE_TOGGLE_REQUEST
 //   1×/2×/4×/8× — emits TIME_SCALE_SET { scale: N }, matching ActionBar's
