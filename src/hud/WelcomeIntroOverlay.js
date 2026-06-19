@@ -16,8 +16,8 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { isActsEnabled } from '../config/acts.js'
-import { animatedBossSprite, snapshotAdventurer } from './inGameSnapshot.js'
-import { pixelSprite } from './sprites.js'
+import { animatedBossSprite, snapshotAdventurer, snapshotMinion } from './inGameSnapshot.js'
+import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 import { getBind, keyLabel } from './HudKeybinds.js'
 
 export class WelcomeIntroOverlay {
@@ -116,15 +116,21 @@ export class WelcomeIntroOverlay {
   }
 
   // Step 1 — THE LOOP. The chosen boss as the hero, the 3-phase loop with
-  // real sprites (a minion, an invading hero, the boss reigning).
+  // REAL in-game sprites (a minion, an invading hero, the boss reigning) — no
+  // procedural fallbacks. Minion sheets load with the run; the adventurer base
+  // sheet is on-demand (AdventurerBaseLoader), so the DAY slot starts as a glyph
+  // and swaps in the real knight sprite the instant its sheet finishes loading.
   _stepLoop() {
     const archId = String(this._gameState?.player?.bossArchetypeId ?? 'orc').replace(/^the_/, '')
     const boss = animatedBossSprite(archId, 116)
     if (boss?.stop) this._stopFns.push(boss.stop)
-    const minion = pixelSprite('skeleton', 56)
-    const hero   = snapshotAdventurer('knight', 56) || pixelSprite('knight', 56)
+    const minion = snapshotMinion('goblin1', 56)   // real (minion sheets load with the run)
     const bossMini = animatedBossSprite(archId, 56)
     if (bossMini?.stop) this._stopFns.push(bossMini.stop)
+    // DAY adventurer — real sprite, loaded on demand + swapped in (see _fillAdventurer).
+    const dayArt = h('div', { className: 'qf-intro-phase-art', ref: el => { this._advSlot = el } },
+      [h('span', { className: 'qf-intro-phase-glyph' }, '⚔')])
+    this._fillAdventurer(56)
 
     const phase = (cls, glyph, art, head, body) => h('div', { className: `qf-intro-phase ${cls}` }, [
       h('div', { className: 'qf-intro-phase-art' }, art || h('span', { className: 'qf-intro-phase-glyph' }, glyph)),
@@ -145,13 +151,37 @@ export class WelcomeIntroOverlay {
         phase('night', '🌙', minion,
           'NIGHT · BUILD', 'Spend gold to place rooms, minions & traps along the path to your boss.'),
         h('div', { className: 'qf-intro-arrow' }, '➜'),
-        phase('day', '⚔', hero,
-          'DAY · DEFEND', 'Adventurers invade through the entry hall. Kill them before they reach the throne.'),
+        // DAY — pre-built art slot (real adventurer swapped in by _fillAdventurer).
+        h('div', { className: 'qf-intro-phase day' }, [
+          dayArt,
+          h('div', { className: 'pix qf-intro-phase-head' }, 'DAY · DEFEND'),
+          h('div', { className: 'qf-intro-phase-body' }, 'Adventurers invade through the entry hall. Kill them before they reach the throne.'),
+        ]),
         h('div', { className: 'qf-intro-arrow' }, '➜'),
         phase('grow', '♛', bossMini?.el ? [bossMini.el] : null,
           'GROW · REIGN', 'Kills earn gold & boss XP. Level up to unlock more — then repeat, stronger.'),
       ]),
     ]
+  }
+
+  // Load the adventurer base sheet on demand and swap the REAL sprite into the
+  // DAY slot the moment it's ready. Placeholder stays the ⚔ glyph (never a
+  // procedural sprite). No-ops cleanly if the overlay closes mid-load.
+  _fillAdventurer(size, cls = 'knight', vId = 'v01') {
+    const put = () => {
+      const real = snapshotAdventurer(cls, size, vId)
+      if (real && this._advSlot && this._overlay) { this._advSlot.replaceChildren(real); return true }
+      return !!real
+    }
+    if (put()) return
+    const scene = window.__game?.scene?.getScene?.('Game')
+    if (!scene) return
+    if (ensureAdventurerBaseSheet(scene, cls, vId)) { put(); return }
+    scene.load.once(`filecomplete-spritesheet-adv-${cls}-${vId}`, () => setTimeout(put, 30))
+    // Safety poll in case the file-complete event is missed (shared loader batch).
+    let tries = 0
+    const poll = () => { if (!this._overlay || put() || tries++ > 20) return; setTimeout(poll, 200) }
+    setTimeout(poll, 300)
   }
 
   // Step 2 — CONTROLS. Live keybinds (rebindable store) + camera + gamepad.
