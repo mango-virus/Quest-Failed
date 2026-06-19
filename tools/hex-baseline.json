@@ -1,8 +1,8 @@
 {
   "_comment": "Grandfathered chromatic raw-hex counts per src/hud/*.js file. Regenerate with: npm run lint-hex -- --update. Counts may only DROP (a ratchet); new raw hex fails the build.",
-  "total": 315,
+  "total": 301,
   "files": {
-    "src/hud/AchievementsOverlay.js": 12,
+    "src/hud/AchievementsOverlay.js": 9,
     "src/hud/ActIntro.js": 11,
     "src/hud/AldricCinematic.js": 7,
     "src/hud/ArchetypeSelectOverlay.js": 3,
@@ -19,9 +19,9 @@
     "src/hud/GameOverOverlay.js": 1,
     "src/hud/GameRequestsOverlay.js": 1,
     "src/hud/KingdomResponseIntro.js": 1,
-    "src/hud/KnowledgeMapOverlay.js": 8,
-    "src/hud/LeaderboardOverlay.js": 8,
-    "src/hud/LeftPanels.js": 6,
+    "src/hud/KnowledgeMapOverlay.js": 4,
+    "src/hud/LeaderboardOverlay.js": 5,
+    "src/hud/LeftPanels.js": 2,
     "src/hud/LightPartyCinematic.js": 4,
     "src/hud/MainMenuOverlay.js": 5,
     "src/hud/NewThreatsReveal.js": 13,

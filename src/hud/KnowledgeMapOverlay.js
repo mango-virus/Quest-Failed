@@ -32,6 +32,7 @@
 import { h, mount } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
+import { CAT_COLOR } from './hudShared.js'
 
 const STATE_COLOR = {
   FULL:    '#c8334a',
@@ -48,17 +49,9 @@ const SCRUB_PER_ASPECT     = 8
 const SCRUB_PER_ROOM_LEVEL = 5
 
 // ── Knowledge-category color scheme ─────────────────────────────────
-// The ONE 4-category palette shared with the LeftPanels mini-map and
-// the KnowledgeScreen menu (LeftPanels.CAT_COLOR / KnowledgeScreen
-// .CAT_COLOR_STR). Each category answers "what kind of intel leaked":
-//   ROOMS / TRAPS / MINIONS / ITEMS. Used here for the category-filter
-//   toggle buttons + the per-category intel markers on the blueprint.
-const CAT_COLOR = {
-  ROOMS:   '#5cc8d8',
-  TRAPS:   '#e89a3c',
-  MINIONS: '#c8334a',
-  ITEMS:   '#c879d8',
-}
+// The ONE 4-category palette (ROOMS / TRAPS / MINIONS / ITEMS) shared with the
+// LeftPanels mini-map — see hudShared.js. Used here for the category-filter
+// toggle buttons + the per-category intel markers on the blueprint.
 // The four filterable categories, in legend order. `all` true = no
 // filter active (everything shows).
 const CATEGORIES = ['ROOMS', 'TRAPS', 'MINIONS', 'ITEMS']

@@ -23,6 +23,7 @@ import { DungeonGrid } from '../systems/DungeonGrid.js'
 import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './inGameSnapshot.js'
 import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
+import { CAT_COLOR } from './hudShared.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { applyMerchantPrice, merchantPriceMult, buildScaleMul } from '../util/merchantPricing.js'
 import { trapCap, rosterCap } from '../util/slotCaps.js'
@@ -72,14 +73,7 @@ const TINKERER_BADGE_INFO = {
 //   TRAPS   — they know a trap's placement               (orange)
 //   MINIONS — they've sighted enemies in a room          (red)
 //   ITEMS   — they know a placed item (phylactery / etc.) (magenta)
-// Mirrored verbatim in KnowledgeScreen.CAT_COLOR and
-// KnowledgeMapOverlay.CAT_COLOR — keep all three in sync.
-const CAT_COLOR = {
-  ROOMS:   '#5cc8d8',
-  TRAPS:   '#e89a3c',
-  MINIONS: '#c8334a',
-  ITEMS:   '#c879d8',
-}
+// CAT_COLOR (intel category palette) is shared with KnowledgeMapOverlay — see hudShared.js.
 // Dim grey for a room the adventurers have never seen — no intel of
 // any category. Walked-in-blind rooms paint with this so the player
 // can still see the dungeon shape behind the knowledge overlay.

@@ -20,6 +20,7 @@ import { Leaderboard as LeaderboardAPI } from '../systems/Leaderboard.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { COMPANIONS, getCompanion } from '../systems/companions.js'
 import { runCountUp } from './countUp.js'
+import { rankColor } from './hudShared.js'
 import { EventBus } from '../systems/EventBus.js'
 
 // Feature flag — show the companion the player used on each leaderboard
@@ -55,23 +56,6 @@ const LB_LIVE_STALE_MS = 10 * 60 * 1000   // 10 minutes
 // <id>_p.png. Used in place of the procedural pixelSprite blobs the
 // leaderboard previously rendered. Falls back to pixelSprite if the
 // portrait path 404s (older boss ids without baked portraits).
-function _bossPortrait(bossId, size) {
-  const id = String(bossId || '').replace(/^the_/, '')
-  const wrap = h('div', {
-    className: 'qf-lb-portrait-img',
-    style: {
-      width:  `${size}px`,
-      height: `${size}px`,
-      backgroundImage:  `url('assets/ui/bestiary/portraits/${id}_p.png')`,
-      backgroundSize:   'contain',
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center',
-      imageRendering:   'pixelated',
-    },
-  })
-  return wrap
-}
-
 // Thematic cause-of-end strings. The raw `end_cause` we get from
 // Supabase is typically a terse dev-code or a blunt one-liner; map it
 // to richer narrative copy with per-run variety (PHRASE_POOL picked
@@ -172,14 +156,6 @@ const TABS = [
 
 const ACCOLADES = ['IMMORTAL', 'BUTCHER', 'CUNNING']
 const TOP_N = 50
-
-function rankColor(rank) {
-  if (rank === 1) return '#ffd86a'
-  if (rank === 2) return '#c8c8d0'
-  if (rank === 3) return '#c8884a'
-  if (rank <= 10) return 'var(--text)'
-  return 'var(--text-mute)'
-}
 
 export class LeaderboardOverlay {
   constructor(opts = {}) {

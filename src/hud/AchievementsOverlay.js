@@ -32,6 +32,7 @@ import { HudSfx, installHudSfxDelegates } from './HudSfx.js'
 import { Overlay }           from './Overlay.js'
 import { AchievementSystem } from '../systems/AchievementSystem.js'
 import { PlayerProfile }     from '../systems/PlayerProfile.js'
+import { rankColor as _rankColor, bossPortrait } from './hudShared.js'
 import { Leaderboard }       from '../systems/Leaderboard.js'
 import { COMPANIONS, getCompanion, COMPANION_ORDER } from '../systems/companions.js'
 import { titleFxClassById, titleFxBorderClassById, titleColorById,
@@ -75,36 +76,9 @@ const LEADERBOARD_TAB = 'leaderboard'
 const LB_FETCH_LIMIT = 500
 const LB_DISPLAY_LIMIT = 50
 
-// Boss-portrait helper mirroring LeaderboardOverlay._bossPortrait so the
-// achievement leaderboard rows can show the same boss sprite the main
-// run-leaderboard does. Strips the legacy `the_` prefix and falls back
-// to a blank box if the portrait 404s.
-function _bossPortrait(bossId, size) {
-  const id = String(bossId || '').replace(/^the_/, '')
-  return h('div', {
-    className: 'qf-ach-lb-portrait-img',
-    style: {
-      width:  `${size}px`,
-      height: `${size}px`,
-      backgroundImage:  `url('assets/ui/bestiary/portraits/${id}_p.png')`,
-      backgroundSize:   'contain',
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center',
-      imageRendering:   'pixelated',
-    },
-  })
-}
-
-// Per-rank color, identical mapping to LeaderboardOverlay.rankColor so
-// the achievement leaderboard's gold/silver/bronze top-3 + neutral
-// remainder reads the same as the main run-leaderboard.
-function _rankColor(rank) {
-  if (rank === 1) return '#ffd86a'
-  if (rank === 2) return '#c8c8d0'
-  if (rank === 3) return '#c8884a'
-  if (rank <= 10) return 'var(--text)'
-  return 'var(--text-mute)'
-}
+// Boss-portrait + rank-colour come from the shared hud helpers (P4-2). The
+// achievement leaderboard uses its own frame class on the portrait tile.
+const _bossPortrait = (bossId, size) => bossPortrait(bossId, size, 'qf-ach-lb-portrait-img')
 
 // Default fallback icons by category (overridden per-achievement when
 // the data file specifies an `icon`). Same vocab the data file uses so

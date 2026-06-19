@@ -24,6 +24,7 @@ import { pixelSprite, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
+import { mvpMinion } from './hudShared.js'
 import { classLabel, minionLabel } from '../util/displayNames.js'
 
 export class PostWaveOverlay {
@@ -117,12 +118,7 @@ export class PostWaveOverlay {
     return { slain, escaped, day }
   }
 
-  _mvpMinion() {
-    const minions = this._gameState.minions ?? []
-    if (minions.length === 0) return null
-    return minions.reduce((best, m) =>
-      (m.lifetime?.kills ?? 0) > (best?.lifetime?.kills ?? 0) ? m : best, null)
-  }
+  _mvpMinion() { return mvpMinion(this._gameState.minions) }
 
   // ── Render ──────────────────────────────────────────────────────
   _renderBody() {

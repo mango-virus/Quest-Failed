@@ -23,6 +23,7 @@ import { pixelSprite, spriteKindForDefId } from './sprites.js'
 import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
+import { mvpMinion } from './hudShared.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
 import { GameOverMusic } from '../systems/GameOverMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
@@ -135,12 +136,7 @@ export class GameOverOverlay {
     return buckets
   }
 
-  _mvpMinion() {
-    const minions = this._gameState.minions ?? []
-    if (minions.length === 0) return null
-    return minions.reduce((best, m) =>
-      (m.lifetime?.kills ?? 0) > (best?.lifetime?.kills ?? 0) ? m : best, null)
-  }
+  _mvpMinion() { return mvpMinion(this._gameState.minions) }
 
   _finalBlow() {
     // BossSystem records the actual killer (the fight-party adventurer

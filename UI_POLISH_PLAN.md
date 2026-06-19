@@ -31,7 +31,7 @@
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
 | 3 — Discoverability & onboarding | 5 | 5 |
-| 4 — Final discipline | 3 | 1 |
+| 4 — Final discipline | 3 | 2 |
 
 ---
 
@@ -320,10 +320,12 @@
   - [x] **(Deferred from P2-6)** Self-inject CoinFlip CSS + cinematics' bespoke palette → local vars. *CoinFlip self-injected out of styles.css + `--cf-*`/`--cfd-*` (`e6b11b6a`); all 6 cinematics converted to namespaced local `:root` vars — SoloLeveling `--sl-*` (`0dd45acb`), then Ascension `--asc-*` / KingdomResponse `--kri-*` / Aldric `--ald-*` / LightParty `--lp-*` / Rival `--riv-*` (`e640d975`). Grandfathered raw-hex count **470 → 315**. JS-data/dynamic colours (Aldric per-form acc/acc2, LightParty role map, Rival --pur/--crim consts) correctly left as data. CDP-verified: byte-identical colours, all six styles inject + their vars resolve in-game, zero console errors.*
 - **Files:** `tools/lint-hex.mjs`, `tools/hex-baseline.json`, `src/hud/*.js`, `src/hud/styles.css`, `package.json`, `tools/hooks/pre-commit`.
 
-### P4-2 — Helper de-dup `[M]` ⬜
-- **Problem:** Duplicated logic: MVP-minion reducer, pact-id humanizers, leaderboard `_bossPortrait`/`rankColor`, `CAT_COLOR` triplicated across 3 knowledge surfaces.
-- **Acceptance:** [ ] Consolidate into shared `util/`/`hud/` helpers; remove the copies.
-- **Files:** `PostWaveOverlay.js`, `GameOverOverlay.js`, `AchievementsOverlay.js`, `LeaderboardOverlay.js`, `LeftPanels.js`/`KnowledgeMapOverlay.js`/`KnowledgeScreen`.
+### P4-2 — Helper de-dup `[M]` ✅ *(2026-06-19)*
+- **Problem:** Duplicated logic: MVP-minion reducer, pact-id humanizers, leaderboard `_bossPortrait`/`rankColor`, `CAT_COLOR` duplicated across knowledge surfaces.
+- **Design (built):** new `src/hud/hudShared.js` exports `mvpMinion(minions)`, `rankColor(rank)`, `bossPortrait(bossId,size,className)`, and the `CAT_COLOR` intel palette. Consumers import + delegate: PostWave/GameOver `_mvpMinion()` → one-liner; Leaderboard + Achievements use shared `rankColor` (Achievements aliases it); Achievements' `_bossPortrait` is now a thin wrapper passing its own frame class; LeftPanels + KnowledgeMapOverlay import `CAT_COLOR`. Removed Leaderboard's `_bossPortrait` (it was **dead code** — defined, never called). The divergent **pact-id humanizers** were intentionally left (each call site needs different casing/`the_`-stripping — merging would change behaviour).
+- **Acceptance:**
+  - [x] Consolidate into a shared helper; remove the copies. *(CDP-verified: shared helpers return correct values [mvp top/empty, rankColor mapping, bossPortrait class + `the_`-strip, CAT_COLOR]; Leaderboard + Achievements overlays mount with zero errors; in-game minimap legend dot resolves to the shared `CAT_COLOR.ROOMS` (rgb 92,200,216); zero console errors on reload + boot. Also dropped the grandfathered raw-hex count 315 → 301 by removing the duplicated colour literals.)*
+- **Files:** `src/hud/hudShared.js` (new), `PostWaveOverlay.js`, `GameOverOverlay.js`, `AchievementsOverlay.js`, `LeaderboardOverlay.js`, `LeftPanels.js`, `KnowledgeMapOverlay.js`.
 
 ### P4-3 — Misc hygiene `[S]` ⬜
 - **Problem:** Assorted small smells found in review.
