@@ -112,8 +112,10 @@ export function ensureCoinflipCss() {
   50%  { transform: translateY(-172px); animation-timing-function: cubic-bezier(0.64,0,0.78,0.42); }
   100% { transform: translateY(0); }
 }
-/* The Demon's Wager — sinister crimson/black theme: redefines the same palette
-   vars on the demon scope, so every rule above retints automatically. */
+/* The Demon's Wager — sinister crimson/black theme. Defines its own --cfd-* vars
+   and explicitly re-colours the demon-scoped surfaces below (dim/kicker/title/
+   face/payout-arrow/verdict/new). The DOUBLE-OR-NOTHING buttons intentionally
+   keep the gambler styling (matches the original, pre-refactor behaviour). */
 .qf-coinflip-demon {
   --cfd-red: #ff5560;  --cfd-red-br: #ff8a8a;  --cfd-ink: #1a0303;  --cfd-rim: #5a0c12;
   --cfd-h1: #ffb0b0;  --cfd-h2: #c83040;  --cfd-h3: #6a0c14;
