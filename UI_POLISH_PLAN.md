@@ -31,7 +31,7 @@
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
 | 3 — Discoverability & onboarding | 5 | 5 |
-| 4 — Final discipline | 3 | 0 |
+| 4 — Final discipline | 3 | 1 |
 
 ---
 
@@ -311,13 +311,13 @@
 
 ## Phase 4 — Final discipline
 
-### P4-1 — Raw-hex lint rule + token sweep `[M]` 🟡 *(in progress, 2026-06-19)*
+### P4-1 — Raw-hex lint rule + token sweep `[M]` ✅ *(2026-06-19)*
 - **Problem:** Hundreds of raw `#hex` values in `src/hud/*.js` (cinematics/event/meta) won't retint under boss palettes (`VISUAL_STANDARDS §1`).
 - **Scope decision (user, 2026-06-19): "Ratchet + targeted."** ~640 raw hex, but most are legitimate (sprite palettes, achromatic structure, intentional per-cinematic identity) so a literal full sweep is churn. Instead: a ratchet lint that grandfathers the current count and blocks NEW hex, plus a targeted sweep of clearly token-mappable colours + the cinematic local-var conversion. The "exact-match" chrome hexes turned out to mostly live in colour-constant maps / particle arrays / swatch previews (feed canvas/Phaser/colour-math) so they're grandfathered, not blind-converted.
 - **Acceptance:**
   - [x] Lint rule bans NEW raw `#hex` in `src/hud/*.js` (ratchet). *(`tools/lint-hex.mjs` — grandfathers per-file chromatic count in `tools/hex-baseline.json`; exemptions: art files [sprites/inGameSnapshot/NemesisPortrait], achromatic greys, `--name: #hex` var defs, `// hex-ok:` lines; `--update` regenerates the only-ever-lower baseline. Wired into package.json + pre-commit hook. Verified pass/fail/exemptions. Commit `12f187f2`.)*
   - [x] `--silver`/`--bronze` rank tokens added; leaderboard podium rank-2/3 use them (zero visual change). *(`12f187f2`.)* Broad hex→token sweep handled by the ratchet (grandfathered + no-new).
-  - [ ] **(Deferred from P2-6)** Self-inject CoinFlip CSS + cinematics' bespoke palette → local vars. **Progress:** ✅ CoinFlip self-injected + `--cf-*`/`--cfd-*` local vars (`e6b11b6a`); ✅ SoloLeveling → `--sl-*` (`0dd45acb`). **Remaining cinematics:** Ascension, Aldric *(note: dynamic per-form `--acc`/`--acc2` — don't blind-rewrite)*, Rival, KingdomResponse *(`#d4a648` == global `--gold`)*, LightParty *(87 hexes — biggest)*. Proven scripted pattern: replace hex→`var()` then prepend a namespaced `:root{ --x:#hex }` block; verify "each hex appears once" + lint + in-game var resolution.
+  - [x] **(Deferred from P2-6)** Self-inject CoinFlip CSS + cinematics' bespoke palette → local vars. *CoinFlip self-injected out of styles.css + `--cf-*`/`--cfd-*` (`e6b11b6a`); all 6 cinematics converted to namespaced local `:root` vars — SoloLeveling `--sl-*` (`0dd45acb`), then Ascension `--asc-*` / KingdomResponse `--kri-*` / Aldric `--ald-*` / LightParty `--lp-*` / Rival `--riv-*` (`e640d975`). Grandfathered raw-hex count **470 → 315**. JS-data/dynamic colours (Aldric per-form acc/acc2, LightParty role map, Rival --pur/--crim consts) correctly left as data. CDP-verified: byte-identical colours, all six styles inject + their vars resolve in-game, zero console errors.*
 - **Files:** `tools/lint-hex.mjs`, `tools/hex-baseline.json`, `src/hud/*.js`, `src/hud/styles.css`, `package.json`, `tools/hooks/pre-commit`.
 
 ### P4-2 — Helper de-dup `[M]` ⬜
