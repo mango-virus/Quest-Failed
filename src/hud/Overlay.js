@@ -25,6 +25,12 @@
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { userSettings } from './userSettings.js'
+import { effectiveUiScale } from './stageScale.js'
+
+// Logical-px the docked companion occupies on the left (left:30 + ~384 wide +
+// clearance — matches the `.overlay.qf-npc-docked { padding-left }` in styles.css).
+// If a centered modal's left edge clears this, we DON'T dock — it stays centered.
+const COMPANION_DOCK_CLEARANCE = 430
 
 export class Overlay {
   constructor(opts = {}) {
@@ -217,8 +223,18 @@ export class Overlay {
     // still visible and HUD_MENU_OPENED still steps her out beside the
     // modal, so the menu must shift to make room. Only HIDDEN ('off')
     // skips the dock — there's no sprite to clear.
-    const dockShift = !!this._opts.npcKind && this._opts.dock &&
-                      userSettings.companionMode() !== 'off'
+    let dockShift = !!this._opts.npcKind && this._opts.dock &&
+                    userSettings.companionMode() !== 'off'
+    // ...but only actually left-pin when centering WOULD put the modal under the
+    // companion. In a window wide enough that the centered modal clears her
+    // footprint, keep it screen-centered (the common case — avoids the
+    // "menu shoved left" look). Narrow windows still dock to prevent overlap.
+    if (dockShift) {
+      const scale = effectiveUiScale() || 1
+      const stageW = window.innerWidth / scale            // #hud-stage logical width
+      const centeredLeft = (stageW - (this._opts.width || 0)) / 2
+      if (centeredLeft >= COMPANION_DOCK_CLEARANCE) dockShift = false
+    }
     this.el.classList.toggle('qf-npc-docked', dockShift)
     stage.appendChild(this.el)
     if (this._opts.npcKind) {
