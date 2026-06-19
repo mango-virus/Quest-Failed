@@ -26,6 +26,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { CinematicBase } from './CinematicKit.js'
 
 // FFXIV-style job glyphs — role-appropriate so the colored job-icon frame
 // reads at a glance (tank shield / healer staff-of-asclepius / melee blades /
@@ -49,11 +50,11 @@ const ROLE_COLOR = {
   rangedDps: '#c9a9ff',
 }
 
-export class LightPartyCinematic {
+export class LightPartyCinematic extends CinematicBase {
   constructor() {
+    super()   // _timers / _detached + the tracked-timer helpers
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
-    this._timers = []
     this._members = []           // {instanceId, role, name, maxHp, hp}
     this._lbValue = 0
     this._lbMax = 100
@@ -435,12 +436,13 @@ export class LightPartyCinematic {
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
-    this._clearTimers()
+    this._destroyTimers()
     this._end()
   }
 
-  _after(ms, fn) { const t = setTimeout(fn, ms); this._timers.push(t); return t }
-  _clearTimers() { for (const t of this._timers) clearTimeout(t); this._timers = [] }
+  // (_after / _clearTimers inherited from CinematicBase. The duel-beat label
+  // keeps its own raw setTimeout removal — it lives on _stage, which _end()
+  // doesn't clear, so it must survive a phase-end _clearTimers.)
 
   // ── Entrance ───────────────────────────────────────────────────────────
   _onBegan({ members = [] } = {}) {

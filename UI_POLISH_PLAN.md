@@ -29,7 +29,7 @@
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
-| 2 — Hero moments & game feel | 6 | 5 |
+| 2 — Hero moments & game feel | 6 | 6 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
 
@@ -254,13 +254,16 @@
   - [x] Timeout fallback resolves/closes safely. *(CDP-verified both paths in Electron: with a reply → `_awaitingDouble` clears, round-2 flip runs [`_round:2`], and the overlay is still present 1700ms later [guard cancelled, no wrongful dismiss]; with NO reply → the stranded overlay auto-dismisses [`_el` null, DOM gone] instead of soft-locking.)*
 - **Files:** `src/hud/CoinFlipCinematic.js`.
 
-### P2-6 — Extract `CinematicKit` + tokenize/clean cinematics `[L]` ⬜
+### P2-6 — Extract `CinematicKit` + tokenize/clean cinematics `[L]` ✅ *(2026-06-19)*
 - **Problem:** Beat-label / VS-header / finale-card / mount-dismiss / tracked-timer logic is reimplemented ~4–5× with drift; raw hex + hardcoded ms; Solo letterbox dead code; CoinFlip CSS external + duration-coupled by comment.
+- **Decision (user, 2026-06-19):** **"Pragmatic kit + all cleanups"** — share the genuinely-common lifecycle bits; deliberately **skip** unifying the divergent duel HP-headers (two-bar / tug-of-war / single-bar — high regression risk, low payoff).
+- **Design (built):** new `src/hud/CinematicKit.js` → `CinematicBase` (extended by SoloLeveling / Aldric / Rival / LightParty / CoinFlip): tracked timers (`_after`/`_clearTimers`), **detached** timers (`_afterDetached`, survive `_clearTimers` so a finale card isn't yanked by the `_end()`/`_teardown()` that fires on the entity's death — replaces the old raw `setTimeout`), `_destroyTimers()`, and `_beatLabel(host, text, className, holdMs)` (the shared build→reflow→show→auto-remove lifecycle; caller owns the CSS class). `CDUR` centralises the drifted beat/finale/card hold durations. Adopted: Solo/Aldric/Rival route beat labels through `_beatLabel` + finale cards through `_afterDetached`; LightParty + CoinFlip adopt the timer base (LightParty's beat label keeps its own raw removal — it lives on `_stage`, which `_end` doesn't clear, so it must outlive a phase-end). Deleted Solo's dead `_showLetterbox`/`_hideLetterbox` + `.qf-sl-letterbox` CSS.
 - **Acceptance:**
-  - [ ] Shared `CinematicKit` (beat, VS header, finale card, mount/dismiss, tracked-timer base) adopted by the big cinematics.
-  - [ ] Untracked `setTimeout` removals routed through the kit.
-  - [ ] Tokenize durations/hex; self-inject CoinFlip CSS; delete Solo's dead letterbox subsystem.
-- **Files:** new `src/hud/CinematicKit.js` + the cinematic files.
+  - [x] Shared `CinematicKit` (beat, finale-card timer, mount/dismiss, tracked-timer base) adopted by the big cinematics. *(VS-header intentionally excluded per the decision. CDP-verified: all 5 cinematics import clean; Aldric/Rival/Solo beat labels fire via `_beatLabel`.)*
+  - [x] Untracked `setTimeout` removals routed through the kit. *(Finale cards now use `_afterDetached`; CDP-verified the Aldric finale card SURVIVES a `DAY_PHASE_ENDED`/`_teardown` fired right after — the exact strand the old raw setTimeout guarded, now handled by the kit.)*
+  - [x] Tokenize durations; delete Solo's dead letterbox subsystem. *(Durations → `CDUR`; letterbox deleted — `_showLetterbox` gone, no `.qf-sl-letterbox`, CDP-confirmed.)*
+  - [⏭] **Self-inject CoinFlip CSS + full hex tokenize — DEFERRED.** The CoinFlip CSS is a ~275-line block; a blind hand-transcription into a JS template literal risks a silent dropped-rule regression for a pure co-location gain — not worth it here. The **hex→token sweep is P4-1's dedicated job** (it says "most done inline in Phases 2–3" + adds the lint rule); folding CoinFlip's CSS move + the remaining cinematic hex into that discipline pass is the right home. *(Flagged for P4-1.)*
+- **Files:** new `src/hud/CinematicKit.js`, `SoloLevelingCinematic.js`, `AldricCinematic.js`, `RivalShowdownCinematic.js`, `LightPartyCinematic.js`, `CoinFlipCinematic.js`.
 
 ---
 
@@ -302,6 +305,7 @@
 - **Acceptance:**
   - [ ] Lint rule bans raw `#hex` in `src/hud/*.js` (allowlist genuine sprite palettes, e.g. `sprites.js`); add to the pre-commit hook.
   - [ ] Sweep remaining hex → palette/`--z-*` tokens (most done inline in Phases 2–3); add `--silver`/`--bronze` tokens for ranks.
+  - [ ] **(Deferred from P2-6)** Self-inject the CoinFlip CSS (the ~275-line `.qf-coinflip*` block in `styles.css`) into `CoinFlipCinematic.js` like the other cinematics, and sweep the cinematics' bespoke-palette hex (Solo blue / Rival purple/crimson / FFXIV gold) → local CSS vars/tokens.
 - **Files:** `tools/` (lint), `src/hud/*.js`, `styles.css`.
 
 ### P4-2 — Helper de-dup `[M]` ⬜

@@ -15,6 +15,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { CinematicBase, CDUR } from './CinematicKit.js'
 
 // Per-form theming. `--acc` is the side/glow colour; `--acc2` the highlight.
 const FORM_THEME = {
@@ -168,11 +169,11 @@ export function ensureDuelCss() {
   document.head.appendChild(style)
 }
 
-export class AldricCinematic {
+export class AldricCinematic extends CinematicBase {
   constructor() {
+    super()   // _timers / _detached + tracked-timer + beat-label helpers
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
-    this._timers = []
     this._root = null
     this._hud = null; this._advFill = null; this._advGhost = null; this._bossFill = null; this._bossGhost = null
     this._presence = null
@@ -338,12 +339,7 @@ export class AldricCinematic {
     }
     // centered label
     const text = label || def.label
-    if (text) {
-      const lbl = h('div', { className: `qf-ald-beat ${def.cls}` }, String(text).toUpperCase())
-      this._root.appendChild(lbl)
-      requestAnimationFrame(() => lbl.classList.add('show'))
-      this._after(1650, () => lbl.remove())
-    }
+    if (text) this._beatLabel(this._root, String(text).toUpperCase(), `qf-ald-beat ${def.cls}`)
   }
 
   _onEnd({ result, bossName } = {}) {
@@ -353,7 +349,8 @@ export class AldricCinematic {
     this._figHoldToken++
     this._figHolding = true
     this._setFace(win ? 'unhinged-dying' : 'battle-joy')
-    setTimeout(() => { this._figure?.classList.remove('show') }, 2600)
+    // Detached timers (survive _teardown, which fires moments later on his death).
+    this._afterDetached(2600, () => { this._figure?.classList.remove('show') })
     const card = h('div', { className: 'qf-ald-card' }, [
       h('div', { className: 'qf-ald-card-kicker' }, win ? 'THE RECKONING IS ENDED' : 'THE REALM ENDURES'),
       h('div', { className: 'qf-ald-card-title' }, win ? 'THE HERO KING FALLS' : 'THE HERO KING STANDS'),
@@ -362,15 +359,16 @@ export class AldricCinematic {
     ])
     this._root?.appendChild(card)
     requestAnimationFrame(() => card.classList.add('show'))
-    // raw setTimeout so it survives _teardown (fires moments later on his death)
-    setTimeout(() => { card.classList.remove('show'); setTimeout(() => card.remove(), 450) }, 3000)
+    this._afterDetached(CDUR.finaleHold, () => {
+      card.classList.remove('show')
+      this._afterDetached(CDUR.beatFade, () => card.remove())
+    })
   }
 
-  _after(ms, fn) { const id = setTimeout(fn, ms); this._timers.push(id); return id }
+  // (_after / _afterDetached / _clearTimers / _beatLabel inherited from CinematicBase.)
 
   _teardown() {
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
+    this._clearTimers()
     if (this._presence) { this._presence.classList.remove('show') }
     const root = this._root; this._root = null
     this._hud = this._advFill = this._advGhost = this._bossFill = this._bossGhost = this._presence = null
@@ -382,8 +380,7 @@ export class AldricCinematic {
   destroy() {
     for (const [e, fn] of this._listeners) EventBus.off(e, fn)
     this._listeners = []
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
+    this._destroyTimers()
     this._root?.remove(); this._root = null
   }
 }

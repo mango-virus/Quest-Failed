@@ -17,6 +17,7 @@ import { h, tween } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
 import { domShake } from './screenShake.js'
+import { CinematicBase } from './CinematicKit.js'
 
 const FLIP_DELAY_MS  = 550    // idle beat before the toss begins
 const FLIP_DUR_MS    = 2400   // toss + spin duration (matches CSS qf-cf-toss)
@@ -27,11 +28,11 @@ const AUTO_CLOSE_MS  = 3800   // after the (final) reveal, before auto-dismiss
 // stranded overlay ourselves so it can't lock the screen.
 const DOUBLE_RESULT_TIMEOUT_MS = 1500
 
-export class CoinFlipCinematic {
+export class CoinFlipCinematic extends CinematicBase {
   constructor() {
+    super()   // _timers / _detached + the tracked-timer helpers
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
-    this._timers = []
     this._cancelTween = null
     this._el = null
     this._active = false
@@ -305,16 +306,7 @@ export class CoinFlipCinematic {
     this._after(360, () => this._teardown())
   }
 
-  _after(ms, fn) {
-    const id = setTimeout(fn, ms)
-    this._timers.push(id)
-    return id
-  }
-
-  _clearTimers() {
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
-  }
+  // (_after / _clearTimers inherited from CinematicBase.)
 
   _teardown() {
     // Capture the demon-flavour flag BEFORE reset so we can emit the

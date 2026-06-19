@@ -16,6 +16,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
+import { CinematicBase, CDUR } from './CinematicKit.js'
 
 const PUR = '#a24bd9', PUR2 = '#d49cff'   // Vorzak (the usurper) — purple
 const CRIM = '#ff5544', CRIM2 = '#ff9a88' // your boss — crimson
@@ -143,11 +144,11 @@ export function ensureRivalCss() {
   document.head.appendChild(style)
 }
 
-export class RivalShowdownCinematic {
+export class RivalShowdownCinematic extends CinematicBase {
   constructor() {
+    super()   // _timers / _detached + tracked-timer + beat-label helpers
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
-    this._timers = []
     this._root = null
     if (!this._stage) return
     ensureRivalCss()
@@ -243,12 +244,7 @@ export class RivalShowdownCinematic {
       this._root.appendChild(flash)
       this._after(450, () => flash.remove())
     }
-    if (label) {
-      const lbl = h('div', { className: `qf-riv-beat ${cls}` }, String(label).toUpperCase())
-      this._root.appendChild(lbl)
-      requestAnimationFrame(() => lbl.classList.add('show'))
-      this._after(1650, () => lbl.remove())
-    }
+    if (label) this._beatLabel(this._root, String(label).toUpperCase(), `qf-riv-beat ${cls}`)
   }
 
   _onEnd({ result, bossName } = {}) {
@@ -265,14 +261,17 @@ export class RivalShowdownCinematic {
     ])
     this._root?.appendChild(card)
     requestAnimationFrame(() => card.classList.add('show'))
-    setTimeout(() => { card.classList.remove('show'); setTimeout(() => card.remove(), 450) }, 3000)
+    // Detached so the card survives the _teardown that fires on the duel's end.
+    this._afterDetached(CDUR.finaleHold, () => {
+      card.classList.remove('show')
+      this._afterDetached(CDUR.beatFade, () => card.remove())
+    })
   }
 
-  _after(ms, fn) { const id = setTimeout(fn, ms); this._timers.push(id); return id }
+  // (_after / _afterDetached / _clearTimers / _beatLabel inherited from CinematicBase.)
 
   _teardown() {
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
+    this._clearTimers()
     this._auraL?.classList.remove('show'); this._auraR?.classList.remove('show'); this._floor?.classList.remove('show')
     const root = this._root; this._root = null
     this._hud = this._fillV = this._fillB = this._nexus = this._auraL = this._auraR = this._floor = null
@@ -282,8 +281,7 @@ export class RivalShowdownCinematic {
   destroy() {
     for (const [e, fn] of this._listeners) EventBus.off(e, fn)
     this._listeners = []
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
+    this._destroyTimers()
     this._root?.remove(); this._root = null
   }
 }

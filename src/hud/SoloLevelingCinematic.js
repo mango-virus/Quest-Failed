@@ -18,16 +18,16 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { HudSfx } from './HudSfx.js'
 import { domShake } from './screenShake.js'
+import { CinematicBase, CDUR } from './CinematicKit.js'
 
-export class SoloLevelingCinematic {
+export class SoloLevelingCinematic extends CinematicBase {
   constructor() {
+    super()   // _timers / _detached + the tracked-timer + beat-label helpers
     this._stage = document.getElementById('hud-stage')
     this._listeners = []
-    this._timers = []
     this._el = null         // entrance overlay
     this._vs = null         // duel VS card
     this._vignette = null   // persistent edge shadow
-    this._letterbox = null  // duel cinematic bars
     this._finale = null     // duel win/loss climax card
     this._duelHud = null    // live two-bar HP header (during the duel)
     this._advFill = null
@@ -48,15 +48,6 @@ export class SoloLevelingCinematic {
   _ensureDuelCss() {
     if (document.getElementById('qf-sl-duel-css')) return
     const css = `
-.qf-sl-letterbox { position:absolute; inset:0; pointer-events:none; z-index:34; }
-.qf-sl-letterbox .qf-sl-bar { position:absolute; left:0; right:0; height:9vh;
-  background:#02040a;
-  transform:scaleY(0); transition:transform .55s cubic-bezier(.16,.84,.3,1); }
-.qf-sl-letterbox .qf-sl-bar.top    { top:0;    transform-origin:top;
-  box-shadow:0 2px 0 rgba(74,160,255,.55), 0 12px 26px -10px rgba(58,139,255,.55); }
-.qf-sl-letterbox .qf-sl-bar.bottom { bottom:0; transform-origin:bottom;
-  box-shadow:0 -2px 0 rgba(74,160,255,.55), 0 -12px 26px -10px rgba(58,139,255,.55); }
-.qf-sl-letterbox.show .qf-sl-bar { transform:scaleY(1); }
 /* Anchored to the top-left of the DUNGEON VIEW (inside the left HUD column +
    below the top HUD zone), not the screen corner — otherwise it lands on top
    of the boss-status panel. Uses the shared HUD layout vars so it tracks the
@@ -214,7 +205,6 @@ export class SoloLevelingCinematic {
     this._clearTimers()
     this._duelStarted = false
     this._hideCornerHp()
-    this._hideLetterbox()
     this._hideDuelHud()
     if (this._el) { this._el.remove(); this._el = null }
     if (this._vs) { this._vs.remove(); this._vs = null }
@@ -257,40 +247,6 @@ export class SoloLevelingCinematic {
     this._after(420, () => this._el?.classList.remove('flash'))
   }
 
-  // ── Duel cinematic letterbox ──────────────────────────────────────────────
-  // Slide black bars in from top + bottom for the duration of the duel, framing
-  // the throne-room fight like a cutscene. Lifted in _end() (duel over / Monarch
-  // gone / day end).
-  _showLetterbox() {
-    if (this._letterbox) return
-    const botBar = h('div', { className: 'qf-sl-bar bottom' })
-    this._letterbox = h('div', { className: 'qf-sl-letterbox' }, [
-      h('div', { className: 'qf-sl-bar top' }),
-      botBar,
-    ])
-    this._stage.appendChild(this._letterbox)
-    // Keep the action/bottom bar fully visible during the duel — anchor the
-    // bottom letterbox bar just ABOVE it (rather than over it) so HUD controls
-    // stay usable. Use offsetHeight (local layout px) NOT getBoundingClientRect
-    // (screen px): #hud-stage is transform-scaled, and the CSS `bottom` offset
-    // lives in the same pre-scale local space as offsetHeight. Falls back to
-    // the screen edge if the bottom bar isn't present (e.g. night phase).
-    const chrome = document.querySelector('.qf-bottombar')
-    const offset = chrome ? chrome.offsetHeight : 0
-    if (offset > 0) botBar.style.bottom = `${offset}px`
-    // eslint-disable-next-line no-unused-expressions
-    this._letterbox.offsetHeight
-    this._letterbox.classList.add('show')
-  }
-
-  _hideLetterbox() {
-    if (!this._letterbox) return
-    const lb = this._letterbox
-    this._letterbox = null
-    lb.classList.remove('show')
-    setTimeout(() => lb.remove(), 600)
-  }
-
   // ── Phase beats — screen pulse + a punched-in label ───────────────────────
   _onDuelBeat({ kind } = {}) {
     if (kind !== 'surge' && kind !== 'enrage') return
@@ -298,18 +254,13 @@ export class SoloLevelingCinematic {
     this._stage.appendChild(pulse)
     this._after(820, () => pulse.remove())
     const text = kind === 'enrage' ? 'ENRAGED' : 'POWER SURGE'
-    const lbl  = h('div', { className: `qf-sl-beatlabel ${kind}` }, text)
-    this._stage.appendChild(lbl)
-    // eslint-disable-next-line no-unused-expressions
-    lbl.offsetHeight
-    lbl.classList.add('show')
-    this._after(1550, () => lbl.remove())
+    this._beatLabel(this._stage, text, `qf-sl-beatlabel ${kind}`)
   }
 
   // ── Duel climax — shadow execution (win) / last stand (loss) ──────────────
-  // Uses raw setTimeout (NOT _after) so the card outlives _end() — which fires
-  // moments later on the Monarch's death/flee and would otherwise clear the
-  // removal timer, stranding the card on screen.
+  // The hold timer is DETACHED (_afterDetached) so the card outlives _end() —
+  // which fires moments later on the Monarch's death/flee and would otherwise
+  // clear a tracked timer, stranding the card on screen.
   _onDuelEnd({ result, bossName = 'THE BOSS' } = {}) {
     if (this._finale) this._finale.remove()
     const win = result === 'win'
@@ -324,10 +275,10 @@ export class SoloLevelingCinematic {
     // eslint-disable-next-line no-unused-expressions
     card.offsetHeight
     card.classList.add('show')
-    setTimeout(() => {
+    this._afterDetached(CDUR.finaleHold, () => {
       card.classList.add('closing')
-      setTimeout(() => { card.remove(); if (this._finale === card) this._finale = null }, 520)
-    }, 2800)
+      this._afterDetached(520, () => { card.remove(); if (this._finale === card) this._finale = null })
+    })
   }
 
   // ── Live two-bar duel HUD ─────────────────────────────────────────────────
@@ -412,25 +363,15 @@ export class SoloLevelingCinematic {
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-  _after(ms, fn) {
-    const id = setTimeout(fn, ms)
-    this._timers.push(id)
-    return id
-  }
-
-  _clearTimers() {
-    for (const id of this._timers) clearTimeout(id)
-    this._timers = []
-  }
+  // (_after / _afterDetached / _clearTimers / _beatLabel inherited from CinematicBase.)
 
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn)
     this._listeners = []
-    this._clearTimers()
+    this._destroyTimers()
     this._el?.remove(); this._el = null
     this._vs?.remove(); this._vs = null
     this._vignette?.remove(); this._vignette = null
-    this._letterbox?.remove(); this._letterbox = null
     this._finale?.remove(); this._finale = null
     this._duelHud?.remove(); this._duelHud = null
     this._advFill = null; this._bossFill = null
