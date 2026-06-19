@@ -16,6 +16,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { effectiveUiScale } from './stageScale.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
 import { passiveIncomeMul } from '../config/balance.js'
@@ -163,8 +164,20 @@ export class InspectPopup {
   _position(x, y) {
     const el = this._el
     if (!el) return
-    const w  = el.offsetWidth  || 230
-    const ht = el.offsetHeight || 130
+    // The popup is a `position: fixed` element on document.body, so it does
+    // NOT inherit #hud-stage's `zoom`. Scale it ourselves to match the HUD,
+    // around a clean `transform-origin: 0 0` so the box grows down-right from
+    // (left, top) and the flip/clamp math below stays a plain affine.
+    const s = effectiveUiScale()
+    el.style.transformOrigin = '0 0'
+    // --tt-scale makes the `tooltip-in` entrance keyframe animate TO scale(s)
+    // so it lands on the resting transform below instead of popping.
+    el.style.setProperty('--tt-scale', String(s))
+    el.style.transform = s === 1 ? '' : `scale(${s})`
+    // On-screen footprint = unscaled box × scale (offset* report the unscaled,
+    // pre-transform layout size).
+    const w  = (el.offsetWidth  || 230) * s
+    const ht = (el.offsetHeight || 130) * s
     // Default down-right of the cursor; flip / clamp to stay on-screen.
     // y+44 clears the 42-px custom cursor sprite's bottom edge so the
     // tooltip header isn't covered. x+16 keeps it anchored close to

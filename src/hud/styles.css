@@ -1171,9 +1171,15 @@ html.gamepad-active #qf-cursor { display: none; }
   font-weight: normal; letter-spacing: 1px;
   font-variant-numeric: tabular-nums;
 }
+/* The entrance scale is RELATIVE to --tt-scale (set by floating popups that
+   live on document.body, outside #hud-stage's `zoom`, so they scale themselves
+   to match the HUD's UI scale — see PactDetailPopup / InspectPopup). Defaults to
+   1 for in-stage tooltips that don't set it. The `to` frame must equal the
+   element's resting inline `transform: scale(var)` so the entrance lands on it
+   seamlessly instead of popping. */
 @keyframes tooltip-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0)   scale(1); }
+  from { opacity: 0; transform: translateY(4px) scale(calc(0.96 * var(--tt-scale, 1))); }
+  to   { opacity: 1; transform: translateY(0)   scale(var(--tt-scale, 1)); }
 }
 
 /* ---------- Inspect popup (hover) ---------- */

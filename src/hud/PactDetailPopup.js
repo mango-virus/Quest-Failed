@@ -8,6 +8,7 @@
 
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { effectiveUiScale } from './stageScale.js'
 
 export class PactDetailPopup {
   constructor() {
@@ -22,22 +23,19 @@ export class PactDetailPopup {
     if (!pact) return
     this.hide()
     const color = pact.color || 'var(--info)'
-    // Anchor presets:
-    //   'left'  — tooltip's right edge at x, vertical center at y (default;
-    //             used by BossOverview pact rows positioned on the right
-    //             side of the screen).
-    //   'below' — tooltip horizontally centered on x, top edge at y
-    //             (used by TopBar buff slots near the top of the screen).
-    const transform = anchor === 'below'
-      ? 'translate(-50%, 0)'
-      : 'translate(-100%, -50%)'
+    // The tooltip is a `position: fixed` element on document.body, so it does
+    // NOT inherit #hud-stage's `zoom` — at a non-1.0 UI scale it would render
+    // at the wrong size relative to the surrounding HUD. We scale it ourselves
+    // to match (see _positionAnchored). Anchored via measured left/top with a
+    // clean `transform-origin: 0 0` rather than percentage translate, because
+    // translate-percent + scale don't compose cleanly around a non-(0,0) origin.
     this._el = h('div', {
       className: 'tooltip qf-pact-tooltip',
       style: {
         position: 'fixed',
-        left: `${x}px`,
-        top:  `${y}px`,
-        transform,
+        left: '0px',
+        top:  '0px',
+        transformOrigin: '0 0',
         '--pact-color': color,
         borderColor: color,
       },
@@ -71,6 +69,40 @@ export class PactDetailPopup {
       ]),
     ])
     document.body.appendChild(this._el)
+    this._positionAnchored(x, y, anchor)
+  }
+
+  // Place the (now-mounted) tooltip so its anchor point lands exactly at the
+  // viewport coords (x, y), scaled by the HUD's UI scale. Anchor presets:
+  //   'left'  — right edge at x, vertical center at y (default; BossOverview
+  //             pact rows on the right side of the screen).
+  //   'below' — horizontally centered on x, top edge at y (TopBar buff slots
+  //             near the top of the screen).
+  // We measure the unscaled box (offsetWidth/Height), multiply by the scale to
+  // get the on-screen footprint, then position the top-left corner so the
+  // chosen anchor coincides with (x, y). scale() is applied around origin 0 0
+  // so the math is a clean affine: viewport pos = left + localPos * s.
+  _positionAnchored(x, y, anchor) {
+    const el = this._el
+    if (!el) return
+    const s  = effectiveUiScale()
+    const w  = (el.offsetWidth  || 0) * s
+    const ht = (el.offsetHeight || 0) * s
+    let left, top
+    if (anchor === 'below') {
+      left = x - w / 2   // h-center at x
+      top  = y           // top edge at y
+    } else {             // 'left'
+      left = x - w       // right edge at x
+      top  = y - ht / 2  // vertical center at y
+    }
+    // Resting transform = scale(s). --tt-scale tells the `tooltip-in` entrance
+    // keyframe to animate TO scale(s) too, so it lands on the resting transform
+    // seamlessly instead of popping from scale(1) → scale(s).
+    el.style.setProperty('--tt-scale', String(s))
+    el.style.transform = s === 1 ? '' : `scale(${s})`
+    el.style.left = `${left}px`
+    el.style.top  = `${top}px`
   }
 
   hide() {
