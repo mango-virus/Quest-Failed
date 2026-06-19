@@ -386,9 +386,12 @@ export class SettingsOverlay {
     ]
     if (this._tab === 'video') return [
       this._lever('FULLSCREEN', 'fullscreen'),
-      this._seg('UI SCALE', 'uiScale', [
-        { v: 'auto', l: 'AUTO' }, { v: '1', l: '100%' }, { v: '1.25', l: '125%' },
-        { v: '1.5', l: '150%' }, { v: '2', l: '200%' },
+      // UI SCALE is the text-scaling control for this zoom-based HUD (it
+      // enlarges chrome + text uniformly + crisply). Labelled UI & TEXT SIZE
+      // so it reads as the accessibility setting it is (UI_POLISH_PLAN P1-5).
+      this._seg('UI & TEXT SIZE', 'uiScale', [
+        { v: 'auto', l: 'AUTO' }, { v: '1', l: '100%' }, { v: '1.1', l: '110%' },
+        { v: '1.25', l: '125%' }, { v: '1.5', l: '150%' }, { v: '2', l: '200%' },
       ]),
       this._lever('CRT SCANLINES', 'scanlines'),
       this._lever('EDGE VIGNETTE', 'vignette'),

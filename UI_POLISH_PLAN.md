@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 4 |
+| 1 — Input & accessibility | 7 | 5 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -163,11 +163,12 @@
   - [x] Live: ON freezes (`1e-05s`), OFF restores (`3.4s`), AUTO follows OS, persists (`localStorage['qf.video.reduceMotion']`); zero console errors.
 - **Files:** new `src/hud/motion.js`, `src/main.js` (early apply on import — chosen over HudRoot so the class is set before the menu renders), `src/hud/SettingsOverlay.js`, `src/hud/styles.css` (one global reset), `src/hud/countUp.js`.
 
-### P1-5 — Text-size setting `[M]` ⬜
+### P1-5 — Text-size setting `[S]` ✅ *(2026-06-19)*
 - **Problem:** No text-scaling option (`VISUAL_STANDARDS §7`).
+- **Decision (user, 2026-06-19):** **Relabel UI SCALE.** The HUD is a uniform CSS-`zoom` stage (`stageScale.js`), so UI SCALE already enlarges chrome + text together, crisply, and `zoom` can't overflow the fixed-px layouts. A separate independent text-size would be redundant (whole-UI zoom) or a large/risky per-text retrofit — so the honest, no-redundancy choice is to make UI SCALE clearly serve as the text-size accessibility control.
 - **Acceptance:**
-  - [ ] Settings control scales HUD/menu text legibly without breaking fixed-px layouts.
-- **Files:** `src/hud/SettingsOverlay.js`, `src/hud/stageScale.js` / `styles.css`.
+  - [x] UI SCALE seg relabelled **"UI & TEXT SIZE"** + finer **110%** step added (AUTO/100/110/125/150/200). `uiScalePref()` coerces `'1.1'`→`1.1` (range 0.5–3); selecting 110% → `effectiveUiScale()===1.1` and `--ui-scale` var = 1.1 (zoom applies). Verified via import (the Boot wedge blocked a full screenshot; the DOM seg + scaling logic confirmed). Zero console errors.
+- **Files:** `src/hud/SettingsOverlay.js`.
 
 ### P1-6 — Colorblind / high-contrast `[L]` ⏸ *(stretch)*
 - **Problem:** No colorblind/high-contrast palette.
