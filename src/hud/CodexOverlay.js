@@ -81,8 +81,42 @@ export class CodexOverlay {
       .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1) || String(a.name).localeCompare(String(b.name)))
   }
 
+  // Live gameState (Codex opens in-game from Pause) — drives per-run discovery.
+  _gs() {
+    return window.__game?.scene?.getScene?.('Game')?.gameState ?? null
+  }
+
+  _bossLevel() { return this._gs()?.boss?.level ?? 1 }
+
+  // Adventurer classes ENCOUNTERED this run (currently invading, killed, or in
+  // the knowledge list). A class is "discovered" once any of its members shows up.
+  _seenAdvClasses() {
+    if (this._advSeen) return this._advSeen
+    const a = this._gs()?.adventurers ?? {}
+    const set = new Set()
+    for (const list of [a.active, a.graveyard, a.known]) {
+      if (!Array.isArray(list)) continue
+      for (const e of list) {
+        const c = e?.classId ?? e?.class ?? e?.classKey
+        if (c) set.add(String(c))
+      }
+    }
+    this._advSeen = set
+    return set
+  }
+
+  // Is this entry discovered yet (per the per-run model)?
+  //   adventurers — encountered this run; buildables — unlocked at boss level.
+  _isDiscovered(tabId, d) {
+    if (tabId === 'adv') return this._seenAdvClasses().has(String(d.id))
+    return (d.unlockLevel ?? 1) <= this._bossLevel()
+  }
+
   _count(tab) {
-    return tab.id === 'guide' ? GUIDE.length : this._entriesFor(tab.cache).length
+    if (tab.id === 'guide') return GUIDE.length
+    const entries = this._entriesFor(tab.cache)
+    const found = entries.filter(d => this._isDiscovered(tab.id, d)).length
+    return `${found}/${entries.length}`
   }
 
   _renderBody() {
@@ -106,17 +140,40 @@ export class CodexOverlay {
       return GUIDE.map(g => this._card({ color: g.c, glyph: g.icon, name: g.name, desc: g.desc }))
     }
     const showCost = tab.id !== 'adv'   // adventurers aren't bought, no cost chip
-    return this._entriesFor(tab.cache).map(d => this._card({
-      color: tab.color,
-      glyph: tab.glyph,
-      name:  String(d.name ?? d.id ?? '').toUpperCase(),
-      desc:  d.description ?? '',
-      cost:  showCost ? d.goldCost : null,
-      lv:    d.unlockLevel ?? 1,
-    }))
+    const lv = tab.id === 'adv' ? null : true   // buildables show the unlock-level teaser
+    return this._entriesFor(tab.cache).map(d => {
+      const discovered = this._isDiscovered(tab.id, d)
+      return this._card({
+        color: tab.color,
+        glyph: tab.glyph,
+        name:  String(d.name ?? d.id ?? '').toUpperCase(),
+        desc:  d.description ?? '',
+        cost:  showCost ? d.goldCost : null,
+        lv:    lv ? (d.unlockLevel ?? 1) : null,
+        locked: !discovered,
+        // Locked teaser: buildables reveal WHEN they unlock; adventurers stay coy.
+        lockHint: tab.id === 'adv'
+          ? 'Not yet encountered — defeat this foe to record it.'
+          : `Unlocks at boss level ${d.unlockLevel ?? 1}.`,
+      })
+    })
   }
 
-  _card({ color, glyph, name, desc, cost, lv } = {}) {
+  _card({ color, glyph, name, desc, cost, lv, locked, lockHint } = {}) {
+    if (locked) {
+      // "???" card: hide the name + flavour, keep the unlock-level teaser (if any)
+      // so the player knows something's coming and how to reach it.
+      return h('div', { className: 'qf-cdx-card locked', style: { '--cc': color } }, [
+        h('div', { className: 'qf-cdx-ico' }, '?'),
+        h('div', { className: 'qf-cdx-txt' }, [
+          h('div', { className: 'qf-cdx-head' }, [
+            h('span', { className: 'pix qf-cdx-name' }, '? ? ?'),
+            lv != null ? h('span', { className: 'sil qf-cdx-meta', style: { color } }, `LV ${lv}`) : null,
+          ].filter(Boolean)),
+          lockHint && h('div', { className: 'qf-cdx-desc qf-cdx-lockhint' }, lockHint),
+        ]),
+      ])
+    }
     const meta = []
     if (cost != null) {
       meta.push(cost === 0

@@ -30,7 +30,7 @@
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
-| 3 — Discoverability & onboarding | 5 | 2 |
+| 3 — Discoverability & onboarding | 5 | 3 |
 | 4 — Final discipline | 3 | 0 |
 
 ---
@@ -285,10 +285,13 @@
   - [x] Still first-run-gated; skippable on repeat. *(`introSeen` gate; SKIP/Esc; finish sets `introSeen=true` + persists the hint choice + emits `INTRO_DISMISSED` + closes clean — all verified, zero errors.)*
 - **Files:** `src/hud/WelcomeIntroOverlay.js`, `src/hud/styles.css`.
 
-### P3-3 — Codex locked / "???" states `[M]` ⬜
+### P3-3 — Codex locked / "???" states `[M]` ✅ *(2026-06-19)*
 - **Problem:** Every Codex entry is always fully revealed — no discovery feel.
-- **Acceptance:** [ ] Undiscovered entries show a locked/"???" state; reveal on first encounter.
-- **Files:** `src/hud/CodexOverlay.js` (+ a discovery source).
+- **Decision (user, 2026-06-19):** discovery = **per-run, derived** from gameState (no new persistence/hooks). ⚠ Investigation note: buildables ARE progression-gated (minions/rooms/traps carry real `unlockLevel` 1–15/99 in their JSON; the build drawer locks `unlockLevel > boss.level`). My initial "everything unlocks at 1" reading was the **mango cheat** (`Game._applyMangoCheatUnlocks` stamps `unlockLevel→1` at runtime for the mango name only) — NOT the real data. So the unlock-level model is correct for real players.
+- **Design (built):** `CodexOverlay._isDiscovered(tabId, d)` — **adventurers** discovered once their class has been encountered this run (read from `gs.adventurers.active/graveyard/known` classIds); **buildables** (min/room/trap) discovered once `(d.unlockLevel ?? 1) <= gs.boss.level` (same gate as the build drawer). Undiscovered → a `.locked` "? ? ?" card (dimmed/dashed, lock glyph) with a teaser: buildables "Unlocks at boss level N", adventurers "Not yet encountered — defeat this foe to record it." Tab counts now show `discovered/total`. Reads the live Game-scene gameState. (Mango sees everything discovered, since its `unlockLevel` is forced to 1 + it encounters via cheat — correct for the cheat.)
+- **Acceptance:**
+  - [x] Undiscovered entries show a locked/"???" state; reveal on first encounter. *(CDP-verified as a NON-mango player at boss level 1: 18/21 minions, 19/24 rooms, 8/8 traps locked with "Unlocks at boss level N"; adventurers 1/18 with only the encountered class revealed. Reveals as boss levels up / foes are faced. Zero errors.)*
+- **Files:** `src/hud/CodexOverlay.js`, `src/hud/styles.css`.
 
 ### P3-4 — Pact-seal entrance feedback `[S]` ⬜
 - **Problem:** A newly-sealed pact just appears in the TopBar buff slot — no celebration in the chrome.
