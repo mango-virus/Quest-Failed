@@ -3293,6 +3293,14 @@ body {
   color: var(--text-mute);
   letter-spacing: 2px;
 }
+.qf-wave-party-empty-hint {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--rumor);
+  opacity: 0.85;
+}
 .qf-wave-party {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

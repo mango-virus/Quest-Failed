@@ -27,7 +27,7 @@
 
 | Phase | Items | Done |
 |---|---|---|
-| 0 — Foundation & sweep | 7 | 2 |
+| 0 — Foundation & sweep | 7 | 3 |
 | 1 — Input & accessibility | 7 | 0 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
@@ -54,15 +54,15 @@
   - [x] Main menu visually identical in Electron-path preview (full-res screenshot), zero console errors.
 - **Files:** `src/hud/styles.css`, `src/hud/HudSfx.js`.
 
-### P0-3 — Fix dead-feel paths `[M]` ⬜
+### P0-3 — Fix dead-feel paths `[M]` ✅ *(pending commit)*
 - **Problem:** Several surfaces present controls/data that do nothing or never populate, reading as broken.
 - **Acceptance:**
-  - [ ] **KnowledgeMap SCRUB INTEL:** either wire `KNOWLEDGE_SCRUB_REQUEST` gameplay-side, or hide the button until it's functional. (`KnowledgeMapOverlay.js`)
-  - [ ] **FullLog LOSSES/LEVELS filters:** populate from real events, or remove the two always-empty filters. (`FullLogOverlay.js`)
-  - [ ] **KnowledgeMap placeholders:** replace exposure-delta `—`, the flat 3-bar sparkline, and always-"DAY today" LAST LEAK with real data, or remove those stat slots.
-  - [ ] **`theme: 'soul'`** in `KnowledgeMapOverlay._onScrub` → a valid `ConfirmPopup` theme key.
-  - [ ] **IncomingWave empty state:** show a "Build a Library of Whispers to reveal the wave" hint instead of a bare "PARTY · UNKNOWN". (`RightPanels.js`)
-- **Files:** `src/hud/KnowledgeMapOverlay.js`, `src/hud/FullLogOverlay.js`, `src/hud/RightPanels.js`.
+  - [x] **SCRUB INTEL** was already wired (`KnowledgeSystem._onScrubRequest` debits gold + scrubs intel) — the "inert" comment was stale; updated it. Button kept.
+  - [x] **FullLog LOSSES/LEVELS filters** removed (no event source populates `minion-fell`/`wound`/`level`); ALL/KILLS/LEAKS/PACTS remain — verified live.
+  - [x] **KnowledgeMap placeholders:** removed the fake exposure delta + flat sparkline (+ now-unused `_sparkline`); **LAST LEAK made real** (newest `adventurers.known` lastEscapedDay → shows real "DAY 8", `—` if never). Verified live.
+  - [x] **`theme: 'soul'`** → `'blue'` (valid ConfirmPopup theme).
+  - [x] **IncomingWave:** added "Build a Library of Whispers to reveal who's coming." hint, shown only when no Library is placed — verified live.
+- **Files:** `src/hud/KnowledgeMapOverlay.js`, `src/hud/FullLogOverlay.js`, `src/hud/RightPanels.js`, `src/hud/styles.css`.
 
 ### P0-4 — Persist & re-apply fullscreen `[S]` ⬜
 - **Problem:** `qf.video.fullscreen` is saved but never re-applied on boot — "saved" setting that's actually session-only.

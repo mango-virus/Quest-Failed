@@ -457,8 +457,15 @@ export class RightPanels {
   _renderPartyRow(party) {
     const VISIBLE = 3
     if (!party || party.length === 0) {
+      // Empty party = the classes are hidden because no Library of Whispers
+      // is placed (the gating room — see _forecastParty). Surface that so the
+      // stub reads as "gated", not "broken".
+      const hasLibrary = (this._gameState.dungeon?.rooms ?? [])
+        .some(r => r.definitionId === 'library_of_whispers' && r.isActive !== false)
       return h('div', { className: 'qf-wave-party-empty' }, [
         h('div', { className: 'pix qf-wave-party-empty-label' }, 'PARTY · UNKNOWN'),
+        !hasLibrary && h('div', { className: 'qf-wave-party-empty-hint' },
+          'Build a Library of Whispers to reveal who’s coming.'),
       ])
     }
     if (party.length <= VISIBLE) {

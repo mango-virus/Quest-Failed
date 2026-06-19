@@ -21,13 +21,13 @@
 //   * `gameState.dungeon.rooms` — room placements (tileX/tileY/width/height).
 //   * `gameState.knowledge.survivors` — adventurers who fled with intel;
 //     used for source attribution per leaked room.
-//   * Sparkline / "fresh today" / LAST LEAK — no per-day intel timeline
-//     in gameState yet, so these render as best-effort placeholders.
-//     `hud2-knowledge-history-data` would track them.
+//   * Exposure TREND (delta + sparkline) needs a per-day intel timeline
+//     gameState doesn't keep — those fake placeholders were removed.
+//     LAST LEAK is real (newest `adventurers.known` lastEscapedDay).
 //
-// Wiring: SCRUB INTEL button emits `KNOWLEDGE_SCRUB_REQUEST { roomId,
-// cost }` for gameplay-side handling (currently inert — same shape as
-// the existing Phaser popup's contract).
+// Wiring: SCRUB INTEL button emits `KNOWLEDGE_SCRUB_REQUEST { roomId, cost }`,
+// handled by `KnowledgeSystem._onScrubRequest` (debits gold + scrubs the
+// room's room/enemy/trap intel from the shared pool + every survivor).
 
 import { h, mount } from './dom.js'
 import { Overlay } from './Overlay.js'
@@ -349,8 +349,11 @@ export class KnowledgeMapOverlay {
     const leakedRooms = this._leakedRooms()
     const totalIntel = leakedRooms.reduce(
       (s, r) => s + this._intelEntriesFor(r.id).length, 0)
-    const day = this._gameState.meta?.dayNumber ?? 1
-    const lastLeakDay = day  // best-effort placeholder
+    // LAST LEAK = the most recent day an adventurer escaped carrying intel
+    // (the same lastEscapedDay the Dungeon Log reads). 0 → never leaked.
+    const known = this._gameState.adventurers?.known ?? []
+    const escapeDays = known.map(k => k.lastEscapedDay ?? 0).filter(d => d > 0)
+    const lastLeakDay = escapeDays.length ? Math.max(...escapeDays) : 0
 
     return h('div', { className: 'qf-knowmap-body' }, [
       // Summary strip
@@ -358,7 +361,7 @@ export class KnowledgeMapOverlay {
         this._exposureBlock(exposure),
         this._summaryStat('ROOMS LEAKED',  String(leakedRooms.length), 'var(--warn)'),
         this._summaryStat('INTEL ENTRIES', String(totalIntel),         'var(--rumor)'),
-        this._summaryStat('LAST LEAK',     `DAY ${lastLeakDay}`,       'var(--text)'),
+        this._summaryStat('LAST LEAK',     lastLeakDay ? `DAY ${lastLeakDay}` : '—', 'var(--text)'),
       ]),
       // Two-column main
       h('div', { className: 'qf-knowmap-main' }, [
@@ -425,9 +428,9 @@ export class KnowledgeMapOverlay {
             textShadow: `0 0 8px ${color}55`,
           },
         }, `${exposure}%`),
-        h('span', { className: 'pix qf-knowmap-exposure-delta' }, '—'),
+        // (Removed the fake delta + flat 3-bar sparkline — gameState keeps no
+        // per-day intel timeline to derive a real trend from. EXPOSURE % is real.)
       ]),
-      this._sparkline([exposure, exposure, exposure], 'var(--warn)'),
     ])
   }
 
@@ -439,20 +442,6 @@ export class KnowledgeMapOverlay {
         style: { color, textShadow: `0 0 8px ${color}33` },
       }, value),
     ])
-  }
-
-  _sparkline(points, color) {
-    const max = Math.max(...points, 1)
-    return h('div', { className: 'qf-knowmap-sparkline' },
-      points.map(p => h('div', {
-        className: 'qf-knowmap-spark-bar',
-        style: {
-          height: `${(p / max) * 100}%`,
-          background: color,
-          boxShadow: `0 0 4px ${color}66`,
-        },
-      }))
-    )
   }
 
   // Category-filter toolbar — one toggle button per intel category.
@@ -858,7 +847,7 @@ export class KnowledgeMapOverlay {
       message:      `Spend ${cost}g to scrub ${room.name} intel from the shared pool?`,
       confirmLabel: 'SCRUB',
       cancelLabel:  'KEEP',
-      theme:        'soul',
+      theme:        'blue',
       onConfirm: () => {
         EventBus.emit('KNOWLEDGE_SCRUB_REQUEST', { roomId: room.id, cost })
         // Defer rerender so the gameplay side has a chance to update pool first

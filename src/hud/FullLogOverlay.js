@@ -62,13 +62,15 @@ const LOG_KIND_META = {
   end:           { c: 'var(--blood)',                    glyph: '⸺' },
 }
 
+// Only filters the synthesized log can actually populate (see _buildLog).
+// LOSSES (minion-fell/wound) and LEVELS were dropped — gameState keeps no
+// per-event source for them, so those tabs always rendered empty. Re-add
+// them if/when a real timestamped event log lands.
 const FILTERS = [
   { id: 'ALL',    label: 'ALL',    match: () => true },
   { id: 'KILLS',  label: 'KILLS',  match: (e) => e.kind === 'kill' || e.kind === 'death' },
   { id: 'LEAKS',  label: 'LEAKS',  match: (e) => e.kind === 'leak' },
   { id: 'PACTS',  label: 'PACTS',  match: (e) => e.kind === 'pact' },
-  { id: 'LOSSES', label: 'LOSSES', match: (e) => e.kind === 'minion-fell' || e.kind === 'wound' },
-  { id: 'LEVELS', label: 'LEVELS', match: (e) => e.kind === 'level' },
 ]
 
 export class FullLogOverlay {
