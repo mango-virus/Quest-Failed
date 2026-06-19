@@ -28,6 +28,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
+import { getBind, keyLabel, KEYBINDS_CHANGED } from './HudKeybinds.js'
 import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
 import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 
@@ -69,10 +70,10 @@ export class BottomBar {
   _build() {
     this._refs = {}
     const modes = [
-      { id: 'place',   label: 'PLACE',   icon: '✛' /* + */ },
-      { id: 'move',    label: 'MOVE',    icon: '⤷' /* ⤷ */ },
-      { id: 'upgrade', label: 'UPGRADE', icon: '⬆' /* tier up */ },
-      { id: 'sell',    label: 'SELL',    icon: '⌫' /* delete */ },
+      { id: 'place',   label: 'PLACE',   icon: '✛' /* + */,        tip: 'Open the build drawer — place rooms, minions & traps' },
+      { id: 'move',    label: 'MOVE',    icon: '⤷' /* ⤷ */,        tip: 'Pick up & relocate a placed room or minion' },
+      { id: 'upgrade', label: 'UPGRADE', icon: '⬆' /* tier up */,  tip: 'Upgrade a minion or room to its next tier' },
+      { id: 'sell',    label: 'SELL',    icon: '⌫' /* delete */,   tip: 'Sell a placed room, minion or trap back for gold' },
     ]
 
     const root = h('div', { className: 'qf-bottombar' }, [
@@ -82,7 +83,7 @@ export class BottomBar {
           modes.map(m => h('button', {
             className: 'btn qf-bb-mode',
             dataset: { mode: m.id },
-            ref: el => { this._refs[`mode_${m.id}`] = el },
+            ref: el => { this._refs[`mode_${m.id}`] = el; this._registerTip(el, m.tip, m.id) },
             on: { click: () => this._onModeClick(m.id) },
           }, [
             h('span', { className: 'qf-bb-mode-icon' }, m.icon),
@@ -162,18 +163,22 @@ export class BottomBar {
           ]),
           h('button', {
             className: 'btn qf-bb-menu',
+            ref: el => this._registerTip(el, 'Review & manage your minion roster', 'roster'),
             on: { click: () => EventBus.emit('OPEN_MINION_ROSTER') },
           }, [h('span', { className: 'qf-bb-menu-icon poison' }, '▤'), ' ROSTER']),
           h('button', {
             className: 'btn qf-bb-menu',
+            ref: el => this._registerTip(el, 'Knowledge Map — what the heroes have learned about your dungeon', 'map'),
             on: { click: () => EventBus.emit('OPEN_KNOWLEDGE_MAP') },
           }, [h('span', { className: 'qf-bb-menu-icon muted' }, '◈'), ' MAP']),
           h('button', {
             className: 'btn qf-bb-menu',
+            ref: el => this._registerTip(el, 'Adventurer Intel — who’s coming & their weaknesses', 'intel'),
             on: { click: () => EventBus.emit('OPEN_ADV_INTEL') },
           }, [h('span', { className: 'qf-bb-menu-icon warn' }, '◈'), ' INTEL']),
           h('button', {
             className: 'btn qf-bb-menu',
+            ref: el => this._registerTip(el, 'Pause — options, codex & quit', 'pause'),
             on: { click: () => EventBus.emit('OPEN_PAUSE_MENU') },
           }, [h('span', { className: 'qf-bb-menu-icon blood' }, '≡'), ' MENU']),
         ]),
@@ -188,6 +193,27 @@ export class BottomBar {
     this._setArmedMode('place')
     this._setActiveSpeed(1)
     return root
+  }
+
+  // ── Action-bar tooltips (P3-1) ────────────────────────────────────────
+  // Each control gets a `data-tip` (CSS tooltip in styles.css) = a short
+  // semantic description + its live keybind, so the bar is self-documenting
+  // (discoverability) and doubles as a controls reference. The key is read
+  // live from the rebindable store and refreshed on KEYBINDS_CHANGED.
+  _registerTip(el, desc, bindId) {
+    if (!el) return
+    this._tipButtons = this._tipButtons || []
+    this._tipButtons.push({ el, desc, bindId })
+    this._applyTip(el, desc, bindId)
+  }
+
+  _applyTip(el, desc, bindId) {
+    const key = bindId ? keyLabel(getBind(bindId)) : null
+    el.dataset.tip = key ? `${desc}  ·  ${key}` : desc
+  }
+
+  _refreshTips() {
+    for (const t of (this._tipButtons || [])) this._applyTip(t.el, t.desc, t.bindId)
   }
 
   _onModeClick(mode) {
@@ -405,6 +431,8 @@ export class BottomBar {
     // the initial _build ran before SaveSystem rehydrated the day count.
     // Re-check on Game.js's load-completed broadcast.
     sub('GAME_STATE_LOADED', () => this._rebuildSpeedBtns())
+    // Keep the tooltips' keybind hints in sync when the player rebinds (P1-3).
+    sub(KEYBINDS_CHANGED, () => this._refreshTips())
   }
 
   _tick() {

@@ -30,7 +30,7 @@
 | 0 — Foundation & sweep | 7 | 7 |
 | 1 — Input & accessibility | 7 | 7 |
 | 2 — Hero moments & game feel | 6 | 6 |
-| 3 — Discoverability & onboarding | 5 | 0 |
+| 3 — Discoverability & onboarding | 5 | 1 |
 | 4 — Final discipline | 3 | 0 |
 
 ---
@@ -269,10 +269,12 @@
 
 ## Phase 3 — Discoverability & onboarding
 
-### P3-1 — Action-bar tooltips `[S]` ⬜
+### P3-1 — Action-bar tooltips `[S]` ✅ *(2026-06-19)*
 - **Problem:** The primary control surface (PLACE/MOVE/UPGRADE/SELL/ROSTER/MAP/INTEL/MENU) has no `title`/hover description.
-- **Acceptance:** [ ] Each `qf-bb-mode`/`qf-bb-menu` button has a tooltip explaining its tool/semantics.
-- **Files:** `src/hud/BottomBar.js`, `styles.css`.
+- **Design (built):** a lightweight `data-tip` CSS tooltip (not the heavy `.tooltip` InspectPopup shell) that pops ABOVE the button (the bar is bottom-anchored) on **hover AND focus-visible** (so keyboard/gamepad nav from P1-2 surfaces it too), ~0.35s show delay, hides instantly. Each tip is dual-purpose for the discoverability goal: a short **semantic description + the live keybind** read from the rebindable store (`getBind`/`keyLabel`) and refreshed on `KEYBINDS_CHANGED`. `BottomBar._registerTip(el, desc, bindId)` collects the 8 buttons + sets `data-tip`; `styles.css` has the `.qf-bottombar [data-tip]::after/::before` rule.
+- **Acceptance:**
+  - [x] Each `qf-bb-mode`/`qf-bb-menu` button has a tooltip explaining its tool/semantics. *(CDP-verified in-game: all 8 buttons carry a correct `data-tip` with the live key — PLACE·B, MOVE·M, UPGRADE·U, SELL·X, ROSTER·R, MAP·K, INTEL·I, MENU·ESC; `::after` content resolves, base opacity 0, tooltip box renders [screenshot].)*
+- **Files:** `src/hud/BottomBar.js`, `src/hud/styles.css`.
 
 ### P3-2 — WelcomeIntro → real onboarding `[L]` ⬜
 - **Problem:** The first screen a buyer sees is a 3-paragraph text wall.
