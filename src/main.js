@@ -38,6 +38,7 @@ import { HudScene }        from './scenes/HudScene.js'
 import { RoomTileEditor }  from './scenes/RoomTileEditor.js'
 import { installCustomCursor } from './hud/CustomCursor.js'
 import { installFocusMute } from './hud/focusMute.js'
+import { installGamepadNav } from './hud/GamepadNav.js'
 // PerfHud — Ctrl+Shift+P toggles a per-system tick-time overlay.
 // Importing here just installs the key listener (idempotent); the
 // overlay itself only mounts when toggled on. Zero-cost when hidden.
@@ -127,6 +128,11 @@ installCustomCursor()
 // Mute all audio while the window is unfocused, when the OPTIONS toggle
 // "MUTE WHEN UNFOCUSED" is on (default). Idempotent; reads the live setting.
 installFocusMute()
+
+// Controller / gamepad navigation across the whole DOM HUD (menus + chrome
+// + overlays). Top-level install so it's active on the title screen before
+// HudRoot mounts. Polls only while a pad is connected — zero cost otherwise.
+installGamepadNav()
 
 // On window resize, debounce a layout pass — UI scenes get restarted so their
 // create() can re-run applyUiCamera and rebuild element positions for the new

@@ -415,6 +415,9 @@ export class MainMenuOverlay {
       ref: el => { this._btns[0] = el },
       on: {
         mouseenter: () => { if (hasSave) this._select(0) },
+        // Gamepad nav focuses native buttons — mirror hover so the menu's
+        // own `.on` highlight tracks the controller focus ring.
+        focus: () => { if (hasSave) this._select(0) },
         click: () => { if (hasSave) this._press(0) },
       },
     }, [
@@ -475,7 +478,7 @@ export class MainMenuOverlay {
     return h('button', {
       className: cls,
       ref: el => { this._btns[1] = el },
-      on: { mouseenter: () => this._select(1), click: () => this._press(1) },
+      on: { mouseenter: () => this._select(1), focus: () => this._select(1), click: () => this._press(1) },
     }, [
       h('span', { className: 'qcm-glyph', style: { color: 'var(--blood-glow)' } }, '✦'),
       h('span', { className: 'qcm-itxt' }, [
@@ -501,7 +504,7 @@ export class MainMenuOverlay {
     return h('button', {
       className: 'qcm-item' + (on ? ' on' : ''),
       ref: el => { this._btns[it.idx] = el },
-      on: { mouseenter: () => this._select(it.idx), click: () => this._press(it.idx) },
+      on: { mouseenter: () => this._select(it.idx), focus: () => this._select(it.idx), click: () => this._press(it.idx) },
     }, [
       h('span', { className: 'qcm-glyph', style: on ? undefined : { color: it.c } }, it.g),
       h('span', { className: 'qcm-itxt' }, [h('span', { className: 'pix qcm-il' }, it.l)]),
@@ -524,6 +527,10 @@ export class MainMenuOverlay {
     return h('button', {
       className: 'qcm-ver',
       title: "What's new in this version",
+      // Peripheral footer chip — kept out of gamepad spatial nav so it can't
+      // hijack a cardinal move from the primary menu items (it's a tiny
+      // bottom-right corner button). Still mouse-clickable. See GamepadNav.
+      dataset: { navSkip: '1' },
       ref: el => { (this._refs ||= {}).version = el },
       on: { click: () => this._activate('whatsnew') },
     }, ['v ', h('b', null, '0.1.4'), nu && h('span', { className: 'sil qcm-ver-nu' }, 'NEW')])
@@ -533,6 +540,7 @@ export class MainMenuOverlay {
     return h('button', {
       className: 'qcm-dev',
       title: 'Mango dev tools',
+      dataset: { navSkip: '1' },   // peripheral footer chip — out of gamepad nav
       on: { click: () => this._activate('devtools') },
     }, [h('span', { className: 'qcm-dev-gear' }, '⚙'), 'DEV TOOLS'])
   }
@@ -790,6 +798,13 @@ export class MainMenuOverlay {
 
   // ─── Keybinds: grid navigation + select + quit ─────────────────────────
   _onKey(e) {
+    // A child overlay (What's New / Options / Leaderboard / name-entry /
+    // confirm …) owns input while it's open — don't let the menu's arrow
+    // nav move the selection behind it, and (critically) don't let Esc fall
+    // through to QUIT when the player only meant to close the overlay. The
+    // overlay's own Esc handler closes it; this menu must stay inert. Mirrors
+    // the modal-open guard in HudKeybinds / GamepadNav.
+    if (document.querySelector('.overlay, .qf-cf-layer, .qf-nameentry')) return
     const find = (i) => {
       for (let r = 0; r < MENU_ROWS.length; r++) {
         const c = MENU_ROWS[r].indexOf(i)

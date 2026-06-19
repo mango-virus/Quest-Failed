@@ -28,7 +28,7 @@
 | Phase | Items | Done |
 |---|---|---|
 | 0 — Foundation & sweep | 7 | 7 |
-| 1 — Input & accessibility | 7 | 5 |
+| 1 — Input & accessibility | 7 | 6 |
 | 2 — Hero moments & game feel | 6 | 0 |
 | 3 — Discoverability & onboarding | 5 | 0 |
 | 4 — Final discipline | 3 | 0 |
@@ -131,12 +131,16 @@
   - [x] Verified live in Electron-path preview; zero console errors throughout.
 - **Files:** new `src/hud/HudKeybinds.js`, `src/hud/HudRoot.js` (own/destroy it), `src/scenes/NightPhase.js` (contextual R), `src/scenes/DayPhase.js` (drop digit keydowns), `src/hud/SettingsOverlay.js` (real defaults). Events already in `BottomBar.js`.
 
-### P1-2 — Controller / gamepad navigation `[L]` ⬜
+### P1-2 — Controller / gamepad navigation `[L]` ✅ *(2026-06-19)*
 - **Problem:** No gamepad nav anywhere (Steam Deck "Verified" needs it).
+- **Decisions (user, 2026-06-19 — verbatim):** focus ring = **amber-gold**; B button = **"B always sends Esc"** (uniform Esc semantics everywhere); **include LB/RB tab-cycling** now.
+- **Design (built):** ONE global singleton `src/hud/GamepadNav.js`, installed from `main.js` (covers the title screen before HudRoot mounts; rAF poll runs **only while a pad is connected**). Navigates **native DOM focus spatially** (every HUD surface is already a `<button>`, so no per-surface wiring). D-pad/left-stick → nearest focusable in-direction (centre distance + cross-axis penalty); **A** = `activeElement.click()`; **B** = back-as-Esc (modal/menu → synthetic window `Escape`; in-game no-modal → `OPEN_PAUSE_MENU`, since Phaser's scene `keydown-ESC` ignores synthetic events — net = identical to Esc); **LB/RB** = cycle `.qf-op-catbtn`/`.qf-cdx-tab` tab strips. Focus is **scoped** to the topmost modal layer (`.overlay, .qf-cf-layer, .qf-nameentry` → else `.qf-cm` menu → else `#hud-stage` chrome) so it can't leak behind a modal. Amber-gold ring via `html.gamepad-active :focus` (class added on pad input, dropped on `pointermove`; keyed off `:focus` not `:focus-visible` so programmatic focus shows it; hides the custom cursor). MainMenu got a `focus→_select` bridge so its `.on` highlight tracks the ring; peripheral footer chips (version/dev) marked `data-nav-skip` so they don't hijack cardinal nav.
+- **Found + fixed a pre-existing bug:** `MainMenuOverlay._onKey` had **no guard** for open child overlays — pressing **Esc** to close What's New / Options / etc. on the title also fell through to the menu's `Escape`→QUIT (`window.close()` actually quits in Electron). Added the same modal-open guard HudKeybinds uses. Fixes it for keyboard Esc **and** gamepad B.
+- **Out of scope (noted):** driving the dungeon WORLD cursor (placing rooms/aiming) by stick, and the Phaser pick scenes (CompanionSelect/ArchetypeSelect are canvas, not DOM) — separate future input items.
 - **Acceptance:**
-  - [ ] Focus model across HUD chrome + menus; D-pad/stick move, A/B select/back.
-  - [ ] Visible focus ring; works on main menu, in-game, overlays.
-- **Files:** HUD-wide; likely a new focus/nav manager + `Overlay.js`/`HudRoot.js` hooks.
+  - [x] Focus model across HUD chrome + menus; D-pad/stick move, A/B select/back. *(CDP-verified live in the Electron build: menu grid flow NEW EVIL↔LEADERBOARD/ACHIEVEMENTS↔OPTIONS/QUIT with the `.on` highlight tracking; A activates; B closes a modal / pauses in-game [`OPEN_PAUSE_MENU` branch verified]; scope-trap inside Settings [11 candidates]; LB/RB cycle AUDIO→VIDEO→CONTROLS.)*
+  - [x] Visible focus ring; works on main menu, in-game, overlays. *(Amber-gold ring captured rendering on the menu via CDP focus-emulation; scope verified on menu, Settings overlay, and `#hud-stage` in-game chrome.)*
+- **Files:** new `src/hud/GamepadNav.js`, `src/main.js` (install), `src/hud/styles.css` (ring), `src/hud/MainMenuOverlay.js` (focus bridge + `data-nav-skip` chips + the Esc-guard fix).
 
 ### P1-3 — Rebindable controls `[M]` ✅ *(2026-06-18)*
 - **Problem:** Settings CONTROLS tab is view-only.

@@ -489,6 +489,25 @@ body {
     0 0 0 2px var(--blood),
     0 0 16px rgba(255, 68, 88, 0.4);
 }
+
+/* ── Gamepad / controller focus ring (UI_POLISH_PLAN P1-2) ────────────────
+   Shown ONLY while gamepad input is active — GamepadNav adds
+   html.gamepad-active on controller input and removes it the instant the
+   mouse moves (mirrors :focus-visible heuristics, so mouse users never see
+   it). Keyed off :focus (not :focus-visible) so it shows for the
+   programmatic .focus() GamepadNav drives. Amber-gold so the controller
+   "cursor" reads distinctly from the blood hover state. Applies to any
+   focusable across menus + overlays + chrome. Static (no pulse) — calm and
+   crisp, and unaffected by reduced-motion. */
+html.gamepad-active :focus {
+  outline: 3px solid var(--gold-bright, #ffcb5c);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.85),
+    0 0 14px rgba(255, 203, 92, 0.55) !important;
+}
+/* Hide the painted mouse cursor while navigating by gamepad. */
+html.gamepad-active #qf-cursor { display: none; }
 .btn.primary {
   background: linear-gradient(180deg, var(--blood) 0%, var(--blood-deep) 100%);
   border-color: var(--blood-glow);
