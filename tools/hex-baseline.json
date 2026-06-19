@@ -1,6 +1,6 @@
 {
   "_comment": "Grandfathered chromatic raw-hex counts per src/hud/*.js file. Regenerate with: npm run lint-hex -- --update. Counts may only DROP (a ratchet); new raw hex fails the build.",
-  "total": 470,
+  "total": 448,
   "files": {
     "src/hud/AchievementsOverlay.js": 12,
     "src/hud/ActIntro.js": 11,
@@ -34,7 +34,6 @@
     "src/hud/RoomEditorOverlay.js": 3,
     "src/hud/RosterOverlay.js": 3,
     "src/hud/SettingsOverlay.js": 13,
-    "src/hud/SoloLevelingCinematic.js": 22,
     "src/hud/ToastQueue.js": 4,
     "src/hud/TopBar.js": 3,
     "src/hud/UnlockNotificationOverlay.js": 24,

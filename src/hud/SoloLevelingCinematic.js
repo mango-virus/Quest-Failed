@@ -48,6 +48,15 @@ export class SoloLevelingCinematic extends CinematicBase {
   _ensureDuelCss() {
     if (document.getElementById('qf-sl-duel-css')) return
     const css = `
+/* Solo Leveling palette — blue (Monarch/shadows) + red (boss). Local tokens so
+   the bespoke duel colours stay off the raw-hex lint and read in one place. */
+:root {
+  --sl-blue-deep:#0a2a6b; --sl-blue:#4aa0ff; --sl-blue-soft:#7fb4ff; --sl-blue-pale:#a9c6e8;
+  --sl-blue-name:#bfe3ff; --sl-blue-beat:#cfe9ff; --sl-blue-bright:#dff0ff; --sl-blue-vs:#e8eefc;
+  --sl-blue-ink:#02040a;
+  --sl-red-deep:#5a0a0a; --sl-red:#ff5544; --sl-red-ink:#1a0202;
+  --sl-red-name:#ffc2b8; --sl-red-beat:#ffd2ca; --sl-red-bright:#ffd6cf;
+}
 /* Anchored to the top-left of the DUNGEON VIEW (inside the left HUD column +
    below the top HUD zone), not the screen corner — otherwise it lands on top
    of the boss-status panel. Uses the shared HUD layout vars so it tracks the
@@ -58,15 +67,15 @@ export class SoloLevelingCinematic extends CinematicBase {
   transition:opacity .4s ease, filter .15s ease, transform .15s ease; }
 .qf-sl-corner.show { opacity:1; }
 .qf-sl-corner:hover { filter:brightness(1.18) drop-shadow(0 0 8px rgba(74,160,255,.7)); transform:scale(1.03); }
-.qf-sl-corner-name { font-size:11px; letter-spacing:2px; color:#bfe3ff;
-  text-shadow:0 0 10px rgba(74,160,255,.85), 0 2px 0 #02040a; margin-bottom:5px; }
+.qf-sl-corner-name { font-size:11px; letter-spacing:2px; color:var(--sl-blue-name);
+  text-shadow:0 0 10px rgba(74,160,255,.85), 0 2px 0 var(--sl-blue-ink); margin-bottom:5px; }
 .qf-sl-corner-track { position:relative; width:230px; height:15px; background:rgba(4,8,16,.85);
   border:2px solid rgba(120,150,200,.5); border-radius:2px; overflow:hidden;
   box-shadow:0 0 12px rgba(58,139,255,.4); }
 .qf-sl-corner-fill { position:absolute; left:0; top:0; bottom:0; width:100%; transform-origin:left center;
-  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); transition:transform .18s linear; }
+  background:linear-gradient(90deg,var(--sl-blue-deep),var(--sl-blue)); transition:transform .18s linear; }
 .qf-sl-corner-num { position:absolute; right:6px; top:50%; transform:translateY(-50%);
-  font-size:8px; color:#dff0ff; text-shadow:0 1px 2px #000; }
+  font-size:8px; color:var(--sl-blue-bright); text-shadow:0 1px 2px #000; }
 .qf-sl-pulse { position:absolute; inset:0; pointer-events:none; z-index:33; opacity:0;
   animation:qf-sl-pulse-anim .75s ease-out forwards; }
 .qf-sl-pulse.surge  { background:radial-gradient(circle at 50% 55%, rgba(74,160,255,0) 42%, rgba(74,160,255,.34) 100%);
@@ -77,8 +86,8 @@ export class SoloLevelingCinematic extends CinematicBase {
 .qf-sl-beatlabel { position:absolute; left:0; right:0; top:28%; text-align:center; z-index:35;
   pointer-events:none; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(15px,2.5vw,32px); letter-spacing:4px; opacity:0; }
-.qf-sl-beatlabel.surge  { color:#cfe9ff; text-shadow:0 0 18px rgba(74,160,255,.95), 0 2px 0 #02040a; }
-.qf-sl-beatlabel.enrage { color:#ffd2ca; text-shadow:0 0 18px rgba(255,64,40,.95), 0 2px 0 #1a0202; }
+.qf-sl-beatlabel.surge  { color:var(--sl-blue-beat); text-shadow:0 0 18px rgba(74,160,255,.95), 0 2px 0 var(--sl-blue-ink); }
+.qf-sl-beatlabel.enrage { color:var(--sl-red-beat); text-shadow:0 0 18px rgba(255,64,40,.95), 0 2px 0 var(--sl-red-ink); }
 .qf-sl-beatlabel.show { animation:qf-sl-beat-anim 1.5s cubic-bezier(.2,.9,.2,1) forwards; }
 @keyframes qf-sl-beat-anim { 0%{opacity:0; transform:scale(.7)} 16%{opacity:1; transform:scale(1.06)}
   72%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(1)} }
@@ -90,15 +99,15 @@ export class SoloLevelingCinematic extends CinematicBase {
 .qf-sl-finale::before { content:''; position:absolute; inset:0;
   background:radial-gradient(circle at 50% 50%, rgba(3,8,20,.0) 30%, rgba(2,4,10,.72) 100%); }
 .qf-sl-finale-kicker { position:relative; font-family:'Press Start 2P','Courier New',monospace;
-  font-size:clamp(9px,1.1vw,13px); letter-spacing:5px; color:#7fb4ff;
+  font-size:clamp(9px,1.1vw,13px); letter-spacing:5px; color:var(--sl-blue-soft);
   text-shadow:0 0 12px rgba(74,160,255,.8); }
 .qf-sl-finale-title { position:relative; font-family:'Press Start 2P','Courier New',monospace;
   font-size:clamp(20px,3.4vw,44px); letter-spacing:3px;
   animation:qf-sl-finale-pop .6s cubic-bezier(.18,.9,.25,1) both; }
-.qf-sl-finale.win  .qf-sl-finale-title { color:#dff0ff; text-shadow:0 0 26px rgba(74,160,255,.95), 0 3px 0 #02040a; }
-.qf-sl-finale.loss .qf-sl-finale-title { color:#ffd6cf; text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 #1a0202; }
+.qf-sl-finale.win  .qf-sl-finale-title { color:var(--sl-blue-bright); text-shadow:0 0 26px rgba(74,160,255,.95), 0 3px 0 var(--sl-blue-ink); }
+.qf-sl-finale.loss .qf-sl-finale-title { color:var(--sl-red-bright); text-shadow:0 0 26px rgba(255,70,46,.9), 0 3px 0 var(--sl-red-ink); }
 .qf-sl-finale-sub { position:relative; font-family:'Press Start 2P','Courier New',monospace;
-  font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:#a9c6e8; }
+  font-size:clamp(9px,1.2vw,15px); letter-spacing:3px; color:var(--sl-blue-pale); }
 @keyframes qf-sl-finale-pop { 0%{opacity:0; transform:scale(.6); filter:blur(6px)}
   60%{opacity:1; transform:scale(1.05); filter:blur(0)} 100%{opacity:1; transform:scale(1)} }
 .qf-sl-duelhud { position:absolute; top:calc(9vh + 14px); left:50%; transform:translateX(-50%);
@@ -108,15 +117,15 @@ export class SoloLevelingCinematic extends CinematicBase {
 .qf-sl-duelhud .qf-sl-side { display:flex; flex-direction:column; gap:8px; width:min(42vw,500px); }
 .qf-sl-duelhud .qf-sl-side.right { align-items:flex-end; }
 .qf-sl-duelhud .qf-sl-name { font-size:clamp(11px,1.5vw,18px); letter-spacing:2px; white-space:nowrap; }
-.qf-sl-duelhud .qf-sl-side.left  .qf-sl-name { color:#bfe3ff; text-shadow:0 0 10px rgba(74,160,255,.8); }
-.qf-sl-duelhud .qf-sl-side.right .qf-sl-name { color:#ffc2b8; text-shadow:0 0 10px rgba(255,80,60,.8); }
+.qf-sl-duelhud .qf-sl-side.left  .qf-sl-name { color:var(--sl-blue-name); text-shadow:0 0 10px rgba(74,160,255,.8); }
+.qf-sl-duelhud .qf-sl-side.right .qf-sl-name { color:var(--sl-red-name); text-shadow:0 0 10px rgba(255,80,60,.8); }
 .qf-sl-duelhud .qf-sl-track { width:100%; height:26px; background:rgba(4,8,16,.85);
   border:3px solid rgba(120,150,200,.5); border-radius:3px; overflow:hidden; position:relative;
   box-shadow:0 0 14px rgba(58,139,255,.35); }
 .qf-sl-duelhud .qf-sl-fill { position:absolute; top:0; bottom:0; width:100%; transition:transform .16s linear; }
-.qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  transform-origin:left center;  background:linear-gradient(90deg,#0a2a6b,#4aa0ff); }
-.qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,#5a0a0a,#ff5544); }
-.qf-sl-duelhud .qf-sl-vs { font-size:clamp(18px,2.4vw,34px); color:#e8eefc; text-shadow:0 0 12px rgba(120,150,220,.85); }`
+.qf-sl-duelhud .qf-sl-side.left  .qf-sl-fill { left:0;  transform-origin:left center;  background:linear-gradient(90deg,var(--sl-blue-deep),var(--sl-blue)); }
+.qf-sl-duelhud .qf-sl-side.right .qf-sl-fill { right:0; transform-origin:right center; background:linear-gradient(270deg,var(--sl-red-deep),var(--sl-red)); }
+.qf-sl-duelhud .qf-sl-vs { font-size:clamp(18px,2.4vw,34px); color:var(--sl-blue-vs); text-shadow:0 0 12px rgba(120,150,220,.85); }`
     const el = document.createElement('style')
     el.id = 'qf-sl-duel-css'
     el.textContent = css
