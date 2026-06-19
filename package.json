@@ -18,7 +18,7 @@
     "sim:balance": "node tools/sim/balance.mjs",
     "sim:pacts": "node tools/sim/pactsweep.mjs",
     "sim:minions": "node tools/sim/minionbalance.mjs",
-    "sim:soak": "node tools/sim/soak.mjs",
+    "sim:soak": "node --expose-gc tools/sim/soak.mjs",
     "lpc:survey": "node tools/lpc-survey.mjs",
     "lpc:validate": "node tools/lpc-validate-pools.mjs",
     "lpc:bake": "node tools/bake-lpc-variants.mjs"

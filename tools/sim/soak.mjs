@@ -82,6 +82,13 @@ for (let i = 0; i < N; i++) {
   } catch (e) {
     record('game-throw', e?.stack?.split('\n').slice(0, 2).join(' ') ?? e?.message ?? e)
   }
+  // Each game's full object graph is garbage once `g` goes out of scope, but
+  // this tight synchronous loop never yields, so V8 grows the heap toward the
+  // limit before collecting — a long run (~80+ games) OOMs even though the live
+  // set is tiny (~24MB). A periodic explicit GC keeps it bounded. Guarded so a
+  // plain `node soak.mjs` (no --expose-gc) still runs, just without the relief;
+  // the npm script passes --expose-gc.
+  if (global.gc && (i + 1) % 10 === 0) global.gc()
   if ((i + 1) % 20 === 0) process.stderr.write(`  ${i + 1}/${N} games, ${failures.size} distinct issues\n`)
 }
 console.error = realErr
