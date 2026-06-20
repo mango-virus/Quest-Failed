@@ -84,8 +84,10 @@ export class ArchetypeSelectOverlay {
     } catch {}
 
     // Reckoning NG+ tier — default to the highest earned (cycles 0..earned).
+    // NG+ is a CAMPAIGN concept (it scales the act run); an Endless run never
+    // reads it, so force 0 there and hide the chip (see _renderFoot).
     const earned = PlayerProfile.getReckoningTier() || 0
-    this._ngTier = earned
+    this._ngTier = this._isEndlessRun() ? 0 : earned
 
     this._render()
     window.addEventListener('keydown', this._keyHandler, true)
@@ -240,15 +242,21 @@ export class ArchetypeSelectOverlay {
     dismissNewChip(this._coinRefs[id]?.querySelector('.qf-bp-coinnew'))
   }
 
+  // True when the run being started is Endless (mode picked on ModeSelect, stored
+  // in localStorage 'qf.runMode'). Endless has no acts, so NG+ / Reckoning UI hides.
+  _isEndlessRun() {
+    try { return localStorage.getItem('qf.runMode') === 'endless' } catch { return false }
+  }
+
   // Footer — optional Reckoning NG+ chip (shown only once the campaign's been
-  // won) + the big ASCEND / locked notice.
+  // won, and only for a Campaign run) + the big ASCEND / locked notice.
   _renderFoot() {
     const b      = this._arch(this._selected)
     const locked = this._isLocked(b.id)
     const earned = PlayerProfile.getReckoningTier() || 0
     const kids = []
 
-    if (earned > 0) {
+    if (earned > 0 && !this._isEndlessRun()) {
       kids.push(h('button', {
         className: 'pix qf-bp-ngchip',
         on: { click: () => {
