@@ -87,26 +87,7 @@ const ROOM_BRAZIER_MAX    = 2      // up to this many braziers when it does
 // to a corner brazier, or two torches by a shared corner.
 const MIN_LIGHT_SPACING   = 3
 
-// Ambient ember config — a sparse, subtle drift of warm motes rising off each
-// flame so the lit dungeon feels alive (especially the still build phase). Sized
-// to NEVER distract: tiny scale, low alpha, ~1 mote every 0.4s per flame.
-const EMBER_FREQ_MS = 420
-
 let _nextId = 1
-
-// Cached soft radial dot for the ember particles (texture-gen, not a runtime
-// shape — the lint-vfx "no add.circle" rule targets runtime hero shapes). One
-// shared texture for the whole renderer.
-function _emberDotTexture(scene) {
-  const key = 'qf-ember-dot'
-  if (scene.textures.exists(key)) return key
-  const R = 8
-  const g = scene.make.graphics({ x: 0, y: 0, add: false })
-  for (let i = R; i > 0; i--) { g.fillStyle(0xffffff, (i / R) * 0.18); g.fillCircle(R, R, i) } // circle-ok: soft-dot texture gen
-  g.generateTexture(key, R * 2, R * 2)
-  g.destroy()
-  return key
-}
 
 export class TorchRenderer {
   constructor(scene, gameState) {
@@ -523,8 +504,6 @@ export class TorchRenderer {
         const phase = (now / FLICKER_FREQ_MS) + rec.flickerSeed
         const flicker = 1 + FLICKER_AMPL * Math.sin(phase)
         this._scene.lightingSystem?.moveLight(rec.lightId, fp.x, fp.y, (rec.lightAlpha ?? 0.4) * flicker)
-        // Embers rise from the flame — track it as the room moves/rotates.
-        rec.ember?.setPosition(fp.x, fp.y)
       }
     }
     // Drop sprites whose torches are gone (room removed / sold / pruned).
@@ -568,25 +547,8 @@ export class TorchRenderer {
     // Start at a random frame so the dungeon doesn't flicker in lockstep.
     sprite.play({ key: animKey, startFrame: t.frameOffset ?? 0 })
 
-    // Ambient embers — a sparse warm drift rising off the flame. Continuous,
-    // additive, tiny; re-positioned onto the flame each frame in update() so it
-    // travels with a moved/rotated room. Braziers (bigger fire) emit a touch more.
-    const ember = s.add.particles(fp.x, fp.y, _emberDotTexture(s), {
-      lifespan: { min: 850, max: 1500 },
-      frequency: isBrazier ? EMBER_FREQ_MS * 0.7 : EMBER_FREQ_MS,
-      quantity: 1,
-      speedY: { min: -24, max: -11 },
-      speedX: { min: -7, max: 7 },
-      scale: { start: isBrazier ? 0.17 : 0.14, end: 0 },
-      alpha: { start: 0.55, end: 0 },
-      tint: [0xffb060, 0xff8a3a, 0xff7a30],
-      blendMode: 'ADD',
-    })
-    ember.setDepth(DEPTH_SPRITE)
-
     return {
       sprite,
-      ember,
       lightId,
       lightAlpha: lightA,
       // Random phase so each light flickers on its own schedule.
@@ -598,7 +560,6 @@ export class TorchRenderer {
     const rec = this._sprites[id]
     if (!rec) return
     rec.sprite?.destroy()
-    rec.ember?.destroy()
     if (rec.lightId) this._scene.lightingSystem?.removeLight(rec.lightId)
     delete this._sprites[id]
   }
