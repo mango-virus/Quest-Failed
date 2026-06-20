@@ -2143,6 +2143,11 @@ export class NightPhase extends Phaser.Scene {
         EventBus.emit('PLACEMENT_BLOCKED', { reason: 'room_minion_cap' })
       }
     }
+    // One minion per tile — don't let them stack on top of each other.
+    if (this._minionAtTile(tx, ty)) {
+      violations.push('A minion is already standing here')
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'tile_occupied_by_minion' })
+    }
     // Each Barracks adds +10 roster slots. Garrison minions (Crypt et al.)
     // do not count toward this cap.
     const cap = this._rosterCap()
@@ -2194,6 +2199,18 @@ export class NightPhase extends Phaser.Scene {
       (m.class ?? 'roster') === 'roster' &&
       m.instanceId !== exceptId
     ).length
+  }
+
+  // True when a LIVE minion already occupies tile (tx,ty) — used to stop minions
+  // being stacked on the same tile. `exceptId` skips one (the held minion during
+  // a MOVE, so dropping it back on its own tile isn't blocked by itself). Counts
+  // ALL minions (roster + garrison), since two units can't share a tile visually.
+  _minionAtTile(tx, ty, exceptId = null) {
+    return (this._gameState.minions ?? []).some(m =>
+      m.aiState !== 'dead' &&
+      m.instanceId !== exceptId &&
+      m.tileX === tx && m.tileY === ty
+    )
   }
 
   _validateTrapPlacement(def, tx, ty) {

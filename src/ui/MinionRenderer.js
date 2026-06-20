@@ -1209,6 +1209,14 @@ export class MinionRenderer {
       }
     }
 
+    // One minion per tile — reject a drop onto another live minion. The held
+    // minion is excluded so a same-tile re-drop (cancel-in-place) still works.
+    const np = this._scene?.scene?.get?.('NightPhase')
+    if (np?._minionAtTile?.(tileX, tileY, m.instanceId)) {
+      this._showPlacementError('A minion is already standing here')
+      return
+    }
+
     m.tileX  = tileX
     m.tileY  = tileY
     m.worldX = tileX * TS + TS / 2
