@@ -1,3 +1,10 @@
+// A door skin's frame edge is anti-aliased — its top ramps over a few rows from
+// transparent to solid (alpha ~40→110→185→233→251). The occluder fill + sky mask
+// must cover that whole ramp down to the first SOLIDLY-opaque pixel, not stop at
+// the first faint one, or the semi-transparent ramp rows stay see-through (a 1px
+// seam at the top of the gate / where rooms connect). This is that "solid" cutoff.
+const DOOR_FRAME_SOLID_ALPHA = 250
+
 // Carve the enclosed passage opening out of an OPEN door skin's RGBA pixel
 // buffer, in place. Used to build the "frame-only" over-entity copy of a door
 // skin so a character walking out always shows OVER the dark passage and only
@@ -111,9 +118,9 @@ export function fillDoorTopOccluder(data, w, h, rgb = null) {
   let filled = 0
   for (let x = 0; x < w; x++) {
     let top = -1
-    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] > 16) { top = y; break } }
-    if (top <= 0 || top > maxTop) continue   // opaque from the top, or no high frame → skip
-    for (let y = 0; y < top; y++) {
+    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] >= DOOR_FRAME_SOLID_ALPHA) { top = y; break } }
+    if (top <= 0 || top > maxTop) continue   // solid from the top, or no high frame → skip
+    for (let y = 0; y < top; y++) {           // fills THROUGH the AA ramp → no see-through seam
       const i = (y * w + x) * 4
       data[i] = fr; data[i + 1] = fg; data[i + 2] = fb; data[i + 3] = 255; filled++
     }
@@ -136,8 +143,8 @@ export function buildDoorSkyMask(data, w, h) {
   let n = 0
   for (let x = 0; x < w; x++) {
     let top = -1
-    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] > 16) { top = y; break } }
-    if (top <= 0 || top > maxTop) continue
+    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] >= DOOR_FRAME_SOLID_ALPHA) { top = y; break } }
+    if (top <= 0 || top > maxTop) continue   // through the AA ramp, lock-step with fillDoorTopOccluder
     for (let y = 0; y < top; y++) { sky[y * w + x] = 1; n++ }
   }
   for (let p = 0; p < w * h; p++) {
