@@ -245,12 +245,12 @@
     ],
     "unlockDay": 21,
     "rarity": "rare",
-    "description": "Trained handler. TAMES one of your minions at a time (50% chance, biggest threat first) to fight for him. SIC 'EM: the beast pounces a foe for a heavy maul. PACK TACTICS: he and the beast hit harder flanking the same target — kill the beast to defang him.",
+    "description": "Trained handler. TAMES one of your minions at a time (biggest threat first) to fight for him. SIC 'EM: the beast pounces a foe for a heavy maul. PACK TACTICS: he and the beast hit harder flanking the same target — kill the beast to defang him.",
     "flavorText": "Every beast was a person once, in their head.",
     "abilities": [
       {
         "name": "Tame Beast",
-        "desc": "Tames one of your minions at a time (50% chance, biggest threat first) to fight for him."
+        "desc": "Tames one of your minions at a time (the biggest threat in reach) to fight for him."
       },
       {
         "name": "Sic 'Em",

@@ -67,7 +67,7 @@ export const ABILITY_DEFS = {
   ranger_piercing:       { id: 'piercing_shot',  label: 'Piercing Shot' },
   ranger_trap_expert:    { id: 'trap_expert',    usesPerDayPerLevel: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }, label: 'Trap Expert', failChance: 0.20 },
   // Beast Master
-  bm_tame_beast:         { id: 'tame_beast',     cooldownMs: 8000,                     label: 'Tame Beast', successRate: 0.5, rangeTiles: 1.5 },
+  bm_tame_beast:         { id: 'tame_beast',     cooldownMs: 8000,                     label: 'Tame Beast', rangeTiles: 1.5 },
   // Sic 'Em — command the tamed companion to pounce a nearby hostile (a maul for
   // a multiple of the beast's attack). Pack Tactics (flanking bonus when BM +
   // beast share a target) is a passive in CombatSystem. (Replaced Scout Ahead.)
@@ -1987,8 +1987,8 @@ export class ClassAbilitySystem {
   // ── Beast Master ─────────────────────────────────────────────────────────
 
   _considerBeastMaster(adv, now) {
-    // Tame Beast — find a hostile minion within range, attempt 50% tame if we
-    // don't already have a companion alive.
+    // Tame Beast — find a hostile minion within range and tame it (always
+    // succeeds) if we don't already have a companion alive.
     const tameDef = ABILITY_DEFS.bm_tame_beast
     const hasCompanion = this._beastMasterCompanion(adv) != null
     if (!hasCompanion) {
@@ -2006,21 +2006,16 @@ export class ClassAbilitySystem {
         const ready = AbilitySystem.canUse(adv, tameDef, now)
         if (ready.ready) {
           AbilitySystem.markUsed(adv, tameDef, now)
-          if (Math.random() < tameDef.successRate) {
-            target.faction = 'adventurer'
-            target.factionExpiresOn = (this._gameState.meta?.dayNumber ?? 1) + 99
-            target.tamedByAdvId = adv.instanceId
-            target.currentTargetId = null
-            adv.companionId = target.instanceId
-            AbilityVfx.tameFx?.(this._scene, target.worldX, target.worldY)
-            AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, 'TAMED', { color: '#ff99cc' })
-            EventBus.emit('MINION_TAMED', { minion: target, tamer: adv })
-            EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'tame_beast', message: `${adv.name} tamed a beast.` })
-          } else {
-            AbilityVfx.tameFx?.(this._scene, target.worldX, target.worldY, { fail: true })
-            AbilityVfx.floatingText(this._scene, adv.worldX, adv.worldY - 22, 'TAME FAILED', { color: '#999999', fontSize: '10px' })
-            EventBus.emit('TAME_FAILED', { minion: target, tamer: adv })
-          }
+          // Tame always succeeds now — the 50% fail chance was removed (2026-06-20).
+          target.faction = 'adventurer'
+          target.factionExpiresOn = (this._gameState.meta?.dayNumber ?? 1) + 99
+          target.tamedByAdvId = adv.instanceId
+          target.currentTargetId = null
+          adv.companionId = target.instanceId
+          AbilityVfx.tameFx?.(this._scene, target.worldX, target.worldY)
+          AbilityVfx.floatingText(this._scene, target.worldX, target.worldY - 22, 'TAMED', { color: '#ff99cc' })
+          EventBus.emit('MINION_TAMED', { minion: target, tamer: adv })
+          EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'tame_beast', message: `${adv.name} tamed a beast.` })
         }
       }
     }
