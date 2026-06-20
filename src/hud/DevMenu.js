@@ -407,7 +407,7 @@ export class DevMenu {
   // ── Tab: KINGDOM ─────────────────────────────────────────────────────────────
   _tabKingdom() {
     const out = []
-    if (!isActsEnabled()) {
+    if (!isActsEnabled(this._gs())) {
       out.push(this._hint('The acts / Kingdom-Response system is disabled in this build.'))
       return out
     }

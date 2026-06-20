@@ -1,6 +1,5 @@
 import { allEmoteVariants, emoteKey } from '../systems/EmoteSystem.js'
 import { Balance } from '../config/balance.js'
-import { isActsEnabled } from '../config/acts.js'
 
 // Boss skin table. Folder name on disk must equal `id`; texture keys are
 // `${id}-<state>`. Adding a new boss skin = drop the 6 sheets into
@@ -573,7 +572,10 @@ export class Preload extends Phaser.Scene {
     // Per-skin overrides: `noShadow` drops the `_with_shadow` filename suffix,
     // `states[k].frameW/frameH` overrides the default square frameSize for
     // skins (like the succubus) whose states ship at different dimensions.
-    const acts = isActsEnabled()   // lesser evolution tiers are campaign-only
+    // Mode (campaign/endless) is a PER-RUN choice made AFTER boot, so Preload
+    // can't know it — load the campaign-only evolution tier sheets unconditionally
+    // so picking Campaign is always ready. Endless simply never displays them.
+    const acts = true
     for (const skin of BOSS_SKINS) {
       const folder = `assets/sprites/${skin.id}/`
       const fs = skin.frameSize ?? DEFAULT_FRAME_SIZE
@@ -587,8 +589,8 @@ export class Preload extends Phaser.Scene {
       // Evolution: per-tier sheets (KR P6). Normalized filenames mean a flat
       // load; frame sizes match the canonical sheet (incl. the succubus's
       // per-state non-square frames via `skin.states`). Texture key
-      // `${id}-t${n}-${state}`. Campaign-only — gated on `acts` so the default
-      // endless boot pays nothing for the evolution forms.
+      // `${id}-t${n}-${state}`. Campaign-only forms, but loaded unconditionally
+      // (`acts` is forced true above) since the mode is chosen after boot.
       const tierCfg = acts ? BOSS_TIER_LEVELS[skin.id] : null
       if (tierCfg) {
         for (const t of tierCfg.tiers) {

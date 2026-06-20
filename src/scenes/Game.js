@@ -338,18 +338,18 @@ export class Game extends Phaser.Scene {
     // feature flag (default OFF) so the current endless game is untouched until
     // the act campaign is built out. Tracks act state + fires ACT_STARTED /
     // ACT_CLEARED / RUN_VICTORY off the day-advance.
-    if (isActsEnabled()) this.actSystem = track(new ActSystem(this, this.gameState))
+    if (isActsEnabled(this.gameState)) this.actSystem = track(new ActSystem(this, this.gameState))
     // Aldric — the recurring Nemesis (KR P2). Tracks his per-act escalation +
     // fires NEMESIS_* taunts. Spawn integration + right-side rival portrait
     // build on this. Same `acts` gate as ActSystem.
-    if (isActsEnabled()) this.nemesisSystem = track(new NemesisSystem(this, this.gameState))
+    if (isActsEnabled(this.gameState)) this.nemesisSystem = track(new NemesisSystem(this, this.gameState))
     // The drafted middle (KR P4). Drafts a Kingdom Response when Act II / III
     // begins + fires KINGDOM_RESPONSE_DRAWN for the announce set-piece and the
     // per-response gimmicks. Same `acts` gate.
-    if (isActsEnabled()) this.kingdomResponseSystem = track(new KingdomResponseSystem(this, this.gameState))
+    if (isActsEnabled(this.gameState)) this.kingdomResponseSystem = track(new KingdomResponseSystem(this, this.gameState))
     // The deep per-response modifiers (KR P4) — the rule-bending signature
     // mechanics (Forlorn fury, Pantheon zones, etc.). Same `acts` gate.
-    if (isActsEnabled()) this.kingdomModifierSystem = track(new KingdomModifierSystem(this, this.gameState))
+    if (isActsEnabled(this.gameState)) this.kingdomModifierSystem = track(new KingdomModifierSystem(this, this.gameState))
     // Dev VFX sandbox (window.__qfDev) — cheat-name gated. Scriptable spawning of
     // test minions/traps + champion-raid firing so the Kingdom-Response set-pieces
     // can be verified without hand-playing a run. See src/dev/DevSandbox.js.

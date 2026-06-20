@@ -425,7 +425,7 @@ export class BossRenderer {
   // the tier sheets aren't even loaded, so it resolves to the base sheet — the
   // boss looks exactly as it always has). Acts on → the act number (1..4).
   _computeTier() {
-    if (!isActsEnabled()) return 3
+    if (!isActsEnabled(this._gameState)) return 3
     // currentAct (not the day) so the boss DOESN'T ascend during P3 overtime —
     // it grows a form only when an act is actually cleared.
     return Math.max(1, Math.min(4, currentAct(this._gameState)))
@@ -437,7 +437,7 @@ export class BossRenderer {
   // mode). Acts on → +BOSS_TIER_GROWTH per tier above the first (T1 1.00, T2 1.05,
   // T3 1.10, T4 1.15).
   _tierScale(tier) {
-    if (!isActsEnabled()) return 1
+    if (!isActsEnabled(this._gameState)) return 1
     const ascensions = Math.max(0, Math.min(3, (tier ?? 1) - 1))
     return 1 + ascensions * BOSS_TIER_GROWTH
   }

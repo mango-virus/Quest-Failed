@@ -45,7 +45,7 @@ export class WelcomeIntroOverlay {
       EventBus.off('ACT_INTRO_DISMISSED', onActDismissed)
       setTimeout(() => this.open(), 120)
     }
-    if (isActsEnabled()) {
+    if (isActsEnabled(this._gameState)) {
       EventBus.on('ACT_INTRO_DISMISSED', onActDismissed)
       setTimeout(tryOpen, 30000)
       return

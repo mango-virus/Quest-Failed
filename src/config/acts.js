@@ -11,11 +11,17 @@
 
 import { Balance } from './balance.js'
 
-// ── Feature flag ────────────────────────────────────────────────────────────
-// LIVE — the Kingdom's Reckoning campaign is the default game (mirrors
-// HudRoot.isNewHudEnabled). `?acts=0` or `localStorage.acts='0'` disables it
-// and falls back to the old endless game; `?acts=1` forces it on.
-export function isActsEnabled() {
+// ── Run mode ────────────────────────────────────────────────────────────────
+// The campaign vs endless split is now a PER-RUN choice (Mode-Select screen),
+// stored on `meta.mode`. Pass the live gameState and that's the source of truth:
+// 'campaign' → acts on, 'endless' → acts off. With NO gameState (menus, preload,
+// before a run exists) or an old save missing the field, fall back to the global
+// default — campaign — with the `?acts=0` / `localStorage.acts='0'` dev escape
+// hatch still honored (and `?acts=1` to force on).
+export function isActsEnabled(gameState) {
+  const m = gameState?.meta?.mode
+  if (m === 'campaign') return true
+  if (m === 'endless') return false
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.get('acts') === '0') return false
@@ -135,7 +141,7 @@ const ASCENSION_FORMS = ['', 'Nascent', 'Risen', 'Dread', 'Ascended']
 // BossSystem._recomputeBossFightStats), so the panel can answer "what has
 // ascending earned me" at a glance.
 export function ascensionInfo(gameState) {
-  if (!isActsEnabled()) return null
+  if (!isActsEnabled(gameState)) return null
   const tier = currentAct(gameState)   // pinned in overtime — boss doesn't ascend until cleared
   const e    = tier - 1
   const hpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, e)

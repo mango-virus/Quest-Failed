@@ -23,6 +23,7 @@ export function createGameState(
   bossArchetypeId = 'the_lich',
   roomDefs = null,
   companionId = DEFAULT_COMPANION,
+  mode = 'campaign',
 ) {
   const gw = Balance.STARTING_GRID_WIDTH
   const gh = Balance.STARTING_GRID_HEIGHT
@@ -104,6 +105,11 @@ export function createGameState(
       bossDefeatedCount: 0,
       runId: _generateRunId(),
       phase: 'night',
+      // Run mode, chosen on the Mode-Select screen and the source of truth for
+      // isActsEnabled(gameState): 'campaign' = The Kingdom's Reckoning (the 4-act
+      // win-condition run) · 'endless' = survive forever, full content, no act
+      // structure. Saved with the run so Continue resumes the right mode.
+      mode,
       // Which dungeon-keeper companion the player chose for this run on
       // the CompanionSelect screen. Drives the HUD portrait + dialogue
       // bank. See src/systems/companions.js.

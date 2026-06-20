@@ -88,7 +88,15 @@ export class ArchetypeSelect extends Phaser.Scene {
       const stored = localStorage.getItem('qf.companion')
       if (stored && COMPANIONS[stored]) companionId = stored
     } catch {}
-    const state = createGameState(this._selectedId, rooms, companionId)
+    // Run mode picked on the Mode-Select screen (between NEW EVIL and the
+    // companion pick). 'campaign' (Kingdom's Reckoning) or 'endless'; defaults to
+    // campaign when absent so the existing flow / dev shortcuts are unaffected.
+    let runMode = 'campaign'
+    try {
+      const m = localStorage.getItem('qf.runMode')
+      if (m === 'endless' || m === 'campaign') runMode = m
+    } catch {}
+    const state = createGameState(this._selectedId, rooms, companionId, runMode)
     // Reckoning NG+ (KR P7) — stamp the chosen tier (clamped to what's earned)
     // so the whole run scales harder. 0 = base campaign. Save-safe (plain int).
     state.meta.reckoningTier = Math.max(0, Math.min(this._ngTier ?? 0, PlayerProfile.getReckoningTier()))

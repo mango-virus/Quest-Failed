@@ -653,7 +653,7 @@ export class DayPhase extends Phaser.Scene {
     // normal wave (like the Light Party / Shadow Monarch set-pieces) — only he
     // can win or fall, so there's no stray adventurer to game-over you the
     // instant you've won. Putting him down wins the run. Once per act.
-    if (isActsEnabled()) {
+    if (isActsEnabled(this._gameState)) {
       const _day  = this._gameState.meta?.dayNumber ?? 1
       const _n    = this._gameState.meta?.nemesis
       const _act  = currentAct(this._gameState)               // pinned in overtime
@@ -1075,7 +1075,7 @@ export class DayPhase extends Phaser.Scene {
       // active response's themed class (Plunderers' pirate thieves, etc.), carrying
       // its gimmick flag so the response is felt across the whole act.
       let _krThemedFlags = null
-      const _krWaveResp = isActsEnabled() ? currentActResponseId(this._gameState) : null
+      const _krWaveResp = isActsEnabled(this._gameState) ? currentActResponseId(this._gameState) : null
       const _krTheme = _krWaveResp ? KR_THEMED_WAVE[_krWaveResp] : null
       if (_krTheme && Math.random() < (_krTheme.pct ?? 0.5)) {
         const tCls = (this.cache.json.get('adventurerClasses') ?? []).find(c => c.id === _krTheme.classId)
