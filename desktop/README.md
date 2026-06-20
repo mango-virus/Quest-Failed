@@ -26,7 +26,7 @@ so there's no copy/build step for local dev.
 - The Google Fonts `<link>` is redirected to the vendored `vendor/fonts.css`, whose
   `url()`s point at locally vendored `vendor/fonts/*.woff2`, so **fonts render with no
   network**.
-- All other `https` (leaderboard, jam registry) passes through to the real network when
+- All other `https` (the leaderboard) passes through to the real network when
   online and degrades gracefully when offline (the game already has fallbacks).
 
 ### Keyboard

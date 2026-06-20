@@ -132,9 +132,8 @@ export class HudRoot {
     // peeks into the lower-left of the dungeon view. Pure renderer;
     // NpcDirector (a Game-scene system) drives it.
     this._npc         = new NpcCompanion(this._gameState)
-    // (The in-game JamPortalCorner badge and the HotkeyHints strip were
-    // removed earlier; their dead module files were deleted in the UI-polish
-    // sweep — UI_POLISH_PLAN.md P0-1. portal.js SDK stays.)
+    // (The HotkeyHints strip was removed earlier; its dead module file was
+    // deleted in the UI-polish sweep — UI_POLISH_PLAN.md P0-1.)
     this._panels.push(
       this._topBar, this._bottomBar,
       this._leftPanels, this._rightPanels, this._toastQueue,

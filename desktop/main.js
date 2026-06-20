@@ -12,7 +12,7 @@
 //   2. index.html still has `<script src="https://cdn.jsdelivr.net/...phaser...">`.
 //      We intercept https and serve the vendored copy in desktop/vendor/phaser.min.js
 //      instead, so the engine boots with zero network. Everything else https
-//      (leaderboard, registry, fonts) passes straight through when online and
+//      (leaderboard, fonts) passes straight through when online and
 //      degrades gracefully when offline (the game already has fallbacks).
 //
 // Phase 2 (separate): steamworks.js — achievements, Steam Cloud saves, leaderboards.
@@ -193,7 +193,7 @@ function createWindow() {
   win.once('ready-to-show', () => win.show())
   win.loadURL(`${APP_SCHEME}://${APP_HOST}/index.html`)
 
-  // Open external links (jam hub, etc.) in the OS browser, not inside the app.
+  // Open external links in the OS browser, not inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) { shell.openExternal(url); return { action: 'deny' } }
     return { action: 'deny' }

@@ -23,9 +23,7 @@
 //   * Footer (bottom edge): version / SAVE OK · NO SAVE / © BONEMAKER · MMXXVI
 //
 // Removed in the 2026-06-09 rebuild: the boss-video shuffle pool, the CRT
-// scanline + vignette filters, the right-side panel + split-grid layout,
-// and the Venture jam-portal button (both here and the in-game
-// JamPortalCorner). portal.js SDK untouched per jam rules.
+// scanline + vignette filters, and the right-side panel + split-grid layout.
 
 import { h, mount } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'

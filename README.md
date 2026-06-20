@@ -1,148 +1,110 @@
-# Ordinary Game Jam #1 — Starter Template
+# Quest Failed
 
-**Click the green "Use this template" button at the top of this repo** to create your own game repository from this starter. (Don't fork — template creates a clean, independent repo with a working Pages deploy and the portal protocol already wired up.)
+**A reverse roguelike dungeon-builder.** You aren't the hero — you're the dungeon. Adventurers
+invade by **day** to kill you; you rebuild and re-arm by **night**. Survive, level up, and watch
+the kingdom send ever-stronger heroes to die in your halls.
 
-Showcase & spec: https://github.com/CallumHYoung/gamejam
+> Originally built for **Ordinary Game Jam #1** — now in active development as a full, commercial
+> game heading to **Steam**.
 
----
-
-## What you get out of the box
-
-- A minimal working game (`index.html` + `game.js`) — moving circle, exit portal, incoming-portal spawn logic, auto-picks a destination from the live jam registry.
-- **Realtime multiplayer** via [Trystero](https://github.com/dmotz/trystero). Pure P2P over BitTorrent trackers — no backend, no accounts, no keys. Open two tabs and you'll see each other as circles in the same demo room. Works from the internet, not just localhost.
-- `portal.js` — the Portal Protocol helper library. ~80 lines, no dependencies. This is the only hard requirement of the jam.
-- `.github/workflows/pages.yml` — a GitHub Actions workflow that deploys your game to GitHub Pages on every push to `main`.
-- Purple vibes to match the jam's theme.
-
-Try the starter as-is: after you create your repo and enable Pages, the starter game will already portal to other jam games *and* show other players that are currently in the demo room.
-
-**Multiplayer is optional per the jam spec.** If you don't want it, delete the `Trystero` block in `game.js` (clearly commented) and the `#peers` element in `index.html`. Your game will drop back to solo and the portal protocol still works.
+🎮 **Play in the browser:** https://mango-virus.github.io/Quest-Failed/
 
 ---
 
-## Quick start
+## The loop
 
-### 1. Create your game repo
+You are the **Boss / Architect** of a living dungeon.
 
-Click **"Use this template" → "Create a new repository"** at the top of this page. Name it whatever you want (e.g. `rocket-racer`). Make it public.
+- **Night (build phase):** spend gold to place rooms, summon and upgrade minions, set traps, and
+  sign **Dark Pacts** — risk/reward modifiers that reshape the run.
+- **Day (invasion):** a party of NPC adventurers enters and tries to reach you. They scout, panic,
+  flee, and fight based on a deep knowledge-and-morale AI — your job is to make sure they never
+  make it out.
+- **Endless by default:** the boss levels up and the adventurers scale with it. Die three times and
+  the run ends. An optional 4-act **win-condition campaign — "The Kingdom's Reckoning"** — is built
+  behind a flag (climax duel, kingdom responses, boss ascension, victory → New Game+).
 
-### 2. Clone it
+## At a glance
 
-```bash
-git clone https://github.com/<your-username>/<your-game>.git
-cd <your-game>
-```
+| | |
+|---|---|
+| **12** boss archetypes | each with a unique, scaling ability kit |
+| **24** rooms · **8** traps | layout + wired behaviors |
+| **64** minions / **22** evolution chains | families that upgrade across tiers |
+| **92** Dark Pacts | 6 rarities, including 24 "damned" devil's-bargains |
+| **29** adventurer classes · **18** personalities | driven by a nerve / appraisal / social AI |
+| **35** events · **9** companions · **93** achievements | scripted set-pieces + meta-progression |
 
-### 3. Run it locally
+## Tech
 
-Any static file server works:
-
-```bash
-python -m http.server 8000
-# then open http://localhost:8000
-```
-
-Walk into the purple portal. It'll redirect you to a random game from the live jam registry.
-
-### 4. Build your game
-
-Replace `game.js` (and `index.html` / `style.css` as needed) with your actual game. **Keep `portal.js` and the calls to `Portal.*`** — those are the jam's contract.
-
-Feed the full build spec into your coding agent for the rules: https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md
-
-### 5. Deploy
-
-Push to `main`:
-
-```bash
-git add .
-git commit -m "Build my game"
-git push
-```
-
-Then on GitHub:
-
-1. Go to **Settings → Pages** on your repo
-2. **Source**: GitHub Actions
-3. Watch the workflow run in the **Actions** tab (~1 minute)
-
-Your game is live at:
-```
-https://<your-username>.github.io/<your-game>/
-```
-
-### 6. Submit to the jam
-
-Open https://github.com/CallumHYoung/gamejam/blob/main/jam1.json, click the pencil icon (GitHub will auto-fork for you), and add your entry to the `games` array:
-
-```json
-{
-  "id": "rocket-racer",
-  "title": "Rocket Racer",
-  "author": "Your Name",
-  "description": "One-line pitch.",
-  "url": "https://your-username.github.io/rocket-racer/",
-  "repo": "your-username/rocket-racer",
-  "thumbnail": "thumbnails/rocket-racer.png",
-  "type": "3d",
-  "tags": ["platformer", "three.js"],
-  "status": "wip"
-}
-```
-
-Commit to a new branch and open a PR. That's it — once merged, your game appears on the showcase with live deploy status pulled from your repo.
-
-Full walkthrough: https://github.com/CallumHYoung/gamejam/blob/main/GETTING_STARTED.md
+- **Phaser 3** canvas for the dungeon simulation + a **DOM HUD** overlay (`src/hud/`) for all
+  chrome and menus.
+- **Vanilla JS, ES modules, no build step.** All game content is data-driven JSON in `src/data/`.
+- Deploys as a **static site** (GitHub Pages, on every push to `main`).
+- A **desktop build** (Electron, in [`desktop/`](desktop/README.md)) wraps the unmodified web game
+  for offline play and the Steam release — see its README for the roadmap (Steam Cloud /
+  achievements / packaging).
 
 ---
 
-## The Portal Protocol in 30 seconds
+## Run it locally
 
-Every jam game reads the same URL params on load and redirects out the same way. That's how players travel between games without any backend.
+**Web (dev server):**
 
-**Incoming** — when your game loads, `Portal.readPortalParams()` returns:
-
-```js
-const { fromPortal, username, color, speed, ref } = Portal.readPortalParams();
+```sh
+npm install
+npm run serve      # serves the repo at http://localhost:8080
 ```
 
-If `fromPortal` is true, the player arrived from another game — skip your menu and spawn them in. If `ref` is set, also draw a return portal pointing back to `ref`.
+Any static file server works too — there's no build step. Open `index.html` through a server (not
+`file://`, so ES modules load).
 
-**Outgoing** — when the player enters your exit portal:
+**Desktop (Electron):**
 
-```js
-const target = await Portal.pickPortalTarget();   // random game from the live registry
-Portal.sendPlayerThroughPortal(target.url, {
-  username, color, speed,
-});
+```sh
+cd desktop
+npm install        # one-time: pulls Electron
+npm start          # launches the game in a desktop window
 ```
 
-That's the whole protocol. Full details in [SPEC.md](https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md).
+## Project layout
+
+```
+src/
+  scenes/      Phaser scenes (Game, NightPhase, menus)
+  systems/     simulation: AI, combat, knowledge, economy, bosses, traps…
+  hud/         the DOM HUD overlay — every menu / panel / overlay
+  ui/          canvas renderers (dungeon, minions, adventurers) + VFX
+  data/        all game content as JSON (bosses, rooms, minions, pacts, events…)
+tools/         dev tooling — headless balance sim, content linters, sprite baking
+desktop/       Electron shell (the Steam-bound desktop build)
+```
+
+## Docs
+
+The repo keeps a small set of living reference docs (the **code** is always the source of truth):
+
+- **[STATUS.md](STATUS.md)** — reality-checked snapshot of what's actually built right now (read first).
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — systems, scenes, the two-layer rendering, state schema, gotchas.
+- **[DESIGN.md](DESIGN.md)** / **[DESIGN_COVERAGE.md](DESIGN_COVERAGE.md)** — design intent + the per-feature ledger.
+- **[VISUAL_STANDARDS.md](VISUAL_STANDARDS.md)** — the visual / VFX / animation bar for the Steam release.
+
+### Dev tooling
+
+```sh
+npm run sim:balance     # headless balance sim (real systems, ~18 games/sec)
+npm run sim:soak        # randomized crash / invariant finder across the boss×pact space
+npm run verify-docs     # check content counts in the docs still match src/data
+npm run lint-content    # static content linter (dangling refs, bad evolution/reward graphs)
+```
 
 ---
 
-## 3D vs 2D
+## Status
 
-- **2D:** a door, tile, button, or menu item — anything a player can interact with.
-- **3D:** a visible object in the world (ring, archway, door) with a collision check against the player.
+Quest Failed is a **commercial project in active development** — it's playable and content-rich, but
+balance, polish, and the Steam build are ongoing. It is **not** licensed for redistribution; all
+rights reserved.
 
-The starter is 2D canvas. If you're building 3D (Three.js / Babylon / PlayCanvas), you can still import `portal.js` and call `Portal.sendPlayerThroughPortal` / `Portal.readPortalParams` — the protocol is framework-agnostic.
-
----
-
-## Multiplayer (optional)
-
-Static hosting is compatible with realtime multiplayer through browser-to-service libraries. Don't add multiplayer until your portal loop works. Recommended: [PlayroomKit](https://joinplayroom.com/). Full options in [SPEC.md § Multiplayer](https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md#multiplayer-optional).
-
----
-
-## Stack freedom
-
-Use whatever you want — Three.js, Phaser, Pixi, Babylon, PlayCanvas, raw canvas, raw WebGL, p5.js, HTML + CSS. The only constraints:
-
-- **Browser-only.** No backend. Static hosting must be enough.
-- **Join the network.** Drop in `portal.js` (or implement the handful of URL-param behaviors yourself — it's ~15 lines if you want to inline it). A game that doesn't portal isn't in the jam.
-- **Build in public.** Your game repo must be public from the first commit — watching each other's games take shape is half the fun.
-- **One entry point.** `index.html` at the root.
-
-Have fun.
+Built with the [Universal LPC Spritesheet Generator](https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator)
+and other open art (attribution in the asset folders).

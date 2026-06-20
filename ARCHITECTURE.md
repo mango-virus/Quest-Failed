@@ -30,7 +30,6 @@ pick a Dark Pact) → Night …**
   are plain-DOM, layered over the canvas. See §4.
 - **Vanilla JS, ES modules, no build step** — direct `<script type=module>`, static deploy
   to GitHub Pages. Keep it build-free.
-- **portal.js** — jam requirement, **never modify** (inter-game portal travel; lives on MainMenu).
 - **Supabase** — backs the global leaderboard (`Leaderboard.js`).
 
 **Phaser config (`src/main.js`):**
@@ -68,7 +67,7 @@ Boot → Preload → MainMenu ──▶ CompanionSelect ──▶ ArchetypeSelec
 - **Boot / Preload** — asset load (`Preload.js` loads sprites, themes, audio, all `data/*.json`
   into the Phaser JSON cache, and dynamically inits late systems like AchievementSystem).
 - **MainMenu** — early-returns and mounts the DOM `MainMenuOverlay` (the only
-  menu surface). portal.js lives here.
+  menu surface).
 - **CompanionSelect / ArchetypeSelect** — pick keeper (companion) + boss archetype. Both have
   DOM-overlay counterparts.
 - **Game** — the persistent world host scene. Owns the dungeon renderer, camera, and most
