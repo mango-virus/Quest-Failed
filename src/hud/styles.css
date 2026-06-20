@@ -3986,6 +3986,23 @@ html.gamepad-active #qf-cursor { display: none; }
 }
 @keyframes toast-sweep { to { transform: translateX(360%); } }
 .qf-toast-row { position: relative; z-index: 1; }
+/* Draining time-to-dismiss bar (design's .hc-toast-bar) — a 2px accent rule
+   pinned to the toast's bottom edge that scales 1→0 over the toast's TTL, so
+   the player can see how long a notification will linger. Duration is set
+   inline per-toast (TTLs vary: standard / bounty / legendary); the coalesce
+   path restarts it when a burst resets the dismissal timer. */
+.qf-toast-bar {
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 2px; width: 100%;
+  z-index: 2;
+  pointer-events: none;
+  transform-origin: left;
+  background: var(--accent, var(--text-mute));
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent, transparent) 70%, transparent);
+  animation: qf-toast-drain 6500ms linear forwards;
+}
+@keyframes qf-toast-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 /* Major tier — headline events (boss level, pact, achievement, bounty). Bigger
    footprint, stronger accent edge + glow, spring-pop entrance. Legendary keeps
    its own gold frame/pulse (box-shadow + animation are !important there). */

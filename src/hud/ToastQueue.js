@@ -106,10 +106,14 @@ export class ToastQueue {
     const eyebrow = opts.eyebrow || null
     const isLegendary = kind === 'legendary_achievement'
     const tier = opts.tier || KIND_TIER[kind] || 'standard'
+    const ttl = kind === 'bounty'                 ? BOUNTY_TTL
+              : kind === 'legendary_achievement'  ? LEGENDARY_TTL
+              : TOAST_TTL
     // Build the toast root. All colour (accent edge, glyph, title, glow) is
     // driven off one inline `--accent` CSS var so the stylesheet owns the look
     // and tiers/variants compose cleanly. Legendary keeps its own gold frame
-    // class; bounty its parchment class.
+    // class; bounty its parchment class. The draining `.qf-toast-bar` shows
+    // time-to-dismiss; its CSS animation duration is set to the toast's TTL.
     const t = h('div', {
       className: `toast qf-toast qf-toast--${tier}${flavor ? ' qf-toast-bounty' : ''}${isLegendary ? ' qf-toast-legendary' : ''}`,
       style: { '--accent': meta.color },
@@ -125,8 +129,9 @@ export class ToastQueue {
           flavor   && h('div', { className: 'qf-toast-flavor' }, flavor),
         ]),
       ]),
+      h('div', { className: 'qf-toast-bar', style: { animationDuration: `${ttl}ms` } }),
     ])
-    const entry = { el: t, kind }
+    const entry = { el: t, kind, ttl }
     this._toasts.push(entry)
     this.el.appendChild(t)
     // Trim to MAX_TOASTS — eldest first
@@ -135,9 +140,6 @@ export class ToastQueue {
       old.el.remove()
       clearTimeout(old._dismiss)
     }
-    const ttl = kind === 'bounty'                 ? BOUNTY_TTL
-              : kind === 'legendary_achievement'  ? LEGENDARY_TTL
-              : TOAST_TTL
     entry._dismiss = setTimeout(() => this._dismiss(entry), ttl)
     // Soft "arrives" chip — HudSfx rate-limits so a burst doesn't stack.
     HudSfx.playUi('toast')
@@ -197,9 +199,11 @@ export class ToastQueue {
       }
       // Quick bump so the player notices the card just updated.
       this._bump(c.entry.el)
-      // Reset dismissal so the toast lives through the burst.
+      // Reset dismissal so the toast lives through the burst — and restart
+      // the draining bar so it tracks the fresh TTL rather than draining out.
       clearTimeout(c.entry._dismiss)
       c.entry._dismiss = setTimeout(() => this._dismiss(c.entry), TOAST_TTL)
+      this._restartBar(c.entry, TOAST_TTL)
       return
     }
     // First fire (or stale window) — push a normal toast and bookkeep.
@@ -228,6 +232,17 @@ export class ToastQueue {
     el.classList.remove('qf-toast-bump')
     void el.offsetWidth   // force reflow so the animation restarts
     el.classList.add('qf-toast-bump')
+  }
+
+  // Restart the draining bar from full over `ms` (a coalesced burst reset the
+  // dismissal timer, so the bar should refill + drain again, not stay empty).
+  _restartBar(entry, ms) {
+    const bar = entry?.el?.querySelector('.qf-toast-bar')
+    if (!bar) return
+    bar.style.animation = 'none'
+    void bar.offsetWidth                 // reflow cancels the running animation
+    bar.style.animation = ''             // revert to the stylesheet's drain anim
+    bar.style.animationDuration = `${ms}ms`
   }
 
   // Render the title slot for a coalesced toast. Default rendering is
