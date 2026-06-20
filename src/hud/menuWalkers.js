@@ -67,14 +67,19 @@ let WW_ID = 0
 // Perf caps (see the title-screen lag fix). The walkers are moving DOM sprites
 // with a live filter + masked soft-light blend, so each on-screen figure has a
 // real per-frame raster cost — keep the simultaneous count low. And spawn only
-// from a small FIXED roster of variants chosen once per session (WW_POOL),
-// rather than pulling randomly from the thousands of baked (class × variant)
-// combos: that bounds the decoded-image memory (no unbounded WW_STRIP growth)
-// and front-loads the one-time canvas strip/decode of each sheet to menu-open,
-// instead of a fresh 25–50ms main-thread stall every time a never-seen variant
-// walks on. Variety still reads fine — ~9 distinct adventurers pacing the wall.
-const WW_MAX  = 5    // hard cap on simultaneous walkers (was 14)
-const WW_POOL = 9    // distinct adventurer variants used per session
+// from a small ACTIVE roster of variants (WW_POOL), pre-stripped up front, rather
+// than pulling randomly from the thousands of baked (class × variant) combos:
+// that bounds the decoded-image memory and front-loads the one-time canvas
+// strip/decode of each sheet to menu-open, instead of a fresh 25–50ms main-thread
+// stall every time a never-seen variant walks on.
+//
+// The roster is no longer FIXED for the session — it ROTATES (see _rotateRoster):
+// every ~10s an off-screen slot is swapped for a fresh random variant (pre-stripped
+// in the background, old one's data-URL evicted), so over a session you see dozens
+// of distinct adventurers instead of the same poolful, with memory still bounded.
+const WW_MAX  = 5     // hard cap on simultaneous walkers (was 14)
+const WW_POOL = 12    // distinct adventurer variants decoded at once (rotated over time)
+const WW_ROTATE_MS = [9000, 14000]  // swap one roster slot for a fresh variant every …
 
 // Torch-light falloff (logical px). A walker within this horizontal distance of
 // a torch column gets lit up — brighter + warmer + a soft glow — so figures feel
@@ -120,6 +125,8 @@ export class MenuWalkers {
     this._bossMeta = {}
     this._raf = 0
     this._spawnTimer = 0
+    this._rotTimer = 0
+    this._lastAdvKey = ''   // last spawned adventurer variant — avoid back-to-back repeats
     this._alive = false
     this._last = 0
     // Class roster + per-class variant counts — seeded from the baked fallback,
@@ -189,6 +196,14 @@ export class MenuWalkers {
       this._spawnTimer = setTimeout(sched, rnd(4600, 9000))
     }
     this._spawnTimer = setTimeout(sched, 1200)
+    // Slowly cycle the active roster so the same faces don't pace the wall all
+    // session (bounded memory — see _rotateRoster). First swap after a beat.
+    const rotate = () => {
+      if (!this._alive) return
+      this._rotateRoster()
+      this._rotTimer = setTimeout(rotate, rnd(WW_ROTATE_MS[0], WW_ROTATE_MS[1]))
+    }
+    this._rotTimer = setTimeout(rotate, rnd(WW_ROTATE_MS[0], WW_ROTATE_MS[1]))
   }
 
   // Trigger a small burst (used on menu open / a button press flourish).
@@ -205,9 +220,46 @@ export class MenuWalkers {
     this._alive = false
     if (this._raf) cancelAnimationFrame(this._raf)
     if (this._spawnTimer) clearTimeout(this._spawnTimer)
-    this._raf = 0; this._spawnTimer = 0
+    if (this._rotTimer) clearTimeout(this._rotTimer)
+    this._raf = 0; this._spawnTimer = 0; this._rotTimer = 0
     for (const w of this._walkers) w._el?.remove()
     this._walkers = []
+  }
+
+  // Swap ONE off-screen roster slot for a fresh random variant so the cast of
+  // walkers keeps changing through the session instead of repeating a fixed pool.
+  // Memory stays bounded: the incoming sheet is pre-stripped in the background and
+  // only swapped in once ready; the retired sheet's stripped data-URL is evicted
+  // from WW_STRIP (unless a walker from it is still on screen). Net decoded set ≈
+  // roster size + whatever transient walkers are mid-cross.
+  _rotateRoster() {
+    if (!this._alive || this._roster.length < 2) return
+    const classes = this._classes
+    if (!classes.length) return
+    const inRoster = new Set(this._roster.map(p => p.cls + ':' + p.v))
+    // Pick a fresh variant not already in the roster.
+    let fresh = null, guard = 0
+    while (guard++ < 40) {
+      const cls = classes[(Math.random() * classes.length) | 0]
+      const v = 1 + ((Math.random() * (this._vars[cls] || 1)) | 0)
+      if (!inRoster.has(cls + ':' + v)) { fresh = { cls, v }; break }
+    }
+    if (!fresh) return
+    // Pre-strip in the background; swap in only once decoded (no hot-path stall).
+    wwStrip(wwAdvSheet(fresh.cls, fresh.v), () => {
+      if (!this._alive) return
+      const onScreen = new Set(this._walkers.filter(w => w.kind === 'adv' && w._rosterKey).map(w => w._rosterKey))
+      // Retire a RANDOM off-screen slot — not always the first, or only one slot
+      // would ever churn and the rest of the pool would stay fixed all session.
+      const offScreen = []
+      this._roster.forEach((p, i) => { if (!onScreen.has(p.cls + ':' + p.v)) offScreen.push(i) })
+      if (!offScreen.length) return   // every slot currently walking — skip (rare)
+      const idx = offScreen[(Math.random() * offScreen.length) | 0]
+      const old = this._roster[idx]
+      this._roster[idx] = { cls: fresh.cls, v: fresh.v }
+      const oldKey = old.cls + ':' + old.v
+      if (!onScreen.has(oldKey)) delete WW_STRIP[wwAdvSheet(old.cls, old.v)]
+    })
   }
 
   // ─── boss frame/foot measurement ───────────────────────────────────────
@@ -286,18 +338,25 @@ export class MenuWalkers {
         bfps: isRun ? 12 : 8, yoff: rnd(0, 4), animStart: now,
       }
     } else {
-      // Spawn only from the fixed per-session pool (built + pre-stripped in
-      // _buildRoster) so we never decode a never-seen sheet mid-frame.
+      // Spawn only from the active pool (built + pre-stripped in _buildRoster,
+      // rotated by _rotateRoster) so we never decode a never-seen sheet mid-frame.
       if (!this._roster.length) this._buildRoster()
-      const pick = this._roster[(Math.random() * this._roster.length) | 0]
+      // Exclude the just-spawned variant so two of the same don't follow each other.
+      let pool = this._roster
+      if (this._roster.length > 1 && this._lastAdvKey) {
+        const filtered = this._roster.filter(p => (p.cls + ':' + p.v) !== this._lastAdvKey)
+        if (filtered.length) pool = filtered
+      }
+      const pick = pool[(Math.random() * pool.length) | 0]
         || { cls: this._classes[0] || 'knight', v: 1 }
       const cls = pick.cls, v = pick.v
+      this._lastAdvKey = cls + ':' + v
       const scale = ADV_PX / 64
       w = {
         id: wid, kind: 'adv', sheet: wwAdvSheet(cls, v), fw: 64, fh: 64, sheetRows: ADV_ROWS,
         scale, footPad: 6, dir, mode: 'walk', walkSpeed: rnd(88, 130) * SCALE_K,
         fidget: Math.random() < 0.35, yoff: 0, animStart: now,
-        nextEvt: now + rnd(2600, 6000), pauseUntil: 0,
+        nextEvt: now + rnd(2600, 6000), pauseUntil: 0, _rosterKey: cls + ':' + v,
       }
       w.speed = w.walkSpeed
     }
