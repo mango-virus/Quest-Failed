@@ -17,6 +17,7 @@
 // + TRAP_FIRED / TRAP_FUSE_LIT / TRAP_EXPLODED events drive TrapRenderer.
 
 import { EventBus }   from './EventBus.js'
+import { playSfx }    from './SfxVolume.js'
 import { Balance }    from '../config/balance.js'
 import { TILE }       from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
@@ -131,7 +132,7 @@ export class TrapSystem {
     const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
     const key  = keys[Math.floor(Math.random() * keys.length)]
     if (this._scene?.cache?.audio?.exists?.(key)) {
-      try { this._scene.sound.play(key, { volume: 0.7 }) } catch {}
+      try { playSfx(this._scene.sound, key, 0.7) } catch {}
     }
   }
 

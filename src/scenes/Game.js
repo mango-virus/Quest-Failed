@@ -1,4 +1,5 @@
 import { SaveSystem }         from '../systems/SaveSystem.js'
+import { playSfx }            from '../systems/SfxVolume.js'
 import { EventBus }           from '../systems/EventBus.js'
 import { effectiveUiScale }   from '../hud/stageScale.js'
 import { DungeonGrid, TILE }  from '../systems/DungeonGrid.js'
@@ -1038,7 +1039,7 @@ export class Game extends Phaser.Scene {
     try {
       const key = this.cache.audio.exists('sfx-revive-minions') ? 'sfx-revive-minions'
                 : this.cache.audio.exists('sfx-revive')          ? 'sfx-revive' : null
-      if (key) this.sound.play(key, { volume: 0.7 })
+      if (key) playSfx(this.sound, key, 0.7)
     } catch { /* audio not ready — non-fatal */ }
     const remaining = fallenRevivable(this.gameState).length
     if (remaining > 0) {
@@ -1102,7 +1103,7 @@ export class Game extends Phaser.Scene {
       try {
         const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3'].filter(k => this.cache.audio.exists(k))
         const key  = keys.length ? keys[Math.floor(Math.random() * keys.length)] : null
-        if (key) this.sound.play(key, { volume: 0.7 })
+        if (key) playSfx(this.sound, key, 0.7)
       } catch { /* audio not ready — non-fatal */ }
       EventBus.emit('TRAPS_REBUILT', { count: rebuilt })
       EventBus.emit('SHOW_TOAST', {
@@ -1577,6 +1578,17 @@ export class Game extends Phaser.Scene {
   // during the drag and correctly framed on release.
   _onSceneResize() {
     if (!this._cam) return
+    // Ignore degenerate mid-relayout collapses (0×0) — never record them, so a
+    // minimize (→0) followed by a restore (→original) reads as "unchanged".
+    const w = this.scale.width, h = this.scale.height
+    if (w < 2 || h < 2) return
+    // Only re-anchor on a REAL size change. A focus/visibility refresh
+    // (minimize → restore, alt-tab) re-fires `resize` with the SAME dimensions;
+    // re-anchoring there snaps the build camera to the boss chamber. Bail on an
+    // unchanged size and let the clamp-only _onTabVisible path handle recovery.
+    if (this._lastResizeW === w && this._lastResizeH === h) return
+    this._lastResizeW = w
+    this._lastResizeH = h
     if (this._resizeSettleTimer == null) {
       // Start of a burst — snapshot the pre-drag look-point (used for the day
       // phase; the build phase re-anchors on the chamber inside _reanchorCamera).
@@ -1845,6 +1857,14 @@ export class Game extends Phaser.Scene {
   _setupCamera() {
     this._cam = this.cameras.main
     this._cam.setBackgroundColor(0x050a12)
+
+    // Seed the last-known canvas size so _onSceneResize can distinguish a REAL
+    // resize (dragging the window edge) from a focus/visibility refresh
+    // (minimize → restore), which fires Phaser's `resize` event with UNCHANGED
+    // dimensions. Re-anchoring on the latter jumped the build-phase camera back
+    // to the boss chamber — the user just wants the view left where it is.
+    this._lastResizeW = this.scale.width
+    this._lastResizeH = this.scale.height
 
     // Place the camera so the boss chamber sits at the play-area centre
     // (between the HUD panels), then let _clampCameraToPlayArea finalise

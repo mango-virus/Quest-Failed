@@ -25,6 +25,7 @@
 //   * If there are genuinely no offers, DARK_PACT_SEALED { mechanicId:null }.
 
 import { h, mount } from './dom.js'
+import { playSfx } from '../systems/SfxVolume.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
 
@@ -955,7 +956,7 @@ export class PactPicker {
   _sfx(key, volume = 0.5) {
     try {
       const snd = window.__game?.scene?.getScene?.('Game')?.sound
-      if (snd && window.__game?.cache?.audio?.exists?.(key)) snd.play(key, { volume })
+      if (snd && window.__game?.cache?.audio?.exists?.(key)) playSfx(snd, key, volume)
     } catch {}
   }
 }

@@ -15,6 +15,7 @@
 // loaded sprite (covers any minion id added by data without an asset yet).
 
 import { EventBus }         from '../systems/EventBus.js'
+import { playSfx }          from '../systems/SfxVolume.js'
 import { AbilityVfx }       from './AbilityVfx.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
 import { Balance }          from '../config/balance.js'
@@ -1177,7 +1178,7 @@ export class MinionRenderer {
   _playPickupDropSfx() {
     const s = this._scene
     if (!s?.cache?.audio?.exists?.('sfx-minion-place')) return
-    try { s.sound.play('sfx-minion-place', { volume: 0.7 }) } catch {}
+    try { playSfx(s.sound, 'sfx-minion-place', 0.7) } catch {}
   }
 
   // Snap to the cursor's tile (centered) and re-anchor home + room. Drops on

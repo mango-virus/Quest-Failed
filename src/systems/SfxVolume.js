@@ -45,3 +45,16 @@ export const SfxVolume = {
   toggleMuted() { SfxVolume.setMuted(!_muted) },
   onChange(fn)  { _listeners.add(fn); return () => _listeners.delete(fn) },
 }
+
+// Play a one-shot SFX THROUGH the SFX volume gate. Use this for every inline
+// `scene.sound.play(...)` so the master/SFX slider (and mute) actually applies
+// — a raw play() with a hard-coded volume ignores the slider and leaks sound
+// even at master 0. `baseVolume` is the sound's intended loudness at full
+// slider; it's scaled by getVolume() (which already folds in master×SFX).
+// `opts` passes through extra Phaser sound config (rate, loop, etc.).
+export function playSfx(soundManager, key, baseVolume = 1, opts = {}) {
+  if (!soundManager || _muted) return null
+  const vol = baseVolume * _volume
+  if (vol <= 0) return null
+  try { return soundManager.play(key, { ...opts, volume: vol }) } catch { return null }
+}

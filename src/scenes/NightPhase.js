@@ -1,4 +1,5 @@
 import { EventBus }      from '../systems/EventBus.js'
+import { playSfx }       from '../systems/SfxVolume.js'
 import { SaveSystem }    from '../systems/SaveSystem.js'
 import { TILE, DungeonGrid as DungeonGridClass } from '../systems/DungeonGrid.js'
 import { PathfinderSystem } from '../systems/PathfinderSystem.js'
@@ -632,10 +633,18 @@ export class NightPhase extends Phaser.Scene {
     // mode; the next dungeon click relocates the chosen minion to that room
     // (free move). Handled in the tool-mode click dispatch → _executeReassignAt.
     on('MINION_REASSIGN_BEGIN', ({ instanceId } = {}) => {
-      this._reassignMinionId = instanceId ?? null
-      if (!this._reassignMinionId) return
-      this._setToolMode('reassign', 'roster_reassign')
-      EventBus.emit('SHOW_TOAST', { message: 'Click a room to reassign the minion (ESC to cancel)', type: 'info' })
+      const minion = instanceId ? this._gameState.minions.find(x => x.instanceId === instanceId) : null
+      if (!minion) return
+      // Relocate via the SAME cursor-follow flow as the action-bar MOVE button:
+      // arm MOVE mode, then immediately pick the minion up so it rides the
+      // cursor and the player drops it wherever they want (a drop also re-homes
+      // it to whatever room it lands in — see MinionRenderer._dropMinion).
+      this._setToolMode('move', 'roster_move')
+      const mr = this.scene.get('Game')?.minionRenderer
+      mr?._beginPickup?.(minion)
+      if (mr?._heldMinion) {
+        EventBus.emit('SHOW_TOAST', { message: 'Click to place the minion (ESC to cancel)', type: 'info' })
+      }
     })
     on('BUILD_SELECT', ({ def, kind }) => {
       // Phase 1b.4 — Lich Phylactery: item placement flows through the same
@@ -2650,7 +2659,7 @@ export class NightPhase extends Phaser.Scene {
 
   _playMinionPlaceSfx() {
     if (!this.cache?.audio?.exists?.('sfx-minion-place')) return
-    try { this.sound.play('sfx-minion-place', { volume: 0.7 }) } catch {}
+    try { playSfx(this.sound, 'sfx-minion-place', 0.7) } catch {}
   }
 
   _confirmTrapPlacement(tx, ty) {
@@ -3006,8 +3015,8 @@ export class NightPhase extends Phaser.Scene {
     // lock and the chest-open creak for the chest. Both clips already
     // ship in Preload.
     try {
-      if (this.cache.audio.exists('sfx-close-door')) this.sound.play('sfx-close-door', { volume: 0.7 })
-      if (this.cache.audio.exists('sfx-chest-open')) this.sound.play('sfx-chest-open', { volume: 0.6 })
+      if (this.cache.audio.exists('sfx-close-door')) playSfx(this.sound, 'sfx-close-door', 0.7)
+      if (this.cache.audio.exists('sfx-chest-open')) playSfx(this.sound, 'sfx-chest-open', 0.6)
     } catch {}
     this._pendingTradeOff = null
     this._cancelSelection()
@@ -3101,7 +3110,7 @@ export class NightPhase extends Phaser.Scene {
     }
     EventBus.emit('TREASURE_CHEST_PLACED', { chestId: id, tier, tileX: tx, tileY: ty })
     try {
-      if (this.cache.audio.exists('sfx-build-1')) this.sound.play('sfx-build-1', { volume: 0.6 })
+      if (this.cache.audio.exists('sfx-build-1')) playSfx(this.sound, 'sfx-build-1', 0.6)
     } catch {}
     this._cancelSelection()
     this._refreshStats()
@@ -3144,7 +3153,7 @@ export class NightPhase extends Phaser.Scene {
     }
     EventBus.emit('BEACON_PLACED', { beaconId, fountainId })
     try {
-      if (this.cache.audio.exists('sfx-build-3')) this.sound.play('sfx-build-3', { volume: 0.7 })
+      if (this.cache.audio.exists('sfx-build-3')) playSfx(this.sound, 'sfx-build-3', 0.7)
     } catch {}
     this._pendingTradeOff = null
     this._cancelSelection()
@@ -4355,7 +4364,7 @@ export class NightPhase extends Phaser.Scene {
     const keys = ['sfx-build-1', 'sfx-build-2', 'sfx-build-3']
     const key = keys[Math.floor(Math.random() * keys.length)]
     if (!this.cache?.audio?.exists?.(key)) return
-    try { this.sound.play(key, { volume: 0.7 }) } catch {}
+    try { playSfx(this.sound, key, 0.7) } catch {}
   }
 
   _showPlacementError(message) {
