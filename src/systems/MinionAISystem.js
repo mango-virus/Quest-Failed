@@ -679,11 +679,16 @@ export class MinionAISystem {
       //     still during the fight.
       //   - Everyone else does straight-line drift inside home room.
       const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
+      // Wander SCOPE by behavior (the only 3): roam = whole dungeon, patrol =
+      // home + door-adjacent rooms, home = home room only. A starter_guard_post
+      // home promotes a home minion to patrol scope (its "forward base" perk).
       const isGuardPostHome = home?.definitionId === 'starter_guard_post'
       const isBossChamberHome = home?.definitionId === 'boss_chamber'
       const isRoamer = minion.behaviorType === 'roam'
-      const wanderCrossRoom = isRoamer || isGuardPostHome
-      const usePathfinder   = wanderCrossRoom || isBossChamberHome
+      const isPatroller = minion.behaviorType === 'patrol' || (isGuardPostHome && !isRoamer)
+      // Cross-room wander needs A* (roam/patrol traverse doorways; the boss
+      // chamber routes around the boss + decor).
+      const usePathfinder   = isRoamer || isPatroller || isBossChamberHome
       const patrolPauseMs   = isBossChamberHome ? 1200 : 3000
 
       if (minion._patrolTarget) {
@@ -736,10 +741,20 @@ export class MinionAISystem {
           // can never reach. Constrain to the inner band, verify the
           // tile is FLOOR/BOSS_FLOOR, and retry a few times if the
           // pick lands on decor or anything else non-floor.
-          const candidateRooms = wanderCrossRoom
-            ? this._gameState.dungeon.rooms.filter(r =>
-                r.isActive !== false && r.definitionId !== 'boss_chamber')
-            : (home ? [home] : [])
+          let candidateRooms
+          if (isRoamer) {
+            // Whole dungeon (any active non-boss room).
+            candidateRooms = this._gameState.dungeon.rooms.filter(r =>
+              r.isActive !== false && r.definitionId !== 'boss_chamber')
+          } else if (isPatroller && home) {
+            // Home + its door-adjacent active rooms.
+            const adj = (this._dungeonGrid?.getNeighborRooms?.(home.instanceId) ?? [])
+              .filter(r => r.isActive !== false && r.definitionId !== 'boss_chamber')
+            candidateRooms = [home, ...adj]
+          } else {
+            // Home room only.
+            candidateRooms = home ? [home] : []
+          }
           const room = candidateRooms.length
             ? candidateRooms[Math.floor(Math.random() * candidateRooms.length)]
             : null
@@ -913,15 +928,17 @@ export class MinionAISystem {
     // request that abandoned chases end with the minion regrouping at
     // its post, not just patrolling onward.
     const homeRoom = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-    const isGuardPostHomeForReturn = homeRoom?.definitionId === 'starter_guard_post'
     const isRoamerForReturn = minion.behaviorType === 'roam'
+    // Patrollers (and guard-post-home minions) don't force a return home when
+    // combat ends in an adjacent room — they just resume patrolling home+adjacent
+    // (no ping-pong). EXCEPTION below: a LOST flee-chase still regroups them home.
+    const isPatrollerForReturn = minion.behaviorType === 'patrol' ||
+      (homeRoom?.definitionId === 'starter_guard_post' && !isRoamerForReturn)
     if (this._atHome(minion)) {
       minion.aiState = 'idle'
       minion._wasChasingFlee = false
-      // Patrol = small drift around home (Phase 6b will improve)
-    } else if (isGuardPostHomeForReturn && !minion._wasChasingFlee) {
-      minion.aiState = 'idle'
-      // Patrol = small drift around home (Phase 6b will improve)
+    } else if (isPatrollerForReturn && !minion._wasChasingFlee) {
+      minion.aiState = 'idle'   // resume patrol (home + adjacent), don't snap home
     } else if (isRoamerForReturn) {
       // 'roam' behaviorType minions never head home autonomously —
       // they keep wandering from wherever the chase / combat ended.
@@ -1184,9 +1201,10 @@ export class MinionAISystem {
     const aggro = Balance.AGGRO_RANGE_TILES
     // Phase 6e: minions in alerted rooms (hall of echoes propagation) chase across rooms briefly.
     const isAlerted = this._isRoomAlerted(homeRoom.instanceId)
-    // Phase QW — `behaviorType: 'hunt'` minions chase across rooms freely
-    // (no same-room restriction). Useful for boss-add adds and aggressive
-    // archetype unlocks. Patrol/guard/ambush still respect same-room rule.
+    // `behaviorType: 'hunt'` — a runtime-only escalation (boss-add adds /
+    // aggressive archetype unlocks) that chases across the WHOLE dungeon, no
+    // same-room restriction. Distinct from the 3 base behaviors: home (same
+    // room), patrol (home + adjacent), roam (engages wherever it stands).
     const isHunter = minion.behaviorType === 'hunt'
     // Room redesign 2026-04-30 — garrison minions (Crypt et al.) are
     // strictly room-bound: alerts and hunt-behavior overrides do not apply.
@@ -1194,13 +1212,13 @@ export class MinionAISystem {
     // Phase 9 — Whisperer's Tongue: minions can hear advs across rooms,
     // so the same-room requirement drops (garrison still hard-bound).
     const whisperersTongue = !!((this._gameState._mechanicFlags ?? {}).whisperersTongue)
-    // Phase QW (Guard Post) — minions whose home room is a Guard Post
-    // act as a forward operating base. They actively engage adventurers
-    // in any room directly door-connected to the post, NOT the whole
-    // dungeon (unlike `behaviorType: 'hunt'`). Garrison minions are
-    // still hard-bound to their assigned room and ignore this aura.
-    const isGuardPost = !isGarrison && homeRoom.definitionId === 'starter_guard_post'
-    const guardPostConnectedIds = isGuardPost && this._dungeonGrid?.getNeighborRooms
+    // PATROL behavior — a patrol minion (or any minion whose home is a Guard
+    // Post "forward operating base") actively engages adventurers in any room
+    // directly door-connected to its home, NOT the whole dungeon (unlike
+    // `behaviorType: 'hunt'`). Garrison minions are hard-bound to their room.
+    const isAdjacentPatroller = !isGarrison &&
+      (minion.behaviorType === 'patrol' || homeRoom.definitionId === 'starter_guard_post')
+    const patrolConnectedIds = isAdjacentPatroller && this._dungeonGrid?.getNeighborRooms
       ? new Set((this._dungeonGrid.getNeighborRooms(homeRoom.instanceId) ?? [])
           .filter(r => r.isActive !== false)
           .map(r => r.instanceId))
@@ -1319,20 +1337,17 @@ export class MinionAISystem {
       const inHome = _pointInRoom(adv.tileX, adv.tileY, homeRoom)
       const inStanding = !!(standingRoom && standingRoom.instanceId !== homeRoom.instanceId &&
                             _pointInRoom(adv.tileX, adv.tileY, standingRoom))
-      // Guard Post forward operating base — the adv is in a room
-      // directly door-connected to the minion's home Guard Post.
-      // _pickTarget will pick this adv, _engageTarget will path the
-      // minion through the door to engage, and when the connected
-      // rooms clear the default no-target return-home flow brings them
-      // back. Cheaper than a full new AI state, leans on the existing
-      // walk-along-path code.
-      let inGuardPostBeat = false
-      if (isGuardPost && guardPostConnectedIds && !inHome && !inStanding) {
-        if (advRoom && guardPostConnectedIds.has(advRoom.instanceId)) {
-          inGuardPostBeat = true
+      // Patrol reach — the adv is in a room directly door-connected to the
+      // minion's home. _pickTarget picks it, _engageTarget paths the minion
+      // through the door to engage, and the no-target return-home flow brings
+      // it back when the adjacent rooms clear. Leans on walk-along-path.
+      let inAdjacentBeat = false
+      if (isAdjacentPatroller && patrolConnectedIds && !inHome && !inStanding) {
+        if (advRoom && patrolConnectedIds.has(advRoom.instanceId)) {
+          inAdjacentBeat = true
         }
       }
-      const inMinionRoom = inHome || (inStanding && !isGarrison) || inGuardPostBeat
+      const inMinionRoom = inHome || (inStanding && !isGarrison) || inAdjacentBeat
 
       if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isFleeChaseTarget && !isLeashedTarget) continue
 

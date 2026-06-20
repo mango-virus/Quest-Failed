@@ -3930,3 +3930,29 @@ rotate away → mastery goes stale → the window reopens. Forces the player to 
 - ✅ Veterans: individually smarter — the per-run VETERAN combat edge (above) + they contribute more to the kingdom's bestiary (accumulate days-faced across runs); killing them is doubly rewarded.
 - ✅ Systems-integration: bestiary lives in `gameState.knowledge` (JSON-serializable, persists with the save, party-wipe clears it); KnowledgeSystem listeners off in `destroy()` (no leak); Doctrine panel reads the API; ⚠ balance NOT sim-tunable (sim has 0 escapes → can't build the bestiary) → magnitudes are conservative defaults, play-test for feel.
 - ✅ Per-phase verify done (node --check / lint-content / verify-docs / sim soak ×6 across phases / dedicated harnesses `bestiary`+`counters`+`competence-targeting`+`veteran-edge` / live preview) + this final full-feature pass.
+
+## Minion behaviors — consolidated to 3 (locked 2026-06-20, by user)
+
+Replaces the old fuzzy `behaviorType` set (guard/patrol/roam/ambush, where guard=patrol=ambush
+functionally and ambush had no code). **Exactly three base behaviors, set per family at the T1; all
+upgrade tiers (T2/T3/T4) inherit the T1's behavior** (so a chain is never mixed):
+
+- **`home`** — wander home room only; engage advs in home room; return home after combat.
+- **`patrol`** — wander home + door-adjacent rooms; engage advs in home OR an adjacent room (walks
+  over via the generalised neighbour-room reach, ex-Guard-Post logic); resume patrol (no ping-pong).
+- **`roam`** — wander the whole dungeon; engage wherever it currently stands; never returns home.
+
+Shared rules (these were ALREADY the game's behaviour — confirmed, no change): a minion ALWAYS
+aggros a non-invisible adv sharing its room (no distance gate); charmed / Saboteur / on-a-doorway
+advs stay excepted (kept, per user); a minion chases a fleeing adv it entered-room-with or was
+already fighting, giving up at the entry hall. `hunt` stays a runtime-only escalation (boss adds),
+not a base behavior. The `starter_guard_post` room still promotes its occupants to patrol scope.
+
+**Family → behavior (T1, inherited by the whole chain):**
+- roam: gnoll1, imp1, orc1, zombie1, lizardman1, slime2, slime3, slime4
+- patrol: beholder1, rat1, mushroom1, skeleton1
+- home: demon1, ent1, plant1, golem1, lich1, ghost1, goblin1, vampire_minion1, mimic
+  (mimic = home, but its chest-disguise logic keeps it stationary until sprung)
+
+Implementation: `src/data/minionTypes.json` behaviorType per minion (roam 27 / home 25 / patrol 12);
+wander-scope + engagement-scope + return-home in `MinionAISystem` driven off the 3 types.
