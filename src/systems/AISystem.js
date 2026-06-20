@@ -2016,16 +2016,19 @@ export class AISystem {
     } else if (adv._stuckInEntryMs) {
       adv._stuckInEntryMs = 0
     }
-    // Engage the boss only once we're past the wall thickness on a true
-    // INTERIOR floor tile of the chamber.  If we flipped on the bounding
-    // rect, the doorway tiles would qualify and BossSystem's interior
-    // clamp would snap the adv several tiles into the room — the
-    // visible "teleport to the boss" the player kept seeing.  Letting
-    // SEEK_BOSS keep control through the doorway lane means AISystem
-    // walks them naturally into the room; once they hit the first real
-    // floor tile we hand off to BossSystem and the `dash` action runs
-    // them at 7 tiles/sec to their orbit slot.
-    if (adv.goal?.type === 'SEEK_BOSS') {
+    // Engage the boss the moment ANY adventurer reaches a true INTERIOR floor
+    // tile of the chamber — not only those who came hunting it (goal SEEK_BOSS).
+    // Anyone who walks in starts the fight: notably a Valkyrie/Cleric who crossed
+    // the threshold to Rally a fallen ally (goal RALLY_APPROACH) used to stand
+    // there reviving with the boss inert. We still require an INTERIOR tile (past
+    // the wall thickness) — flipping on the bounding rect would let doorway tiles
+    // qualify and BossSystem's interior clamp would snap a doorway-lane adv
+    // several tiles in (the "teleport to the boss" bug); the doorway lane stays
+    // under normal AI so they walk in naturally, then the `dash` action carries
+    // them to their orbit slot. Fleeing advs (running OUT) and the player's
+    // charmed thralls (CHARM_WALK) are excluded — they aren't here to fight.
+    const _bossGoal = adv.goal?.type
+    if (_bossGoal !== 'FLEE' && _bossGoal !== 'CHARM_WALK' && adv.aiState !== 'fleeing') {
       const bossRoom = this._gameState.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
       const WT = Balance.WALL_THICKNESS
       if (bossRoom &&

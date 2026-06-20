@@ -1076,6 +1076,14 @@ export class ClassAbilitySystem {
   }
 
   _tickRallyCast(adv, now) {
+    // Entering the boss fight (or being downed / sent fleeing) interrupts the
+    // channel — BossSystem owns an AT_BOSS adventurer, so she can't keep reviving.
+    // (Normally the engage handoff fires before she ever reaches the body inside
+    // the chamber; this guards the rare same-frame race.)
+    if (adv.goal?.type === 'AT_BOSS' || adv.aiState === 'fighting' ||
+        adv.aiState === 'fleeing' || adv.aiState === 'dead') {
+      this._cancelRallyCast(adv); return
+    }
     const grave = this._gameState.adventurers?.graveyard ?? []
     const tIdx = grave.findIndex(g => g.instanceId === adv._rallyTargetId)
     if (tIdx < 0) { this._cancelRallyCast(adv, true); return }   // target gone → interrupt
