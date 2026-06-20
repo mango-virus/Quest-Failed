@@ -2230,6 +2230,11 @@ export class Game extends Phaser.Scene {
     } else {
       // Boss wanders its room during night at real time (cosmetic only).
       this.bossSystem?.update(delta)
+      // Minions amble around their rooms during the build phase so the dungeon
+      // feels alive (cosmetic only — movement, no combat/abilities). Freezes +
+      // faces the camera while a sell/move/upgrade tool is active. Runs BEFORE
+      // the renderer so the new positions are drawn this frame.
+      this.minionAiSystem?.nightWander(delta)
       this.minionRenderer?.update()
       // Adventurers don't normally exist at night, so their renderer is skipped
       // here — EXCEPT in the VFX Lab, which parks a frozen adventurer to review.

@@ -461,7 +461,7 @@
     "behaviorType": "ambush",
     "color": "0xaaccee",
     "sigil": "✦",
-    "description": "Pale, drifting spirit bound to a single tile. Cannot pursue, but reaches across the room to drain the living from afar.",
+    "description": "Pale, drifting spirit that haunts the halls and reaches across the room to drain the living from afar.",
     "baseStats": {
       "hp": 39,
       "attack": 9,

@@ -350,8 +350,10 @@ export class MinionRenderer {
             : (dy > 0 ? 'down'  : 'up')
         }
       }
-      // VFX Lab — pin a facing direction for sprite review.
-      if (m._vfxLabFacing) s.facing = m._vfxLabFacing
+      // Facing pin — night build-phase "face the camera" (sell/move/upgrade) and
+      // the VFX Lab both override the movement-derived facing.
+      if (m._faceOverride)  s.facing = m._faceOverride
+      if (m._vfxLabFacing)  s.facing = m._vfxLabFacing
       s.lastX = m.worldX; s.lastY = m.worldY
 
       // Walk detection — compare against an older sample so a single static

@@ -32,20 +32,19 @@ const TS = Balance.TILE_SIZE
 const PATROL_STUCK_MS      = 3500    // frozen in open floor → re-pick fast
 const PATROL_STUCK_DOOR_MS = 12000   // frozen at a doorway → above the 16× door-open hold
 
-// Defs that never move — they hold their home tile until aggro'd, never
-// wander. Single source of truth used by both the wander block (skip
-// patrol target picking) and _pickTarget (exempt from flee-chase
-// follow-through; a stationary def can't physically pursue across rooms).
-// Listed minions' tooltip BEHAVIOR text honestly says "never moves" /
-// "rooted" / "haunts a tile" — don't add a def here without matching its
-// player-facing description.
-const STATIONARY_DEF_IDS = new Set([
-  'plant1',
-  'mushroom1',
-  'mushroom2',
-  'lizardman1',
-  'ghost1',
-])
+// Defs that never move — they hold their home tile until aggro'd, never wander.
+// Single source of truth used by the day wander block (skip patrol picking),
+// _pickTarget (flee-chase exemption), the crowd-separation eligible, and the
+// night-wander. EMPTY by design (2026-06-20): the post-redesign roster has NO
+// stationary-by-design minion — every def's behaviorType moves (patrol/roam/
+// guard/ambush) and ghost1 was un-rooted ("fully mobile" per the user). The set
+// is kept so a FUTURE rooted minion can opt in; only add a def whose player-
+// facing description honestly says "never moves" / "rooted" / "haunts a tile".
+const STATIONARY_DEF_IDS = new Set([])
+
+// Night ambient wander (build phase) — gentle: a longer rest between short hops
+// than the day patrol so it reads as calm "alive" idling, not frantic pacing.
+const NIGHT_PAUSE_MS = 2600
 
 // ── EXPERIMENTAL: transit avoidance (Phase B) ────────────────────────────────
 // Local steer-around for WALKING minions on open floor so they don't phase
@@ -73,10 +72,16 @@ export class MinionAISystem {
     this._wokenRooms = new Set()
     this._alertedRooms = new Map()  // roomId → expiresAt (scene.time.now)
 
+    // Night-wander freeze: while the player is in a sell/move/upgrade tool, the
+    // ambient roam halts and minions face the camera (set from NightPhase's
+    // TOOL_MODE_CHANGED so units don't squirm away mid-interaction).
+    this._nightFreeze = false
+
     EventBus.on('COMBAT_HIT', this._onCombatHit, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.on('MINION_DIED', this._onMinionDied, this)
     EventBus.on('ADVENTURER_DIED', this._onAdvDiedRaise, this)
+    EventBus.on('TOOL_MODE_CHANGED', this._onToolMode, this)
 
     // Pass-3: wire global behavior listeners (e.g. Mimic Migrate on
     // NIGHT_PHASE_STARTED). Idempotent — re-attaching is a no-op.
@@ -88,7 +93,103 @@ export class MinionAISystem {
     EventBus.off('NIGHT_PHASE_STARTED', this._resetRoomState, this)
     EventBus.off('MINION_DIED', this._onMinionDied, this)
     EventBus.off('ADVENTURER_DIED', this._onAdvDiedRaise, this)
+    EventBus.off('TOOL_MODE_CHANGED', this._onToolMode, this)
     MinionAbilities.detach()
+  }
+
+  // Build-phase tool changed. sell/move/upgrade → freeze the night roam + face
+  // the camera; any other mode (or null) → release and resume ambient roaming.
+  _onToolMode({ mode } = {}) {
+    const freeze = mode === 'sell' || mode === 'move' || mode === 'upgrade'
+    this._nightFreeze = freeze
+    if (!freeze) {
+      // Drop the facing pin so minions resume movement-derived facing at once.
+      for (const m of (this._gameState.minions ?? [])) m._faceOverride = null
+    }
+  }
+
+  // Cosmetic NIGHT-phase ambient: dungeon minions roam their assigned room during
+  // the build phase so the dungeon feels alive. Movement-only — NO combat /
+  // abilities / doors (no adventurers exist at night). Mirrors the existing
+  // bossSystem night-wander. Called from Game.update's night branch.
+  nightWander(delta) {
+    const minions = this._gameState.minions ?? []
+    // Frozen while the player wields a sell/move/upgrade tool: stop in place and
+    // turn to face the camera (the Dark Lord's gaze) so nobody squirms away.
+    if (this._nightFreeze) {
+      for (const m of minions) {
+        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        if (m.faction !== 'dungeon') continue
+        m._patrolTarget = null
+        m._faceOverride = 'down'
+      }
+      return
+    }
+
+    // Per-tick units-by-room for transit avoidance (minions only at night).
+    this._tickUnitsByRoom = TRANSIT_AVOID ? new Map() : null
+    if (this._tickUnitsByRoom) {
+      for (const m of minions) {
+        if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+        const r = this._dungeonGrid?.getRoomAtTile?.(m.tileX, m.tileY)
+        if (!r) continue
+        const a = this._tickUnitsByRoom.get(r.instanceId)
+        if (a) a.push(m); else this._tickUnitsByRoom.set(r.instanceId, [m])
+      }
+    }
+
+    for (const m of minions) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.faction !== 'dungeon') continue
+      if (STATIONARY_DEF_IDS.has(m.definitionId)) continue
+      if (m._faceOverride) m._faceOverride = null   // resume normal facing
+      const home = this._gameState.dungeon.rooms.find(r => r.instanceId === m.assignedRoomId)
+      if (!home) continue
+      if (m._patrolTarget) {
+        if (m.tileX === m._patrolTarget.x && m.tileY === m._patrolTarget.y) {
+          m._patrolTarget = null
+          m._patrolAccum = 0
+        } else {
+          this._moveToward(m, m._patrolTarget, delta)
+        }
+      } else {
+        m._patrolAccum = (m._patrolAccum ?? 0) + delta
+        if (m._patrolAccum >= NIGHT_PAUSE_MS) {
+          m._patrolAccum = 0
+          const t = this._pickRoomWanderTile(m, home)
+          if (t) m._patrolTarget = t
+        }
+      }
+    }
+    this._tickUnitsByRoom = null
+
+    // Keep settled (idle, between-hop) minions spread on distinct tiles.
+    applyCrowdSeparation(minions, this._dungeonGrid, {
+      radius: 11,
+      eligible: (m) => m.aiState === 'idle' && !m._patrolTarget &&
+        (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon',
+    })
+  }
+
+  // Pick a random INTERIOR FLOOR tile inside `room` for a wander hop, biased away
+  // from tiles another minion is on / heading to (spread). Floor fallback, else
+  // null (room fully blocked → hold this cycle). Shared night-roam helper.
+  _pickRoomWanderTile(minion, room) {
+    const WT = Balance.WALL_THICKNESS
+    const minX = room.gridX + WT, minY = room.gridY + WT
+    const innerW = Math.max(1, room.width  - 2 * WT)
+    const innerH = Math.max(1, room.height - 2 * WT)
+    let pick = null, anyFloor = null
+    for (let a = 0; a < 10 && !pick; a++) {
+      const rx = minX + Math.floor(Math.random() * innerW)
+      const ry = minY + Math.floor(Math.random() * innerH)
+      const t = this._dungeonGrid?.getTileType?.(rx, ry)
+      if (t !== TILE.FLOOR && t !== TILE.BOSS_FLOOR) continue
+      if (!anyFloor) anyFloor = { x: rx, y: ry }
+      if (TRANSIT_AVOID && this._tileClaimedByOtherMinion(rx, ry, minion)) continue
+      pick = { x: rx, y: ry }
+    }
+    return pick ?? anyFloor
   }
 
   // Mourner stacking: attack buff for any same-room ally that's still standing
@@ -432,6 +533,10 @@ export class MinionAISystem {
 
   _tickMinion(minion, delta, idx) {
     if (minion.aiState === 'dead') return
+
+    // Day combat: never keep the night "face the camera" pin (a save mid-freeze
+    // could otherwise leave a minion staring at the viewer all day).
+    if (minion._faceOverride) minion._faceOverride = null
 
     // VFX Lab — a frozen lab entity never runs AI (stays put for review).
     if (minion._vfxLabFrozen) return
