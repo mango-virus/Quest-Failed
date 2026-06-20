@@ -42,12 +42,15 @@ const RAISED_DEAD_SCALE = 0.75
 // Throne Room mini-bosses (2.0× via _mbDisplayScale) so they read as
 // "almost as big as the boss" without needing a separate sprite sheet.
 // Reads from `m._mbDisplayScale` (number) → defaults to 1.0 when unset.
-function _displayScaleFor(m) {
+function _displayScaleFor(m, def) {
   if (typeof m?._mbDisplayScale === 'number') return m._mbDisplayScale
   // Split slimelings render SMALLER than their parent — and smaller still when
   // they're a deeper cascade generation — so the swarm reads as little slimes.
   if (m?._isMiniSlime) return (m._splitDepth >= 2) ? 0.45 : 0.62
-  return 1.0
+  // Per-minion size knob (minionTypes.json `displayScale`) — bumps the LPC
+  // humanoids that under-fill their frame up to a proper creature size. Set on
+  // the T1 + inherited by the chain; the evolution tier-scale stacks on top.
+  return def?.displayScale ?? 1.0
 }
 const PLACEHOLDER_SIZE = 18
 const HURT_FLASH_MS    = 300
@@ -147,7 +150,7 @@ export class MinionRenderer {
     // Keep the hover label glued above the hovered minion.
     if (this._hoverMinion) {
       const def = this._defMap[this._hoverMinion.definitionId]
-      const yOffset = ((def?.frameSize ?? PLACEHOLDER_SIZE) * MINION_SCALE) / 2 + 8
+      const yOffset = ((def?.frameSize ?? PLACEHOLDER_SIZE) * MINION_SCALE * _displayScaleFor(this._hoverMinion, def)) / 2 + 8
       this._hoverLabel.setPosition(this._hoverMinion.worldX, this._hoverMinion.worldY - yOffset)
     }
 
@@ -1540,7 +1543,7 @@ export class MinionRenderer {
     if (this._scene.textures.exists(idleKey)) s.sprite.setTexture(idleKey, 0)
     const tierScale = this._tierScaleFor(m.definitionId)
     const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
-    const dispScale = _displayScaleFor(m)
+    const dispScale = _displayScaleFor(m, def)
     s.sprite.setScale(baseScale * tierScale * dispScale)
     s.currentAnim = null   // force play() with the new prefix next tick
   }
@@ -1554,7 +1557,7 @@ export class MinionRenderer {
 
     const tierScale = this._tierScaleFor(m.definitionId)
     const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
-    const dispScale = _displayScaleFor(m)
+    const dispScale = _displayScaleFor(m, def)
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
       .setScale(baseScale * tierScale * dispScale)
