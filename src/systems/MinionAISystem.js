@@ -1442,7 +1442,11 @@ export class MinionAISystem {
     const fleeing = target?.aiState === 'fleeing'
     const savedSpeed = minion.stats?.speed
     if (fleeing && minion.stats && (target.stats?.speed ?? 0) > 0) {
-      minion.stats.speed = target.stats.speed * 1.1
+      // Match the fleer's run speed so a slow chaser can still catch a runner —
+      // but never SLOW a minion that is already faster than the fleer (its own
+      // base speed wins). Without the max(), the higher 2026-06-20 base speeds
+      // would clamp a fast minion DOWN to a slow fleer's pace mid-chase.
+      minion.stats.speed = Math.max(savedSpeed ?? 0, target.stats.speed * 1.1)
       minion._wasChasingFlee = true
     }
     try {
