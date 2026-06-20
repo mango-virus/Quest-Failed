@@ -189,15 +189,8 @@ export class LeftPanels {
         ref: el => { this._refs.buildDock = el },
       }, [
       h('div', { className: 'panel bevel qf-construction' }, [
-        // Header — gold-meta removed at user request; TopBar already
-        // shows the treasury total and the per-card cost chips on each
-        // item make the duplicate header readout redundant.
-        h('div', { className: 'panel-head' }, [
-          h('div', { className: 'title' }, [
-            h('span', { className: 'diamond', style: { background: 'var(--poison)', boxShadow: '0 0 6px var(--poison)' } }),
-            'CONSTRUCTION',
-          ]),
-        ]),
+        // Header title dropped — the ribbon's tabs + its tether to PLACE identify
+        // it; the separate CONSTRUCTION title bar was a redundant row.
         // Category tabs
         h('div', { className: 'qf-cat-tabs' },
           CATEGORIES.map(cat => h('button', {
@@ -219,33 +212,71 @@ export class LeftPanels {
             padding: '3px 9px', fontSize: '8px', letterSpacing: '0.5px',
           },
         }),
-        // Grid (filled by _renderGrid)
-        h('div', {
-          className: 'qf-build-grid',
-          ref: el => { this._refs.grid = el },
-        }),
-        // Selection footer (filled by _renderFooter)
-        h('div', {
-          className: 'qf-build-footer',
-          ref: el => { this._refs.footer = el },
-        }),
-      ]),
-        // Peek handle — always visible on the left edge; toggles the drawer.
-        h('div', {
-          className: 'qf-build-handle',
-          on: { click: () => this._toggleDrawer() },
-        }, [
-          h('span', { className: 'pix qf-build-chev', ref: el => { this._refs.buildChev = el } }, '▸'),
-          h('span', { className: 'sil qf-build-handle-label' }, 'CONSTRUCTION'),
-          h('span', { className: 'qf-build-handle-dia' }),
+        // Grid (filled by _renderGrid) — cards in a horizontal scroll row with
+        // ‹ › arrows + wheel/drag scroll for overflow. (Footer dropped; per-card
+        // detail is the card's hover tooltip.)
+        h('div', { className: 'qf-build-gridwrap' }, [
+          h('button', {
+            className: 'qf-build-arrow left', 'aria-label': 'Scroll left',
+            ref: el => { this._refs.arrowL = el },
+            on: { click: () => this._refs.grid?.scrollBy({ left: -240, behavior: 'smooth' }) },
+          }, '‹'),
+          h('div', { className: 'qf-build-grid', ref: el => { this._refs.grid = el } }),
+          h('button', {
+            className: 'qf-build-arrow right', 'aria-label': 'Scroll right',
+            ref: el => { this._refs.arrowR = el },
+            on: { click: () => this._refs.grid?.scrollBy({ left: 240, behavior: 'smooth' }) },
+          }, '›'),
         ]),
+      ]),
       ]),
     ])
 
     this._selectCategory(this._selectedCategory, /*skipRerender*/ true)
-    this._renderFooter()
     this._renderSlots()
+    this._wireRibbonScroll()
     return root
+  }
+
+  // Horizontal scroll for the construction ribbon: wheel → scrollLeft, drag →
+  // scroll (pointer-captured on the grid, so no window-level listeners to leak),
+  // and ‹ › arrow visibility synced to the scroll position.
+  _wireRibbonScroll() {
+    const grid = this._refs.grid
+    if (!grid || grid._ribbonWired) return
+    grid._ribbonWired = true
+    grid.addEventListener('wheel', (e) => {
+      if (!e.deltaY) return
+      grid.scrollLeft += e.deltaY
+      e.preventDefault()
+    }, { passive: false })
+    grid.addEventListener('scroll', () => this._updateRibbonArrows(), { passive: true })
+    let down = false, startX = 0, startScroll = 0, moved = false
+    grid.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return
+      down = true; moved = false; startX = e.clientX; startScroll = grid.scrollLeft
+      grid.setPointerCapture?.(e.pointerId)
+    })
+    grid.addEventListener('pointermove', (e) => {
+      if (!down) return
+      const dx = e.clientX - startX
+      if (Math.abs(dx) > 3) { moved = true; grid.classList.add('dragging') }
+      grid.scrollLeft = startScroll - dx
+    })
+    const endDrag = (e) => { down = false; grid.classList.remove('dragging'); grid.releasePointerCapture?.(e.pointerId) }
+    grid.addEventListener('pointerup', endDrag)
+    grid.addEventListener('pointercancel', endDrag)
+    // Swallow the click that ends a drag so it doesn't arm a card.
+    grid.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false } }, true)
+  }
+
+  // Show each arrow only when there's more to scroll that way.
+  _updateRibbonArrows() {
+    const grid = this._refs.grid
+    if (!grid) return
+    const max = grid.scrollWidth - grid.clientWidth
+    this._refs.arrowL?.classList.toggle('show', grid.scrollLeft > 4)
+    this._refs.arrowR?.classList.toggle('show', max > 4 && grid.scrollLeft < max - 4)
   }
 
   // ── Construction drawer ─────────────────────────────────────────
@@ -513,6 +544,9 @@ export class LeftPanels {
           tinkered: isTinkered ? 'true' : 'false',
         },
         style: { '--cat-color': cat.color },
+        title: `${def.name || def.id}${cost ? ' · ' + cost + ' gold' : ' · free'}`
+          + (locked ? `\nLocked — unlocks at boss LV ${reqLevel}` : '')
+          + (def.description ? `\n${def.description}` : ''),
         disabled: locked,
         on: { click: () => locked ? null : this._onCardClick(def, cat) },
       }, [
@@ -554,9 +588,11 @@ export class LeftPanels {
       mount(grid, h('div', { className: 'qf-build-grid-empty' }, [
         h('div', { className: 'pix' }, '◇ COMING SOON ◇'),
       ]))
-      return
+    } else {
+      mount(grid, cards)
     }
-    mount(grid, cards)
+    grid.scrollLeft = 0
+    this._updateRibbonArrows()
   }
 
   // Build-card thumbnail. Tries the in-game Phaser texture first (so the

@@ -2348,18 +2348,27 @@ html.gamepad-active #qf-cursor { display: none; }
 
 /* Construction drawer — dock = [panel][handle], slides via `left` so it
    animates open AND closed; the peek handle stays on the screen edge. */
+/* CONSTRUCTION ribbon — a short, wide panel hugging the action bar, unfurled
+   from the PLACE button (action-bar fly-out redesign). Centered above the bar;
+   the play area above stays clickable for placement. */
 .qf-build-dock {
   position: absolute;
-  /* Start below the boss vitals (.qf-topbar-left), which overflow the
-     reserved --hud-top strip by ~24px (sprite + HP bar + buff/hearts row).
-     At top:96px the CONSTRUCTION header tucked under the boss info; clear
-     it so the menu reads fully and isn't "covered by the boss info". */
-  left: 14px; top: 128px; bottom: 96px;
-  display: flex; align-items: stretch;
+  left: 50%;
+  bottom: 102px;
+  transform: translateX(-50%);
+  width: clamp(560px, 60vw, 900px);
+  max-width: calc(100vw - 360px);
+  display: flex;
+  flex-direction: column;
   pointer-events: auto;
-  transition: left .3s cubic-bezier(.3, 1, .4, 1);
+  transform-origin: bottom center;
+  transition: transform .26s cubic-bezier(.3, 1, .4, 1), opacity .2s ease;
 }
-.qf-build-dock.closed { left: -232px; }
+.qf-build-dock.closed {
+  transform: translateX(-50%) translateY(26px) scaleY(0.5);
+  opacity: 0;
+  pointer-events: none;
+}
 .qf-build-handle {
   width: 34px; flex: 0 0 auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
@@ -2371,13 +2380,59 @@ html.gamepad-active #qf-cursor { display: none; }
 .qf-build-handle-label { writing-mode: vertical-rl; font-size: 9px; letter-spacing: .24em; color: var(--text-mute); text-transform: uppercase; }
 .qf-build-handle-dia { width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold); box-shadow: 0 0 6px var(--gold); }
 .qf-build-handle:hover .qf-build-handle-label, .qf-build-handle:hover .qf-build-chev { color: var(--text); }
-/* The construction panel fills the dock's left slot at a fixed drawer width. */
+/* The construction panel fills the ribbon width; cards lay out in a single
+   horizontal scroll row (wheel/drag + arrows) rather than a 2-col grid. */
 .qf-build-dock .qf-construction {
-  width: 232px; flex: 0 0 auto;
-  display: flex; flex-direction: column; min-height: 0;
-  margin: 0;
+  position: relative;
+  width: 100%; flex: 0 0 auto;
+  display: flex; flex-direction: column;
+  margin: 0; padding: 0;
+  /* Same beveled crypt-console material as the action bar, so the ribbon reads
+     as one unit growing from it. */
+  background: var(--bg-2);
+  box-shadow:
+    inset 0 0 0 1px var(--bg-0),
+    inset 0 0 0 2px var(--line-2),
+    0 5px 0 rgba(0, 0, 0, 0.5);
 }
-.qf-build-dock .qf-build-grid { flex: 1; min-height: 0; overflow: auto; }
+/* Blood top-accent — matches PLACE's armed colour. */
+.qf-build-dock .qf-construction::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--blood); box-shadow: 0 0 8px var(--blood); pointer-events: none; z-index: 2;
+}
+.qf-build-dock .qf-build-grid {
+  display: flex; flex-direction: row; flex-wrap: nowrap;
+  gap: 6px; padding: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: var(--line-bright) var(--bg-0);
+}
+.qf-build-dock .qf-build-grid::-webkit-scrollbar { height: 7px; }
+.qf-build-dock .qf-build-grid::-webkit-scrollbar-track { background: var(--bg-0); }
+.qf-build-dock .qf-build-grid::-webkit-scrollbar-thumb { background: var(--line-bright); }
+.qf-build-dock .qf-build-grid::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+.qf-build-dock .qf-build-card { flex: 0 0 100px; }
+.qf-build-dock .qf-build-grid-empty { flex: 1 0 auto; white-space: nowrap; padding: 24px 8px; }
+.qf-build-dock .qf-build-gridwrap { position: relative; display: flex; }
+.qf-build-dock .qf-build-grid.dragging { cursor: grabbing; }
+.qf-build-dock .qf-build-grid.dragging .qf-build-card { pointer-events: none; }
+/* ‹ › overflow arrows — fade in only when there's more to scroll that way. */
+.qf-build-dock .qf-build-arrow {
+  position: absolute; top: 8px; bottom: 8px; width: 30px; z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--pix); font-size: 15px; color: var(--text);
+  border: none; cursor: pointer;
+  opacity: 0; pointer-events: none; transition: opacity .15s ease;
+}
+.qf-build-dock .qf-build-arrow.left  { left: 0;  background: linear-gradient(90deg, var(--bg-1) 35%, transparent); }
+.qf-build-dock .qf-build-arrow.right { right: 0; background: linear-gradient(270deg, var(--bg-1) 35%, transparent); }
+.qf-build-dock .qf-build-arrow.show { opacity: 0.92; pointer-events: auto; }
+.qf-build-dock .qf-build-arrow:hover { opacity: 1; color: var(--gold); }
+/* Console tail — a small notch under the ribbon bridging down to the action bar. */
+.qf-build-dock .qf-construction::after {
+  content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+  width: 0; height: 0; border: 7px solid transparent; border-top-color: var(--bg-2);
+  pointer-events: none;
+}
 
 /* MiniKnowledgeMap */
 .qf-minimap-body {
