@@ -247,7 +247,7 @@ export class SettingsOverlay {
     return [
       h('button', { className: 'qf-pbtn ghost', on: { click: () => this._onReset() } }, 'RESET DEFAULTS'),
       h('div', { style: { display: 'flex', gap: '12px' } }, [
-        h('button', { className: 'qf-pbtn', on: { click: () => this._onCancel() } }, 'CANCEL'),
+        h('button', { className: 'qf-pbtn', on: { click: () => this.close() } }, 'CANCEL'),
         h('button', { className: 'qf-pbtn primary', on: { click: () => this._onApply() } }, 'APPLY'),
       ]),
     ]
