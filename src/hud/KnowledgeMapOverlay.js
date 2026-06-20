@@ -29,17 +29,20 @@
 // handled by `KnowledgeSystem._onScrubRequest` (debits gold + scrubs the
 // room's room/enemy/trap intel from the shared pool + every survivor).
 
-import { h, mount } from './dom.js'
-import { Overlay } from './Overlay.js'
+import { h } from './dom.js'
+import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
-import { CAT_COLOR } from './hudShared.js'
 
-const STATE_COLOR = {
-  FULL:    '#c8334a',
-  PARTIAL: '#e89a3c',
-  RUMOR:   '#5cc8d8',
-  UNKNOWN: '#5a4a4e',
+// Design tier metadata for the bespoke MAP tray (KnowledgeTray): maps our
+// FULL/PARTIAL/RUMOR/UNKNOWN intel states → the tray's id / colour / label /
+// glyph. (UNKNOWN reads as "HIDDEN" — what the kingdom can't see.)
+const MAP_TIER = {
+  FULL:    { id: 'full',    c: 'var(--blood)', n: 'KNOWN',   g: '◉' },
+  PARTIAL: { id: 'partial', c: 'var(--warn)',  n: 'PARTIAL', g: '◐' },
+  RUMOR:   { id: 'rumor',   c: 'var(--rumor)', n: 'RUMOR',   g: '◌' },
+  UNKNOWN: { id: 'hidden',  c: 'var(--dim)',   n: 'HIDDEN',  g: '?' },
 }
+
 // Base scrub cost by the room's own intel tier. The full cost also
 // scales with how much the room exposes — see _scrubCost().
 const SCRUB_COST = { FULL: 22, PARTIAL: 12, RUMOR: 6, UNKNOWN: 0 }
@@ -48,65 +51,256 @@ const SCRUB_COST = { FULL: 22, PARTIAL: 12, RUMOR: 6, UNKNOWN: 0 }
 const SCRUB_PER_ASPECT     = 8
 const SCRUB_PER_ROOM_LEVEL = 5
 
-// ── Knowledge-category color scheme ─────────────────────────────────
-// The ONE 4-category palette (ROOMS / TRAPS / MINIONS / ITEMS) shared with the
-// LeftPanels mini-map — see hudShared.js. Used here for the category-filter
-// toggle buttons + the per-category intel markers on the blueprint.
-// The four filterable categories, in legend order. `all` true = no
-// filter active (everything shows).
-const CATEGORIES = ['ROOMS', 'TRAPS', 'MINIONS', 'ITEMS']
-
 export class KnowledgeMapOverlay {
   constructor(gameState) {
     this._gameState = gameState
-    this._overlay = null
-    this._zoom = 1
-    this._pan  = { x: 0, y: 0 }
-    this._filterRoomId = null
-    // Category filter — a Set of the categories currently SHOWN. When
-    // it holds all four (the default) no filtering happens; toggling a
-    // button removes / re-adds its category. Both the DUNGEON
-    // BLUEPRINT and the INTEL LEDGER honour this set.
-    this._catFilter = new Set(CATEGORIES)
-    this._dragRef = null
+    this._tray = null
+    this._mapFilter = 'all'   // tier filter for the bespoke tray
+    this._selRoomId = null    // selected room in the tray's schematic
     this._listener = () => this.toggle()
+    this._onResize = () => this._fitMapStage()
     EventBus.on('OPEN_KNOWLEDGE_MAP', this._listener)
   }
 
   toggle() {
-    if (this._overlay) this.close()
+    if (this._tray) this.close()
     else this.open()
   }
-  isOpen() { return !!this._overlay }
+  isOpen() { return !!this._tray }
 
+  // The knowledge map now flies out of its action-bar button as a bespoke
+  // map-first tray (schematic dungeon + tier filter + per-room dossier with
+  // a SCRUB INTEL action) instead of the old full-screen Overlay. All the
+  // intel/tier/scrub helpers below are reused.
   open() {
-    if (this._overlay) return
-    this._zoom = 1
-    this._pan = { x: 0, y: 0 }
-    this._filterRoomId = null
-    this._catFilter = new Set(CATEGORIES)
-    this._overlay = new Overlay({
-      npcKind: 'knowledge',
-      title:   'KNOWLEDGE MAP',
-      eyebrow: 'WHAT THE KINGDOM HAS LEARNED',   // → crypt shell (eyebrow + no X)
-      width:  1400,
-      height: 840,
+    if (this._tray) return
+    this._mapFilter = 'all'
+    this._selRoomId = null
+    this._tray = new TrayShell({
+      anchorSel: '[data-tray-anchor="MAP"]',
+      align:  'right',
+      vAlign: 'up',
       accent: 'var(--rumor)',
-      frame:  'plain',   // subtle main-menu edge instead of the accent frame
-      animation: 'unfurl',
-      onClose: () => { this._overlay = null },
-      body:   this._renderBody(),
+      width:  'min(64vw, 1040px)',
+      height: 360,
+      onClose: () => { this._tray = null },
     })
-    this._overlay.open()
+    this._tray.setContent(this._renderTrayContent())
+    this._tray.open()
+    window.addEventListener('resize', this._onResize)
+    // Drive the live pip layer (minions/adventurers/items moving in real time).
+    this._pipTick = requestAnimationFrame(() => this._tickPips())
   }
 
   close() {
-    this._overlay?.close()
-    this._overlay = null
+    window.removeEventListener('resize', this._onResize)
+    if (this._pipTick) cancelAnimationFrame(this._pipTick)
+    this._pipTick = null
+    this._pipEls = null
+    this._tray?.close()
+    this._tray = null
   }
 
   _rerender() {
-    if (this._overlay) this._overlay.setBody(this._renderBody())
+    if (this._tray) this._tray.setContent(this._renderTrayContent())
+  }
+
+  // ── Bespoke map tray (schematic + dossier) ──────────────────────
+  _renderTrayContent() {
+    this._report = this._intelReport()
+    const all = this._roomEntries()   // { id, defId, name, x, y, w, h, state }
+    if (!all.length) {
+      return h('div', { className: 'mp-main' }, [
+        h('div', { className: 'mp-empty' }, [
+          h('div', { className: 'mp-empty-eye' }, '◇  NO DUNGEON  ◇'),
+          h('div', { className: 'mp-empty-hint' }, 'Build rooms — then watch what the kingdom learns.'),
+        ]),
+      ])
+    }
+    const isBoss = (e) => e.defId === 'boss_chamber'
+    // Corridors render as rooms too (tier-coloured), so the layout reads as one
+    // connected map. TRUE tile proportions: lay everything out in px (tile ×
+    // BASE) inside .mp-scale, then _fitMapStage() uniformly scales the whole
+    // box to fit the stage — so a 4×4 room stays square, never stretched.
+    const BASE = 16
+    const minX = Math.min(...all.map(e => e.x)), minY = Math.min(...all.map(e => e.y))
+    const maxX = Math.max(...all.map(e => e.x + e.w)), maxY = Math.max(...all.map(e => e.y + e.h))
+    const cW = Math.max(1, maxX - minX) * BASE, cH = Math.max(1, maxY - minY) * BASE
+    const PX = (v, min) => ((v - min) * BASE) + 'px'
+    // Layout for the per-frame pip tick; reset the (now-detached) pip pool.
+    this._mapLayout = { minX, minY, BASE }
+    this._pipEls = new Map()
+    if (this._selRoomId == null && all.length) this._selRoomId = all[0].id
+    const filter = this._mapFilter
+    const tabs = [
+      { id: 'all',     label: 'ALL',   glyph: '◈', count: all.length },
+      { id: 'full',    label: 'KNOWN', glyph: '◉', count: all.filter(r => r.state === 'FULL').length },
+      { id: 'partial', label: 'PART',  glyph: '◐', count: all.filter(r => r.state === 'PARTIAL').length },
+      { id: 'rumor',   label: 'RUMOR', glyph: '◌', count: all.filter(r => r.state === 'RUMOR').length },
+      { id: 'hidden',  label: 'DARK',  glyph: '?', count: all.filter(r => r.state === 'UNKNOWN').length },
+    ]
+    const segbar = h('div', { className: 'htr-segbar' }, tabs.map(tb => h('div', {
+      className: 'htr-segtab' + (filter === tb.id ? ' on' : ''),
+      on: { click: () => { this._mapFilter = tb.id; this._rerender() } },
+    }, [
+      h('span', { className: 'tg' }, tb.glyph),
+      h('span', { className: 'lb' }, tb.label),
+      h('span', { className: 'ct' }, String(tb.count)),
+    ])))
+    const stageInner = h('div', {
+      className: 'mp-scale',
+      style: { width: cW + 'px', height: cH + 'px' },
+    }, [
+      ...all.map((r, i) => {
+        const t = MAP_TIER[r.state] || MAP_TIER.UNKNOWN
+        const dim = filter !== 'all' && t.id !== filter
+        const on = r.id === this._selRoomId
+        return h('div', {
+          className: 'mp-room' + (isBoss(r) ? ' boss' : '') + (r.state === 'FULL' ? ' known' : '') + (on ? ' on' : '') + (dim ? ' dim' : ''),
+          style: { left: PX(r.x, minX), top: PX(r.y, minY), width: r.w * BASE + 'px', height: r.h * BASE + 'px', '--rc': t.c, '--i': i },
+          on: { click: () => { this._selRoomId = r.id; this._rerender() } },
+        }, [
+          r.state === 'FULL' ? h('span', { className: 'reye' }, isBoss(r) ? '♛' : '◉') : null,
+          h('span', { className: 'rn' }, r.name),
+          h('span', { className: 'rt' }, t.n),
+        ].filter(Boolean))
+      }),
+      // Live entity-pip layer — populated + moved every frame by _tickPips().
+      h('div', { className: 'mp-pips' }),
+    ])
+    // Pip legend (floats bottom-left of the stage) so the colours are readable.
+    const legend = h('div', { className: 'mp-legend' }, [
+      ['BOSS', '#fff'], ['HEROES', 'var(--bloodG)'], ['MINIONS', 'var(--poison)'], ['TRAPS', 'var(--warn)'], ['ITEMS', 'var(--info)'],
+    ].map(([label, color]) => h('span', { className: 'mp-leg' }, [
+      h('span', { className: 'mp-leg-d', style: { background: color } }),
+      label,
+    ])))
+    const stage = h('div', { className: 'mp-stage' }, [ stageInner, legend ])
+    // Uniformly scale the schematic to fit the stage once it mounts.
+    requestAnimationFrame(() => this._fitMapStage())
+    const sel = all.find(r => r.id === this._selRoomId) || all[0]
+    const st = MAP_TIER[sel?.state] || MAP_TIER.UNKNOWN
+    const expo = this._exposurePct()
+    const scrubCost = sel ? this._scrubCost(sel) : 0
+    const side = h('div', { className: 'mp-side' }, [
+      h('div', { className: 'mp-expo' }, [
+        h('span', { className: 'mp-expo-pct', style: { color: expo >= 70 ? 'var(--blood)' : expo >= 40 ? 'var(--warn)' : 'var(--poison)' } }, `${expo}%`),
+        h('span', { className: 'mp-expo-l' }, [ 'DUNGEON', h('br'), 'EXPOSURE' ]),
+      ]),
+      sel ? h('div', { className: 'mp-det', style: { '--dc': st.c } }, [
+        h('span', { className: 'mp-det-eye' }, isBoss(sel) ? 'YOUR THRONE' : 'SCOUTED ROOM'),
+        h('span', { className: 'mp-det-name' }, sel.name),
+        h('span', { className: 'mp-det-tier' }, `${st.g} ${st.n}`),
+        h('span', { className: 'mp-det-desc' }, sel.state === 'UNKNOWN'
+          ? 'The kingdom has no knowledge of this room. Keep it buried.'
+          : 'Scouting reports place this room — its full contents are still being pieced together.'),
+        h('div', { className: 'mp-det-bury' }, [ h('span', { className: 'i' }, '▶'), h('span', null, this._mitigationFor(sel.state)) ]),
+        // SCRUB INTEL — the room dossier's call-to-action. Prominent warn-amber
+        // button with a pulsing glow so it reads as "do this" (was easy to miss).
+        scrubCost > 0 ? h('button', {
+          className: 'mp-scrub',
+          title: 'Spend gold to wipe this room from the kingdom’s intel',
+          on: { click: () => this._onScrub(sel, scrubCost) },
+        }, [
+          h('span', { className: 'si' }, '⌫'),
+          h('span', { className: 'sl' }, 'SCRUB INTEL'),
+          h('span', { className: 'sc' }, [ h('span', { className: 'mp-scrub-coin' }), `${scrubCost}g` ]),
+        ]) : null,
+      ].filter(Boolean)) : null,
+    ])
+    return h('div', { className: 'htr-chrome m-col' }, [
+      segbar,
+      h('div', { className: 'htr-content' }, [ h('div', { className: 'mp-main' }, [ stage, side ]) ]),
+    ])
+  }
+
+  // Uniformly scale the px schematic (.mp-scale) to fit the stage box,
+  // preserving the dungeon's true aspect ratio (so rooms never stretch).
+  _fitMapStage() {
+    const stage = this._tray?.trayEl?.querySelector('.mp-stage')
+    const scale = stage?.querySelector('.mp-scale')
+    if (!stage || !scale) return
+    const cW = scale.offsetWidth || 1, cH = scale.offsetHeight || 1
+    const pad = 16
+    const s = Math.min((stage.clientWidth - pad) / cW, (stage.clientHeight - pad) / cH)
+    scale.style.transform = `translate(-50%, -50%) scale(${s > 0 ? s : 1})`
+  }
+
+  // Live entities to plot as pips: boss (chamber centre), minions,
+  // adventurers (day-phase invaders), traps, and items (chests / beacons /
+  // fountains / locks / key-chests / phylactery). Each carries a stable `key`
+  // so _tickPips() can pool the elements and just move them as things shift.
+  // Tile coords; _tickPips converts to px via the stored layout.
+  _entityPips() {
+    const gs = this._gameState
+    const d  = gs.dungeon ?? {}
+    const pips = []
+    // Boss pip — its LIVE position (BossSystem updates boss.tileX/tileY as it
+    // roams its room + fights), falling back to the chamber centre pre-spawn.
+    const b = gs.boss
+    if (b && b.tileX != null && b.tileY != null) {
+      pips.push({ key: 'boss', x: b.tileX + 0.5, y: b.tileY + 0.5, cls: 'boss', label: 'The Boss' })
+    } else {
+      const bossRoom = (d.rooms ?? []).find(r => r.definitionId === 'boss_chamber')
+      if (bossRoom) pips.push({ key: 'boss', x: (bossRoom.gridX ?? 0) + (bossRoom.width || 1) / 2, y: (bossRoom.gridY ?? 0) + (bossRoom.height || 1) / 2, cls: 'boss', label: 'Boss Chamber' })
+    }
+    for (const m of (gs.minions ?? [])) {
+      if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
+      if (m.tileX == null || m.tileY == null) continue
+      pips.push({ key: 'm:' + m.instanceId, x: m.tileX + 0.5, y: m.tileY + 0.5, cls: 'minion', label: m.name || 'Minion' })
+    }
+    for (const a of (gs.adventurers?.active ?? [])) {
+      if (!a || a.tileX == null || a.tileY == null) continue
+      if ((a.resources?.hp ?? a.hp ?? 1) <= 0 || a.aiState === 'dead') continue
+      pips.push({ key: 'a:' + a.instanceId, x: a.tileX + 0.5, y: a.tileY + 0.5, cls: 'adv', label: a.name || 'Adventurer' })
+    }
+    for (const t of (d.traps ?? [])) {
+      if (t?.tileX == null) continue
+      pips.push({ key: 't:' + t.tileX + ',' + t.tileY, x: t.tileX + 0.5, y: t.tileY + 0.5, cls: 'trap', label: 'Trap' })
+    }
+    const itemArrays = [d.treasureChests, d.beacons, d.fountains, d.locks, d.keyChests]
+    for (const arr of itemArrays) {
+      for (const it of (arr ?? [])) {
+        if (it?.tileX == null) continue
+        pips.push({ key: 'i:' + it.tileX + ',' + it.tileY, x: it.tileX + 0.5, y: it.tileY + 0.5, cls: 'item', label: 'Item' })
+      }
+    }
+    if (gs.phylactery && gs.phylactery.tileX != null) {
+      pips.push({ key: 'i:phyl', x: gs.phylactery.tileX + 0.5, y: gs.phylactery.tileY + 0.5, cls: 'item', label: 'Phylactery' })
+    }
+    return pips
+  }
+
+  // Per-frame pip updater (runs while the map tray is open). Pools elements by
+  // entity key and only writes left/top — so minions / adventurers / moved or
+  // sold items track in real time without a full re-render. Pips have no
+  // re-created animation (rings live on ::after), so pooling keeps them smooth.
+  _tickPips() {
+    if (!this._tray) { this._pipTick = null; return }
+    const layer = this._tray.trayEl?.querySelector('.mp-pips')
+    const lay = this._mapLayout
+    if (layer && lay) {
+      if (!this._pipEls) this._pipEls = new Map()
+      const BASE = lay.BASE
+      const seen = new Set()
+      for (const p of this._entityPips()) {
+        seen.add(p.key)
+        let el = this._pipEls.get(p.key)
+        if (!el) {
+          el = h('div', { className: 'mp-pip mp-pip-' + p.cls, title: p.label })
+          const sz = Math.round(p.cls === 'boss' ? BASE * 1.35 : BASE * 0.8)
+          el.style.width = sz + 'px'; el.style.height = sz + 'px'
+          this._pipEls.set(p.key, el)
+          layer.appendChild(el)
+        }
+        el.style.left = ((p.x - lay.minX) * BASE) + 'px'
+        el.style.top  = ((p.y - lay.minY) * BASE) + 'px'
+      }
+      for (const [k, el] of this._pipEls) {
+        if (!seen.has(k)) { el.remove(); this._pipEls.delete(k) }
+      }
+    }
+    this._pipTick = requestAnimationFrame(() => this._tickPips())
   }
 
   // ── Data helpers ────────────────────────────────────────────────
@@ -143,74 +337,10 @@ export class KnowledgeMapOverlay {
     return { exposurePct: 0, rooms: {}, traps: {}, enemiesPerRoom: {}, items: {}, leakedRoomCount: 0 }
   }
 
-  // Resolve an item-entity type id to its display name via items.json.
-  _itemLabel(itemType) {
-    if (!itemType) return 'placed item'
-    const def = (this._cachedJson('items') ?? []).find(d => d.id === itemType)
-    return def?.name ?? itemType
-  }
-
-  // Resolve a minion / trap definition id to its player-facing display
-  // name (minionTypes.json / trapTypes.json) — never leak the dev id.
-  _minionLabel(minionType) {
-    if (!minionType) return 'enemy'
-    const def = (this._cachedJson('minionTypes') ?? []).find(d => d.id === minionType)
-    return def?.name ?? minionType
-  }
-
-  _trapLabel(trapType) {
-    if (!trapType) return 'trap'
-    const def = (this._cachedJson('trapTypes') ?? []).find(d => d.id === trapType)
-    return def?.name ?? trapType
-  }
-
   // Room intel state — one of the four state strings. Reads the cached
   // report computed once per render in _renderBody().
   _intelStateFor(roomInstanceId) {
     return this._report?.rooms?.[roomInstanceId] ?? 'UNKNOWN'
-  }
-
-  // ── Category filter ─────────────────────────────────────────────
-  // True when `cat` should be shown. With all four categories in the
-  // set nothing is filtered; remove one and it stops showing.
-  _catVisible(cat) {
-    return this._catFilter.has(cat)
-  }
-  // True when a filter is actually narrowing the view (i.e. at least
-  // one category is hidden). Used to label the ledger meta.
-  _catFilterActive() {
-    return this._catFilter.size < CATEGORIES.length
-  }
-  // Toggle a category on / off. Never lets the player hide ALL four —
-  // the last visible category can't be removed (an empty map is
-  // useless), it just re-shows everything instead.
-  _toggleCategory(cat) {
-    if (this._catFilter.has(cat)) {
-      if (this._catFilter.size <= 1) this._catFilter = new Set(CATEGORIES)
-      else this._catFilter.delete(cat)
-    } else {
-      this._catFilter.add(cat)
-    }
-    this._rerender()
-  }
-
-  // Which intel categories does this room have, honouring the filter?
-  // Returns the set of VISIBLE categories the room actually carries —
-  // ROOMS when its layout leaked, TRAPS/MINIONS/ITEMS from the room
-  // detail. Used to decide whether a room block / ledger card shows.
-  _visibleCategoriesForRoom(roomInstanceId) {
-    const out = []
-    if (this._intelStateFor(roomInstanceId) !== 'UNKNOWN' && this._catVisible('ROOMS')) {
-      out.push('ROOMS')
-    }
-    const sys = this._knowledgeSystem()
-    const d   = sys?.getRoomKnowledgeDetails?.(roomInstanceId)
-    if (d) {
-      if ((d.traps?.length   ?? 0) > 0 && this._catVisible('TRAPS'))   out.push('TRAPS')
-      if ((d.enemies?.length ?? 0) > 0 && this._catVisible('MINIONS')) out.push('MINIONS')
-      if ((d.items?.length   ?? 0) > 0 && this._catVisible('ITEMS'))   out.push('ITEMS')
-    }
-    return out
   }
 
   _roomEntries() {
@@ -235,88 +365,6 @@ export class KnowledgeMapOverlay {
     })
   }
 
-  // Rooms that have leaked SOME intel the player is currently allowed
-  // to see. A room with only trap intel drops out of the list when the
-  // TRAPS filter is off — so the ledger + the "ROOMS LEAKED" counts
-  // always track the active category filter.
-  _leakedRooms() {
-    return this._roomEntries().filter(
-      r => this._visibleCategoriesForRoom(r.id).length > 0)
-  }
-
-  // Build the list of "what they know" lines for a room. Every line is
-  // tagged with its intel `cat` so the category filter can drop the
-  // ones the player has toggled off. Attribution comes from survivors
-  // (escapees who carried intel back).
-  _intelEntriesFor(roomInstanceId) {
-    const survivors = this._gameState.knowledge?.survivors ?? []
-    const day = this._gameState.meta?.dayNumber ?? 1
-    const out = []
-    // ── ROOMS category — the room layout itself.
-    if (this._catVisible('ROOMS')) {
-      const state = this._intelStateFor(roomInstanceId)
-      if (state === 'FULL') {
-        out.push({ cat: 'ROOMS', text: 'layout known', source: 'shared pool', cls: 'rogue', day })
-      } else if (state === 'PARTIAL') {
-        out.push({ cat: 'ROOMS', text: 'partial layout', source: 'shared pool', cls: 'cleric', day })
-      } else if (state === 'RUMOR') {
-        out.push({ cat: 'ROOMS', text: 'rumored existence', source: 'shared pool', cls: 'cleric', day })
-      }
-    }
-    // Per-room intel detail — traps / minions / placed items the
-    // adventurers know sit in this room. Brings the Knowledge Map in
-    // line with the other intel surfaces (KnowledgeScreen / RightPanels),
-    // which all surface traps + minions + items, not just room layout.
-    // Each block is gated on its category being visible.
-    const sys = this._knowledgeSystem()
-    const details = sys?.getRoomKnowledgeDetails?.(roomInstanceId)
-    if (details) {
-      if (this._catVisible('MINIONS')) {
-        for (const e of (details.enemies ?? [])) {
-          out.push({
-            cat: 'MINIONS',
-            text: `minion: ${this._minionLabel(e.minionType)}${e.stale ? ' (stale)' : ''}`,
-            source: 'shared pool', cls: 'cleric', day,
-          })
-        }
-      }
-      if (this._catVisible('TRAPS')) {
-        for (const t of (details.traps ?? [])) {
-          out.push({
-            cat: 'TRAPS',
-            text: `trap: ${this._trapLabel(t.type)}${t.stale ? ' (stale)' : ''}`,
-            source: 'shared pool', cls: 'rogue', day,
-          })
-        }
-      }
-      if (this._catVisible('ITEMS')) {
-        for (const it of (details.items ?? [])) {
-          out.push({
-            cat: 'ITEMS',
-            text: `item: ${this._itemLabel(it.itemType)}${it.stale ? ' (stale)' : ''}`,
-            source: 'shared pool', cls: 'rogue', day,
-          })
-        }
-      }
-    }
-    // Cross-reference survivor knowledge for attribution — this line
-    // describes the room leak itself, so it rides the ROOMS category.
-    if (this._catVisible('ROOMS')) {
-      for (const sv of survivors.slice(0, 4)) {
-        if ((sv.knownRooms ?? []).includes(roomInstanceId)) {
-          out.push({
-            cat: 'ROOMS',
-            text: 'leaked it on escape',
-            source: sv.name || 'escapee',
-            cls: sv.classId || 'rogue',
-            day: sv.escapeDay || day,
-          })
-        }
-      }
-    }
-    return out
-  }
-
   // Mitigation advice — tied to mechanics that actually exist: SCRUB
   // INTEL (the button below, wipes the room from the shared pool) and
   // relocating the room (fires ROOM_REMOVED → KnowledgeSystem marks the
@@ -331,397 +379,6 @@ export class KnowledgeMapOverlay {
 
   _exposurePct() {
     return this._report?.exposurePct ?? 0
-  }
-
-  // ── Render ──────────────────────────────────────────────────────
-  _renderBody() {
-    // Compute the intel snapshot once per render — every _intelStateFor /
-    // _exposurePct call below reads this cached object.
-    this._report = this._intelReport()
-    const exposure = this._exposurePct()
-    const leakedRooms = this._leakedRooms()
-    const totalIntel = leakedRooms.reduce(
-      (s, r) => s + this._intelEntriesFor(r.id).length, 0)
-    // LAST LEAK = the most recent day an adventurer escaped carrying intel
-    // (the same lastEscapedDay the Dungeon Log reads). 0 → never leaked.
-    const known = this._gameState.adventurers?.known ?? []
-    const escapeDays = known.map(k => k.lastEscapedDay ?? 0).filter(d => d > 0)
-    const lastLeakDay = escapeDays.length ? Math.max(...escapeDays) : 0
-
-    return h('div', { className: 'qf-knowmap-body' }, [
-      // Summary strip
-      h('div', { className: 'qf-knowmap-summary' }, [
-        this._exposureBlock(exposure),
-        this._summaryStat('ROOMS LEAKED',  String(leakedRooms.length), 'var(--warn)'),
-        this._summaryStat('INTEL ENTRIES', String(totalIntel),         'var(--rumor)'),
-        this._summaryStat('LAST LEAK',     lastLeakDay ? `DAY ${lastLeakDay}` : '—', 'var(--text)'),
-      ]),
-      // Two-column main
-      h('div', { className: 'qf-knowmap-main' }, [
-        this._renderMap(),
-        this._renderLedger(leakedRooms),
-      ]),
-      // Adaptive learning — what the kingdom has studied about the player's forces.
-      this._renderDoctrine(),
-    ])
-  }
-
-  _bestiaryReport() {
-    const sys = this._knowledgeSystem()
-    return sys?.getBestiaryReport ? sys.getBestiaryReport() : { entries: [], knownCount: 0, studyingCount: 0 }
-  }
-
-  // KINGDOM DOCTRINE — per enemy type the kingdom has faced-and-survived:
-  // mastery ★s (drives counter strength), known / ⟳ studying / stale state, and
-  // how many of the type's abilities have been studied. Reads getBestiaryReport().
-  _renderDoctrine() {
-    const rep  = this._bestiaryReport()
-    const star = (t) => '★★★'.slice(0, Math.max(0, t)) + '☆☆☆'.slice(0, Math.max(0, 3 - t))
-    const cards = rep.entries.map((e) => {
-      const color = e.stale ? 'var(--rumor)'
-                  : e.known ? (e.isBoss ? 'var(--blood)' : 'var(--warn)')
-                  : 'var(--text-mute)'
-      const state = (e.studyingNow && !e.known) ? '⟳ studying'
-                  : e.stale ? 'stale (counters fading)'
-                  : e.known ? 'known' : ''
-      return h('div', { className: 'panel bevel', style: { padding: '7px 9px', minWidth: '148px', borderLeft: `3px solid ${color}` } }, [
-        h('div', { className: 'pix', style: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' } }, [
-          h('span', { style: { fontWeight: 'bold', color } }, e.label),
-          (e.studyingNow && e.known) ? h('span', { style: { fontSize: '10px', color: 'var(--rumor)' } }, '⟳') : null,
-        ]),
-        h('div', { className: 'pix', style: { color, letterSpacing: '2px', fontSize: '13px' } }, e.known ? star(e.masteryTier) : '— —'),
-        h('div', { className: 'pix', style: { fontSize: '10px', color: 'var(--text-mute)' } },
-          state + (e.abilities.length ? ` · ${e.abilities.length} abilit${e.abilities.length === 1 ? 'y' : 'ies'}` : '')),
-      ])
-    })
-    return h('div', { className: 'panel bevel qf-knowmap-mappanel', style: { marginTop: '10px' } }, [
-      h('div', { className: 'panel-head' }, [
-        h('div', { className: 'title' }, 'KINGDOM DOCTRINE — your forces, studied'),
-        h('div', { className: 'pix', style: { fontSize: '11px', color: 'var(--text-mute)' } },
-          `${rep.knownCount} known${rep.studyingCount ? ` · ${rep.studyingCount} studying` : ''}`),
-      ]),
-      cards.length
-        ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px' } }, cards)
-        : h('div', { className: 'pix', style: { padding: '12px', color: 'var(--text-mute)', fontSize: '12px' } },
-            'The kingdom has not studied your forces yet. When an adventurer survives an enemy and escapes the dungeon, they teach the rest — keep killing them before they flee to stay unknown.'),
-    ])
-  }
-
-  _exposureBlock(exposure) {
-    const color = exposure > 70 ? 'var(--blood)'
-                : exposure > 30 ? 'var(--warn)'
-                : 'var(--rumor)'
-    return h('div', null, [
-      h('div', { className: 'pix qf-knowmap-stat-label' }, 'EXPOSURE'),
-      h('div', { className: 'qf-knowmap-exposure-row' }, [
-        h('span', {
-          className: 'pix qf-knowmap-exposure-value',
-          style: {
-            color,
-            textShadow: `0 0 8px ${color}55`,
-          },
-        }, `${exposure}%`),
-        // (Removed the fake delta + flat 3-bar sparkline — gameState keeps no
-        // per-day intel timeline to derive a real trend from. EXPOSURE % is real.)
-      ]),
-    ])
-  }
-
-  _summaryStat(label, value, color) {
-    return h('div', null, [
-      h('div', { className: 'pix qf-knowmap-stat-label' }, label),
-      h('div', {
-        className: 'pix qf-knowmap-stat-value',
-        style: { color, textShadow: `0 0 8px ${color}33` },
-      }, value),
-    ])
-  }
-
-  // Category-filter toolbar — one toggle button per intel category.
-  // A button is "lit" when its category is showing; clicking it hides
-  // that category from BOTH the blueprint and the ledger. Lives under
-  // the blueprint header so it reads as a control for the map.
-  _renderCategoryFilter() {
-    return h('div', { className: 'qf-knowmap-catfilter' }, [
-      h('span', { className: 'pix qf-knowmap-catfilter-label' }, 'SHOW'),
-      ...CATEGORIES.map(cat => {
-        const on = this._catVisible(cat)
-        const color = CAT_COLOR[cat]
-        return h('button', {
-          className: 'qf-knowmap-catbtn',
-          dataset: { on: on ? 'true' : 'false' },
-          title: on ? `Hide ${cat} intel` : `Show ${cat} intel`,
-          style: {
-            '--cat-color': color,
-            borderColor: on ? color : 'var(--line-2)',
-            color: on ? color : 'var(--text-dim)',
-            background: on ? `${color}1f` : 'transparent',
-          },
-          on: { click: () => this._toggleCategory(cat) },
-        }, [
-          h('span', {
-            className: 'qf-knowmap-catbtn-dot',
-            style: { background: on ? color : 'var(--text-dim)' },
-          }),
-          cat,
-        ])
-      }),
-    ])
-  }
-
-  _renderMap() {
-    const W = this._gameState.dungeon?.gridWidth || 30
-    const H = this._gameState.dungeon?.gridHeight || 30
-    const rooms = this._roomEntries()
-    const zoom = this._zoom
-    return h('div', { className: 'panel bevel qf-knowmap-mappanel' }, [
-      // Header with zoom controls
-      h('div', { className: 'panel-head' }, [
-        h('div', { className: 'title' }, 'DUNGEON BLUEPRINT'),
-        h('div', { className: 'qf-knowmap-zoomctrl' }, [
-          this._zoomBtn('−', () => this._setZoom(Math.max(1, +(zoom - 0.25).toFixed(2)))),
-          this._zoomBtn('◇', () => { this._zoom = 1; this._pan = { x: 0, y: 0 }; this._rerender() }),
-          this._zoomBtn('+', () => this._setZoom(Math.min(2.5, +(zoom + 0.25).toFixed(2)))),
-          h('div', {
-            className: 'pix qf-knowmap-zoompct',
-            style: { color: 'var(--rumor)' },
-          }, `${Math.round(zoom * 100)}%`),
-        ]),
-      ]),
-      // Category filter toolbar
-      this._renderCategoryFilter(),
-      // Map viewport
-      h('div', {
-        className: 'qf-knowmap-viewport',
-        style: { cursor: zoom > 1 ? (this._dragRef ? 'grabbing' : 'grab') : 'default' },
-        on: {
-          mousedown: (e) => this._onMapDown(e),
-          mousemove: (e) => this._onMapMove(e),
-          mouseup:   () => this._onMapUp(),
-          mouseleave:() => this._onMapUp(),
-        },
-      }, [
-        h('div', {
-          className: 'qf-knowmap-pan',
-          style: {
-            transform: `scale(${zoom}) translate(${this._pan.x}px, ${this._pan.y}px)`,
-            transition: this._dragRef ? 'none' : 'transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
-          },
-        }, [
-          h('div', { className: 'qf-knowmap-grid', style: { aspectRatio: `${W} / ${H}` } }, [
-            // Corner registration marks
-            ...['tl','tr','bl','br'].map(p => h('div', {
-              className: `qf-knowmap-mapcorner qf-knowmap-mapcorner-${p}`,
-            })),
-            // Rooms
-            ...rooms.map(r => this._renderRoomBlock(r, W, H)),
-            // Scan line
-            h('div', { className: 'qf-knowmap-scan' }),
-            // Per-entity intel markers — each known minion / trap / item
-            // plotted at its actual tile so the player sees WHERE leaked
-            // things sit, not just which room carries the category.
-            ...this._entityMarkers().map(mk => this._renderEntityMarker(mk, W, H)),
-          ]),
-        ]),
-        // Filter chip
-        this._filterRoomId && h('div', { className: 'qf-knowmap-filterchip' }, [
-          'FILTERING · ',
-          (rooms.find(r => r.id === this._filterRoomId)?.name) || 'ROOM',
-          h('button', {
-            className: 'qf-knowmap-clearfilter',
-            on: { click: () => { this._filterRoomId = null; this._rerender() } },
-          }, '×'),
-        ]),
-      ]),
-      // Tier legend — how each room block is shaded (its avoidance tier).
-      h('div', { className: 'qf-knowmap-legend' }, [
-        this._legendItem('FULL',    'strongly avoided', STATE_COLOR.FULL),
-        this._legendItem('PARTIAL', 'mildly avoided',   STATE_COLOR.PARTIAL),
-        this._legendItem('RUMOR',   'lightly avoided',  STATE_COLOR.RUMOR),
-        this._legendItem('UNKNOWN', 'walks in blind',   STATE_COLOR.UNKNOWN),
-      ]),
-      // Category legend — the four intel-category marker colours,
-      // matching the filter buttons + the other two knowledge surfaces.
-      h('div', { className: 'qf-knowmap-catlegend' }, [
-        h('span', { className: 'pix qf-knowmap-catlegend-label' }, 'INTEL'),
-        ...CATEGORIES.map(cat => h('div', { className: 'qf-knowmap-catlegend-item' }, [
-          h('span', {
-            className: 'qf-knowmap-catlegend-dot',
-            style: { background: CAT_COLOR[cat], boxShadow: `0 0 4px ${CAT_COLOR[cat]}` },
-          }),
-          h('span', {
-            className: 'pix qf-knowmap-catlegend-text',
-            style: { color: CAT_COLOR[cat] },
-          }, cat),
-        ])),
-      ]),
-    ])
-  }
-
-  _renderRoomBlock(r, gridW, gridH) {
-    const c = STATE_COLOR[r.state]
-    const isUnknown = r.state === 'UNKNOWN'
-    // Room-pick filter (clicking a room) dims the others.
-    const isRoomFiltered = this._filterRoomId && this._filterRoomId !== r.id
-    // Category filter — which intel categories this room carries that
-    // the player is currently allowed to see. When the category filter
-    // is active and a room has none of the visible categories, the
-    // block dims right down so only relevant rooms read on the map.
-    const visCats  = this._visibleCategoriesForRoom(r.id)
-    const catFaded = this._catFilterActive() && visCats.length === 0
-    const opacity  = isRoomFiltered ? 0.25 : (catFaded ? 0.22 : 1)
-    return h('button', {
-      className: 'qf-knowmap-room',
-      title: `${r.name} · ${r.state}`,
-      style: {
-        left:   `${(r.x / gridW) * 100}%`,
-        top:    `${(r.y / gridH) * 100}%`,
-        width:  `${(r.w / gridW) * 100}%`,
-        height: `${(r.h / gridH) * 100}%`,
-        background: isUnknown ? 'rgba(60,55,55,0.4)' : `${c}26`,
-        border: `2px ${isUnknown ? 'dashed' : 'solid'} ${c}`,
-        boxShadow: isUnknown
-          ? 'none'
-          : `0 0 18px ${c}44, inset 0 0 0 1px rgba(0,0,0,0.3)`,
-        opacity,
-        animation: r.fresh ? 'fresh-leak 1.8s ease-in-out infinite' : 'none',
-      },
-      on: { click: () => {
-        this._filterRoomId = this._filterRoomId === r.id ? null : r.id
-        this._rerender()
-      } },
-    }, [
-      h('div', {
-        className: 'pix qf-knowmap-room-label',
-        style: { color: isUnknown ? 'var(--text-faint)' : c },
-      }, isUnknown ? '???' : r.name),
-      // Per-category intel (traps / minions / items) now renders as
-      // positional markers on the blueprint — see _renderEntityMarker —
-      // rather than category dots clustered in the room corner.
-    ])
-  }
-
-  // Build the positional intel-marker list for the blueprint. Traps and
-  // items carry tileX/tileY in the knowledge pool directly. Minions are
-  // tracked per-room-per-type only (no position), so we cross-reference
-  // the live minion list to plot each known-type minion at its real
-  // tile. Honours the category filter.
-  _entityMarkers() {
-    const sys = this._knowledgeSystem()
-    if (!sys?.getRoomKnowledgeDetails) return []
-    const rooms   = this._gameState.dungeon?.rooms ?? []
-    const minions = this._gameState.minions ?? []
-    const out = []
-    for (const room of rooms) {
-      const rid = room.instanceId
-      const details = sys.getRoomKnowledgeDetails(rid)
-      if (!details) continue
-      const inRoom = (tx, ty) =>
-        tx >= room.gridX && tx < room.gridX + room.width &&
-        ty >= room.gridY && ty < room.gridY + room.height
-      if (this._catVisible('TRAPS')) {
-        for (const t of (details.traps ?? [])) {
-          if (t.tileX == null || t.tileY == null) continue
-          out.push({ cat: 'TRAPS', tileX: t.tileX, tileY: t.tileY,
-                     roomId: rid, label: this._trapLabel(t.type) })
-        }
-      }
-      if (this._catVisible('ITEMS')) {
-        for (const it of (details.items ?? [])) {
-          if (it.tileX == null || it.tileY == null) continue
-          out.push({ cat: 'ITEMS', tileX: it.tileX, tileY: it.tileY,
-                     roomId: rid, label: this._itemLabel(it.itemType) })
-        }
-      }
-      if (this._catVisible('MINIONS')) {
-        const knownTypes = new Set((details.enemies ?? []).map(e => e.minionType))
-        if (knownTypes.size > 0) {
-          for (const m of minions) {
-            if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
-            if (m.tileX == null || m.tileY == null) continue
-            if (!knownTypes.has(m.definitionId)) continue
-            if (!inRoom(m.tileX, m.tileY)) continue
-            out.push({ cat: 'MINIONS', tileX: m.tileX, tileY: m.tileY,
-                       roomId: rid, label: this._minionLabel(m.definitionId) })
-          }
-        }
-      }
-    }
-    return out
-  }
-
-  // One positional marker on the blueprint, centred on its tile. Shape
-  // is set per category via CSS (minion circle / trap diamond / item
-  // square). pointer-events:none so clicks fall through to the room
-  // block underneath (room-pick filter still works).
-  _renderEntityMarker(mk, gridW, gridH) {
-    const color  = CAT_COLOR[mk.cat]
-    const dimmed = this._filterRoomId && this._filterRoomId !== mk.roomId
-    return h('div', {
-      className: `qf-knowmap-entity qf-knowmap-entity-${mk.cat.toLowerCase()}`,
-      title: `${mk.label} · ${mk.cat}`,
-      style: {
-        left: `${((mk.tileX + 0.5) / gridW) * 100}%`,
-        top:  `${((mk.tileY + 0.5) / gridH) * 100}%`,
-        background: color,
-        boxShadow: `0 0 6px ${color}`,
-        opacity: dimmed ? 0.18 : 1,
-      },
-    })
-  }
-
-  _legendItem(label, sub, color) {
-    return h('div', null, [
-      h('div', { className: 'qf-knowmap-legend-row' }, [
-        h('div', {
-          className: 'qf-knowmap-legend-swatch',
-          style: { background: color },
-        }),
-        h('span', {
-          className: 'pix',
-          style: { color, letterSpacing: '1px', fontSize: '9px' },
-        }, label),
-      ]),
-      h('div', { className: 'qf-knowmap-legend-sub' }, sub),
-    ])
-  }
-
-  _renderLedger(leakedRooms) {
-    const filtered = this._filterRoomId
-      ? leakedRooms.filter(r => r.id === this._filterRoomId)
-      : leakedRooms
-    // When the category filter is narrowing the view, name the active
-    // categories so the player knows the ledger is partial.
-    const catFilterActive = this._catFilterActive()
-    const activeCats = CATEGORIES.filter(c => this._catVisible(c))
-    return h('div', { className: 'panel bevel qf-knowmap-ledger' }, [
-      h('div', { className: 'panel-head' }, [
-        h('div', { className: 'title' }, 'INTEL LEDGER'),
-        h('div', {
-          className: 'meta qf-knowmap-ledger-meta',
-          style: { color: (this._filterRoomId || catFilterActive) ? 'var(--rumor)' : 'var(--warn)' },
-        }, [
-          this._filterRoomId
-            ? `${filtered.length} OF ${leakedRooms.length}`
-            : catFilterActive
-              ? `${leakedRooms.length} · ${activeCats.join('/')}`
-              : `${leakedRooms.length} ROOMS LEAKED`,
-          this._filterRoomId && h('button', {
-            className: 'qf-knowmap-ledger-clear',
-            on: { click: () => { this._filterRoomId = null; this._rerender() } },
-          }, 'CLEAR'),
-        ]),
-      ]),
-      h('div', { className: 'qf-knowmap-ledger-body' }, [
-        ...filtered.map(r => this._renderLedgerCard(r)),
-        filtered.length === 0 && h('div', { className: 'qf-knowmap-empty' },
-          this._filterRoomId
-            ? '— no entries for this room —'
-            : '— no leaks yet. survive a day to find out —'),
-        h('div', { className: 'qf-knowmap-hint' },
-          '◆ Build a LIBRARY of WHISPERS to track who learns what. ◆'),
-      ]),
-    ])
   }
 
   // Total gold to scrub a room's intel. Scales with three things the
@@ -742,96 +399,6 @@ export class KnowledgeMapOverlay {
     return base
          + aspects * SCRUB_PER_ASPECT
          + (unlockLv - 1) * SCRUB_PER_ROOM_LEVEL
-  }
-
-  _renderLedgerCard(r) {
-    const color = STATE_COLOR[r.state]
-    const entries = this._intelEntriesFor(r.id)
-    const mitigation = this._mitigationFor(r.state)
-    const scrubCost = this._scrubCost(r)
-    return h('div', {
-      className: 'qf-knowmap-card',
-      style: {
-        border: `1px solid ${color}66`,
-        borderLeft: `3px solid ${color}`,
-      },
-    }, [
-      r.fresh && h('span', {
-        className: 'pix qf-knowmap-card-fresh',
-        style: { color, borderColor: color },
-      }, '● NEW'),
-      h('div', { className: 'qf-knowmap-card-head' }, [
-        h('span', { className: 'pix qf-knowmap-card-name' }, r.name),
-        h('span', {
-          className: 'pix qf-knowmap-card-state',
-          style: { color, borderColor: `${color}55` },
-        }, r.state),
-      ]),
-      h('ul', { className: 'qf-knowmap-card-entries' },
-        entries.map(it => h('li', null, [
-          // Entry arrow tinted by the line's intel category so the
-          // ledger colour-codes consistently with the map markers.
-          h('span', {
-            className: 'qf-knowmap-card-entry-arrow',
-            style: { color: CAT_COLOR[it.cat] ?? color },
-          }, '›'),
-          h('div', null, [
-            h('div', null, it.text),
-            h('div', { className: 'pix qf-knowmap-card-entry-source' }, [
-              h('span', { style: { color: 'var(--warn)' } }, it.source),
-              h('span', { style: { color: 'var(--text-faint)' } }, ` · D${it.day}`),
-            ]),
-          ]),
-        ]))
-      ),
-      h('div', { className: 'qf-knowmap-card-mitigation' }, [
-        h('span', {
-          className: 'qf-knowmap-card-mitigation-glyph',
-          style: { color: 'var(--poison)' },
-        }, '◆'),
-        h('span', { className: 'qf-knowmap-card-mitigation-text' }, mitigation),
-      ]),
-      scrubCost > 0 && h('button', {
-        className: 'btn qf-knowmap-scrub',
-        on: { click: () => this._onScrub(r, scrubCost) },
-      }, [
-        h('span', { style: { color: 'var(--gold)' } }, '✦'),
-        ' SCRUB INTEL · ',
-        h('span', { style: { color: 'var(--gold-bright)' } }, `${scrubCost}g`),
-      ]),
-    ])
-  }
-
-  _zoomBtn(label, onClick) {
-    return h('button', {
-      className: 'qf-knowmap-zoombtn',
-      on: { click: onClick },
-    }, label)
-  }
-
-  // ── Map interactions ────────────────────────────────────────────
-  _setZoom(z) {
-    this._zoom = z
-    this._rerender()
-  }
-
-  _onMapDown(e) {
-    if (this._zoom <= 1) return
-    this._dragRef = {
-      startX: e.clientX, startY: e.clientY,
-      panX: this._pan.x, panY: this._pan.y,
-    }
-  }
-  _onMapMove(e) {
-    if (!this._dragRef) return
-    this._pan = {
-      x: this._dragRef.panX + (e.clientX - this._dragRef.startX) / this._zoom,
-      y: this._dragRef.panY + (e.clientY - this._dragRef.startY) / this._zoom,
-    }
-    this._rerender()
-  }
-  _onMapUp() {
-    this._dragRef = null
   }
 
   _onScrub(room, cost) {

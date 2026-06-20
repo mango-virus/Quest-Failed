@@ -14,8 +14,8 @@ import { h, mount } from './dom.js'
 import { ensureStageScaled, DESIGN_W, DESIGN_H } from './stageScale.js'
 import { TopBar }      from './TopBar.js'
 import { BottomBar }   from './BottomBar.js'
-import { LeftPanels }  from './LeftPanels.js'
 import { RightPanels } from './RightPanels.js'
+import { BuildMenu }   from './BuildMenu.js'
 import { ToastQueue }          from './ToastQueue.js'
 import { PauseOverlay }        from './PauseOverlay.js'
 import { ConfirmPopup }        from './ConfirmPopup.js'
@@ -125,7 +125,8 @@ export class HudRoot {
   _mountPanels() {
     this._topBar      = new TopBar(this._gameState)
     this._bottomBar   = new BottomBar(this._gameState)
-    this._leftPanels  = new LeftPanels(this._gameState)
+    // The radar minimap (old LeftPanels) was removed — its map info now lives
+    // in the MAP action-bar popout (KnowledgeMapOverlay) with entity pips.
     this._rightPanels = new RightPanels(this._gameState)
     this._toastQueue  = new ToastQueue()
     // Companion NPC (Lilith or Malakor — per gameState.meta.companionId)
@@ -136,7 +137,7 @@ export class HudRoot {
     // deleted in the UI-polish sweep — UI_POLISH_PLAN.md P0-1.)
     this._panels.push(
       this._topBar, this._bottomBar,
-      this._leftPanels, this._rightPanels, this._toastQueue,
+      this._rightPanels, this._toastQueue,
       this._npc,
     )
     // Event-driven overlays — no DOM until they open. Register separately
@@ -149,6 +150,8 @@ export class HudRoot {
     this._pactDetailPop  = new PactDetailPopup()
     this._advIntelOverlay = new AdvIntelOverlay(this._gameState)
     this._knowMapOverlay  = new KnowledgeMapOverlay(this._gameState)
+    // Construction PLACE-button popout (event-driven; self-mounts its tray).
+    this._buildMenu       = new BuildMenu(this._gameState)
     this._tutorialOverlay = new TutorialOverlay()
     this._longGameOverlay = new LongGameOverlay()
     this._levelUpOverlay  = new BossLevelUpOverlay(this._gameState)
@@ -259,11 +262,8 @@ export class HudRoot {
     const canvas = window.__game?.canvas
     canvas?.addEventListener('pointermove',  this._onPointerMove)
     canvas?.addEventListener('pointerleave', this._onPointerLeave)
-    // Mirror the Phaser HudScene contract: incoming-wave preview only
-    // shows during night phase. LeftPanels (mini-map + construction
-    // grid) stays visible during day too — the player wanted to keep
-    // the knowledge minimap + construction view live so they can
-    // inspect / review even when placement is gated to night.
+    // Mirror the Phaser HudScene contract: the incoming-wave preview only
+    // shows during night phase (the rest of the right column stays live).
     const syncPhaseVisibility = () => {
       const isNight = this._gameState.meta?.phase !== 'day'
       this._rightPanels?.setWaveVisible?.(isNight)
@@ -414,6 +414,7 @@ export class HudRoot {
     this._pactDetailPop?.destroy();  this._pactDetailPop = null
     this._advIntelOverlay?.destroy();this._advIntelOverlay = null
     this._knowMapOverlay?.destroy(); this._knowMapOverlay = null
+    this._buildMenu?.destroy();      this._buildMenu = null
     this._tutorialOverlay?.destroy();this._tutorialOverlay = null
     this._longGameOverlay?.destroy();this._longGameOverlay = null
     this._levelUpOverlay?.destroy(); this._levelUpOverlay = null

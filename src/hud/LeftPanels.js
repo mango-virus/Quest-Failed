@@ -19,50 +19,7 @@
 
 import { h, mount } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
-import { DungeonGrid } from '../systems/DungeonGrid.js'
-import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion, snapshotItem, snapshotTrap, snapshotRoomMini } from './inGameSnapshot.js'
-import { getRoomThumbnail, precacheRoomThumbnails } from './roomThumbnailCache.js'
 import { CAT_COLOR } from './hudShared.js'
-import { minionAbilityInfo } from '../systems/MinionAbilities.js'
-import { applyMerchantPrice, merchantPriceMult, buildScaleMul } from '../util/merchantPricing.js'
-import { trapCap, rosterCap } from '../util/slotCaps.js'
-
-const CATEGORIES = [
-  { id: 'ROOMS',   kind: 'room',   icon: '◰', color: 'var(--blood)',  cache: 'rooms',       unlockKey: 'rooms' },
-  { id: 'MINIONS', kind: 'minion', icon: '✦', color: 'var(--poison)', cache: 'minionTypes', unlockKey: 'minionTypes' },
-  { id: 'TRAPS',   kind: 'trap',   icon: '⚒', color: 'var(--rumor)',  cache: 'trapTypes',   unlockKey: 'trapTypes' },
-  { id: 'ITEMS',   kind: 'item',   icon: '◆', color: 'var(--info)',   cache: 'items',       unlockKey: null },
-]
-
-// Tinkerer's Workshop upgrade catalog — name + description per room type,
-// used by the build-card "★ UPGRADED" badge's hover tooltip. Mirrors
-// EventSystem._tinkerCatalog (source of truth) so the picker modal and
-// the build menu can never disagree on what the upgrade does.
-const TINKERER_BADGE_INFO = {
-  starter_corridor:    { name: 'Greased Corridor',  description: '−25% damage taken in Corridors' },
-  starter_barracks:    { name: 'Drill Sergeant',    description: '+5 roster slots per Barracks' },
-  starter_guard_post:  { name: 'Eagle Eye',         description: '+25% Guard Post ambush damage' },
-  crypt:               { name: 'Crowded Crypt',     description: '+2 Risen Bones per Crypt (6 total)' },
-  trap_factory:        { name: 'Assembly Line',     description: '+1 trap slot per Trap Factory' },
-  treasury:            { name: 'Golden Vault',      description: 'Treasury stipend +50% · chests +1 tier' },
-  armory:              { name: 'Weaponsmith',       description: 'Armory ATK aura doubled' },
-  library_of_whispers: { name: "Oracle's Tome",     description: '+1 boss XP per kill, per Library' },
-  watchtower:          { name: 'Cannonade',         description: '2× Watchtower first-strike damage' },
-  wandering_gate:      { name: 'Skewed Gate',       description: 'Always flings them to the farthest room' },
-  veil_of_forgetting:  { name: 'Deeper Veil',       description: 'Also wipes 2-hop neighbour intel' },
-  catacombs:           { name: 'Restless Tomb',     description: '+1 Revenant per Catacombs (3 max)' },
-  mimic_vault:         { name: 'Hungry Vault',      description: '+2 mimic slots per Vault' },
-  hall_of_trials:      { name: 'Champion Trials',   description: 'Tier-3 spawn instead of Tier-2' },
-  wishing_well:        { name: 'Cursed Well',       description: 'Boon chance 25% → 10%' },
-  false_exit:          { name: 'Painful Landing',   description: 'Teleported fleers take 25% maxHp' },
-  hall_of_madness:     { name: 'Total Frenzy',      description: 'Friendly-fire 60% → 90%' },
-  throne_room:         { name: 'Tyrant Throne',     description: 'Mini-boss +50% HP and +50% ATK' },
-  sanctum:             { name: "Sanctum's Heart",   description: 'Boss HP regen doubled' },
-  tar_pit:             { name: 'Sucking Mire',       description: 'Also roots adventurers on entry' },
-  silence_ward:        { name: 'Dead Zone',          description: 'Silenced adventurers take +15% damage' },
-  thorn_hall:          { name: 'Iron Thorns',        description: '50% reflect, and catches ranged attackers' },
-}
 
 // ── Knowledge-category color scheme ─────────────────────────────────
 // ONE 4-category palette shared across all three knowledge surfaces
@@ -115,18 +72,9 @@ export class LeftPanels {
   constructor(gameState) {
     this._gameState = gameState
     this._listeners = []
-    this._selectedKey = null
-    this._selectedCategory = 'ROOMS'
-    // Construction is a left-edge sliding drawer (crypt-console redesign).
-    // Opens by default at NIGHT (build phase) so the menu is immediately
-    // visible; auto-closes for the DAY invasion (can't build then). The peek
-    // handle / action-bar PLACE button toggle it manually either way.
-    this._drawerOpen = (gameState?.meta?.phase ?? 'night') === 'night'
-    this._keyHandler = (e) => { if (e.key === 'Escape' && this._drawerOpen) { this._setDrawer(false) } }
-
+    // Construction was extracted to BuildMenu.js — LeftPanels is the radar only.
     this.el = this._build()
     this._wireEvents()
-    this._renderGrid()
     this._renderMap()
     this._tickHandle = requestAnimationFrame(() => this._tick())
   }
@@ -138,10 +86,21 @@ export class LeftPanels {
       ref: el => { this._refs.root = el },
     }, [
       // ── MiniKnowledgeMap ───────────────────────────────────────
-      h('div', { className: 'panel bevel qf-minimap' }, [
-        // Header (KNOWLEDGE MAP title + N% EXPOSED) removed for a minimalist
-        // map — exposure still reads in the Adventurer Intel panel + the full
-        // Knowledge Map overlay.
+      // `.hc` puts the design crypt token vars (--blood / --rumor / --warn …)
+      // in scope so the radar chrome below reads from one palette.
+      h('div', {
+        className: 'panel bevel qf-minimap hc',
+        ref: el => { this._refs.minimapRoot = el },
+      }, [
+        // Radar header — title + a FULL ▸ shortcut to the big Knowledge Map.
+        h('div', { className: 'qf-minimap-head' }, [
+          h('span', { className: 'sil qf-minimap-title' }, '⊞ DUNGEON MAP'),
+          h('span', {
+            className: 'sil qf-minimap-full',
+            title: 'Open the full Knowledge Map',
+            on: { click: () => EventBus.emit('OPEN_KNOWLEDGE_MAP') },
+          }, 'FULL ▸'),
+        ]),
         h('div', { className: 'qf-minimap-body' }, [
           h('div', {
             className: 'qf-minimap-canvas',
@@ -152,10 +111,18 @@ export class LeftPanels {
             h('div', { className: 'qf-minimap-corner', style: { top: '4px', right: '4px' } }),
             h('div', { className: 'qf-minimap-corner', style: { bottom: '4px', left: '4px' } }),
             h('div', { className: 'qf-minimap-corner', style: { bottom: '4px', right: '4px' } }),
-            // Scan line + rooms layer (populated by _renderMap)
+            // Rotating radar sweep (decorative; sits under the rooms layer).
+            h('div', { className: 'qf-minimap-sweep' }),
+            // Rooms + intel markers layer (populated by _renderMap)
             h('div', {
               className: 'qf-minimap-rooms',
               ref: el => { this._refs.mapRooms = el },
+            }),
+            // Live blip layer — boss + day-phase adventurer pings (_renderBlips).
+            // Pooled per-adventurer so the ping animation isn't reset each frame.
+            h('div', {
+              className: 'qf-minimap-blips',
+              ref: el => { this._refs.mapBlips = el },
             }),
             h('div', { className: 'qf-minimap-scan' }),
           ]),
@@ -183,634 +150,11 @@ export class LeftPanels {
         ]),
       ]),
 
-      // ── ConstructionPanel — left-edge sliding drawer ──────────
-      h('div', {
-        className: 'qf-build-dock' + (this._drawerOpen ? '' : ' closed'),
-        ref: el => { this._refs.buildDock = el },
-      }, [
-      h('div', { className: 'panel bevel qf-construction' }, [
-        // Header title dropped — the ribbon's tabs + its tether to PLACE identify
-        // it; the separate CONSTRUCTION title bar was a redundant row.
-        // Category tabs
-        h('div', { className: 'qf-cat-tabs' },
-          CATEGORIES.map(cat => h('button', {
-            className: 'qf-cat-tab',
-            dataset: { cat: cat.id, color: cat.color },
-            ref: el => { this._refs[`tab_${cat.id}`] = el },
-            style: { '--cat-color': cat.color },
-            on: { click: () => this._selectCategory(cat.id) },
-          }, [
-            h('span', { className: 'qf-cat-icon' }, cat.icon),
-            h('span', { className: 'qf-cat-label' }, cat.id),
-          ]))
-        ),
-        // Slot counter (traps / minions) — filled by _renderSlots
-        h('div', {
-          ref: el => { this._refs.slots = el },
-          style: {
-            display: 'none', justifyContent: 'space-between', alignItems: 'center',
-            padding: '3px 9px', fontSize: '8px', letterSpacing: '0.5px',
-          },
-        }),
-        // Grid (filled by _renderGrid) — cards in a horizontal scroll row with
-        // ‹ › arrows + wheel/drag scroll for overflow. (Footer dropped; per-card
-        // detail is the card's hover tooltip.)
-        h('div', { className: 'qf-build-gridwrap' }, [
-          h('button', {
-            className: 'qf-build-arrow left', 'aria-label': 'Scroll left',
-            ref: el => { this._refs.arrowL = el },
-            on: { click: () => this._refs.grid?.scrollBy({ left: -240, behavior: 'smooth' }) },
-          }, '‹'),
-          h('div', { className: 'qf-build-grid', ref: el => { this._refs.grid = el } }),
-          h('button', {
-            className: 'qf-build-arrow right', 'aria-label': 'Scroll right',
-            ref: el => { this._refs.arrowR = el },
-            on: { click: () => this._refs.grid?.scrollBy({ left: 240, behavior: 'smooth' }) },
-          }, '›'),
-        ]),
-      ]),
-      ]),
+      // Construction was extracted to its own BuildMenu.js (the PLACE-button
+      // popout) — LeftPanels is now just the radar minimap.
     ])
 
-    this._selectCategory(this._selectedCategory, /*skipRerender*/ true)
-    this._renderSlots()
-    this._wireRibbonScroll()
     return root
-  }
-
-  // Horizontal scroll for the construction ribbon: wheel → scrollLeft, drag →
-  // scroll (pointer-captured on the grid, so no window-level listeners to leak),
-  // and ‹ › arrow visibility synced to the scroll position.
-  _wireRibbonScroll() {
-    const grid = this._refs.grid
-    if (!grid || grid._ribbonWired) return
-    grid._ribbonWired = true
-    grid.addEventListener('wheel', (e) => {
-      if (!e.deltaY) return
-      grid.scrollLeft += e.deltaY
-      e.preventDefault()
-    }, { passive: false })
-    grid.addEventListener('scroll', () => this._updateRibbonArrows(), { passive: true })
-    let down = false, startX = 0, startScroll = 0, moved = false, captured = false
-    grid.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return
-      down = true; moved = false; captured = false
-      startX = e.clientX; startScroll = grid.scrollLeft
-      // Do NOT capture here — capturing on a plain click retargets the click off
-      // the card and breaks placement. Capture lazily once a real drag starts.
-    })
-    grid.addEventListener('pointermove', (e) => {
-      if (!down) return
-      const dx = e.clientX - startX
-      if (!moved && Math.abs(dx) > 4) {
-        moved = true; grid.classList.add('dragging')
-        grid.setPointerCapture?.(e.pointerId); captured = true
-      }
-      if (moved) grid.scrollLeft = startScroll - dx
-    })
-    const endDrag = (e) => {
-      down = false; grid.classList.remove('dragging')
-      if (captured) { grid.releasePointerCapture?.(e.pointerId); captured = false }
-    }
-    grid.addEventListener('pointerup', endDrag)
-    grid.addEventListener('pointercancel', endDrag)
-    // Swallow the click that ends a drag so it doesn't arm a card.
-    grid.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false } }, true)
-  }
-
-  // Show each arrow only when there's more to scroll that way.
-  _updateRibbonArrows() {
-    const grid = this._refs.grid
-    if (!grid) return
-    const max = grid.scrollWidth - grid.clientWidth
-    this._refs.arrowL?.classList.toggle('show', grid.scrollLeft > 4)
-    this._refs.arrowR?.classList.toggle('show', max > 4 && grid.scrollLeft < max - 4)
-  }
-
-  // ── Construction drawer ─────────────────────────────────────────
-  _toggleDrawer() { this._userToggledDrawer = true; this._setDrawer(!this._drawerOpen) }
-  _setDrawer(open) {
-    if (open === this._drawerOpen) return
-    this._drawerOpen = open
-    this._refs.buildDock?.classList.toggle('closed', !open)
-    if (this._refs.buildChev) this._refs.buildChev.textContent = open ? '◂' : '▸'
-  }
-
-  // ── Category switcher ───────────────────────────────────────────
-  _selectCategory(catId, skipRerender = false) {
-    this._selectedCategory = catId
-    for (const cat of CATEGORIES) {
-      const el = this._refs[`tab_${cat.id}`]
-      if (el) el.classList.toggle('active', cat.id === catId)
-    }
-    // Clear any pending selection that doesn't belong to this category.
-    if (this._selectedKey) {
-      const cat = this._currentCategory()
-      const def = this._defsFor(cat).find(d => d.id === this._selectedKey)
-      if (!def) this._selectedKey = null
-    }
-    if (!skipRerender) {
-      this._renderGrid()
-      this._renderFooter()
-    }
-    this._renderSlots()
-  }
-
-  // ── Slot counter (trap / minion capacity) ───────────────────────
-  // Trap slots come from Trap Factories (×3 each, +1 each if tinkered);
-  // minion roster slots from Barracks (×10 each, +5 each if tinkered).
-  // These MUST stay in lockstep with NightPhase._trapCap() / _rosterCap()
-  // (the caps actually enforced at placement) or the display lies.
-  _slotInfo(cat) {
-    const gs = this._gameState
-    const d  = gs.dungeon ?? {}
-    // Caps come from the shared src/util/slotCaps.js so the display always
-    // matches what NightPhase actually enforces at placement.
-    if (cat.kind === 'trap') {
-      return { label: 'TRAP SLOTS', used: (d.traps ?? []).length, cap: trapCap(gs) }
-    }
-    if (cat.kind === 'minion') {
-      const used = (gs.minions ?? []).filter(
-        m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead').length
-      return { label: 'MINION SLOTS', used, cap: rosterCap(gs) }
-    }
-    return null
-  }
-
-  _renderSlots() {
-    const el = this._refs.slots
-    if (!el) return
-    const info = this._slotInfo(this._currentCategory())
-    if (!info) { el.style.display = 'none'; return }
-    el.style.display = 'flex'
-    const full = info.used >= info.cap
-    mount(el, [
-      h('span', { className: 'pix', style: { color: 'var(--text-dim)' } }, info.label),
-      h('span', { className: 'pix', style: {
-        color: full ? 'var(--hp-low)' : 'var(--gold-bright)',
-      } }, `${info.used} / ${info.cap}`),
-    ])
-  }
-
-  _currentCategory() {
-    return CATEGORIES.find(c => c.id === this._selectedCategory) || CATEGORIES[0]
-  }
-
-  // ── Build grid ──────────────────────────────────────────────────
-  // Pulls defs out of the Phaser JSON cache and filters by unlocks the
-  // same way the existing BuildMenu does.
-  _defsFor(cat) {
-    const game = window.__game
-    const scenes = game?.scene?.scenes || []
-    let all = null
-    for (const s of scenes) {
-      const arr = s.cache?.json?.get?.(cat.cache)
-      if (Array.isArray(arr)) { all = arr; break }
-    }
-    if (!Array.isArray(all)) return []
-    if (cat.kind === 'room') {
-      const allowed = new Set(this._gameState.unlocks?.rooms ?? [])
-      return all
-        .filter(r => allowed.has(r.id) && !r.placementRules?.fixed && !this._atMax(r, cat))
-        .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
-    }
-    if (cat.kind === 'minion') {
-      const allowed = new Set(this._gameState.unlocks?.minionTypes ?? [])
-      let evolutions = null
-      for (const s of scenes) {
-        const v = s.cache?.json?.get?.('minionEvolutions')
-        if (v) { evolutions = v; break }
-      }
-      const starterIds = evolutions ? new Set(
-        Object.values(evolutions)
-          .filter(v => Array.isArray(v?.chain))
-          .map(v => v.chain[0])
-      ) : null
-      return all
-        .filter(m => allowed.has(m.id) && (!starterIds || starterIds.has(m.id)))
-        .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
-    }
-    if (cat.kind === 'trap') {
-      const allowed = new Set(this._gameState.unlocks?.trapTypes ?? [])
-      return all
-        .filter(t => allowed.has(t.id))
-        .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
-    }
-    if (cat.kind === 'item') {
-      const archId = this._gameState.player?.bossArchetypeId
-      return all
-        .filter(it => {
-          if (it.hidden) return false
-          if (it.archetypeRestriction && it.archetypeRestriction !== archId) return false
-          // At its per-dungeon cap (phylactery, each treasure-chest
-          // tier, etc.) — drop it from the panel until one frees up.
-          if (this._atMax(it, cat)) return false
-          return true
-        })
-        .sort((a, b) => (a.unlockLevel ?? 1) - (b.unlockLevel ?? 1))
-    }
-    return all
-  }
-
-  // ── Per-dungeon placement caps ──────────────────────────────────
-  // A def is hidden from the construction panel once the dungeon
-  // already holds the maximum allowed number of it. Re-appears when
-  // one is removed / sold (the _tick signature compare re-renders).
-
-  // Resolve the cap for a def, or null for unlimited. Rooms carry the
-  // cap under placementRules (with an optional per-boss-level table);
-  // items carry a flat top-level maxPerDungeon.
-  _maxFor(def, cat) {
-    if (cat.kind === 'room') {
-      const byLevel = def.placementRules?.maxPerDungeonByBossLevel
-      if (byLevel != null) {
-        const lvl = this._gameState.boss?.level ?? this._gameState.meta?.dungeonLevel ?? 1
-        // Sparse-table baseline (2026-05-22): seed `cap` to the lowest
-        // entry's value so a sparse table (e.g. throne_room's L9/L10)
-        // doesn't fall through to "unlimited" when viewed below its
-        // first entry — important under the mango cheat which flattens
-        // unlockLevel to 1. Matches DungeonGrid.effectiveMaxPerDungeon.
-        const keys = Object.keys(byLevel)
-          .map(k => parseInt(k, 10))
-          .filter(n => Number.isFinite(n))
-          .sort((a, b) => a - b)
-        if (keys.length === 0) return def.placementRules?.maxPerDungeon ?? null
-        let cap = byLevel[keys[0]]
-        for (const l of keys) if (l <= lvl) cap = byLevel[l]
-        return cap
-      }
-      return def.placementRules?.maxPerDungeon ?? null
-    }
-    return def.maxPerDungeon ?? null
-  }
-
-  // How many of `def` are already placed in the dungeon.
-  _placedCount(def, cat) {
-    const gs = this._gameState
-    const d  = gs.dungeon ?? {}
-    if (cat.kind === 'room') {
-      return (d.rooms ?? []).filter(r => r.definitionId === def.id).length
-    }
-    if (cat.kind === 'item') {
-      if (def.id === 'phylactery_heart')  return gs.phylactery ? 1 : 0
-      if (def.id === 'door_lock')         return (d.locks ?? []).length
-      if (def.id === 'soul_bound_beacon') return (d.beacons ?? []).length
-      if (def.id === 'healing_fountain')  return (d.fountains ?? []).length
-      if (def.id === 'key_chest')         return (d.keyChests ?? []).length
-      if (String(def.id).startsWith('treasure_chest_')) {
-        // Only player-placed chests count toward the Items-menu per-tier cap.
-        // Treasury room auto-spawns (_treasurySpawn), Mimic Vault chests
-        // (_mimicCursed), and Cursed Relic event drops (_cursed) share the
-        // same array but were never placed from the menu — they must not
-        // consume the player's slot, or a treasury chest would lock the
-        // player out of placing their own chest of that tier.
-        return (d.treasureChests ?? []).filter(c =>
-          c.tier === def.tier && !c._treasurySpawn && !c._mimicCursed && !c._cursed
-        ).length
-      }
-    }
-    return 0
-  }
-
-  _atMax(def, cat) {
-    const cap = this._maxFor(def, cat)
-    if (cap == null) return false
-    return this._placedCount(def, cat) >= cap
-  }
-
-  // Effective gold cost to place ONE MORE of `def` right now. For rooms
-  // this defers to DungeonGrid.effectiveRoomCost — the single source of
-  // truth — so the displayed price matches what placement actually
-  // charges, including freeFirstN free copies and escalating costStep.
-  _costFor(def, cat) {
-    // Unified boss-level + day build-cost scaling (util/merchantPricing.js),
-    // applied to EVERY buildable so the build-menu price always matches what
-    // the placement charge sites in NightPhase actually debit.
-    const scaleMul = buildScaleMul(this._gameState)
-    let raw
-    if (cat.kind === 'room') {
-      raw = Math.round(
-        DungeonGrid.effectiveRoomCost(def, this._gameState.dungeon?.rooms ?? []) * scaleMul)
-    } else {
-      const base = def.goldCost ?? def.cost ?? 0
-      if (cat.kind === 'minion') {
-        // Minions also fold in the per-night minionGoldCostMult mechanic flag
-        // (mirrors NightPhase._effectiveMinionCost) before the shared scaling.
-        const flagMul = (this._gameState._mechanicFlags ?? {}).minionGoldCostMult ?? 1
-        raw = Math.max(0, Math.round(base * flagMul * scaleMul))
-      } else {
-        // Traps + items: base × shared scaling. (Trap discount flags are
-        // applied at the charge site; display shows the undiscounted scaled
-        // price, matching the prior behaviour.)
-        raw = Math.max(0, Math.round(base * scaleMul))
-      }
-    }
-    // Goblin Market — apply the one-night repricing multiplier LAST so the
-    // displayed price exactly matches what the placement charge sites
-    // (which route through the same applyMerchantPrice helper) debit.
-    return applyMerchantPrice(this._gameState, def.id, raw)
-  }
-
-  _renderGrid() {
-    const grid = this._refs.grid
-    if (!grid) return
-    const cat = this._currentCategory()
-    const defs = this._defsFor(cat)
-    const bossLevel = this._gameState.boss?.level ?? 1
-    const gold = this._gameState.player?.gold ?? 0
-
-    // Tinkerer's Workshop upgrades — gameState._tinkeredRoomTypes is a
-    // flat list of room definitionIds that the player has chosen to
-    // upgrade. The card paints a "★ UPGRADED" badge with a hover
-    // tooltip describing the upgrade effect (looked up via the catalog
-    // mirrored from EventSystem._tinkerCatalog).
-    const tinkered = new Set(this._gameState._tinkeredRoomTypes ?? [])
-
-    const cards = defs.map(def => {
-      const cost = this._costFor(def, cat)
-      const reqLevel = def.unlockLevel ?? 1
-      const locked = reqLevel > bossLevel
-      const cantAfford = !locked && gold < cost
-      const active = !locked && this._selectedKey === def.id
-      const isTinkered = cat.kind === 'room' && tinkered.has(def.id)
-      const tinkerInfo = isTinkered ? TINKERER_BADGE_INFO[def.id] : null
-      // Goblin Market — discount / markup badge. Only when a repricing is
-      // active for this def AND the (effective) price isn't free.
-      const mktMult = merchantPriceMult(this._gameState, def.id)
-      const showMkt = mktMult !== 1 && cost > 0
-      const mktKind = mktMult < 1 ? 'discount' : 'markup'
-      const mktPct  = mktMult < 1
-        ? `-${Math.round((1 - mktMult) * 100)}%`
-        : `+${Math.round((mktMult - 1) * 100)}%`
-      return h('button', {
-        className: 'qf-build-card',
-        dataset: {
-          id: def.id,
-          active: active ? 'true' : 'false',
-          locked: locked ? 'true' : 'false',
-          cantAfford: cantAfford ? 'true' : 'false',
-          tinkered: isTinkered ? 'true' : 'false',
-        },
-        style: { '--cat-color': cat.color },
-        title: `${def.name || def.id}${cost ? ' · ' + cost + ' gold' : ' · free'}`
-          + (locked ? `\nLocked — unlocks at boss LV ${reqLevel}` : '')
-          + (def.description ? `\n${def.description}` : ''),
-        disabled: locked,
-        on: { click: () => locked ? null : this._onCardClick(def, cat) },
-      }, [
-        h('div', { className: 'qf-build-card-icon' }, [
-          this._cardArt(def, cat),
-          locked && h('div', { className: 'qf-build-card-lock' }, [
-            h('span', { className: 'pix' }, `🔒 LV ${reqLevel}`),
-          ]),
-          // Tinkerer badge — golden "★ UPGRADED" tag pinned to the top-
-          // right of the icon, native browser tooltip carries the
-          // upgrade description text on hover.
-          isTinkered && h('div', {
-            className: 'qf-build-card-tinkered',
-            title: tinkerInfo
-              ? `${tinkerInfo.name} — ${tinkerInfo.description}`
-              : 'Upgraded by the Tinkerer',
-          }, '★ UPGRADED'),
-          // Goblin Market price badge — top-left, green for a discount,
-          // red for a markup. Shown only while the market is repricing.
-          showMkt && h('div', {
-            className: `qf-build-card-price-badge ${mktKind}`,
-            title: mktKind === 'discount' ? 'Goblin Market discount' : 'Goblin Market markup',
-          }, mktPct),
-        ]),
-        h('div', { className: 'qf-build-card-name pix' }, def.name || def.id),
-        h('div', { className: 'qf-build-card-cost' }, [
-          h('span', { className: 'qf-build-card-coin' }),
-          h('span', {
-            className: 'pix',
-            style: { color: locked ? 'var(--text-dim)'
-                                  : cantAfford ? 'var(--hp-low)' : 'var(--gold-bright)' },
-          }, String(cost)),
-        ]),
-        active && h('div', { className: 'qf-build-card-pip', style: { background: cat.color } }),
-      ])
-    })
-
-    if (cards.length === 0) {
-      mount(grid, h('div', { className: 'qf-build-grid-empty' }, [
-        h('div', { className: 'pix' }, '◇ COMING SOON ◇'),
-      ]))
-    } else {
-      mount(grid, cards)
-    }
-    grid.scrollLeft = 0
-    this._updateRibbonArrows()
-  }
-
-  // Build-card thumbnail. Tries the in-game Phaser texture first (so the
-  // construction menu shows the EXACT sprite the player sees in the
-  // dungeon view) and falls back to the legacy pixelSprite / roomIcon
-  // pipeline when the texture isn't loaded yet.
-  //
-  // Minions → snapshot of `minion-<defId>-idle` frame 0
-  // Rooms   → schematic of def.tileLayout (mirrors original Phaser
-  //           BuildMenu preview)
-  // Traps   → snapshot of def.spriteKey / def.textureKey
-  // Items   → snapshot of def.spriteKey
-  _cardArt(def, cat) {
-    const fallback = h('span', {
-      className: 'qf-build-card-glyph',
-      style: { color: cat.color },
-    }, cat.icon)
-    if (cat.kind === 'minion') {
-      const snap = snapshotMinion(def.id, 76)
-      if (snap) { snap.classList.add('qf-build-card-snap'); return snap }
-      return pixelSprite(spriteKindForDefId(def.id), 64)
-    }
-    if (cat.kind === 'room') {
-      // First choice: hand-authored room screenshot at
-      // assets/ui/room-thumbnails/<room_id>.png. The image's
-      // natural aspect ratio is preserved while it's scaled to
-      // fit the icon slot (max 120×76). `onerror` swaps to the
-      // procedural cache fallback when the PNG doesn't exist —
-      // so rooms without a screenshot still get a thumbnail
-      // (just the procedural version).
-      const MAX_W = 120
-      const MAX_H = 76
-      const img = document.createElement('img')
-      img.style.display = 'block'
-      img.style.imageRendering = 'pixelated'
-      img.style.maxWidth  = `${MAX_W}px`
-      img.style.maxHeight = `${MAX_H}px`
-      img.style.width  = 'auto'
-      img.style.height = 'auto'
-      img.style.objectFit = 'contain'
-      img.className = 'qf-snap qf-snap-room'
-      img.onerror = () => {
-        // Screenshot missing — swap the <img> out for the
-        // procedural cache canvas (or hide if that's also empty).
-        const cached = getRoomThumbnail(def.id)
-        if (!cached || !img.parentElement) { img.style.display = 'none'; return }
-        const c = document.createElement('canvas')
-        const aspect = cached.width / cached.height
-        let dispH = MAX_H, dispW = MAX_H * aspect
-        if (dispW > MAX_W) { dispW = MAX_W; dispH = MAX_W / aspect }
-        dispW = Math.max(1, Math.round(dispW))
-        dispH = Math.max(1, Math.round(dispH))
-        c.width = dispW
-        c.height = dispH
-        const cctx = c.getContext('2d')
-        cctx.imageSmoothingEnabled = false
-        cctx.drawImage(cached, 0, 0, cached.width, cached.height, 0, 0, dispW, dispH)
-        c.style.display = 'block'
-        c.style.imageRendering = 'pixelated'
-        c.className = 'qf-snap qf-snap-room'
-        img.parentElement.replaceChild(c, img)
-      }
-      img.src = `assets/ui/room-thumbnails/${def.id}.png`
-      return img
-    }
-    if (cat.kind === 'trap') {
-      // Arrow trap frame 0 is just the wall nub — show a launched-arrow frame.
-      const frameIdx = def.id === 'shooting_arrows' ? 3 : 0
-      const snap = snapshotTrap(def.spriteKey || def.textureKey, 76, frameIdx)
-      if (snap) { snap.classList.add('qf-build-card-snap'); return snap }
-      return roomIcon('trap', 64)
-    }
-    if (cat.kind === 'item') {
-      const snap = snapshotItem(def.spriteKey, 76)
-      if (snap) { snap.classList.add('qf-build-card-snap'); return snap }
-      return roomIcon('item', 64)
-    }
-    return fallback
-  }
-
-  _onCardClick(def, cat) {
-    if (this._selectedKey === def.id) {
-      // Re-click same card → deselect.
-      this._selectedKey = null
-      EventBus.emit('BUILD_DESELECT')
-    } else {
-      this._selectedKey = def.id
-      EventBus.emit('BUILD_SELECT', { def, kind: cat.kind })
-    }
-    this._renderGrid()
-    this._renderFooter()
-  }
-
-  // ── Selection footer ────────────────────────────────────────────
-  _renderFooter() {
-    const footer = this._refs.footer
-    if (!footer) return
-    const cat = this._currentCategory()
-    const def = this._defsFor(cat).find(d => d.id === this._selectedKey)
-    const gold = this._gameState.player?.gold ?? 0
-
-    if (!def) {
-      mount(footer, h('div', { className: 'qf-build-footer-empty' }, [
-        h('div', { className: 'pix qf-build-footer-empty-eyebrow' }, '◇ NOTHING SELECTED ◇'),
-        h('div', { className: 'qf-build-footer-empty-text' },
-          `Pick a ${cat.id.toLowerCase().slice(0, -1)} above to begin.`),
-      ]))
-      footer.style.setProperty('--cat-color', 'var(--line)')
-      return
-    }
-    footer.style.setProperty('--cat-color', cat.color)
-    const cost = this._costFor(def, cat)
-    const reqLevel = def.unlockLevel ?? 1
-    const bossLevel = this._gameState.boss?.level ?? 1
-    const locked = reqLevel > bossLevel
-    const affordable = !locked && gold >= cost
-    const stats = this._statsFor(def, cat)
-
-    mount(footer, [
-      h('div', { className: 'qf-build-footer-row' }, [
-        h('div', { className: 'qf-build-footer-titlecol' }, [
-          h('div', {
-            className: 'pix qf-build-footer-name',
-            style: { color: cat.color, textShadow: `0 0 6px ${cat.color}66` },
-          }, def.name || def.id),
-        ]),
-        h('div', { className: 'qf-build-footer-cost' }, [
-          h('span', { className: 'qf-build-card-coin' }),
-          h('span', {
-            className: 'pix',
-            style: { color: affordable ? 'var(--gold-bright)' : 'var(--hp-low)' },
-          }, String(cost)),
-        ]),
-      ]),
-      stats.length > 0 && h('div', {
-        className: 'qf-build-footer-stats',
-        style: { gridTemplateColumns: `repeat(${stats.length}, 1fr)` },
-      }, stats.map(([label, value]) => h('div', { className: 'qf-build-footer-stat' }, [
-        h('div', { className: 'pix qf-build-footer-stat-label' }, label),
-        h('div', { className: 'pix qf-build-footer-stat-value' }, value),
-      ]))),
-      // Minions keep their italic flavor line above the tagged block;
-      // rooms / traps / items put their (functional) description INTO
-      // the tagged EFFECT line, so every category's footer ends with a
-      // consistent tagged info block.
-      cat.kind === 'minion' && def.description && h('div', { className: 'qf-build-footer-desc' }, def.description),
-      this._renderInfoBlock(def, cat),
-      h('button', {
-        className: 'btn primary qf-build-place',
-        disabled: locked || !affordable,
-        on: { click: () => this._onPlaceClick(def, cat) },
-      }, locked ? `🔒 LOCKED · LV ${reqLevel}`
-              : !affordable ? 'NOT ENOUGH GOLD'
-              : '▶ PLACE'),
-    ])
-  }
-
-  // Tagged info block at the bottom of the footer. Minions get ABILITY
-  // + BEHAVIOR lines (from MinionAbilities.MINION_ABILITY_INFO); rooms,
-  // traps, and items get a single EFFECT line carrying their functional
-  // description — so every category reads with the same styled tags.
-  _renderInfoBlock(def, cat) {
-    const line = (tag, text) => h('div', { className: 'qf-build-footer-ability' }, [
-      h('span', { className: 'pix qf-build-footer-ability-tag' }, tag),
-      h('span', { className: 'qf-build-footer-ability-text' }, text),
-    ])
-    if (cat.kind === 'minion') {
-      const info = minionAbilityInfo(def.id)
-      if (!info) return null
-      return h('div', { className: 'qf-build-footer-abilities' }, [
-        info.ability  && line('ABILITY',  info.ability),
-        info.behavior && line('BEHAVIOR', info.behavior),
-      ])
-    }
-    if (!def.description) return null
-    return h('div', { className: 'qf-build-footer-abilities' }, [
-      line('EFFECT', def.description),
-    ])
-  }
-
-  _statsFor(def, cat) {
-    if (cat.kind === 'room') {
-      const stats = []
-      if (def.width && def.height) stats.push(['SIZE', `${def.width}×${def.height}`])
-      if (def.tags?.includes('boss')) stats.push(['TYPE', 'BOSS'])
-      return stats
-    }
-    if (cat.kind === 'minion') {
-      const stats = []
-      if (def.hp != null)     stats.push(['HP',  String(def.hp)])
-      if (def.attack != null) stats.push(['ATK', String(def.attack)])
-      if (def.speed != null)  stats.push(['SPD', def.speed.toFixed?.(1) ?? String(def.speed)])
-      return stats
-    }
-    if (cat.kind === 'trap' || cat.kind === 'item') {
-      const stats = []
-      if (def.damage != null) stats.push(['DMG', String(def.damage)])
-      if (def.uses   != null) stats.push(['USES', String(def.uses)])
-      return stats
-    }
-    return []
-  }
-
-  // PLACE is roughly equivalent to "select this and start placement" — the
-  // game already starts placement when BUILD_SELECT fires, so this button
-  // just re-confirms. Useful in case the player deselected and wants to
-  // re-arm; harmless otherwise. We also clear our local selection state
-  // so the grid + footer redraw correctly.
-  _onPlaceClick(def, cat) {
-    EventBus.emit('BUILD_SELECT', { def, kind: cat.kind })
   }
 
   // ── MiniKnowledgeMap ────────────────────────────────────────────
@@ -842,6 +186,14 @@ export class LeftPanels {
     if (parent) {
       parent.style.setProperty('--grid-w', W)
       parent.style.setProperty('--grid-h', H)
+    }
+    // Radar accent (sweep / scan band / adventurer pings / FULL ▸ hover)
+    // follows the phase: cyan rumor while building at night, amber warn
+    // during the day invasion — mirrors the design's night/day blip
+    // recolour. Set on the panel root so the header inherits it too.
+    if (this._refs.minimapRoot) {
+      const isDay = (this._gameState.meta?.phase ?? 'night') === 'day'
+      this._refs.minimapRoot.style.setProperty('--mm-blip', isDay ? 'var(--warn)' : 'var(--rumor)')
     }
     const rooms = d.rooms || []
     // Position rooms as % of the canvas. Room placement coords live on
@@ -940,70 +292,59 @@ export class LeftPanels {
     mount(canvas, els)
   }
 
+  // Live adventurer pings on the radar (day phase only). Unlike the
+  // intel-driven rooms/markers (which the player learns over time), these
+  // show the real-time positions of the invaders the player is watching on
+  // the main canvas — so the radar reads as a live tactical display during
+  // the invasion. Elements are POOLED per adventurer instanceId: recreating
+  // them each frame would restart the CSS ping animation (freezing it at
+  // frame 0), so we create once and only nudge left/top thereafter.
+  _renderBlips() {
+    const layer = this._refs.mapBlips
+    if (!layer) return
+    const gs = this._gameState
+    const d  = gs?.dungeon
+    if (!this._blipEls) this._blipEls = new Map()
+    const isDay = (gs?.meta?.phase ?? 'night') === 'day'
+    if (!isDay || !d) {
+      if (this._blipEls.size) { this._blipEls.clear(); mount(layer, []) }
+      return
+    }
+    const W = d.gridWidth || 80, H = d.gridHeight || 54
+    const advs = gs.adventurers?.active ?? []
+    const seen = new Set()
+    for (const a of advs) {
+      if (!a || a.tileX == null || a.tileY == null) continue
+      if ((a.resources?.hp ?? a.hp ?? 1) <= 0 || a.aiState === 'dead') continue
+      const id = a.instanceId
+      if (id == null) continue
+      seen.add(id)
+      let el = this._blipEls.get(id)
+      if (!el) {
+        el = h('div', { className: 'qf-minimap-blip qf-minimap-blip-adv' })
+        this._blipEls.set(id, el)
+        layer.appendChild(el)
+      }
+      el.style.left = `${((a.tileX + 0.5) / W) * 100}%`
+      el.style.top  = `${((a.tileY + 0.5) / H) * 100}%`
+    }
+    // Retire blips for adventurers that left / died this frame.
+    for (const [id, el] of this._blipEls) {
+      if (!seen.has(id)) { el.remove(); this._blipEls.delete(id) }
+    }
+  }
+
   // ── Events / tick ───────────────────────────────────────────────
   _wireEvents() {
     const sub = (event, fn) => {
       EventBus.on(event, fn)
       this._listeners.push([event, fn])
     }
-    sub('BUILD_DESELECT', () => {
-      this._selectedKey = null
-      this._renderGrid()
-      this._renderFooter()
-    })
-    // Action bar's PLACE button toggles the construction drawer.
-    sub('TOGGLE_BUILD_DRAWER', () => this._toggleDrawer())
-    sub('OPEN_BUILD_DRAWER',   () => this._setDrawer(true))
-    // Auto-open for the build night; auto-close for the day invasion.
-    sub('NIGHT_PHASE_BEGAN', () => this._setDrawer(true))
-    sub('DAY_PHASE_BEGAN',   () => this._setDrawer(false))
-    // On a loaded save the panel is built before gameState.meta.phase is known
-    // (so it defaulted closed) — re-sync once the load completes.
-    sub('GAME_STATE_LOADED', () => this._setDrawer((this._gameState?.meta?.phase ?? 'night') === 'night'))
-    // Esc closes the drawer when it's open.
-    window.addEventListener('keydown', this._keyHandler, true)
-    // Re-render when level unlocks new content or pacts add gating.
-    sub('BOSS_LEVELED_UP', () => { this._kickRoomPrecache(); this._renderGrid(); this._renderMap() })
-    // BOSS_LEVEL_CHANGED — fires on both up AND down (Demon's Wager
-    // can demote the boss). Re-render the build menu so newly-locked
-    // / newly-unlocked items reflect immediately.
-    sub('BOSS_LEVEL_CHANGED', () => this._renderGrid())
-    // Tinkerer's Workshop — when the player picks an upgrade, the card
-    // for that room type needs to paint the "★ UPGRADED" badge.
-    sub('TINKERER_UPGRADE_APPLIED', () => this._renderGrid())
-    // Goblin Market — prices + discount/markup badges change when the
-    // event sets (announce) or clears (day-end) its repricing map.
-    sub('GOBLIN_MARKET_PRICES_SET', () => this._renderGrid())
-    // Game scene is guaranteed active by the time night begins —
-    // retry precache in case LeftPanels was constructed before the
-    // scene booted (or before themesprite textures finished loading).
-    sub('NIGHT_PHASE_BEGAN', () => this._kickRoomPrecache())
-    sub('DAY_PHASE_BEGAN',   () => this._kickRoomPrecache())
-    // Dungeon shape changes — re-draw the mini-map.
+    // Re-draw the radar when the dungeon shape or boss level changes.
+    sub('BOSS_LEVELED_UP', () => this._renderMap())
     sub('ROOM_PLACED',  () => this._renderMap())
     sub('ROOM_REMOVED', () => this._renderMap())
     sub('GRID_EXPANDED', () => this._renderMap())
-    // A room thumbnail finished rendering via the offscreen Phaser
-    // RT pipeline — swap the iconic placeholder out for the real
-    // pixel-identical render. Only re-render when the rooms tab is
-    // currently visible to avoid wasted work.
-    sub('ROOM_THUMBNAIL_READY', () => {
-      if (this._selectedCategory === 'ROOMS') this._renderGrid()
-    })
-    // Kick off the initial precache pass once the Phaser game has
-    // initialised. May not succeed immediately if the Game scene
-    // hasn't booted yet — repeated calls are no-ops for cached /
-    // pending rooms so the next BOSS_LEVELED_UP retry covers it.
-    this._kickRoomPrecache()
-  }
-
-  // Walk every unlocked room def and queue a thumbnail render for
-  // each one not already cached. Safe to call repeatedly.
-  _kickRoomPrecache() {
-    const cat = CATEGORIES.find(c => c.kind === 'room')
-    if (!cat) return
-    const defs = this._defsFor(cat)
-    if (defs.length > 0) precacheRoomThumbnails(defs)
   }
 
   _tick() {
@@ -1012,29 +353,11 @@ export class LeftPanels {
       this._tickHandle = requestAnimationFrame(() => this._tick())
       return
     }
-    // Keep the construction drawer matching the phase (open at night, closed by
-    // day) UNTIL the player manually toggles it. Robust against the load-time
-    // race: GAME_STATE_LOADED can fire before this panel subscribes, and
-    // gameState may not be hydrated at construction, so neither the constructor
-    // default nor a one-shot sync is reliable. _setDrawer early-outs when the
-    // state already matches, so this is cheap. Manual handle/PLACE toggles set
-    // _userToggledDrawer and stop the auto-sync (phase-change events still fire).
-    if (!this._userToggledDrawer) {
-      this._setDrawer((gs.meta?.phase ?? 'night') === 'night')
-    }
-    // Gold readout removed from the CONSTRUCTION header at user request;
-    // TopBar shows the treasury total and per-card cost chips cover the
-    // affordability check. No `goldMeta` to refresh anymore.
-    // Mini-map header (KNOWLEDGE MAP + N% EXPOSED) removed for a minimalist
-    // map — exposure still surfaces in the Adventurer Intel panel + the full
-    // Knowledge Map overlay, so there's no per-tick exposure readout to update.
-    // Slot counter — refresh when trap / minion counts or caps change.
-    const slotInfo = this._slotInfo(this._currentCategory())
-    const slotSig  = slotInfo ? `${slotInfo.used}/${slotInfo.cap}` : 'none'
-    if (slotSig !== this._prevSlotSig) {
-      this._prevSlotSig = slotSig
-      this._renderSlots()
-    }
+    // Phase flip recolours the radar (night cyan → day amber) and toggles
+    // the live adventurer pings, but doesn't change the intel signature —
+    // so re-render the map when the phase changes.
+    const phase = gs.meta?.phase ?? 'night'
+    if (phase !== this._mapPhase) { this._mapPhase = phase; this._renderMap() }
     // Re-render the mini-map whenever the adventurers' knowledge shifts.
     // The active party learns rooms / traps / minions / items mid-day,
     // so the map can't be place-only — the signature covers all four
@@ -1050,39 +373,9 @@ export class LeftPanels {
       this._mapTierSig = mapSig
       this._renderMap()
     }
-
-    // Placement-count signature — when a room / item is placed or
-    // removed, a def may cross (or drop back under) its per-dungeon
-    // cap, so the card grid needs a re-filter. Cheap to compute every
-    // frame; only re-renders the grid on an actual change.
-    const dn  = gs.dungeon ?? {}
-    const gridSig = [
-      dn.rooms?.length          ?? 0,
-      dn.treasureChests?.length ?? 0,
-      dn.beacons?.length        ?? 0,
-      dn.locks?.length          ?? 0,
-      dn.fountains?.length      ?? 0,
-      dn.keyChests?.length      ?? 0,
-      gs.phylactery ? 1 : 0,
-    ].join(',')
-    if (gridSig !== this._gridSig) {
-      const first = this._gridSig === undefined
-      this._gridSig = gridSig
-      if (!first) {
-        // A maxed-out def may have dropped off the grid — clear a stale
-        // selection so the footer doesn't keep showing it.
-        if (this._selectedKey) {
-          const cat = this._currentCategory()
-          if (!this._defsFor(cat).find(d => d.id === this._selectedKey)) {
-            this._selectedKey = null
-          }
-        }
-        this._renderGrid()
-        // Footer too — a freeFirstN room's price flips from FREE to its
-        // gold cost once the free copies are used up.
-        this._renderFooter()
-      }
-    }
+    // Live adventurer pings move every frame during the day invasion, so
+    // they update each tick (cheap: pooled elements, only left/top writes).
+    this._renderBlips()
 
     this._tickHandle = requestAnimationFrame(() => this._tick())
   }
@@ -1094,7 +387,6 @@ export class LeftPanels {
   destroy() {
     if (this._tickHandle) cancelAnimationFrame(this._tickHandle)
     for (const [event, fn] of this._listeners) EventBus.off(event, fn)
-    window.removeEventListener('keydown', this._keyHandler, true)
     this._listeners = []
     this.el?.remove()
   }

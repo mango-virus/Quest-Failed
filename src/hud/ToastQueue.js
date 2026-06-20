@@ -281,11 +281,11 @@ export class ToastQueue {
     // the toast stack naturally as the player scrolls / resizes.
     toastEl.appendChild(burst)
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      // Fountain UPWARD into the play area. The toast now docks bottom-
-      // centre (above the action bar), so bias angles to [200°, 340°] (a
-      // 140° arc opening UPWARD) — particles flying down would clip into
-      // the action bar.
-      const baseAngle = 200 + Math.random() * 140
+      // Fountain DOWN-LEFT into the play area. The toast now docks top-
+      // right (tail of the top-right column), so bias angles to [100°, 170°]
+      // (a 70° arc opening down-and-left) — particles flying up/right would
+      // shoot off-screen or back into the column above.
+      const baseAngle = 100 + Math.random() * 70
       const distance  = 70 + Math.random() * 90
       const dx = Math.cos(baseAngle * Math.PI / 180) * distance
       const dy = Math.sin(baseAngle * Math.PI / 180) * distance

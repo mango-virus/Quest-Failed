@@ -10,64 +10,154 @@
 // Wired to OPEN_MINION_ROSTER (toggle-open behaviour mirrors the Phaser
 // popup contract).
 
-import { h, mount } from './dom.js'
-import { Overlay } from './Overlay.js'
+import { h } from './dom.js'
+import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
-import { snapshotMinion, snapshotRaisedAdv } from './inGameSnapshot.js'
 import { minionLabel } from '../util/displayNames.js'
-
-const FILTERS = ['ALL', 'READY', 'WOUNDED', 'IDLE']
-const FILTER_COLORS = {
-  ALL:     'var(--text)',
-  READY:   'var(--poison)',
-  WOUNDED: 'var(--warn)',
-  IDLE:    'var(--text-dim)',
-}
 
 export class RosterOverlay {
   constructor(gameState) {
     this._gameState = gameState
-    this._overlay = null
+    this._tray = null
     this._listeners = []
     this._filter = 'ALL'
-    this._selIdx = 0
+    this._selId = null   // selected minion instanceId (reveals row actions)
     this._listener = () => this.toggle()
     EventBus.on('OPEN_MINION_ROSTER', this._listener)
   }
 
   toggle() {
-    if (this._overlay) this.close()
+    if (this._tray) this.close()
     else this.open()
   }
 
-  isOpen() { return !!this._overlay }
+  isOpen() { return !!this._tray }
 
+  // The roster now flies out of its action-bar button as an anchored tray
+  // (crypt-console redesign) — a bespoke barracks ledger — instead of the old
+  // full-screen Overlay. All the data helpers + actions below are reused.
   open() {
-    if (this._overlay) return
+    if (this._tray) return
     this._filter = 'ALL'
-    this._selIdx = 0
-    this._overlay = new Overlay({
-      npcKind: 'roster',
-      title:   'MINION ROSTER',
-      eyebrow: 'THE GARRISON OF THE DEEP',   // → crypt shell (eyebrow + no X)
-      width:  1300,
-      height: 780,
+    this._selId = null
+    this._tray = new TrayShell({
+      anchorSel: '[data-tray-anchor="ROSTER"]',
+      align:  'right',
+      vAlign: 'up',
       accent: 'var(--poison)',
-      frame:  'plain',   // subtle main-menu edge instead of the accent frame
-      onClose: () => { this._overlay = null },
-      body:   this._renderBody(),
+      width:  'min(52vw, 820px)',
+      height: 348,
+      onClose: () => { this._tray = null },
     })
-    this._overlay.open()
+    this._tray.setContent(this._renderTrayContent())
+    this._tray.open()
   }
 
   close() {
-    this._overlay?.close()
-    this._overlay = null
+    this._tray?.close()
+    this._tray = null
   }
 
   _rerender() {
-    if (this._overlay) this._overlay.setBody(this._renderBody())
+    if (this._tray) this._tray.setContent(this._renderTrayContent())
+  }
+
+  // ── Bespoke roster tray (barracks ledger) ───────────────────────
+  _renderTrayContent() {
+    const minions = this._minions()
+    const counts = {
+      ALL:     minions.length,
+      READY:   minions.filter(m => this._classifyStatus(m) === 'ready').length,
+      WOUNDED: minions.filter(m => this._classifyStatus(m) === 'wounded').length,
+      IDLE:    minions.filter(m => this._classifyStatus(m) === 'idle').length,
+    }
+    const filtered = this._filter === 'ALL'
+      ? minions
+      : minions.filter(m => this._classifyStatus(m).toUpperCase() === this._filter)
+    const TABS = [
+      { id: 'ALL',     label: 'ALL',   glyph: '▤', c: counts.ALL },
+      { id: 'READY',   label: 'READY', glyph: '✦', c: counts.READY },
+      { id: 'WOUNDED', label: 'HURT',  glyph: '✚', c: counts.WOUNDED },
+      { id: 'IDLE',    label: 'IDLE',  glyph: '◌', c: counts.IDLE },
+    ]
+    const segbar = h('div', { className: 'htr-segbar' }, TABS.map(tb => h('div', {
+      className: 'htr-segtab' + (this._filter === tb.id ? ' on' : ''),
+      on: { click: () => { this._filter = tb.id; this._rerender() } },
+    }, [
+      h('span', { className: 'tg' }, tb.glyph),
+      h('span', { className: 'lb' }, tb.label),
+      h('span', { className: 'ct' }, String(tb.c)),
+    ])))
+    const summary = h('div', { className: 'rst-summary' }, [
+      h('span', null, [ h('b', null, String(minions.length)), ' MINIONS' ]),
+      h('span', { className: 'chip', style: { '--c': 'var(--warn)' } }, [ h('span', { className: 'd' }), `${counts.WOUNDED} HURT` ]),
+      h('span', { className: 'chip', style: { '--c': 'var(--text-mute)' } }, [ h('span', { className: 'd' }), `${counts.IDLE} IDLE` ]),
+    ])
+    const list = h('div', { className: 'rst-list' },
+      filtered.length === 0
+        ? [ h('div', { className: 'rst-empty' }, [
+            h('span', { className: 'ic' }, '◌'),
+            `No minions ${this._filter === 'ALL' ? 'in roster' : this._filter.toLowerCase()}`,
+          ]) ]
+        : filtered.map((m, i) => this._renderRosterRow(m, i)))
+    return h('div', { className: 'htr-chrome m-col' }, [
+      segbar,
+      h('div', { className: 'htr-content' }, [
+        h('div', { className: 'rst-col' }, [ summary, list ]),
+      ]),
+    ])
+  }
+
+  _renderRosterRow(m, idx) {
+    const status = this._classifyStatus(m)
+    const statusColor = status === 'ready' ? 'var(--poison)'
+                      : status === 'wounded' ? 'var(--warn)'
+                      : 'var(--text-mute)'
+    const tier = this._tierOf(m)
+    const rar = this._tierColor(tier)
+    const hp = Math.round(m.resources?.hp ?? 0)
+    const maxHp = Math.round(m.resources?.maxHp ?? 1)
+    const pct = maxHp > 0 ? Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100))) : 0
+    const def = this._minionDefinition(m)
+    const name = m.name || def?.name || minionLabel(m.definitionId) || '?'
+    const kind = (def?.name || minionLabel(m.definitionId) || '').toString()
+    const tags = (m._revivedAdv ? ['undead'] : (def?.tags ?? [])).slice(0, 3)
+    const loc = this._minionLocationLabel(m)
+    const selected = this._selId === m.instanceId
+    return h('div', {
+      className: 'rst-row' + (selected ? ' on' : ''),
+      dataset: { st: status },
+      style: { '--rar': rar, '--sc': statusColor, '--i': idx },
+      on: { click: () => { this._selId = selected ? null : m.instanceId; this._rerender() } },
+    }, [
+      h('div', { className: 'rst-port', style: this._spriteBg(this._spriteFor(m)) }, [
+        h('span', { className: 'rst-tier' }, tier),
+      ]),
+      h('div', { className: 'rst-id' }, [
+        h('span', { className: 'rst-name' }, [
+          name,
+          m.hasBounty ? h('span', { className: 'rst-bnty' }, '◎') : null,
+        ].filter(Boolean)),
+        h('span', { className: 'rst-kind' }, `${kind} · ${loc}`),
+        tags.length
+          ? h('div', { className: 'rst-traits' }, tags.map(t => h('span', { className: 'rst-trait' }, String(t).toUpperCase())))
+          : null,
+      ].filter(Boolean)),
+      // Right slot: HP + status normally; when selected, the row actions
+      // (MOVE / RENAME / SELL) replace them so all roster actions stay reachable.
+      selected
+        ? h('div', { className: 'rst-acts' }, [
+            h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onReassign(m) } } }, 'MOVE'),
+            h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onRename(m) } } }, 'RENAME'),
+            h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onSacrifice(m) } } }, 'SELL'),
+          ])
+        : h('div', { className: 'rst-hp' }, [
+            h('div', { className: 'rst-hp-top' }, [ h('span', null, 'HP'), h('span', { className: 'rst-hp-val' }, `${hp}/${maxHp}`) ]),
+            h('div', { className: 'rst-hp-bar' }, [ h('div', { className: 'rst-hp-fill', style: { width: pct + '%' } }) ]),
+          ]),
+      selected ? null : h('div', { className: 'rst-status' }, status.toUpperCase()),
+    ].filter(Boolean))
   }
 
   // ── Data helpers ────────────────────────────────────────────────
@@ -176,369 +266,6 @@ export class RosterOverlay {
          : tier === 'T2' ? 'var(--gold)'
          : tier === 'T3' ? 'var(--blood)'
          : 'var(--info)'
-  }
-
-  // ── Render ──────────────────────────────────────────────────────
-  _renderBody() {
-    const minions = this._minions()
-    const counts = {
-      ALL:     minions.length,
-      READY:   minions.filter(m => this._classifyStatus(m) === 'ready').length,
-      WOUNDED: minions.filter(m => this._classifyStatus(m) === 'wounded').length,
-      IDLE:    minions.filter(m => this._classifyStatus(m) === 'idle').length,
-    }
-    const filtered = this._filter === 'ALL'
-      ? minions
-      : minions.filter(m => this._classifyStatus(m).toUpperCase() === this._filter)
-    if (this._selIdx >= filtered.length) this._selIdx = 0
-    const sel = filtered[this._selIdx]
-    const totalKills = minions.reduce((s, m) => s + (m.lifetime?.kills ?? 0), 0)
-    const avgLv = minions.length > 0
-      ? (minions.reduce((s, m) => s + (m.bossLevel ?? 1), 0) / minions.length).toFixed(1)
-      : '0.0'
-    const wounded = counts.WOUNDED
-
-    // First paint of the body gets a one-shot row-entrance stagger; later
-    // _rerender()s (filter/select) skip it so rows don't re-cascade on click.
-    const firstOpen = !this._opened
-    this._opened = true
-
-    return h('div', { className: 'qf-roster-body' }, [
-      // Summary strip
-      h('div', { className: 'qf-roster-summary' }, [
-        this._summaryTile('GARRISON',     String(minions.length),        'var(--text)'),
-        this._summaryTile('TOTAL KILLS',  String(totalKills),            'var(--blood)'),
-        this._summaryTile('AVG LEVEL',    avgLv,                         'var(--gold)'),
-        this._summaryTile('WOUNDED',      `${wounded}/${minions.length}`, wounded > 0 ? 'var(--warn)' : 'var(--poison)'),
-      ]),
-      // Two-column layout
-      h('div', { className: 'qf-roster-main' }, [
-        this._renderList(minions, filtered, counts, firstOpen),
-        this._renderDetail(sel),
-      ]),
-    ])
-  }
-
-  _summaryTile(label, value, color) {
-    return h('div', { className: 'qf-roster-tile' }, [
-      h('div', {
-        className: 'pix qf-roster-tile-value',
-        style: { color, textShadow: `0 0 8px ${color}33` },
-      }, value),
-      h('div', { className: 'pix qf-roster-tile-label' }, label),
-    ])
-  }
-
-  _renderList(allMinions, filtered, counts, firstOpen = false) {
-    return h('div', { className: 'panel bevel qf-roster-listpanel' }, [
-      // Filter row
-      h('div', { className: 'qf-roster-filters' },
-        FILTERS.map(k => {
-          const active = this._filter === k
-          const color = FILTER_COLORS[k]
-          return h('button', {
-            className: 'qf-roster-filter',
-            dataset: { active: active ? 'true' : 'false' },
-            style: {
-              '--fc': color,
-              color: active ? color : 'var(--text-mute)',
-              borderTopColor: active ? color : 'transparent',
-            },
-            on: { click: () => { this._filter = k; this._selIdx = 0; this._rerender() } },
-          }, [k, h('span', { className: 'qf-roster-filter-count' }, ` ${counts[k]}`)])
-        })
-      ),
-      // Header row
-      h('div', { className: 'qf-roster-listhead' }, [
-        h('div'),
-        h('div', { style: { textAlign: 'center' } }, 'TIER'),
-        h('div', null, 'NAME'),
-        h('div', null, 'HP'),
-        h('div', null, 'LV'),
-        h('div', { style: { color: 'var(--blood)' } }, 'KILLS'),
-      ]),
-      // Body
-      h('div', { className: `qf-roster-listbody${firstOpen ? ' qf-stagger-in' : ''}` },
-        filtered.length === 0
-          ? h('div', { className: 'qf-roster-listempty' }, '— no minions match this filter —')
-          : filtered.map((m, idx) => this._renderRow(m, idx, allMinions))
-      ),
-    ])
-  }
-
-  _renderRow(m, idx, allMinions) {
-    const status = this._classifyStatus(m)
-    const statusColor = status === 'wounded' ? 'var(--warn)'
-                      : status === 'idle'    ? 'var(--text-dim)'
-                      : 'var(--poison)'
-    const hp = Math.round(m.resources?.hp ?? 0)
-    const maxHp = Math.round(m.resources?.maxHp ?? 1)
-    const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
-    const active = idx === this._selIdx
-    const tier = this._tierOf(m)
-    const tierColor = this._tierColor(tier)
-    const kills = m.lifetime?.kills ?? 0
-    const name = m.name || this._minionDefinition(m)?.name || m.definitionId || '?'
-
-    return h('button', {
-      className: 'qf-roster-row',
-      dataset: { active: active ? 'true' : 'false', status },
-      style: {
-        background: active ? `linear-gradient(90deg, ${statusColor}1a, var(--bg-3))` : 'transparent',
-        borderLeft: `3px solid ${active ? statusColor : (status === 'wounded' ? 'var(--warn)55' : 'transparent')}`,
-      },
-      on: { click: () => { this._selIdx = idx; this._rerender() } },
-    }, [
-      // Sprite
-      h('div', { className: 'qf-roster-sprite' }, [
-        this._minionVisual(m, 56, 'qf-roster-sprite-img'),
-      ]),
-      // Tier — its own column (was an overlay badge on the sprite's feet).
-      h('div', { className: 'qf-roster-tier-cell' }, [
-        h('span', {
-          className: 'pix qf-roster-tier',
-          style: { color: tierColor, borderColor: tierColor },
-        }, tier),
-      ]),
-      // Name + status. A gold ★ flags a minion that has a bounty on its
-      // head — bounty hunters will enter the dungeon specifically to kill it.
-      h('div', null, [
-        h('div', { className: 'qf-roster-row-name' }, [
-          m.hasBounty && h('span', {
-            style: { color: 'var(--gold)', marginRight: '4px' },
-            title: 'BOUNTY — hunters will come for this minion',
-          }, '★'),
-          // ✦ flags an ascension reinforcement — the boss's kin the dungeon
-          // fielded for free each act (KR P6), so it doesn't read as a mystery unit.
-          m._reinforcement && h('span', {
-            style: { color: '#c98bff', marginRight: '4px' },
-            title: m._reinforcementElite ? 'ELITE ASCENSION REINFORCEMENT' : 'ASCENSION REINFORCEMENT',
-          }, '✦'),
-          name,
-        ]),
-        h('div', {
-          className: 'pix qf-roster-row-status',
-          style: { color: statusColor },
-        }, [
-          h('span', {
-            className: status === 'wounded' ? 'blink' : '',
-            style: {
-              display: 'inline-block', width: '4px', height: '4px',
-              background: statusColor, marginRight: '4px',
-              verticalAlign: 'middle', boxShadow: `0 0 4px ${statusColor}`,
-            },
-          }),
-          `${status.toUpperCase()} · ${this._minionLocationLabel(m)}`,
-        ]),
-      ]),
-      // HP bar
-      h('div', null, [
-        h('div', { className: 'bar thin' }, [
-          h('div', {
-            className: 'fill',
-            style: {
-              width: `${pct}%`,
-              background: pct < 50 ? 'var(--warn)' : 'var(--poison)',
-            },
-          }),
-          h('div', { className: 'num', style: { fontSize: '7px' } }, `${hp}/${maxHp}`),
-        ]),
-      ]),
-      // LV — minions scale to the BOSS level (m.bossLevel), not a per-minion
-      // XP level (that system was removed 2026-05-29).
-      h('div', { className: 'pix qf-roster-row-lv' }, String(m.bossLevel ?? 1)),
-      // Kills + lethal skull
-      h('div', { className: 'qf-roster-row-kills' }, [
-        h('span', {
-          className: 'pix',
-          style: { color: kills > 0 ? 'var(--blood)' : 'var(--text-dim)' },
-        }, String(kills)),
-        kills >= 3 && h('span', {
-          className: 'pix',
-          style: { fontSize: '8px', color: 'var(--blood)' },
-          title: 'lethal',
-        }, '☠'),
-      ]),
-    ])
-  }
-
-  _renderDetail(sel) {
-    if (!sel) {
-      return h('div', { className: 'panel bevel qf-roster-detail qf-roster-detail-empty' }, [
-        h('div', { className: 'pix' }, '◇ NO MINION SELECTED ◇'),
-      ])
-    }
-    const status = this._classifyStatus(sel)
-    const tier = this._tierOf(sel)
-    const tierColor = this._tierColor(tier)
-    const hp = Math.round(sel.resources?.hp ?? 0)
-    const maxHp = Math.round(sel.resources?.maxHp ?? 1)
-    const pct = maxHp > 0 ? (hp / maxHp) * 100 : 0
-    const def = this._minionDefinition(sel)
-    // The Undying Court — a revived adventurer reads as the fallen hero (its
-    // class + carried abilities), not the skeleton base it's built on.
-    const revived = !!sel._revivedAdv
-    const advClass = revived
-      ? (this._cachedJson('adventurerClasses') ?? []).find(x => x.id === sel._raisedClassId)
-      : null
-    const advClassName = advClass?.name || (sel._raisedClassId
-      ? sel._raisedClassId.charAt(0).toUpperCase() + sel._raisedClassId.slice(1)
-      : 'Adventurer')
-    const name = sel.name || def?.name || sel.definitionId || '?'
-    const dmg = sel.stats?.attack ?? 0
-    const armor = sel.stats?.defense ?? 0
-    const speed = sel.stats?.speed ?? 0
-    const kills = sel.lifetime?.kills ?? 0
-    const tags = revived ? ['undead', ...(advClass?.tags ?? [])] : (def?.tags ?? [])
-    const description = revived
-      ? `A fallen ${advClassName} raised by The Undying Court — an undead minion that keeps its class abilities. Sells for nothing.`
-      : (def?.description ?? def?.flavorText ?? '—')
-
-    // Fade the detail in only when the SHOWN minion actually changes (clicking
-    // a new row), not on every list rerender (filter toggles, etc.).
-    const selKey = sel.id ?? sel.definitionId ?? this._selIdx
-    const changed = selKey !== this._lastDetailKey
-    this._lastDetailKey = selKey
-
-    return h('div', { className: `panel bevel qf-roster-detail${changed ? ' grim-fade' : ''}` }, [
-      // Portrait card
-      h('div', {
-        className: 'qf-roster-portrait',
-        style: {
-          background: `radial-gradient(circle at 50% 60%, ${status === 'wounded' ? 'rgba(232,154,60,0.18)' : 'rgba(107,160,58,0.16)'}, transparent 65%), var(--bg-0)`,
-          borderColor: status === 'wounded' ? 'var(--warn)' : 'var(--line-2)',
-          boxShadow: status === 'wounded' ? 'inset 0 0 24px rgba(232,154,60,0.15)' : 'inset 0 0 24px rgba(0,0,0,0.5)',
-        },
-      }, [
-        // Corner registration marks
-        ...['tl','tr','bl','br'].map(p => h('div', {
-          className: `qf-roster-corner qf-roster-corner-${p}`,
-        })),
-        // Big sprite
-        this._minionVisual(sel, 208, 'qf-roster-portrait-sprite'),
-        // Tier+LV chip
-        h('div', {
-          className: 'pix qf-roster-tier-chip',
-          style: { color: revived ? '#c24bff' : tierColor, borderColor: revived ? '#c24bff' : tierColor },
-        }, revived ? `RISEN · LV ${sel._raisedLevel ?? 1}` : `${tier} · LV ${sel.bossLevel ?? 1}`),
-      ]),
-      // Name + assignment
-      h('div', { className: 'pix qf-roster-detail-name' }, name),
-      h('div', { className: 'qf-roster-detail-assign' }, [
-        h('span', { className: 'pix qf-roster-detail-kind' }, revived ? `RISEN ${advClassName.toUpperCase()}` : minionLabel(sel.definitionId).toUpperCase()),
-        h('span', { style: { margin: '0 6px', color: 'var(--text-dim)' } }, '·'),
-        ' stationed at ',
-        h('span', { style: { color: 'var(--poison)' } }, this._minionLocationLabel(sel)),
-      ]),
-      // HP bar
-      h('div', { className: 'bar', style: { marginBottom: '12px' } }, [
-        h('div', {
-          className: 'fill',
-          style: {
-            width: `${pct}%`,
-            background: pct < 50 ? 'var(--warn)' : 'var(--poison)',
-          },
-        }),
-        h('div', { className: 'num' }, `${hp} / ${maxHp}`),
-      ]),
-      // Stat grid
-      h('div', { className: 'qf-roster-stats' }, [
-        this._statTile('DMG',   String(dmg),                   'var(--blood)',  '⚔'),
-        this._statTile('ARMOR', String(armor),                 'var(--rumor)',  '◇'),
-        this._statTile('SPEED', Number(speed).toFixed(1),      'var(--gold)',   '▸'),
-        this._statTile('KILLS', String(kills),                 'var(--poison)', '☠'),
-      ]),
-      // Traits
-      h('div', { className: 'pix qf-roster-section-label' }, 'TRAITS'),
-      h('div', { className: 'qf-roster-traits' },
-        tags.length === 0
-          ? [h('span', { className: 'pix qf-roster-trait' }, 'BEAST')]
-          : tags.slice(0, 6).map(t => h('span', { className: 'pix qf-roster-trait' }, String(t).toUpperCase()))
-      ),
-      // Description
-      h('div', { className: 'qf-roster-desc' }, description),
-      // Recent — placeholder. The existing minion entity doesn't store a
-      // tagged event log per-minion; killHistory could be summarized
-      // here but it's just IDs. Left as a static placeholder for now.
-      h('div', { className: 'pix qf-roster-section-label' }, 'RECENT'),
-      h('div', { className: 'qf-roster-recent' },
-        kills > 0
-          ? [h('div', null, [
-              h('span', null, `${kills} kill${kills === 1 ? '' : 's'} this run.`),
-              h('span', { className: 'pix', style: { fontSize: '7px', color: 'var(--text-dim)' } }, `D${this._gameState.meta?.dayNumber ?? '?'}`),
-            ])]
-          : [h('div', { style: { color: 'var(--text-dim)', fontStyle: 'italic' } }, '— no events —')]
-      ),
-      // Actions — REASSIGN / RENAME / SACRIFICE, all wired to gameplay. Ascension
-      // throne guards are bound to the boss chamber, so REASSIGN is locked out.
-      h('div', { className: 'qf-roster-actions' }, [
-        sel._ascGuardian
-          ? h('button', {
-              className: 'btn qf-roster-action',
-              disabled: true,
-              title: 'Ascension guardians are bound to the boss chamber',
-              style: { opacity: '0.45', cursor: 'not-allowed' },
-            }, [
-              h('span', { style: { color: 'var(--text-dim)' } }, '🔒'),
-              ' BOUND',
-            ])
-          : h('button', {
-              className: 'btn qf-roster-action',
-              on: { click: () => this._onReassign(sel) },
-            }, [
-              h('span', { style: { color: 'var(--poison)' } }, '⤧'),
-              ' REASSIGN',
-            ]),
-        h('button', {
-          className: 'btn qf-roster-action',
-          on: { click: () => this._onRename(sel) },
-        }, [
-          h('span', { style: { color: 'var(--gold)' } }, '✎'),
-          ' RENAME',
-        ]),
-        h('button', {
-          className: 'btn qf-roster-action qf-roster-action-danger',
-          on: { click: () => this._onSacrifice(sel) },
-        }, [
-          h('span', { style: { color: 'var(--blood)' } }, '☠'),
-          ' SACRIFICE',
-        ]),
-      ]),
-    ])
-  }
-
-  _statTile(label, value, color, icon) {
-    return h('div', { className: 'qf-roster-stat' }, [
-      h('div', {
-        className: 'pix qf-roster-stat-icon',
-        style: { color, opacity: 0.5 },
-      }, icon),
-      h('div', {
-        className: 'pix qf-roster-stat-value',
-        style: { color },
-      }, value),
-      h('div', { className: 'pix qf-roster-stat-label' }, label),
-    ])
-  }
-
-  // Prefer the live in-game minion texture (so the roster shows the
-  // exact LPC sprite the player sees in the dungeon view). Falls back
-  // to the bestiary family portrait when the Phaser texture isn't
-  // loaded yet — same contract as the old _spriteBg path.
-  _minionVisual(m, size, className) {
-    // The Undying Court — a revived adventurer shows its carried class sprite,
-    // not the skeleton base it's built on.
-    const snap = ((m?._revivedAdv && m?._raisedSpriteVariant)
-      ? snapshotRaisedAdv(m._raisedSpriteVariant, size)
-      : null) ?? snapshotMinion(m?.definitionId, size)
-    if (snap) {
-      // Let the CSS class drive the displayed size — the canvas's
-      // native pixel resolution (passed as `size`) just controls
-      // sample quality during the CSS pixelated upscale.
-      snap.classList.add(className)
-      return snap
-    }
-    return h('div', { className, style: this._spriteBg(this._spriteFor(m)) })
   }
 
   // Sprite background — uses the same bestiary portraits the TopBar

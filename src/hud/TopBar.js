@@ -82,6 +82,7 @@ export class TopBar {
         h('button', {
           className: 'boss-portrait-btn',
           title: 'Open boss overview',
+          dataset: { trayAnchor: 'BOSS' },   // BossTray anchors its fly-out here
           on: { click: () => EventBus.emit('OPEN_BOSS_OVERVIEW') },
         }, [
           h('div', {

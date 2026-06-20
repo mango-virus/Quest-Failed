@@ -264,10 +264,11 @@ export class RightPanels {
     // Lets us collapse a 12+ adv wave into one summary row instead of
     // 12 separate "X (Class) entered the dungeon." lines.
     this._pendingArrivals = []
-    // Wave/intel/log is a right-edge sliding drawer (crypt-console redesign).
-    // Defaults open — it's passive info you want visible; the "WAVE · LOG"
-    // peek handle on the screen edge collapses it.
-    this._drawerOpen = true
+    // The wave/log now form an always-on top-right column (no drawer).
+    // The dungeon log is a button + dropdown; the dropdown starts closed
+    // (collapsed), matching the design — the live feed still streams into
+    // its hidden list, and toasts surface the headline beats meanwhile.
+    this._logOpen = false
 
     this.el = this._build()
     this._wireEvents()
@@ -292,19 +293,15 @@ export class RightPanels {
       className: 'qf-rightpanels',
       ref: el => { this._refs.root = el },
     }, [
+      // Always-on top-right column segment (crypt-console redesign): the
+      // wave + log sit flush beneath the radar minimap as one persistent
+      // column. The old slide-out drawer + "WAVE · LOG" peek handle were
+      // dropped per the design. `_alignUnderRadar()` (each tick) keeps the
+      // dock's top pinned just below the radar, whatever its height.
       h('div', {
-        className: 'qf-wave-dock' + (this._drawerOpen ? '' : ' closed'),
+        className: 'qf-wave-dock',
         ref: el => { this._refs.waveDock = el },
       }, [
-      // Peek handle — left edge of the dock; toggles the drawer.
-      h('div', {
-        className: 'qf-wave-handle',
-        on: { click: () => this._toggleDrawer() },
-      }, [
-        h('span', { className: 'pix qf-wave-chev', ref: el => { this._refs.waveChev = el } }, '▸'),
-        h('span', { className: 'sil qf-wave-handle-label' }, 'WAVE · LOG'),
-        h('span', { className: 'qf-wave-handle-live' }),
-      ]),
       h('div', { className: 'qf-wave-panelcol' }, [
       // IncomingWave
       h('div', {
@@ -326,64 +323,53 @@ export class RightPanels {
         }),
       ]),
 
-      // AdventurerIntel
-      h('div', { className: 'panel bevel qf-intelpanel' }, [
-        h('div', { className: 'panel-head' }, [
-          h('div', { className: 'title' }, [
-            h('span', {
-              className: 'diamond',
-              style: { background: 'var(--info)', boxShadow: '0 0 6px var(--info)' },
-            }),
-            'ADVENTURER INTEL',
-          ]),
-          h('div', {
-            className: 'meta up qf-intel-leakcount',
-            ref: el => { this._refs.leakCount = el },
-          }, 'NO LEAKS'),
+      // AdventurerIntel — REMOVED from the HUD column (crypt-console
+      // redesign): it duplicated the INTEL action-bar launcher
+      // (AdvIntelOverlay), so the persistent panel was redundant. The
+      // exposure %/per-room leak data still lives there + on the radar's
+      // intel-coloured rooms. `_renderIntel()` self-guards on the absent
+      // body ref, so its subscriptions/tick calls are harmless no-ops.
+
+      // DungeonLog — a button that toggles a dropdown (crypt-console
+      // design). The live feed keeps streaming into the (always-present,
+      // merely hidden) list while collapsed, so no rows are lost; FULL ▸
+      // opens the full-run overlay (shared with PostWave/Pause). `.hc`
+      // puts the design tokens in scope for the .hc-maplog* chrome.
+      h('div', { className: 'qf-maplog-wrap hc' }, [
+        h('button', {
+          className: 'hc-maplog-btn',
+          ref: el => { this._refs.logBtn = el },
+          title: 'Toggle the dungeon log',
+          on: { click: () => this._toggleLog() },
+        }, [
+          h('span', { className: 'ldot' }),
+          h('span', { className: 'hc-maplog-lbl' }, 'DUNGEON LOG'),
+          h('span', { className: 'chev' }, '▾'),
         ]),
         h('div', {
-          className: 'qf-intel-body',
-          ref: el => { this._refs.intelBody = el },
-        }),
-      ]),
-
-      // DungeonLog — header is clickable to open the full-run log
-      // overlay (same FullLogOverlay PostWaveOverlay + PauseOverlay use).
-      h('div', { className: 'panel bevel qf-logpanel' }, [
-        h('div', {
-          className: 'panel-head qf-logpanel-head',
-          style: { cursor: 'pointer' },
-          title: 'Open full dungeon log',
-          on: { click: () => this._openFullLog() },
+          className: 'hc-maplog closed',
+          ref: el => { this._refs.logDrop = el },
         }, [
-          h('div', { className: 'title' }, [
-            h('span', {
-              className: 'diamond',
-              style: { background: 'var(--warn)', boxShadow: '0 0 6px var(--warn)' },
-            }),
-            'DUNGEON LOG',
-          ]),
-          h('div', { className: 'meta qf-log-meta' }, [
-            h('span', {
-              className: 'qf-log-live',
-              style: { color: 'var(--blood)' },
-            }, [
+          h('div', { className: 'lhead' }, [
+            h('span', { className: 'ltitle' }, [
+              h('span', { className: 'dot' }),
+              'DUNGEON LOG',
+            ]),
+            h('div', { className: 'lhead-r' }, [
+              h('span', { className: 'llive' }, [ h('span', { className: 'i' }), 'LIVE' ]),
               h('span', {
-                className: 'blink',
-                style: {
-                  width: '6px', height: '6px', background: 'var(--blood)',
-                  boxShadow: '0 0 6px var(--blood)', display: 'inline-block',
-                },
-              }),
-              ' LIVE',
+                className: 'lfull',
+                title: 'Open the full run log',
+                on: { click: () => this._openFullLog() },
+              }, 'FULL ▸'),
             ]),
           ]),
-        ]),
-        h('div', {
-          className: 'qf-log-body',
-          ref: el => { this._refs.logBody = el },
-        }, [
-          h('div', { className: 'qf-log-rail' }),
+          h('div', {
+            className: 'qf-log-body llist',
+            ref: el => { this._refs.logBody = el },
+          }, [
+            h('div', { className: 'qf-log-rail' }),
+          ]),
         ]),
       ]),
       ]),
@@ -1452,7 +1438,42 @@ export class RightPanels {
       })
       if (sig !== this._intelSig) { this._intelSig = sig; this._renderIntel() }
     }
+    this._alignUnderRadar()
     this._tickHandle = requestAnimationFrame(() => this._tick())
+  }
+
+  // Pin the wave/log column just below the top-right treasury panel (the radar
+  // minimap that used to sit here was removed), and drop the toast stack just
+  // beneath the column so the three stack cleanly. Measures the treasury's
+  // bottom in stage-logical px each tick; cheap (only writes on change).
+  _alignUnderRadar() {
+    const dock = this._refs.waveDock
+    if (!dock) return
+    let top = 14
+    const root = this._refs.root
+    const treas = document.querySelector('.qf-topbar-right')
+    if (root && treas) {
+      const lr = root.getBoundingClientRect()
+      const tr = treas.getBoundingClientRect()
+      const s = (root.offsetWidth && lr.width) ? (lr.width / root.offsetWidth) : 1
+      top = Math.round((tr.bottom - lr.top) / s) + 10
+    }
+    if (top !== this._lastDockTop) {
+      this._lastDockTop = top
+      dock.style.top = top + 'px'
+    }
+    // The toast stack (a separate HUD layer, ToastQueue) is the tail of the
+    // same top-right column — pin its top just below the wave/log dock so it
+    // never overlaps. dock.offsetHeight covers the live content incl. the
+    // (capped) open log dropdown, so toasts always sit clear beneath it.
+    const toasts = document.querySelector('.qf-toasts')
+    if (toasts) {
+      const tTop = top + dock.offsetHeight + 10
+      if (tTop !== this._lastToastTop) {
+        this._lastToastTop = tTop
+        toasts.style.top = tTop + 'px'
+      }
+    }
   }
 
   setVisible(v) {
@@ -1475,14 +1496,15 @@ export class RightPanels {
     this._fullLog.open()
   }
 
-  // ── Wave/log drawer ─────────────────────────────────────────────
-  _toggleDrawer() { this._setDrawer(!this._drawerOpen) }
-  _setDrawer(open) {
-    if (open === this._drawerOpen) return
-    this._drawerOpen = open
-    this._refs.waveDock?.classList.toggle('closed', !open)
-    // Right-edge drawer: open points ▸ (collapse right), closed ◂ (expand left).
-    if (this._refs.waveChev) this._refs.waveChev.textContent = open ? '▸' : '◂'
+  // ── Dungeon-log dropdown ────────────────────────────────────────
+  // Toggle the log dropdown. The list stays mounted while closed (just
+  // hidden) so the live feed never drops rows; we just jump to the
+  // newest row when it (re)opens.
+  _toggleLog() {
+    this._logOpen = !this._logOpen
+    this._refs.logBtn?.classList.toggle('open', this._logOpen)
+    this._refs.logDrop?.classList.toggle('closed', !this._logOpen)
+    if (this._logOpen) this._scheduleLogScroll()
   }
 
   destroy() {
