@@ -1301,7 +1301,7 @@ Top-level rules:
 | Room | Cap | Effect |
 |---|---|---|
 | **Crypt** | 3 | Spawns up to **4 Risen Bones (garrison, room-bound)**. Refills to 4 each Night Phase. Does not count toward Barracks cap. |
-| **Library of Whispers** | 1 | Reveals next party intel the night before. Tier scales with boss level: **L2** size + classes; **L6** + personalities; **L8** + stats & equipment; **L10** + planned dungeon route. (Moved from L4 → L2 on 2026-05-19.) |
+| **Library of Whispers** | 1 | Reveals next party intel the night before. **(2026-06-20 redesign)** A single Library reveals the FULL forecast — size, classes, personalities, scaled stats, route — and the room is now **capped at 1 per dungeon** (the old "more Libraries = deeper tiers" model is retired). Per-class intel (stats / personality / **abilities**) is further gated: a class's dossier unlocks only once you have a Library AND have **killed one of that class this run** (event-tier invaders are exempt from the kill). Applies everywhere — the ADV INTEL dossier, the hover InspectPopup, and the Codex adventurer tab. (Moved from L4 → L2 on 2026-05-19.) |
 
 #### L3 unlocks
 
@@ -1371,7 +1371,7 @@ _(no new rooms — see Library of Whispers moved to L2)_
 | L9 | 18 | 8 | 4 | 4 | 4 | 3 | 2 | 1 |
 | L10 | 20 | 9 | 4 | 5 | 5 | 3 | 3 | 2 |
 
-*(table updated 2026-05-22 to match `src/data/rooms.json`. **Library** row added — each additional Library beyond the 1st unlocks a deeper tier of intel in the Adventurer Intel panel: L2 size+classes (1 Lib), L4 + personalities (2 Libs), L6 + scaled stats (3 Libs), L8 + planned route (4 Libs). **Barracks** ships at 1→9 instead of the original 1→5 spec — kept at the higher cap as a quality-of-life decision per user 2026-05-22; design row retained for historical reference.)*
+*(table updated 2026-05-22 to match `src/data/rooms.json`. **Library** — ⚠ the multi-Library tier model described in older revisions is RETIRED as of 2026-06-20: the Library is capped at **1 per dungeon** and that one Library reveals the full forecast; per-class detail is gated by a per-run kill instead (see the Library of Whispers row above + `src/hud/wavePreview.js` `hasClassIntel`). **Barracks** ships at 1→9 instead of the original 1→5 spec — kept at the higher cap as a quality-of-life decision per user 2026-05-22; design row retained for historical reference.)*
 
 ### Room cost rework — power-based pricing (2026-05-20)
 

@@ -167,6 +167,10 @@ export function createGameState(
         trapsPlaced:      0,
         trapsDisarmed:    0,
       },
+      // Adventurer classIds the dungeon has KILLED this run. Drives the
+      // per-class intel gate (Library + a kill of that class reveals its
+      // full dossier/abilities). Resets each run; persisted with the save.
+      classesKilled: [],
     },
     knowledge: {
       sharedPool: { rooms: {}, traps: {}, enemiesPerRoom: {}, loot: {} },

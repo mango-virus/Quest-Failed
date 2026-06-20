@@ -20,6 +20,7 @@ import { effectiveUiScale } from './stageScale.js'
 import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
 import { passiveIncomeMul } from '../config/balance.js'
+import { hasActiveLibrary, hasClassIntel } from './wavePreview.js'
 
 const STAT_LABEL = { attack: 'ATK', defense: 'DEF', maxHp: 'MAX HP', speed: 'SPD' }
 
@@ -355,6 +356,11 @@ export class InspectPopup {
   _advContent(a) {
     const def   = this._advDef(a)
     const cls   = def?.name || a.classId || 'Adventurer'
+    // Intel gate (2026-06-20): a class's stats / personality / abilities are
+    // hidden until the player has a Library AND has killed one of that class
+    // this run. Until then the hover shows a locked notice (the class is still
+    // visible on screen, so its name + sprite read; only the intel is masked).
+    if (!hasClassIntel(this._gs, def)) return this._advLockedContent(cls)
     const hp    = a.resources?.hp ?? a.stats?.hp ?? '?'
     const maxHp = a.resources?.maxHp ?? hp
     const boxes = [
@@ -368,11 +374,31 @@ export class InspectPopup {
       this._statsGrid(boxes),
       flavor ? this._descLine(flavor) : null,
       this._advLines(a, cls),
+      this._advAbilityBlock(def),
     ]
   }
 
-  // Tagged CLASS / ABILITIES / PERSONALITY / GOAL lines — same row style
-  // as the minion panel's ABILITY / BEHAVIOR block.
+  // Locked hover for a class whose intel isn't unlocked yet. Shows the class
+  // identity + a notice that tells the player how to unlock it (build a
+  // Library, or defeat one of this class this run).
+  _advLockedContent(cls) {
+    const notice = hasActiveLibrary(this._gs)
+      ? `Defeat a ${cls} this run to study its stats and abilities.`
+      : 'Build a Library of Whispers to study the fallen.'
+    return [
+      h('div', { className: 'qf-inspect-abilities' }, [
+        h('div', { className: 'qf-inspect-ability' }, [
+          h('span', { className: 'pix qf-inspect-ability-tag' }, 'CLASS'),
+          h('span', { className: 'qf-inspect-ability-text' }, cls),
+        ]),
+      ]),
+      h('div', { className: 'qf-inspect-desc qf-inspect-locked' }, `⊘ INTEL LOCKED — ${notice}`),
+    ]
+  }
+
+  // Tagged CLASS / PERSONALITY / MOOD / GOAL lines — same row style
+  // as the minion panel's ABILITY / BEHAVIOR block. (The structured
+  // ability list renders separately in _advAbilityBlock.)
   _advLines(a, cls) {
     const line = (tag, text) => h('div', { className: 'qf-inspect-ability' }, [
       h('span', { className: 'pix qf-inspect-ability-tag' }, tag),
@@ -380,11 +406,27 @@ export class InspectPopup {
     ])
     return h('div', { className: 'qf-inspect-abilities' }, [
       line('CLASS',       cls),
-      line('ABILITIES',   advAbilityLabels(a.classId) || '—'),
       line('PERSONALITY', this._personalityNames(a)   || '—'),
       line('MOOD',        advMoodLabel(a)),
       line('GOAL',        advGoalLabel(a)),
     ])
+  }
+
+  // Structured per-class ability list (name + what it does) — the new intel
+  // section. Reads adventurerClasses.json's `abilities` array; falls back to
+  // the ClassAbilitySystem labels for any class without authored copy.
+  _advAbilityBlock(def) {
+    const abilities = Array.isArray(def?.abilities) ? def.abilities : []
+    if (!abilities.length) {
+      const labels = advAbilityLabels(def?.id)
+      if (!labels) return null
+      return this._abilityBlock(labels, null)
+    }
+    return h('div', { className: 'qf-inspect-abilities qf-inspect-kit' },
+      abilities.map(ab => h('div', { className: 'qf-inspect-ability' }, [
+        h('span', { className: 'pix qf-inspect-ability-tag' }, String(ab.name || '').toUpperCase()),
+        h('span', { className: 'qf-inspect-ability-text' }, ab.desc || ''),
+      ])))
   }
 
   _personalityNames(a) {

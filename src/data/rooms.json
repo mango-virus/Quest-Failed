@@ -2821,19 +2821,8 @@
         "unlockLevel": 4,
         "placementRules": {
             "minDepthFromBoss": 0,
-            "maxPerDungeon": 4,
-            "fixed": false,
-            "maxPerDungeonByBossLevel": {
-                "2": 1,
-                "3": 1,
-                "4": 2,
-                "5": 2,
-                "6": 3,
-                "7": 3,
-                "8": 4,
-                "9": 4,
-                "10": 4
-            }
+            "maxPerDungeon": 1,
+            "fixed": false
         },
         "tags": [
             "utility",
@@ -2841,7 +2830,7 @@
             "intel"
         ],
         "onNightStart": "library_revealNextParty",
-        "description": "Reveals the next party’s size, classes and per-adventurer details on the Intel panel the night before. No Library = intel unknown.",
+        "description": "Reveals the next party’s full intel — size, classes, personalities, scaled stats and planned route — on the Intel panel the night before. One Library tells all. No Library = intel unknown.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
         "doorTheme": null,

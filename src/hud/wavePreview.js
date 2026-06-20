@@ -16,6 +16,22 @@ export function hasActiveLibrary(gs) {
     .some(r => r.definitionId === 'library_of_whispers' && r.isActive !== false)
 }
 
+// Per-class adventurer intel gate (2026-06-20). A class's full dossier —
+// stats, personality, abilities — is revealed only when BOTH are true:
+//   1. an active Library of Whispers is placed, AND
+//   2. the dungeon has KILLED one of that class THIS run.
+// Event-tier invaders (unlockLevel >= 99: Sung Jinwoo, Aldric, the FF/Solo
+// set-pieces) are exempt from the kill requirement — they're one-off
+// narrative foes you may never get to kill — but still need a Library.
+// `classDef` is the adventurerClasses.json entry ({ id, unlockLevel }).
+export function hasClassIntel(gs, classDef) {
+  if (!hasActiveLibrary(gs)) return false
+  if (!classDef) return false
+  if ((classDef.unlockLevel ?? 1) >= 99) return true
+  const killed = gs?.run?.classesKilled
+  return Array.isArray(killed) && killed.includes(String(classDef.id))
+}
+
 // The exact adventurers coming in the previewed wave, as lightweight objects
 // snapshotAdventurerEntity() can render ({ classId, spriteVariant, veteran,
 // _minionSheet?, _rivalBossSpriteKey? }). Vendetta hunter (when pre-rolled)

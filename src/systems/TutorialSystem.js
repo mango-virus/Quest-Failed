@@ -282,12 +282,12 @@ const TUTORIALS = [
   },
   {
     id: 'firstLibraryPlaced', title: 'Library of Whispers',
-    lead: 'KNOWLEDGE COMPOUNDS',
-    body: 'A Library forecasts the next day\'s wave. Each additional Library you build reveals a deeper tier of intel in the Adventurer Intel panel: 1 Library reveals classes, 2 reveals personalities, 3 reveals scaled stats, 4 reveals their planned route through your dungeon. Libraries unlock at boss levels 2 / 4 / 6 / 8.',
+    lead: 'KNOWLEDGE IS POWER',
+    body: 'A Library forecasts the next day\'s wave in full. One Library reveals everything in the Adventurer Intel panel: the wave\'s size and classes, plus each adventurer\'s personality, scaled stats and planned route through your dungeon. You only ever need one.',
     tips: [
-      'Open the ADV INTEL panel during the night to see what each Library has revealed.',
+      'Open the ADV INTEL panel during the night to see what the Library has revealed.',
       'Library forecast accounts for events too — a Guild Raid or Zombie Horde shows in the preview.',
-      'More Libraries = more tactical certainty. A 4-Library run plays nothing like a 1-Library run.',
+      'Knowing the exact wave the night before lets you build the perfect counter.',
     ],
     subscribe: (fire) => {
       const fn = (p) => { if (p?.room?.definitionId === 'library_of_whispers') fire() }

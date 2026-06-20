@@ -11,7 +11,17 @@
     },
     "startingResources": {},
     "description": "Stout, well-armored frontline tank. BULWARK: a directional shield-wall — allies sheltered behind/beside the Knight take less damage (attack from another side to bypass it). TAUNT: forces nearby minions to target the Knight, pulling them off the squishies.",
-    "flavorText": "Honour first. Survival second."
+    "flavorText": "Honour first. Survival second.",
+    "abilities": [
+      {
+        "name": "Bulwark",
+        "desc": "Raises a directional shield-wall; allies sheltered behind or beside him take reduced damage. Flank him to bypass it."
+      },
+      {
+        "name": "Taunt",
+        "desc": "Forces nearby minions to attack him, pulling them off your squishier units."
+      }
+    ]
   },
   {
     "id": "templar",
@@ -32,7 +42,13 @@
     ],
     "unlockDay": 21,
     "description": "A holy defender in blessed plate behind a cross-emblazoned shield. Slow, hits softly, but soaks punishment that would fell a knight — and when death looms, calls on the Light to Lay on Hands and heal a wound shut. Once per delve.",
-    "flavorText": "The Light is my shield. I shall not fall here."
+    "flavorText": "The Light is my shield. I shall not fall here.",
+    "abilities": [
+      {
+        "name": "Lay on Hands",
+        "desc": "Once per raid, when death looms, calls on the Light to heal a wound shut."
+      }
+    ]
   },
   {
     "id": "pirate",
@@ -54,7 +70,17 @@
     ],
     "unlockDay": 11,
     "description": "A swashbuckling cutlass duelist — fast, reckless, and hungry for plunder. Cuts a beeline for the treasure and carries off extra gold if it reaches it. When run through and bleeding out, swigs a flask of grog and goes berserk — striking faster and harder for the rest of the raid.",
-    "flavorText": "Dead men tell no tales. Lucky for me, I'm not dead yet."
+    "flavorText": "Dead men tell no tales. Lucky for me, I'm not dead yet.",
+    "abilities": [
+      {
+        "name": "Plunder Run",
+        "desc": "Cuts a beeline for treasure and escapes with extra gold if he reaches it."
+      },
+      {
+        "name": "Bloody Grog",
+        "desc": "When run through and bleeding out, swigs grog and goes berserk — faster, harder hits for the rest of the raid."
+      }
+    ]
   },
   {
     "id": "rogue",
@@ -68,7 +94,17 @@
     },
     "startingResources": {},
     "description": "Fast, fragile thief. Vanishes from sight to slip past or escape your minions, and picks your locked doors.",
-    "flavorText": "If they catch me, I deserved it."
+    "flavorText": "If they catch me, I deserved it.",
+    "abilities": [
+      {
+        "name": "Vanish",
+        "desc": "Turns invisible to slip past or escape your minions."
+      },
+      {
+        "name": "Lockpick",
+        "desc": "Picks your locked doors open."
+      }
+    ]
   },
   {
     "id": "mage",
@@ -87,7 +123,17 @@
       "spellcaster"
     ],
     "description": "Glass cannon. Each run wields one random element — FIRE (burn), ICE (slow), LIGHTNING (arcs between minions), WIND (knockback) — and Arcane Burst amplifies it into an AoE or branching bolt.",
-    "flavorText": "Fireball solves most problems. Survival is a different one."
+    "flavorText": "Fireball solves most problems. Survival is a different one.",
+    "abilities": [
+      {
+        "name": "Elemental Affinity",
+        "desc": "Each run wields one random element: Fire (burn), Ice (slow), Lightning (arcs between minions), or Wind (knockback)."
+      },
+      {
+        "name": "Arcane Burst",
+        "desc": "Amplifies his element into an AoE blast or a branching bolt."
+      }
+    ]
   },
   {
     "id": "cleric",
@@ -107,7 +153,17 @@
       "support"
     ],
     "description": "Field medic for the party — heals wounded allies and rezzes the fallen. Light melee resistance, no offensive specialty.",
-    "flavorText": "Faith is a weapon, and a bandage."
+    "flavorText": "Faith is a weapon, and a bandage.",
+    "abilities": [
+      {
+        "name": "Heal",
+        "desc": "Mends wounded allies in the party."
+      },
+      {
+        "name": "Resurrection",
+        "desc": "Channels to raise a fallen ally back into the fight (once per day)."
+      }
+    ]
   },
   {
     "id": "necromancer",
@@ -128,7 +184,17 @@
     ],
     "unlockDay": 31,
     "description": "Conjures skeletons and zombies that fight for the party until day's end, and wears Bone Armor that grows stronger with each undead at his side.",
-    "flavorText": "Death is a waste of perfectly good labour."
+    "flavorText": "Death is a waste of perfectly good labour.",
+    "abilities": [
+      {
+        "name": "Summon Undead",
+        "desc": "Conjures skeletons and zombies that fight for the party until day’s end."
+      },
+      {
+        "name": "Bone Armor",
+        "desc": "Wears armor that grows stronger for each undead at his side."
+      }
+    ]
   },
   {
     "id": "ranger",
@@ -149,7 +215,17 @@
       "scout"
     ],
     "description": "Ranged combatant. PIERCING SHOT: every few arrows fires a line shot that pierces every minion in a row — don't line them up. TRAP EXPERT: disarms your traps (with a fumble chance). Fires from a distance.",
-    "flavorText": "First arrow. Second arrow. Third arrow. Out."
+    "flavorText": "First arrow. Second arrow. Third arrow. Out.",
+    "abilities": [
+      {
+        "name": "Piercing Shot",
+        "desc": "Every few arrows, fires a line shot that pierces every minion in a row. Don’t line them up."
+      },
+      {
+        "name": "Trap Expert",
+        "desc": "Disarms your traps from range (with a fumble chance)."
+      }
+    ]
   },
   {
     "id": "beast_master",
@@ -170,7 +246,21 @@
     "unlockDay": 21,
     "rarity": "rare",
     "description": "Trained handler. TAMES one of your minions at a time (50% chance, biggest threat first) to fight for him. SIC 'EM: the beast pounces a foe for a heavy maul. PACK TACTICS: he and the beast hit harder flanking the same target — kill the beast to defang him.",
-    "flavorText": "Every beast was a person once, in their head."
+    "flavorText": "Every beast was a person once, in their head.",
+    "abilities": [
+      {
+        "name": "Tame Beast",
+        "desc": "Tames one of your minions at a time (50% chance, biggest threat first) to fight for him."
+      },
+      {
+        "name": "Sic 'Em",
+        "desc": "Commands the tamed beast to pounce a foe for a heavy maul."
+      },
+      {
+        "name": "Pack Tactics",
+        "desc": "He and his beast hit harder flanking the same target. Kill the beast to defang him."
+      }
+    ]
   },
   {
     "id": "barbarian",
@@ -190,7 +280,17 @@
     ],
     "unlockDay": 21,
     "description": "Rage-fueled brawler. Damage scales as HP drops (up to 2x at near-death). Reckless Charge: barrels into your densest minion cluster, staggering them. Immune to fear and flee — never retreats.",
-    "flavorText": "Pain is just bad weather. You walk through it."
+    "flavorText": "Pain is just bad weather. You walk through it.",
+    "abilities": [
+      {
+        "name": "Reckless Charge",
+        "desc": "Barrels into your densest minion cluster, staggering them."
+      },
+      {
+        "name": "Bloodied Rage",
+        "desc": "Hits harder the lower his HP — up to 2× near death. Immune to fear; never flees."
+      }
+    ]
   },
   {
     "id": "monk",
@@ -211,7 +311,17 @@
     "dodgeChance": 0.3,
     "unlockDay": 11,
     "description": "Unarmored, lightning-fast martial artist. RIPOSTE stance: a chance to dodge an incoming hit and instantly counter-strike the attacker. STUNNING PALM: a periodic melee strike that stuns a minion. ~30% dodge (incl. traps); strikes ignore half of minion defense.",
-    "flavorText": "Be the wind around the blade."
+    "flavorText": "Be the wind around the blade.",
+    "abilities": [
+      {
+        "name": "Riposte",
+        "desc": "Stance with ~30% chance to dodge a hit (including traps) and instantly counter-strike."
+      },
+      {
+        "name": "Stunning Palm",
+        "desc": "A periodic strike that stuns a minion. Blows ignore half of minion defense."
+      }
+    ]
   },
   {
     "id": "bard",
@@ -232,7 +342,17 @@
     ],
     "unlockDay": 11,
     "description": "Travelling performer. Plays a battle hymn that SWELLS the longer the fight rages — nearby allies gain escalating attack & speed (up to +20% / +16%). A solid hit or a stun shatters the song back to silence. On death, a final Encore heals the party.",
-    "flavorText": "Every chord, a small kindness."
+    "flavorText": "Every chord, a small kindness.",
+    "abilities": [
+      {
+        "name": "Battle Hymn",
+        "desc": "A song that swells as the fight drags on, granting nearby allies escalating attack & speed (up to +20% / +16%). A solid hit or stun shatters it."
+      },
+      {
+        "name": "Encore",
+        "desc": "On death, a final song heals the party."
+      }
+    ]
   },
   {
     "id": "monster_invader",
@@ -355,7 +475,21 @@
     "spawnWeight": 0.08,
     "description": "Modded client. No-clips walls, teleports between rooms, lands suspicious one-shots. Glass-cannon body — gets reported and banned if they take too many hits.",
     "flavorText": "skill issue",
-    "revivable": false
+    "revivable": false,
+    "abilities": [
+      {
+        "name": "Teleport",
+        "desc": "No-clips through walls and blinks between rooms (sometimes glitches)."
+      },
+      {
+        "name": "Aimhack",
+        "desc": "A periodic strike with a chance to instantly one-shot."
+      },
+      {
+        "name": "Speed Hack",
+        "desc": "Briefly doubles his movement speed."
+      }
+    ]
   },
   {
     "id": "shadow_monarch",
@@ -522,7 +656,17 @@
     ],
     "unlockDay": 11,
     "description": "Roman arena champion in Legion plate behind a Spartan hoplon. Feeds on the crowd — each minion he fells stokes a swelling Crowd Roar that sharpens his blade. When pressed, he plants the shield in a Block stance: untouchable for a beat, but he can't swing while braced.",
-    "flavorText": "Are you not entertained?"
+    "flavorText": "Are you not entertained?",
+    "abilities": [
+      {
+        "name": "Crowd Roar",
+        "desc": "Each minion he fells stokes a swelling roar that sharpens his blade."
+      },
+      {
+        "name": "Block",
+        "desc": "Plants his shield: untouchable for a beat, but he can’t swing while braced."
+      }
+    ]
   },
   {
     "id": "peasant",
@@ -543,7 +687,13 @@
     ],
     "unlockDay": 11,
     "description": "An angry villager with a pitchfork and a grudge. Little threat alone — but they come in mobs, and the more peasants fight at his side, the bolder and stronger every one of them becomes (Strength in Numbers).",
-    "flavorText": "Get the torches. And Gary. Get Gary too."
+    "flavorText": "Get the torches. And Gary. Get Gary too.",
+    "abilities": [
+      {
+        "name": "Strength in Numbers",
+        "desc": "The more peasants fighting at his side, the bolder and stronger every one of them becomes."
+      }
+    ]
   },
   {
     "id": "valkyrie",
@@ -565,7 +715,17 @@
     "unlockDay": 31,
     "rarity": "rare",
     "description": "A winged shield-maiden of the heavens. Takes Winged Flight to soar over traps and chasms, and raises a Rally cry that steels nearby allies and lifts a downed one back to their feet.",
-    "flavorText": "The brave do not die unwitnessed."
+    "flavorText": "The brave do not die unwitnessed.",
+    "abilities": [
+      {
+        "name": "Winged Flight",
+        "desc": "Soars over traps and chasms, ignoring them."
+      },
+      {
+        "name": "Rally the Fallen",
+        "desc": "A rally cry that steels nearby allies and lifts a downed one back to their feet."
+      }
+    ]
   },
   {
     "id": "gambler",
@@ -586,7 +746,17 @@
     ],
     "unlockDay": 21,
     "description": "Every strike is a Roll the Dice — whiff, crit, double-hit, self-heal, even a gold payout to you. On death, Double or Nothing: heads he revives at half HP, tails the house pays out to you.",
-    "flavorText": "Fortune favors me. She just doesn't know it yet."
+    "flavorText": "Fortune favors me. She just doesn't know it yet.",
+    "abilities": [
+      {
+        "name": "Roll the Dice",
+        "desc": "Every strike gambles: whiff, crit, double-hit, self-heal, or even a gold payout to you."
+      },
+      {
+        "name": "Double or Nothing",
+        "desc": "On death: heads he revives at half HP, tails the house pays out to you."
+      }
+    ]
   },
   {
     "id": "miner",
@@ -607,6 +777,12 @@
     ],
     "unlockDay": 21,
     "description": "A grimy prospector with a pickaxe that bites like a weapon. When the path stalls, he Tunnels — digging down and surfacing at any floor tile across the dungeon, opening a shortcut that drags the raid into rooms you never wanted reached.",
-    "flavorText": "There's always another way through. I make it."
+    "flavorText": "There's always another way through. I make it.",
+    "abilities": [
+      {
+        "name": "Tunnel",
+        "desc": "When the path stalls, digs down and resurfaces at any floor tile across the dungeon — a shortcut that drags the raid into rooms you never wanted reached."
+      }
+    ]
   }
 ]

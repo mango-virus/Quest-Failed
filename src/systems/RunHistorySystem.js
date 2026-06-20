@@ -76,6 +76,13 @@ export class RunHistorySystem {
     const t = this._gameState.run.totals
     t.advsKilled++
     t.kills++
+    // Record the class kill for the per-run intel gate (Library + a kill of
+    // this class reveals its full dossier/abilities for the rest of the run).
+    const deadCls = payload?.adventurer?.classId
+    if (deadCls) {
+      const seen = (this._gameState.run.classesKilled ??= [])
+      if (!seen.includes(deadCls)) seen.push(deadCls)
+    }
     // A returning "hero" who dies is gone for good — scrub them from the
     // known-adventurer pool so they can never come back. (Their
     // knowledge-survivor record, which actually gates the returning-

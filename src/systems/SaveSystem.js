@@ -352,6 +352,8 @@ function _rehydrateRunHistory(state) {
 
   state.run ??= { startedAt: Date.now(), totals: {} }
   state.run.totals ??= {}
+  // Per-run class-kill set for the adventurer intel gate (added 2026-06-20).
+  state.run.classesKilled ??= []
   const t = state.run.totals
   t.kills            ??= 0
   t.dmgDealt         ??= 0

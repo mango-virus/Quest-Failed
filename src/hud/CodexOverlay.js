@@ -9,6 +9,7 @@
 
 import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
+import { hasActiveLibrary, hasClassIntel } from './wavePreview.js'
 
 // Per-category glyph + accent (the raw JSON carries no icon field, so the codex
 // keys each category by a single sigil + colour rather than per-item art).
@@ -88,27 +89,13 @@ export class CodexOverlay {
 
   _bossLevel() { return this._gs()?.boss?.level ?? 1 }
 
-  // Adventurer classes ENCOUNTERED this run (currently invading, killed, or in
-  // the knowledge list). A class is "discovered" once any of its members shows up.
-  _seenAdvClasses() {
-    if (this._advSeen) return this._advSeen
-    const a = this._gs()?.adventurers ?? {}
-    const set = new Set()
-    for (const list of [a.active, a.graveyard, a.known]) {
-      if (!Array.isArray(list)) continue
-      for (const e of list) {
-        const c = e?.classId ?? e?.class ?? e?.classKey
-        if (c) set.add(String(c))
-      }
-    }
-    this._advSeen = set
-    return set
-  }
-
   // Is this entry discovered yet (per the per-run model)?
-  //   adventurers — encountered this run; buildables — unlocked at boss level.
+  //   adventurers — full intel gate (2026-06-20): a Library is built AND the
+  //     dungeon has killed one of that class THIS run. (Codex excludes
+  //     event-only unlockLevel-99 classes, so no exemption needed here.)
+  //   buildables  — unlocked at boss level.
   _isDiscovered(tabId, d) {
-    if (tabId === 'adv') return this._seenAdvClasses().has(String(d.id))
+    if (tabId === 'adv') return hasClassIntel(this._gs(), d)
     return (d.unlockLevel ?? 1) <= this._bossLevel()
   }
 
@@ -141,6 +128,11 @@ export class CodexOverlay {
     }
     const showCost = tab.id !== 'adv'   // adventurers aren't bought, no cost chip
     const lv = tab.id === 'adv' ? null : true   // buildables show the unlock-level teaser
+    // Adventurer intel is Library-gated — the lock teaser names whichever step
+    // is still missing (build a Library, then defeat one to record it).
+    const advLockHint = hasActiveLibrary(this._gs())
+      ? 'Defeat one this run to record its dossier.'
+      : 'Build a Library of Whispers, then defeat one to record it.'
     return this._entriesFor(tab.cache).map(d => {
       const discovered = this._isDiscovered(tab.id, d)
       return this._card({
@@ -148,18 +140,18 @@ export class CodexOverlay {
         glyph: tab.glyph,
         name:  String(d.name ?? d.id ?? '').toUpperCase(),
         desc:  d.description ?? '',
+        // Unlocked adventurer cards list their ability kit (name + effect).
+        abilities: (tab.id === 'adv' && discovered) ? d.abilities : null,
         cost:  showCost ? d.goldCost : null,
         lv:    lv ? (d.unlockLevel ?? 1) : null,
         locked: !discovered,
         // Locked teaser: buildables reveal WHEN they unlock; adventurers stay coy.
-        lockHint: tab.id === 'adv'
-          ? 'Not yet encountered — defeat this foe to record it.'
-          : `Unlocks at boss level ${d.unlockLevel ?? 1}.`,
+        lockHint: tab.id === 'adv' ? advLockHint : `Unlocks at boss level ${d.unlockLevel ?? 1}.`,
       })
     })
   }
 
-  _card({ color, glyph, name, desc, cost, lv, locked, lockHint } = {}) {
+  _card({ color, glyph, name, desc, cost, lv, locked, lockHint, abilities } = {}) {
     if (locked) {
       // "???" card: hide the name + flavour, keep the unlock-level teaser (if any)
       // so the player knows something's coming and how to reach it.
@@ -181,6 +173,14 @@ export class CodexOverlay {
         : h('span', { className: 'pix qf-cdx-cost' }, [h('i'), String(cost)]))
     }
     if (lv != null) meta.push(h('span', { className: 'sil qf-cdx-meta', style: { color } }, `LV ${lv}`))
+    // Ability kit on unlocked adventurer cards. Reuses the codex desc styling
+    // (no new CSS) — each row is a coloured ability name + its effect.
+    const abils = Array.isArray(abilities) && abilities.length
+      ? abilities.map(ab => h('div', { className: 'qf-cdx-desc', style: { marginTop: '4px' } }, [
+          h('span', { className: 'pix', style: { color, marginRight: '6px' } }, String(ab.name || '').toUpperCase()),
+          h('span', null, ab.desc || ''),
+        ]))
+      : null
     return h('div', { className: 'qf-cdx-card', style: { '--cc': color } }, [
       h('div', { className: 'qf-cdx-ico' }, glyph),
       h('div', { className: 'qf-cdx-txt' }, [
@@ -189,6 +189,7 @@ export class CodexOverlay {
           ...meta,
         ]),
         desc && h('div', { className: 'qf-cdx-desc' }, desc),
+        ...(abils || []),
       ].filter(Boolean)),
     ])
   }
