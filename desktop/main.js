@@ -18,7 +18,7 @@
 // Phase 2 (separate): steamworks.js — achievements, Steam Cloud saves, leaderboards.
 // Phase 3 (separate): electron-builder packaging + code signing + Steam depot upload.
 
-const { app, BrowserWindow, protocol, net, Menu, shell } = require('electron')
+const { app, BrowserWindow, protocol, net, Menu, shell, ipcMain } = require('electron')
 const path = require('node:path')
 
 // Let each monitor render at its true device pixel ratio so text/UI rasterize at
@@ -121,6 +121,50 @@ function registerProtocols() {
   })
 }
 
+// Resolve a renderer-supplied relative path to an absolute path inside the game
+// root, or null if it would escape (same traversal guard the app:// handler uses).
+function resolveInRoot(relPath) {
+  const abs = path.normalize(path.join(GAME_ROOT, String(relPath || '')))
+  if (abs !== GAME_ROOT && !abs.startsWith(GAME_ROOT + path.sep)) return null
+  return abs
+}
+
+// Project-tree file bridge for the editor scenes (see preload.cjs). Replaces the
+// browser File System Access API, which Electron doesn't wire up for app://. All
+// writes are confined to the game root by resolveInRoot(); this is a local dev/
+// editor capability, consistent with the app:// handler already serving the tree.
+function registerFsBridge() {
+  // Synchronous root-name lookup for the preload's one-time display string.
+  ipcMain.on('qf:rootName', (e) => { e.returnValue = path.basename(GAME_ROOT) })
+
+  ipcMain.handle('qf:writeFile', async (_e, relPath, data) => {
+    const abs = resolveInRoot(relPath)
+    if (!abs) return { ok: false, error: 'path escapes project root' }
+    try {
+      await fs.promises.mkdir(path.dirname(abs), { recursive: true })
+      const buf = typeof data === 'string'
+        ? Buffer.from(data, 'utf8')
+        : Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : (data ?? []))
+      await fs.promises.writeFile(abs, buf)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) }
+    }
+  })
+
+  ipcMain.handle('qf:readFile', async (_e, relPath) => {
+    const abs = resolveInRoot(relPath)
+    if (!abs) return null
+    try { return await fs.promises.readFile(abs) } catch { return null }
+  })
+
+  ipcMain.handle('qf:listDir', async (_e, relPath) => {
+    const abs = resolveInRoot(relPath)
+    if (!abs) return null
+    try { return await fs.promises.readdir(abs) } catch { return null }
+  })
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     // The game renders at the window's native resolution (the canvas via Phaser
@@ -193,6 +237,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     registerProtocols()
+    registerFsBridge()
     buildMenu()
     mainWin = createWindow()
 

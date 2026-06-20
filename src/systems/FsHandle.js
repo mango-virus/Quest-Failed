@@ -30,6 +30,22 @@ const KEY_ROOT   = 'projectRoot'
 
 let _root = null      // cached FileSystemDirectoryHandle for this session
 
+// ── Desktop (Electron) bridge ───────────────────────────────────────────────
+// On the Electron desktop build the browser File System Access API picker isn't
+// available (Electron doesn't implement showDirectoryPicker for the app:// scheme
+// — it throws with no dialog). The desktop shell instead exposes a direct project-
+// tree file bridge on window.__desktop (see desktop/preload.cjs + main.js). When
+// present we route all reads/writes through it and skip the folder-grant flow
+// entirely — the game IS served from the project tree, so there's nothing to pick.
+function _desktopFs() {
+  return (typeof window !== 'undefined'
+    && window.__desktop?.isDesktop === true
+    && typeof window.__desktop.writeFile === 'function')
+    ? window.__desktop
+    : null
+}
+const DESKTOP_ROOT = { _desktop: true }   // truthy sentinel returned by acquireRoot()
+
 // ── IndexedDB tiny wrapper ─────────────────────────────────────────────────
 function _openDb() {
   return new Promise((resolve, reject) => {
@@ -95,13 +111,18 @@ async function _navigatePath(path, { create }) {
 
 export const FsHandle = {
   isSupported() {
-    return typeof window !== 'undefined'
-        && typeof window.showDirectoryPicker === 'function'
+    return !!_desktopFs()
+        || (typeof window !== 'undefined'
+            && typeof window.showDirectoryPicker === 'function')
   },
 
-  hasRoot() { return !!_root },
+  hasRoot() { return _desktopFs() ? true : !!_root },
 
-  rootName() { return _root?.name ?? null },
+  rootName() {
+    const d = _desktopFs()
+    if (d) return d.rootName || 'project (desktop)'
+    return _root?.name ?? null
+  },
 
   // Validate the picked folder looks like the Quest-Failed project root —
   // it should contain `src/` and `assets/` subfolders. Surfaces a warning
@@ -132,6 +153,8 @@ export const FsHandle = {
 
   // First-time prompt OR re-prompt if cached handle lost write permission.
   async acquireRoot() {
+    // Desktop: writes go straight to the project tree — no folder grant needed.
+    if (_desktopFs()) return DESKTOP_ROOT
     if (!this.isSupported()) return null
     try {
       // Prefer existing handle if user already granted this session
@@ -157,6 +180,7 @@ export const FsHandle = {
   // still granted silently (no prompt).  Caller should fall back to
   // acquireRoot() on user save action if this returns null.
   async tryRestoreRoot() {
+    if (_desktopFs()) return DESKTOP_ROOT
     if (!this.isSupported()) return null
     try {
       const cached = await _idbGet(KEY_ROOT)
@@ -170,6 +194,17 @@ export const FsHandle = {
   },
 
   async writeFile(path, blob) {
+    const d = _desktopFs()
+    if (d) {
+      // Strings pass through as text; everything else (Blob/File/ArrayBuffer) is
+      // sent as raw bytes and written verbatim by the main process.
+      const data = (typeof blob === 'string') ? blob
+        : (blob instanceof Blob) ? await blob.arrayBuffer()
+        : blob
+      const res = await d.writeFile(path, data)
+      if (!res?.ok) throw new Error(`[FsHandle] desktop write failed: ${res?.error || 'unknown'}`)
+      return
+    }
     if (!_root) throw new Error('[FsHandle] no root — call acquireRoot() first')
     const { dir, fileName } = await _navigatePath(path, { create: true })
     const fileHandle = await dir.getFileHandle(fileName, { create: true })
@@ -187,6 +222,11 @@ export const FsHandle = {
   },
 
   async readFile(path) {
+    const d = _desktopFs()
+    if (d) {
+      const bytes = await d.readFile(path)   // Uint8Array | null
+      return bytes ? new Blob([bytes]) : null
+    }
     if (!_root) return null
     try {
       const { dir, fileName } = await _navigatePath(path, { create: false })
@@ -209,6 +249,8 @@ export const FsHandle = {
   },
 
   async listDir(path) {
+    const d = _desktopFs()
+    if (d) return await d.listDir(path)   // string[] | null
     if (!_root) return null
     try {
       const parts = path.split('/').filter(Boolean)
