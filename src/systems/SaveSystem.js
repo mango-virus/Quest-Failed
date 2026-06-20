@@ -51,7 +51,7 @@ function _migrateLegacySave() {
 // Result: player quits at day 30, Continue replays day 27 (the last
 // successfully-written save). Fix: bound + surface failures.
 const CAP_GRAVEYARD       = 500    // ~36 advs/day → ~14 days of corpse history
-const CAP_HISTORY_EVENTS  = 200    // dungeon-log ring buffer; matches LOG_MAX in RightPanels
+const CAP_HISTORY_EVENTS  = 200    // history.events ring buffer (dormant — nothing writes it yet; the full log reconstructs from history.days). NOT the live HUD log, which is a separate 50-row in-memory panel (RightPanels LOG_MAX).
 const CAP_HISTORY_DAYS    = 100    // per-day rollup rows
 const CAP_HISTORY_PACTS   = 200    // sealed pacts; rarely > 50 in practice
 const CAP_KNOWN_ADVS      = 300    // returning-veteran roster
