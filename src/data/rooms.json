@@ -2328,21 +2328,16 @@
         "flavorText": "The shinier it gets, the louder it sings.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": 2,
-                "bright": -0.15,
-                "hue": -15,
-                "contrast": 0
-            }
-        },
         "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
+            "locked": "treasury_locked",
+            "closed": "entry2_closed_2",
+            "open": "entry_open_final"
+        },
+        "backgroundImage": "treasure_room",
+        "doorSkinSize": {
+            "w": 3,
+            "h": 2,
+            "nudge": 0
         }
     },
     {

@@ -383,6 +383,9 @@
     },
     "entry_skin": {
       "file": "assets/themes/roomskins/entry_skin.png"
+    },
+    "treasure_room": {
+      "file": "assets/themes/roomskins/treasure_room.png"
     }
   },
   "doorSkins": {
@@ -445,6 +448,15 @@
     },
     "entry2_open2": {
       "file": "assets/themes/doorskins/entry2_open2.png"
+    },
+    "entry2_closed_2": {
+      "file": "assets/themes/doorskins/entry2_closed_2.png"
+    },
+    "entry_open_final": {
+      "file": "assets/themes/doorskins/entry_open_final.png"
+    },
+    "treasury_locked": {
+      "file": "assets/themes/doorskins/treasury_locked.png"
     }
   },
   "active": "Basic"
