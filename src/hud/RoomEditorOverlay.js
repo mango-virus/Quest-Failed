@@ -1102,10 +1102,13 @@ export class RoomEditorOverlay {
   // handler and the modal is NOT re-rendered mid-drag (would yank slider focus).
   _doorSkinSizeControls() {
     const FIELDS = [
-      { field: 'w',     label: 'Width (along wall)', min: 2,  max: 16, step: 0.5 },
-      { field: 'h',     label: 'Depth (into room)',  min: 2,  max: 12, step: 0.5 },
-      { field: 'nudge', label: 'Nudge (deeper)',     min: -4, max: 8,  step: 0.5 },
+      { field: 'w',     label: 'Width (along wall)', min: 2,  max: 16, step: 0.1 },
+      { field: 'h',     label: 'Depth (into room)',  min: 2,  max: 12, step: 0.1 },
+      { field: 'nudge', label: 'Nudge (deeper)',     min: -4, max: 8,  step: 0.1 },
     ]
+    // 0.1-step values, displayed to one decimal (dropping a trailing .0) so the
+    // readout stays clean (3.5, 3.4) instead of float noise (3.4000000001).
+    const fmt = (n) => { const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1) }
     return h('div', { className: 'qf-redit__color-group' }, [
       h('div', { className: 'qf-redit__color-head' }, [
         h('span', { className: 'qf-redit__color-name' }, 'DOOR SKIN SIZE'),
@@ -1127,12 +1130,12 @@ export class RoomEditorOverlay {
               input: (e) => {
                 const nv = +e.target.value
                 this.scene.uiSetDoorSkinSize?.(f.field, nv)
-                if (valEl) valEl.textContent = String(nv)
+                if (valEl) valEl.textContent = fmt(nv)
                 this._syncDoorPreview()
               },
             },
           }),
-          h('span', { className: 'qf-redit__slider-val nonzero', ref: (e) => (valEl = e) }, String(v)),
+          h('span', { className: 'qf-redit__slider-val nonzero', ref: (e) => (valEl = e) }, fmt(v)),
         ])
       }),
       h('div', { className: 'qf-skins__hint' },

@@ -15423,8 +15423,16 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
    through to the Phaser grid. Panels are fixed bands → never overlap.
    ════════════════════════════════════════════════════════════════════════ */
 .qf-redit {
-  position: absolute; inset: 0;
+  /* Fixed 1920×1080 logical canvas, CENTRED + fit-scaled to the stage by the
+     same factor the Phaser camera uses (RoomTileEditor._applyEditorCamera sets
+     --redit-sf = min(w/1920, h/1080)). This reproduces the camera's
+     translate(-50%,-50%) scale(s) so the DOM chrome frames the paint grid
+     pixel-for-pixel instead of sitting top-left with the grid drifting off. */
+  position: absolute;
+  left: 50%; top: 50%;
   width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--redit-sf, 1));
+  transform-origin: center center;
   font-family: var(--mono);
   color: var(--text);
   pointer-events: none;            /* root passes through; panels opt back in */

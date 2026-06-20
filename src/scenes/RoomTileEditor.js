@@ -173,7 +173,10 @@ export class RoomTileEditor extends Phaser.Scene {
     this._applyEditorCamera()
     this.time.delayedCall(0, () => this._reapplyCamera())
     this.scale.on('resize', this._reapplyCamera, this)
-    this.events.once('shutdown', () => this.scale.off('resize', this._reapplyCamera, this))
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this._reapplyCamera, this)
+      if (typeof document !== 'undefined') document.documentElement.style.removeProperty('--redit-sf')
+    })
 
     const roomsFromCache = this.cache.json.get('rooms')
     if (!roomsFromCache) {
@@ -289,12 +292,19 @@ export class RoomTileEditor extends Phaser.Scene {
   _applyEditorCamera() {
     const cam = this.cameras.main
     const sw = this.scale.width, sh = this.scale.height
-    if (sw < 32 || sh < 32) { this.uiW = 1920; this.uiH = 1080; this.uiSf = 1; return }
+    if (sw < 32 || sh < 32) { this.uiW = 1920; this.uiH = 1080; this.uiSf = 1; this._setReditSf(1); return }
     const s = Math.min(sw / 1920, sh / 1080)
     cam.setBackgroundColor(COL_BG)
     cam.setZoom(s)
     cam.centerOn(1920 / 2, 1080 / 2)
     this.uiW = 1920; this.uiH = 1080; this.uiSf = s
+    // Mirror the camera's fit-scale onto the DOM overlay so chrome + grid align
+    // (see .qf-redit `scale(var(--redit-sf))`). Updated on every resize.
+    this._setReditSf(s)
+  }
+
+  _setReditSf(s) {
+    if (typeof document !== 'undefined') document.documentElement.style.setProperty('--redit-sf', String(s))
   }
 
   // Push current editor state to the DOM overlay so its chrome re-syncs.
@@ -922,9 +932,9 @@ export class RoomTileEditor extends Phaser.Scene {
   // reaches toward the floor), nudge = shift the whole gate deeper.
   static DOOR_SKIN_SIZE_DEFAULT = { w: 4, h: 3, nudge: 0 }
   static DOOR_SKIN_SIZE_RANGE = {
-    w:     { min: 2, max: 16, step: 0.5 },
-    h:     { min: 2, max: 12, step: 0.5 },
-    nudge: { min: -4, max: 8, step: 0.5 },
+    w:     { min: 2, max: 16, step: 0.1 },
+    h:     { min: 2, max: 12, step: 0.1 },
+    nudge: { min: -4, max: 8, step: 0.1 },
   }
   // The size field this room/role writes to: the entrance role uses
   // doorSkinSizeEntrance, everything else doorSkinSize.
