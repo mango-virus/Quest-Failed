@@ -82,6 +82,12 @@ export class HudRoot {
     // re-applies these on open, so the two paths agree.
     this._applyInitialVideoClasses()
     this._root.hidden = false
+    // Mark that we're in active gameplay (vs. the title screen, which mounts
+    // its own menu into the same #hud-stage). Crypt-shell overlays use this to
+    // DIM the live dungeon behind them in-game instead of the near-opaque cover
+    // they use over the title screen (see styles.css `.qf-ingame .qf-cov-layer`).
+    // Removed in destroy() so menus opened from the title stay an opaque takeover.
+    this._root.classList.add('qf-ingame')
   }
 
   _applyInitialVideoClasses() {
@@ -446,7 +452,7 @@ export class HudRoot {
     for (const p of this._panels) p.destroy?.()
     this._panels = []
     if (this._stage) mount(this._stage, null)
-    if (this._root) this._root.hidden = true
+    if (this._root) { this._root.classList.remove('qf-ingame'); this._root.hidden = true }
   }
 }
 

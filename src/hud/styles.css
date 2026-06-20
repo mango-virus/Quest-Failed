@@ -8458,6 +8458,10 @@ html.reduce-motion *::after {
    and backdrop-filter promotes a composited layer that the HUD's `zoom` then
    bitmap-scales, blurring the whole overlay. Dropped for crispness. */
 .overlay.qf-cov-layer { background: rgba(5,3,7,0.985); }
+/* In active gameplay (#hud-root.qf-ingame, set by HudRoot), a menu should DIM
+   the live dungeon behind it rather than black it out — only the title-screen
+   takeover keeps the near-opaque cover above. */
+.qf-ingame .overlay.qf-cov-layer { background: rgba(5,3,7,0.72); }
 
 /* ── Overlay crispness ──────────────────────────────────────────────────────
    The DOM HUD scales to the window via CSS `zoom` (hud/stageScale.js). Any
