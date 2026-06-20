@@ -64,3 +64,33 @@ export function carveDoorOpening(data, w, h, threshold = 24) {
   for (let p = 0; p < N; p++) if (visited[p]) { data[p * 4 + 3] = 0; carved++ }
   return carved
 }
+
+// Fill the TRANSPARENT TOP MARGIN of a door skin (the empty space above the
+// frame/arch — these skins are authored face-on with the arch at the top) with
+// an opaque occluder colour, IN PLACE. Used to build the over-entity copy so a
+// character walking through is hidden ABOVE the gate (its head no longer pokes
+// out into the transparent sky). Per column, fills from the top edge DOWN to the
+// first opaque pixel only — so the lit frame and the passage below it are
+// untouched (the passage is carved separately, AFTER this, for open doors).
+//
+// `data` is RGBA bytes (canvas ImageData.data layout). `rgb` = the fill colour
+// ([r,g,b]); default a near-black that reads as the dark wall/void above a gate.
+export function fillDoorTopOccluder(data, w, h, rgb = [12, 9, 14]) {
+  if (!data || !(w > 0) || !(h > 0)) return 0
+  const [r, g, b] = rgb
+  // Only fill columns whose frame starts reasonably high — guard against a
+  // lintel-less passage column (transparent until the floor) so we never block
+  // a doorway opening. The carve handles the actual passage; this is the SKY.
+  const maxTop = Math.round(h * 0.6)
+  let filled = 0
+  for (let x = 0; x < w; x++) {
+    let top = -1
+    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] > 16) { top = y; break } }
+    if (top <= 0 || top > maxTop) continue   // opaque from the top, or no high frame → skip
+    for (let y = 0; y < top; y++) {
+      const i = (y * w + x) * 4
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; filled++
+    }
+  }
+  return filled
+}

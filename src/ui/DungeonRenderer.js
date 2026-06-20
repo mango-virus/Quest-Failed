@@ -16,7 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
-import { carveDoorOpening } from '../util/doorSkinCarve.js'
+import { carveDoorOpening, fillDoorTopOccluder } from '../util/doorSkinCarve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -338,8 +338,11 @@ export class DungeonRenderer {
     // entity passes under. Without the split the one image sat above entities
     // and hid them in the doorway.
     this._cDoorSkins     = scene.add.container(0, 0).setDepth(1.6)
+    // NOT outer-cell masked (unlike the painted-door high layer): the occluder
+    // texture's own alpha decides what hides a character (opaque sky/frame) vs
+    // shows them through (carved passage / transparent apron), and the fill needs
+    // to reach the wall ABOVE the door cells to hide a passing head.
     this._cDoorSkinsHigh = scene.add.container(0, 0).setDepth(9)
-    this._cDoorSkinsHigh.setMask(this._outerCellMaskG.createGeometryMask())
     this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
     this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
@@ -729,8 +732,11 @@ export class DungeonRenderer {
       // outer-cell geometry mask still keeps it to the archway region; the
       // black-key follows the ART instead of a fixed tile line. Other states
       // (closed/locked) keep the full image — nobody walks through them.
-      const highKey = state === 'open' ? this._ensureDoorFrameTexture(key) : key
-      make(this._cDoorSkinsHigh, highKey)   // high — masked to outer cells, over entities
+      // High (over-entity) copy = the occluder build: transparent SKY above the
+      // gate filled opaque (so heads don't poke out), passage carved for OPEN
+      // doors (so a character still shows through it, under the frame).
+      const highKey = this._ensureDoorOccluderTexture(key, state === 'open')
+      make(this._cDoorSkinsHigh, highKey)   // high — over entities (texture alpha occludes)
     }
     for (const room of rooms) {
       if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
@@ -780,6 +786,38 @@ export class DungeonRenderer {
       return frameKey
     } catch (e) {
       if (tex.exists(frameKey)) tex.remove(frameKey)
+      return key
+    }
+  }
+
+  // Bake-once: the OVER-ENTITY copy of a door skin — its transparent TOP MARGIN
+  // (the empty sky above the gate/arch) filled with an opaque occluder, so a
+  // character walking through is hidden above the frame instead of poking out
+  // into the see-through top. For an OPEN door the passage is ALSO carved (after
+  // the fill) so the character still shows THROUGH the opening but UNDER the
+  // frame. Cached under `<key>__occ[C]`; falls back to the source on any failure.
+  _ensureDoorOccluderTexture(key, carve) {
+    const tex = this._scene.textures
+    if (!key || !tex.exists(key)) return key
+    const occKey = `${key}__occ${carve ? 'C' : ''}`
+    if (tex.exists(occKey)) return occKey
+    const src = tex.get(key).getSourceImage()
+    const w = src?.width | 0, h = src?.height | 0
+    if (!w || !h) return key
+    try {
+      const ct = tex.createCanvas(occKey, w, h)
+      if (!ct) return key
+      const ctx = ct.getContext()
+      ctx.drawImage(src, 0, 0)
+      const img = ctx.getImageData(0, 0, w, h)
+      fillDoorTopOccluder(img.data, w, h)                                   // sky → opaque occluder
+      if (carve) carveDoorOpening(img.data, w, h, Balance.DOOR_SKIN_BLACK_THRESHOLD ?? 24)
+      ctx.putImageData(img, 0, 0)
+      ct.refresh()
+      if (ct.setFilter) ct.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      return occKey
+    } catch (e) {
+      if (tex.exists(occKey)) tex.remove(occKey)
       return key
     }
   }
