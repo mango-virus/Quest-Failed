@@ -251,19 +251,27 @@ export class LeftPanels {
       e.preventDefault()
     }, { passive: false })
     grid.addEventListener('scroll', () => this._updateRibbonArrows(), { passive: true })
-    let down = false, startX = 0, startScroll = 0, moved = false
+    let down = false, startX = 0, startScroll = 0, moved = false, captured = false
     grid.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
-      down = true; moved = false; startX = e.clientX; startScroll = grid.scrollLeft
-      grid.setPointerCapture?.(e.pointerId)
+      down = true; moved = false; captured = false
+      startX = e.clientX; startScroll = grid.scrollLeft
+      // Do NOT capture here — capturing on a plain click retargets the click off
+      // the card and breaks placement. Capture lazily once a real drag starts.
     })
     grid.addEventListener('pointermove', (e) => {
       if (!down) return
       const dx = e.clientX - startX
-      if (Math.abs(dx) > 3) { moved = true; grid.classList.add('dragging') }
-      grid.scrollLeft = startScroll - dx
+      if (!moved && Math.abs(dx) > 4) {
+        moved = true; grid.classList.add('dragging')
+        grid.setPointerCapture?.(e.pointerId); captured = true
+      }
+      if (moved) grid.scrollLeft = startScroll - dx
     })
-    const endDrag = (e) => { down = false; grid.classList.remove('dragging'); grid.releasePointerCapture?.(e.pointerId) }
+    const endDrag = (e) => {
+      down = false; grid.classList.remove('dragging')
+      if (captured) { grid.releasePointerCapture?.(e.pointerId); captured = false }
+    }
     grid.addEventListener('pointerup', endDrag)
     grid.addEventListener('pointercancel', endDrag)
     // Swallow the click that ends a drag so it doesn't arm a card.
