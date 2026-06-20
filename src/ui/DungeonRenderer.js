@@ -735,7 +735,8 @@ export class DungeonRenderer {
       // High (over-entity) copy = the occluder build: transparent SKY above the
       // gate filled opaque (so heads don't poke out), passage carved for OPEN
       // doors (so a character still shows through it, under the frame).
-      const highKey = this._ensureDoorOccluderTexture(key, state === 'open')
+      const wallColor = this._doorWallFillColor(forRoom, forCp)
+      const highKey = this._ensureDoorOccluderTexture(key, state === 'open', wallColor)
       make(this._cDoorSkinsHigh, highKey)   // high — over entities (texture alpha occludes)
     }
     for (const room of rooms) {
@@ -790,16 +791,55 @@ export class DungeonRenderer {
     }
   }
 
+  // The room's actual WALL COLOUR at a door, for the over-entity occluder to fill
+  // its sky with (so it reads as the wall continuing up, not a stranger stone).
+  // These rooms wall themselves with a full-room skin image, so sample THAT at
+  // the door's wall cell (a small box, average of opaque pixels). Returns [r,g,b]
+  // or null (→ occluder falls back to the skin's own frame stone). The draw-time
+  // `colorAdjust.walls` then tints this the same as the surrounding wall.
+  _doorWallFillColor(room, cp) {
+    if (!room || !cp) return null
+    const skinKey = this._roomSkinKeyFor(room)
+    if (!skinKey) return null
+    const tex = this._scene.textures
+    if (!tex.exists(skinKey)) return null
+    try {
+      const src = tex.get(skinKey).getSourceImage()
+      const sw = src?.width | 0, sh = src?.height | 0
+      if (!sw || !sh || !(room.width > 0) || !(room.height > 0)) return null
+      const wx = (room.gridX | 0) + (cp.x | 0), wy = (room.gridY | 0) + (cp.y | 0)
+      // The room skin is stretched over the room bbox (origin 0.5) — map the door
+      // cell to its centre UV, then a small box around it for a stable colour.
+      const u = (wx - room.gridX + 0.5) / room.width
+      const v = (wy - room.gridY + 0.5) / room.height
+      const cx = Math.max(0, Math.min(sw - 1, (u * sw) | 0))
+      const cy = Math.max(0, Math.min(sh - 1, (v * sh) | 0))
+      const rad = Math.max(2, Math.round(Math.min(sw / room.width, sh / room.height) * 0.3))
+      const x0 = Math.max(0, cx - rad), y0 = Math.max(0, cy - rad)
+      const bw = Math.max(1, Math.min(sw, cx + rad) - x0), bh = Math.max(1, Math.min(sh, cy + rad) - y0)
+      const cv = document.createElement('canvas'); cv.width = sw; cv.height = sh
+      const ctx = cv.getContext('2d'); ctx.drawImage(src, 0, 0)
+      const d = ctx.getImageData(x0, y0, bw, bh).data
+      let r = 0, g = 0, b = 0, n = 0
+      for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 200) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++ } }
+      if (!n) return null
+      return [(r / n) | 0, (g / n) | 0, (b / n) | 0]
+    } catch (e) { return null }
+  }
+
   // Bake-once: the OVER-ENTITY copy of a door skin — its transparent TOP MARGIN
   // (the empty sky above the gate/arch) filled with an opaque occluder, so a
   // character walking through is hidden above the frame instead of poking out
-  // into the see-through top. For an OPEN door the passage is ALSO carved (after
-  // the fill) so the character still shows THROUGH the opening but UNDER the
-  // frame. Cached under `<key>__occ[C]`; falls back to the source on any failure.
-  _ensureDoorOccluderTexture(key, carve) {
+  // into the see-through top. The sky is filled with the room's actual WALL colour
+  // (when `fillColor` resolves) so it reads as the wall continuing up — else a flat
+  // sampled stone. For an OPEN door the passage is ALSO carved (after the fill) so
+  // the character still shows THROUGH the opening but UNDER the frame. Cached under
+  // `<key>__occ[C][__rgb]`; falls back to the source on failure.
+  _ensureDoorOccluderTexture(key, carve, fillColor = null) {
     const tex = this._scene.textures
     if (!key || !tex.exists(key)) return key
-    const occKey = `${key}__occ${carve ? 'C' : ''}`
+    const colTag = Array.isArray(fillColor) ? `__${fillColor[0]}_${fillColor[1]}_${fillColor[2]}` : ''
+    const occKey = `${key}__occ${carve ? 'C' : ''}${colTag}`
     if (tex.exists(occKey)) return occKey
     const src = tex.get(key).getSourceImage()
     const w = src?.width | 0, h = src?.height | 0
@@ -810,7 +850,7 @@ export class DungeonRenderer {
       const ctx = ct.getContext()
       ctx.drawImage(src, 0, 0)
       const img = ctx.getImageData(0, 0, w, h)
-      fillDoorTopOccluder(img.data, w, h)                                   // sky → opaque occluder
+      fillDoorTopOccluder(img.data, w, h, fillColor)                        // sky → wall colour (or flat stone)
       if (carve) carveDoorOpening(img.data, w, h, Balance.DOOR_SKIN_BLACK_THRESHOLD ?? 24)
       ctx.putImageData(img, 0, 0)
       ct.refresh()

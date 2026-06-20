@@ -73,35 +73,40 @@ export function carveDoorOpening(data, w, h, threshold = 24) {
 // pixel only — so the lit frame and the passage below it are untouched (the
 // passage is carved separately, AFTER this, for open doors).
 //
-// The fill uses a single representative STONE tone sampled from the skin's own
-// frame (the mid-luminance opaque pixels — excluding dark outlines/sky and bright
-// highlights), so it reads as the wall/frame continuing up rather than a flat
-// black patch or a dark streak off the frame's shadowed top edge.
+// When `rgb` ([r,g,b]) is given — the room's actual WALL colour, sampled by the
+// caller from the room skin at the door — the sky is filled with it, so it reads
+// as the wall continuing up. (Baking it into the skin image means the draw-time
+// `colorAdjust.walls` then tints it the same as the surrounding rendered wall.)
+// With no `rgb`, it falls back to a representative STONE tone sampled from the
+// skin's OWN frame (mid-luminance opaque pixels) — still far better than black.
 //
 // `data` is RGBA bytes (canvas ImageData.data layout).
-export function fillDoorTopOccluder(data, w, h) {
+export function fillDoorTopOccluder(data, w, h, rgb = null) {
   if (!data || !(w > 0) || !(h > 0)) return 0
-  // --- Pass 1: representative stone tone = average of mid-luminance opaque pixels.
-  // Skip near-black (outlines, shadow, the dark passage/sky) and near-white
-  // (specular highlights) so the result is the stone BODY colour, not its edges.
-  let sr = 0, sg = 0, sb = 0, sn = 0
-  for (let p = 0; p < w * h; p++) {
-    const i = p * 4
-    if (data[i + 3] < 200) continue
-    const r = data[i], g = data[i + 1], b = data[i + 2]
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b
-    if (lum < 45 || lum > 225) continue
-    sr += r; sg += g; sb += b; sn++
+  let fr, fg, fb
+  if (Array.isArray(rgb) && rgb.length >= 3) {
+    fr = rgb[0] | 0; fg = rgb[1] | 0; fb = rgb[2] | 0
+  } else {
+    // Fallback: average of mid-luminance opaque pixels (the stone BODY, skipping
+    // dark outlines/sky and bright highlights).
+    let sr = 0, sg = 0, sb = 0, sn = 0
+    for (let p = 0; p < w * h; p++) {
+      const i = p * 4
+      if (data[i + 3] < 200) continue
+      const r = data[i], g = data[i + 1], b = data[i + 2]
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b
+      if (lum < 45 || lum > 225) continue
+      sr += r; sg += g; sb += b; sn++
+    }
+    fr = sn ? (sr / sn) | 0 : 60
+    fg = sn ? (sg / sn) | 0 : 56
+    fb = sn ? (sb / sn) | 0 : 64
   }
-  // Fall back to a neutral dark stone if the skin had no mid-tone body (rare).
-  const fr = sn ? (sr / sn) | 0 : 60
-  const fg = sn ? (sg / sn) | 0 : 56
-  const fb = sn ? (sb / sn) | 0 : 64
 
-  // --- Pass 2: fill the transparent SKY above each column's frame with it.
-  // Only fill columns whose frame starts reasonably high — guard against a
-  // lintel-less passage column (transparent until the floor) so we never block
-  // a doorway opening. The carve handles the actual passage; this is the SKY.
+  // Fill the transparent SKY above each column's frame. Only fill columns whose
+  // frame starts reasonably high — guard against a lintel-less passage column
+  // (transparent until the floor) so we never block a doorway opening. The carve
+  // handles the actual passage; this is the SKY.
   const maxTop = Math.round(h * 0.6)
   let filled = 0
   for (let x = 0; x < w; x++) {
