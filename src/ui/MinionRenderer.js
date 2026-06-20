@@ -740,8 +740,8 @@ export class MinionRenderer {
       // the demon's bonfire; they read as nimble fiends via their own blink VFX instead.
       if (!isDead && String(m.definitionId ?? '').startsWith('demon')) {
         if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL) {
-          if (!s._fireGlow) { try { s._fireGlow = s.sprite.postFX.addGlow(0xff5a18, 3, 0, false, 0.05, 8) } catch (e) { s._fireGlow = null } }
-          else if (s._fireGlow !== true) { s._fireGlow.outerStrength = 2.6 + 0.8 * Math.sin(now / 160) }
+          if (!s._fireGlow) { try { s._fireGlow = s.sprite.postFX.addGlow(0xff5a18, 1.8, 0, false, 0.05, 8) } catch (e) { s._fireGlow = null } }
+          else if (s._fireGlow !== true) { s._fireGlow.outerStrength = 1.6 + 0.45 * Math.sin(now / 160) }
         }
         s._fireFlames = s._fireFlames ?? []
         // T1 Brimstone Fiend wears only the glow + embers (smoldering); the visible
