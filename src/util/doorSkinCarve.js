@@ -67,17 +67,38 @@ export function carveDoorOpening(data, w, h, threshold = 24) {
 
 // Fill the TRANSPARENT TOP MARGIN of a door skin (the empty space above the
 // frame/arch — these skins are authored face-on with the arch at the top) with
-// an opaque occluder colour, IN PLACE. Used to build the over-entity copy so a
-// character walking through is hidden ABOVE the gate (its head no longer pokes
-// out into the transparent sky). Per column, fills from the top edge DOWN to the
-// first opaque pixel only — so the lit frame and the passage below it are
-// untouched (the passage is carved separately, AFTER this, for open doors).
+// an opaque occluder, IN PLACE. Used to build the over-entity copy so a character
+// walking through is hidden ABOVE the gate (its head no longer pokes out into the
+// transparent sky). Per column, fills from the top edge DOWN to the first opaque
+// pixel only — so the lit frame and the passage below it are untouched (the
+// passage is carved separately, AFTER this, for open doors).
 //
-// `data` is RGBA bytes (canvas ImageData.data layout). `rgb` = the fill colour
-// ([r,g,b]); default a near-black that reads as the dark wall/void above a gate.
-export function fillDoorTopOccluder(data, w, h, rgb = [12, 9, 14]) {
+// The fill uses a single representative STONE tone sampled from the skin's own
+// frame (the mid-luminance opaque pixels — excluding dark outlines/sky and bright
+// highlights), so it reads as the wall/frame continuing up rather than a flat
+// black patch or a dark streak off the frame's shadowed top edge.
+//
+// `data` is RGBA bytes (canvas ImageData.data layout).
+export function fillDoorTopOccluder(data, w, h) {
   if (!data || !(w > 0) || !(h > 0)) return 0
-  const [r, g, b] = rgb
+  // --- Pass 1: representative stone tone = average of mid-luminance opaque pixels.
+  // Skip near-black (outlines, shadow, the dark passage/sky) and near-white
+  // (specular highlights) so the result is the stone BODY colour, not its edges.
+  let sr = 0, sg = 0, sb = 0, sn = 0
+  for (let p = 0; p < w * h; p++) {
+    const i = p * 4
+    if (data[i + 3] < 200) continue
+    const r = data[i], g = data[i + 1], b = data[i + 2]
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b
+    if (lum < 45 || lum > 225) continue
+    sr += r; sg += g; sb += b; sn++
+  }
+  // Fall back to a neutral dark stone if the skin had no mid-tone body (rare).
+  const fr = sn ? (sr / sn) | 0 : 60
+  const fg = sn ? (sg / sn) | 0 : 56
+  const fb = sn ? (sb / sn) | 0 : 64
+
+  // --- Pass 2: fill the transparent SKY above each column's frame with it.
   // Only fill columns whose frame starts reasonably high — guard against a
   // lintel-less passage column (transparent until the floor) so we never block
   // a doorway opening. The carve handles the actual passage; this is the SKY.
@@ -89,7 +110,7 @@ export function fillDoorTopOccluder(data, w, h, rgb = [12, 9, 14]) {
     if (top <= 0 || top > maxTop) continue   // opaque from the top, or no high frame → skip
     for (let y = 0; y < top; y++) {
       const i = (y * w + x) * 4
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; filled++
+      data[i] = fr; data[i + 1] = fg; data[i + 2] = fb; data[i + 3] = 255; filled++
     }
   }
   return filled
