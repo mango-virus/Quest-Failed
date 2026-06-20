@@ -120,3 +120,30 @@ export function fillDoorTopOccluder(data, w, h, rgb = null) {
   }
   return filled
 }
+
+// Build a MASK image (RGBA, IN PLACE on `data`) for a door skin's SKY region:
+// opaque WHITE exactly where fillDoorTopOccluder fills (the transparent margin
+// above the frame), fully transparent everywhere else. Used as a Phaser bitmap
+// mask so a copy of the room's wall skin shows ONLY in that sky region — giving
+// the real wall texture above the gate. Same per-column / maxTop logic as the
+// fill, so the two stay in lock-step. `data` starts as the door skin's pixels.
+export function buildDoorSkyMask(data, w, h) {
+  if (!data || !(w > 0) || !(h > 0)) return 0
+  const maxTop = Math.round(h * 0.6)
+  // Record which pixels are sky FIRST (reading alpha), then rewrite all pixels —
+  // so rewriting earlier rows can't disturb the first-opaque scan of later cols.
+  const sky = new Uint8Array(w * h)
+  let n = 0
+  for (let x = 0; x < w; x++) {
+    let top = -1
+    for (let y = 0; y < h; y++) { if (data[(y * w + x) * 4 + 3] > 16) { top = y; break } }
+    if (top <= 0 || top > maxTop) continue
+    for (let y = 0; y < top; y++) { sky[y * w + x] = 1; n++ }
+  }
+  for (let p = 0; p < w * h; p++) {
+    const i = p * 4
+    if (sky[p]) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 255 }
+    else { data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0 }
+  }
+  return n
+}

@@ -16,7 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
-import { carveDoorOpening, fillDoorTopOccluder } from '../util/doorSkinCarve.js'
+import { carveDoorOpening, fillDoorTopOccluder, buildDoorSkyMask } from '../util/doorSkinCarve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -343,6 +343,13 @@ export class DungeonRenderer {
     // shows them through (carved passage / transparent apron), and the fill needs
     // to reach the wall ABOVE the door cells to hide a passing head.
     this._cDoorSkinsHigh = scene.add.container(0, 0).setDepth(9)
+    // Per-pixel WALL above a transparent-topped gate: a copy of the room's own
+    // skin, masked to the door's SKY region, drawn just over the colour-fill copy
+    // so the actual wall texture continues up instead of a flat patch. The colour
+    // fill underneath remains a no-hole fallback. Mask GameObjects are tracked
+    // separately (bitmap masks need their source object kept alive + destroyed).
+    this._cDoorSkinWall  = scene.add.container(0, 0).setDepth(9.1)
+    this._doorSkinWallMasks = []
     this._cDecorFloor  = scene.add.container(0, 0).setDepth(1.5)
     this._cDecorObject = scene.add.container(0, 0).setDepth(8.9)
     this._gTints     = scene.add.graphics().setDepth(1.2)
@@ -395,6 +402,7 @@ export class DungeonRenderer {
     this._cDoorAprons.removeAll(true)
     this._cDoorSkins.removeAll(true)
     this._cDoorSkinsHigh.removeAll(true)
+    this._clearDoorSkinWall()
     this._cDecorFloor.removeAll(true)
     this._cDecorObject.removeAll(true)
     this._cDoorSpritesLow.removeAll(true)
@@ -498,6 +506,8 @@ export class DungeonRenderer {
     this._cDecorObject.destroy(true)
     this._cDoorSkins?.destroy(true)
     this._cDoorSkinsHigh?.destroy(true)
+    this._clearDoorSkinWall()
+    this._cDoorSkinWall?.destroy(true)
     this._cDoorSpritesLow.destroy(true)
     this._cDoorSpritesHigh.destroy(true)
     this._innerCellMaskG.destroy()
@@ -738,6 +748,9 @@ export class DungeonRenderer {
       const wallColor = this._doorWallFillColor(forRoom, forCp)
       const highKey = this._ensureDoorOccluderTexture(key, state === 'open', wallColor)
       make(this._cDoorSkinsHigh, highKey)   // high — over entities (texture alpha occludes)
+      // Per-pixel wall: the room's real skin masked to this door's sky region,
+      // just above the colour fill (which stays as a no-hole fallback).
+      this._addDoorSkinWallTexture(forRoom, forCp, rect, wTiles, hTiles, key)
     }
     for (const room of rooms) {
       if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
@@ -859,6 +872,71 @@ export class DungeonRenderer {
     } catch (e) {
       if (tex.exists(occKey)) tex.remove(occKey)
       return key
+    }
+  }
+
+  // Bake-once: a MASK texture for a door skin's SKY region (opaque white where
+  // the occluder fills, transparent elsewhere). Cached `<key>__skymask`. Returns
+  // the key or null (no sky → nothing to show wall through).
+  _ensureDoorSkyMaskTexture(key) {
+    const tex = this._scene.textures
+    if (!key || !tex.exists(key)) return null
+    const maskKey = `${key}__skymask`
+    if (tex.exists(maskKey)) return maskKey
+    const src = tex.get(key).getSourceImage()
+    const w = src?.width | 0, h = src?.height | 0
+    if (!w || !h) return null
+    try {
+      const ct = tex.createCanvas(maskKey, w, h)
+      if (!ct) return null
+      const ctx = ct.getContext()
+      ctx.drawImage(src, 0, 0)
+      const img = ctx.getImageData(0, 0, w, h)
+      const n = buildDoorSkyMask(img.data, w, h)
+      if (!n) { tex.remove(maskKey); return null }
+      ctx.putImageData(img, 0, 0)
+      ct.refresh()
+      if (ct.setFilter) ct.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      return maskKey
+    } catch (e) {
+      if (tex.exists(maskKey)) tex.remove(maskKey)
+      return null
+    }
+  }
+
+  // Show the room's ACTUAL wall texture above a transparent-topped gate: a copy of
+  // the room skin (at its real position/size) masked to THIS door's sky region, so
+  // the wall continues up per-pixel. Rotation-safe — the mask image carries the
+  // door's transform, the room-skin copy stays at its natural place, and Phaser
+  // composites them. No-op unless the room has a full-room skin AND the skin has a
+  // sky region. The colour-fill occluder underneath stays as a no-hole fallback.
+  _addDoorSkinWallTexture(room, cp, rect, wTiles, hTiles, doorKey) {
+    const skinKey = this._roomSkinKeyFor(room)
+    if (!skinKey || !this._scene.textures.exists(skinKey)) return
+    const maskKey = this._ensureDoorSkyMaskTexture(doorKey)
+    if (!maskKey) return
+    // Room-skin copy at the room's natural footprint (mirrors _drawRoomSkins).
+    const rw = room.width * TS, rh = room.height * TS
+    const wall = this._scene.add.image(room.gridX * TS + rw / 2, room.gridY * TS + rh / 2, skinKey).setOrigin(0.5)
+    wall.setDisplaySize(rw, rh)
+    // Mask image at the DOOR's transform (same as the door-skin image), invisible.
+    const maskImg = this._scene.add.image(rect.cx, rect.cy, maskKey).setOrigin(0.5)
+    maskImg.setDisplaySize(wTiles * TS, hTiles * TS)
+    if (rect.rot) maskImg.setAngle(rect.rot)
+    maskImg.setVisible(false)
+    wall.setMask(maskImg.createBitmapMask())
+    this._cDoorSkinWall.add(wall)
+    this._doorSkinWallMasks.push(maskImg)
+  }
+
+  // Clear the wall-texture container + destroy its (display-list-detached) mask
+  // images. Bitmap masks keep their source object alive independently, so the
+  // container's removeAll won't reach them — destroy them explicitly.
+  _clearDoorSkinWall() {
+    this._cDoorSkinWall?.removeAll(true)
+    if (this._doorSkinWallMasks) {
+      for (const m of this._doorSkinWallMasks) m?.destroy()
+      this._doorSkinWallMasks.length = 0
     }
   }
 
@@ -2924,6 +3002,7 @@ export class DungeonRenderer {
     // instead of swapping to its open / locked one.
     this._cDoorSkins.removeAll(true)
     this._cDoorSkinsHigh.removeAll(true)
+    this._clearDoorSkinWall()
     this._drawDoorSkins()
     this._cDoorAprons.removeAll(true)
     this._drawDoorAprons()
