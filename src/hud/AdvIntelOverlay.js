@@ -26,10 +26,11 @@
 //     `gameState.adventurers.known[].escapeCount > 0`.
 
 import { h } from './dom.js'
-import { Overlay } from './Overlay.js'
+import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
 import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
+import { hasActiveLibrary, hasClassIntel } from './wavePreview.js'
 
 const THREAT_TIERS = [
   { label: 'CRITICAL', color: 'var(--blood)',  min: 75 },
@@ -42,23 +43,21 @@ function tierFor(score) {
   return THREAT_TIERS.find(t => score >= t.min) || THREAT_TIERS[3]
 }
 
-// Library tier gates — count of active Library of Whispers rooms
-// determines how much intel the night preview reveals:
+// Library intel gate (2026-06-20): a single active Library of Whispers
+// reveals ALL intel — size, classes, personalities, scaled stats and route.
+// (The old tiered model that required more Libraries for deeper intel was
+// dropped; the Library is now capped at 1 per dungeon.)
 //   0 → empty state ("Build a LIBRARY")
-//   1 → wave size + classes (basic)
-//   2 → + per-adv personalities
-//   3 → + per-adv scaled stats (HP / ATK / SPD / DEF)
-//   4 → + per-adv planned route
-// Day-phase view is the live truth (Library count irrelevant once they
-// arrive — you can see them).
-const TIER_PERSONALITIES = 2
-const TIER_STATS         = 3
-const TIER_ROUTE         = 4
+//   1 → everything
+// Day-phase view is the live truth (Library irrelevant once they arrive —
+// you can see them).
+const TIER_PERSONALITIES = 1
+const TIER_STATS         = 1
 
 export class AdvIntelOverlay {
   constructor(gameState) {
     this._gameState = gameState
-    this._overlay = null
+    this._tray = null
     this._selIdx = 0
     this._pendingSelIdx = null
     this._listener = (payload) => this._onOpenRequest(payload)
@@ -73,7 +72,7 @@ export class AdvIntelOverlay {
     const idx = payload && Number.isInteger(payload.selectIndex)
       ? payload.selectIndex : null
     if (idx == null) { this.toggle(); return }
-    if (this._overlay) {
+    if (this._tray) {
       this._selIdx = idx
       this._rerender()
     } else {
@@ -83,13 +82,16 @@ export class AdvIntelOverlay {
   }
 
   toggle() {
-    if (this._overlay) this.close()
+    if (this._tray) this.close()
     else this.open()
   }
-  isOpen() { return !!this._overlay }
+  isOpen() { return !!this._tray }
 
+  // Intel now flies out of its action-bar button as an anchored tray (a
+  // bespoke threat-briefing dossier) instead of the old full-screen Overlay.
+  // All forecast / threat / reveal-gating helpers below are reused.
   open() {
-    if (this._overlay) return
+    if (this._tray) return
     // DAMNED · Blind Architect — the adventurer-intel panel is disabled.
     if (this._gameState?._mechanicFlags?.blindArchitect) {
       EventBus.emit('SHOW_TOAST', { text: 'Blind Architect — you have no intel.', kind: 'warn' })
@@ -97,30 +99,186 @@ export class AdvIntelOverlay {
     }
     this._selIdx = this._pendingSelIdx ?? 0
     this._pendingSelIdx = null
-    this._overlay = new Overlay({
-      npcKind: 'intel',
-      title:   'ADVENTURER INTEL',
-      eyebrow: 'KNOW THY INVADERS',   // → crypt shell (eyebrow + no X)
-      width:  1300,
-      height: 820,
-      accent: 'var(--warn)',
-      frame:  'plain',   // subtle main-menu edge instead of the accent frame
-      onClose: () => { this._overlay = null },
-      body:   this._renderBody(),
+    this._tray = new TrayShell({
+      anchorSel: '[data-tray-anchor="INTEL"]',
+      align:  'right',
+      vAlign: 'up',
+      accent: 'var(--info)',
+      width:  'min(46vw, 760px)',
+      height: 384,
+      onClose: () => { this._tray = null },
     })
-    this._overlay.open()
+    this._tray.setContent(this._renderTrayContent())
+    this._tray.open()
     this._warmSprites()
   }
 
   close() {
-    this._overlay?.close()
-    this._overlay = null
+    this._tray?.close()
+    this._tray = null
   }
 
   _rerender(skipWarm = false) {
-    if (!this._overlay) return
-    this._overlay.setBody(this._renderBody())
+    if (!this._tray) return
+    this._tray.setContent(this._renderTrayContent())
     if (!skipWarm) this._warmSprites()
+  }
+
+  // ── Bespoke intel tray (threat briefing) ────────────────────────
+  _renderTrayContent() {
+    const advs = this._adventurers()
+    if (advs.length === 0) return this._renderTrayEmpty()
+    if (this._selIdx >= advs.length) this._selIdx = 0
+    const sel = advs[this._selIdx]
+    const day = this._gameState.meta?.dayNumber ?? 1
+    const phase = this._gameState.meta?.phase
+    const eyebrow = phase === 'night' ? `DAY ${day + 1} · INCOMING COLUMN` : `DAY ${day} · IN PROGRESS`
+    const overall = this._overallThreat(advs)
+    const oTier = tierFor(overall)
+    const filled = Math.round((overall / 100) * 16)
+    const segs = Array.from({ length: 16 }, (_, i) => h('span', {
+      className: 'itl-seg' + (i < filled ? ' lit' : ''),
+      style: { '--i': i, '--sc': i < 6 ? 'var(--poison)' : i < 11 ? 'var(--gold)' : 'var(--blood)' },
+    }))
+    const banner = h('div', { className: 'itl-banner', style: { '--tc': oTier.color } }, [
+      h('div', { className: 'itl-bn-l' }, [
+        h('span', { className: 'itl-bn-eye' }, eyebrow),
+        h('span', { className: 'itl-bn-ttl' }, `${advs.length}-STRONG COLUMN`),
+      ]),
+      h('div', { className: 'itl-bn-meta' }, [
+        h('div', { className: 'itl-size' }, [ h('span', { className: 'v' }, String(advs.length)), h('span', { className: 'l' }, 'STRONG') ]),
+        h('div', { className: 'itl-meter-wrap' }, [
+          h('div', { className: 'itl-meter-top' }, [ h('span', null, 'THREAT'), h('b', null, oTier.label) ]),
+          h('div', { className: 'itl-meter' }, segs),
+        ]),
+      ]),
+    ])
+    const lineup = h('div', { className: 'itl-lineup' }, advs.map((p, i) => {
+      const tc = tierFor(this._threatScore(p)).color
+      const def = this._classDef(p)
+      const cls = (def?.name || p.classId || 'Adventurer')
+      const lv = p.level ?? p.lv ?? 1
+      return h('button', {
+        className: 'itl-bust' + (this._selIdx === i ? ' on' : ''),
+        style: { '--tc2': tc, '--i': i },
+        on: { click: () => { this._selIdx = i; this._rerender() } },
+      }, [
+        h('span', { className: 'itl-bust-port' }, [ this._renderAdvSprite(p) ].filter(Boolean)),
+        h('span', { className: 'itl-bust-id' }, [
+          h('span', { className: 'itl-bust-n' }, p.name || cls),
+          h('span', { className: 'itl-bust-c' }, `${cls} · LV ${lv}`),
+        ]),
+        h('span', { className: 'itl-bust-th' }),
+      ])
+    }))
+    return h('div', { className: 'itl-wrap' }, [
+      banner,
+      h('div', { className: 'itl-main' }, [ lineup, this._renderIntelDossier(sel) ]),
+    ])
+  }
+
+  _renderIntelDossier(sel) {
+    const tier = tierFor(this._threatScore(sel))
+    const def = this._classDef(sel)
+    const cls = (def?.name || sel.classId || 'Adventurer')
+    const lv = sel.level ?? sel.lv ?? 1
+    // Per-class intel gate (2026-06-20): full dossier (stats / personality /
+    // abilities) unlocks only with a Library AND a kill of this class this run.
+    // Event-tier invaders are exempt from the kill (handled in hasClassIntel).
+    const intel = hasClassIntel(this._gameState, def)
+    const statsRev = intel
+    const persRev = intel
+    const hp = sel.resources?.maxHp ?? sel.stats?.hp ?? 30
+    const atk = sel.stats?.attack ?? def?.baseStats?.attack ?? 5
+    const dfn = sel.stats?.defense ?? def?.baseStats?.defense ?? 0
+    const spd = sel.stats?.speed ?? def?.baseStats?.speed ?? 1
+    const flavor = def?.flavorText || def?.description || ''
+    const pids = Array.isArray(sel.personalityIds) ? sel.personalityIds : []
+    const statTile = (v, l) => h('div', { className: 'itl-stat' }, [
+      h('span', { className: 'v' }, statsRev ? String(v) : '?'),
+      h('span', { className: 'l' }, l),
+    ])
+    return h('div', { className: 'itl-dossier', style: { '--tc2': tier.color } }, [
+      h('div', { className: 'itl-dtop' }, [
+        h('span', { className: 'itl-dport', style: this._classSpriteBg(sel) }, [ this._renderAdvSprite(sel) ].filter(Boolean)),
+        h('div', { className: 'itl-dhead' }, [
+          h('span', { className: 'itl-dname' }, sel.name || cls),
+          h('span', { className: 'itl-dsub' }, `${cls} · LV ${lv}`),
+          h('span', { className: 'itl-dthreat' }, `◆ ${tier.label} THREAT`),
+        ]),
+      ]),
+      h('div', { className: 'itl-stats' }, [
+        statTile(hp, 'HP'),
+        statTile(atk, 'ATK'),
+        statTile(dfn, 'DEF'),
+        statTile(typeof spd === 'number' ? spd.toFixed(1) : spd, 'SPD'),
+        h('div', { className: 'itl-stat' }, [ h('span', { className: 'v' }, String(lv)), h('span', { className: 'l' }, 'LVL') ]),
+      ]),
+      flavor ? h('div', { className: 'itl-flavor' }, `“${flavor}”`) : null,
+      // Unlocked → behavioural tendencies (personalities) + the ability kit.
+      // Locked → a single notice telling the player how to unlock the dossier.
+      ...(intel
+        ? [
+            h('div', { className: 'itl-abils' },
+              pids.length
+                ? pids.map(pid => {
+                    const pd = this._personalityDef(pid)
+                    return h('div', { className: 'itl-abil' }, [
+                      h('span', { className: 'itl-abil-n' }, (pd?.name ?? pid).toUpperCase()),
+                      h('span', { className: 'itl-abil-d' }, pd?.flavorText || pd?.description || ''),
+                    ])
+                  })
+                : [ h('div', { className: 'itl-abil' }, [
+                    h('span', { className: 'itl-abil-n' }, 'TENDENCIES'),
+                    h('span', { className: 'itl-abil-d' }, '—'),
+                  ]) ]),
+            this._dossierAbilities(def),
+          ]
+        : [ this._dossierLocked(cls) ]),
+    ].filter(Boolean))
+  }
+
+  // The ability kit for an unlocked class — each ability's name + what it
+  // does (from adventurerClasses.json's `abilities`). Null for classes
+  // without authored abilities (most event-only invaders).
+  _dossierAbilities(def) {
+    const abilities = Array.isArray(def?.abilities) ? def.abilities : []
+    if (!abilities.length) return null
+    return h('div', { className: 'itl-abils itl-kit' }, [
+      h('div', { className: 'itl-abil itl-kit-hd' }, [
+        h('span', { className: 'itl-abil-n' }, 'ABILITIES'),
+        h('span', { className: 'itl-abil-d' }, ''),
+      ]),
+      ...abilities.map(ab => h('div', { className: 'itl-abil' }, [
+        h('span', { className: 'itl-abil-n' }, String(ab.name || '').toUpperCase()),
+        h('span', { className: 'itl-abil-d' }, ab.desc || ''),
+      ])),
+    ])
+  }
+
+  // Locked-dossier notice — shown when the class's intel isn't unlocked yet.
+  // Tells the player exactly what's missing (a Library, or a kill of this
+  // class this run).
+  _dossierLocked(cls) {
+    const notice = hasActiveLibrary(this._gameState)
+      ? `Defeat a ${cls} this run to reveal its stats, tactics & abilities.`
+      : 'Build a Library of Whispers to gather adventurer intel.'
+    return h('div', { className: 'itl-abils itl-locked' }, [
+      h('div', { className: 'itl-abil' }, [
+        h('span', { className: 'itl-abil-n' }, '⊘ LOCKED'),
+        h('span', { className: 'itl-abil-d' }, notice),
+      ]),
+    ])
+  }
+
+  _renderTrayEmpty() {
+    return h('div', { className: 'itl-wrap' }, [
+      h('div', { className: 'itl-empty' }, [
+        h('div', { className: 'itl-empty-eye' }, '◇  INTEL UNKNOWN  ◇'),
+        h('div', { className: 'itl-empty-flavor' }, '“Listen for boots on the stair.”'),
+        h('div', { className: 'itl-empty-hint' }, 'Build a LIBRARY to peer into who comes calling.'),
+      ]),
+    ])
   }
 
   // Warm the on-demand LPC base sheets for the adventurers shown, then
@@ -323,53 +481,6 @@ export class AdvIntelOverlay {
     return defs.find(d => d.id === id) || null
   }
 
-  // Planned route — entry-hall → boss-chamber shortest path through the
-  // currently-active rooms, with personality-driven detour bias
-  // (e.g. greedy → biased toward Treasury). Returns an array of room
-  // definitionIds in visit order, or empty if no clear path. Computed
-  // on-demand at render time (Library tier 4 reveal).
-  _plannedRoute(adv) {
-    const rooms = this._gameState.dungeon?.rooms ?? []
-    const entry = rooms.find(r => r.definitionId === 'entry_hall')
-    const boss  = rooms.find(r => r.definitionId === 'boss_chamber')
-    if (!entry || !boss) return []
-    const grid = this._gameScene()?.dungeonGrid
-    if (!grid?.getNeighborRooms) return []
-    // Simple BFS through the door-graph; not the AI's real pathfinder,
-    // but represents the most likely traversal order.
-    const seen = new Set([entry.instanceId])
-    const prev = new Map()
-    const queue = [entry.instanceId]
-    while (queue.length > 0) {
-      const cur = queue.shift()
-      if (cur === boss.instanceId) break
-      const room = rooms.find(r => r.instanceId === cur)
-      const neighbors = grid.getNeighborRooms(cur) ?? []
-      for (const n of neighbors) {
-        if (seen.has(n.instanceId) || n.isActive === false) continue
-        seen.add(n.instanceId)
-        prev.set(n.instanceId, cur)
-        queue.push(n.instanceId)
-      }
-    }
-    if (!prev.has(boss.instanceId)) return []
-    const path = [boss.instanceId]
-    let step = boss.instanceId
-    while (prev.has(step)) {
-      step = prev.get(step)
-      path.unshift(step)
-    }
-    // Personality-driven detour notes: if any of the adv's personalities
-    // imply attraction to a room category, surface that as a parenthetical.
-    return path.map(id => rooms.find(r => r.instanceId === id)?.definitionId).filter(Boolean)
-  }
-
-  _gameScene() {
-    return (typeof window !== 'undefined' && window.__game?.scene?.getScene)
-      ? window.__game.scene.getScene('Game')
-      : null
-  }
-
   // Display level of the upcoming wave — matches the `displayLevel`
   // DayPhase stamps on each adventurer at spawn (see balance.js). The
   // wave targets the next day: during night phase that's the current
@@ -416,419 +527,11 @@ export class AdvIntelOverlay {
     return Math.max(0, Math.min(100, Math.round(score)))
   }
 
-  // True only when THIS specific adventurer has raided before. The
-  // adventurers.known pool is keyed by name (RunHistorySystem._onAdvFled
-  // upserts by `k.name === adv.name`) and never carries an instanceId,
-  // so we match by name and require an actual recorded escape. The old
-  // `k.instanceId === adv.instanceId` test compared undefined to
-  // undefined for wave-preview stubs and flagged the entire wave as
-  // veterans the moment any adventurer had ever escaped.
-  _isVeteran(adv) {
-    if (adv.isVeteran) return true
-    if (!adv.name) return false
-    const known = this._gameState.adventurers?.known ?? []
-    return known.some(k => k.name && k.name === adv.name && (k.escapeCount ?? 0) > 0)
-  }
-
   _overallThreat(advs) {
     if (advs.length === 0) return 0
     return Math.round(
       advs.reduce((s, a) => s + this._threatScore(a), 0) / advs.length
     )
-  }
-
-  // ── Render ──────────────────────────────────────────────────────
-  _renderBody() {
-    const advs = this._adventurers()
-    if (advs.length === 0) return this._renderEmpty()
-    if (this._selIdx >= advs.length) this._selIdx = 0
-    const sel = advs[this._selIdx]
-    const veteranCount = advs.filter(a => this._isVeteran(a)).length
-    const overall = this._overallThreat(advs)
-    const phase = this._gameState.meta?.phase
-    const day = this._gameState.meta?.dayNumber ?? 1
-    const nextLabel = phase === 'night' ? `DAY ${day + 1} · DAWN` : `DAY ${day} · IN PROGRESS`
-
-    return h('div', { className: 'qf-advintel-body' }, [
-      // Summary strip
-      h('div', { className: 'qf-advintel-summary' }, [
-        this._summaryItem('NEXT WAVE',  nextLabel, 'var(--warn)'),
-        h('div', { className: 'qf-advintel-divider' }),
-        this._summaryItem('PARTY SIZE', `${advs.length} APPROACHING`, 'var(--text)'),
-        h('div', { className: 'qf-advintel-divider' }),
-        this._summaryItem(
-          'HEROES',
-          veteranCount > 0 ? `${veteranCount} ★ RETURN` : '— NONE —',
-          veteranCount > 0 ? 'var(--warn)' : 'var(--text-mute)',
-        ),
-        h('div', { className: 'qf-advintel-divider' }),
-        h('div', null, [
-          h('div', { className: 'pix qf-advintel-summary-label' }, 'OVERALL THREAT'),
-          this._threatMeter(overall),
-        ]),
-      ]),
-      // Two-column main
-      h('div', { className: 'qf-advintel-main' }, [
-        this._renderList(advs),
-        this._renderDetail(sel),
-      ]),
-    ])
-  }
-
-  _renderEmpty() {
-    return h('div', { className: 'qf-advintel-empty' }, [
-      h('div', { className: 'pix qf-advintel-empty-eyebrow' },
-        '◇  INTEL UNKNOWN  ◇'),
-      h('div', { className: 'qf-advintel-empty-flavor' },
-        '"Listen for boots on the stair."'),
-      h('div', { className: 'qf-advintel-empty-hint' },
-        'Build a LIBRARY to peer into who comes calling.'),
-    ])
-  }
-
-  _summaryItem(label, value, color) {
-    return h('div', null, [
-      h('div', { className: 'pix qf-advintel-summary-label' }, label),
-      h('div', {
-        className: 'pix qf-advintel-summary-value',
-        style: { color },
-      }, value),
-    ])
-  }
-
-  _threatMeter(pct) {
-    const segments = 10
-    const filled = Math.round((pct / 100) * segments)
-    return h('div', { className: 'qf-advintel-threat' },
-      Array.from({ length: segments }).map((_, i) => {
-        const lit = i < filled
-        const color = i < 3 ? 'var(--poison)'
-                    : i < 5 ? 'var(--gold)'
-                    : i < 7 ? 'var(--warn)' : 'var(--blood)'
-        return h('div', {
-          className: 'qf-advintel-threat-cell',
-          style: {
-            background: lit ? color : 'var(--bg-1)',
-            opacity: lit ? 1 : 0.4,
-            boxShadow: lit ? `0 0 4px ${color}88` : 'none',
-          },
-        })
-      })
-    )
-  }
-
-  _renderList(advs) {
-    const redactedCount = advs.filter(a => a.redacted).length
-    return h('div', { className: 'panel bevel qf-advintel-listpanel' }, [
-      h('div', { className: 'qf-advintel-listhead' }, [
-        h('div', { className: 'pix qf-advintel-listhead-title' }, 'APPROACHING PARTY'),
-        redactedCount > 0 && h('div', { className: 'pix qf-advintel-listhead-redact' },
-          `${redactedCount} REDACTED · BUILD LIBRARY TO REVEAL`),
-      ]),
-      h('div', { className: 'qf-advintel-listbody' },
-        advs.map((adv, i) => this._renderCard(adv, i))
-      ),
-    ])
-  }
-
-  _renderCard(adv, idx) {
-    const score = this._threatScore(adv)
-    const tier = tierFor(score)
-    const active = idx === this._selIdx
-    const def = this._classDef(adv)
-    const name = adv.name || 'Unnamed'
-    const classLabel = (def?.name || adv.classId || 'Adventurer').toUpperCase()
-    // Sung Jinwoo's level reads as ∞ (flavour only — never used in any stat
-    // calc; his real `level` is untouched).
-    const lv = (adv._shadowMonarch || adv.classId === 'shadow_monarch')
-      ? '∞' : (adv.displayLevel ?? adv.level ?? adv.lv ?? 1)
-    const veteran = this._isVeteran(adv)
-    const redacted = !!adv.redacted
-
-    // Library tier 3 — at night, raw stats are hidden until the player
-    // has 3+ Libraries. Render '?' placeholders so the slot is still
-    // visible (preserves the row's visual rhythm) but the values are
-    // redacted. Day phase always shows the live numbers (Library
-    // irrelevant once the adv is in front of you).
-    const _statsRevealed = this._canReveal(TIER_STATS)
-    // HP from resources.maxHp (scaled actual), not stats.hp (unscaled base).
-    const hp  = _statsRevealed ? (adv.resources?.maxHp ?? adv.stats?.hp ?? adv.hp ?? 30) : '?'
-    const atk = _statsRevealed ? (adv.stats?.attack ?? adv.atk ?? 5) : '?'
-    const spd = _statsRevealed ? (adv.stats?.speed ?? adv.spd ?? 1.0) : '?'
-
-    return h('button', {
-      className: 'qf-advintel-card',
-      dataset: { active: active ? 'true' : 'false' },
-      style: {
-        '--threat-color': tier.color,
-        background: active
-          ? `linear-gradient(90deg, ${tier.color}1a, var(--bg-3))`
-          : 'var(--bg-2)',
-        borderColor: active ? tier.color : 'var(--line-2)',
-        borderLeft: `3px solid ${tier.color}`,
-        boxShadow: active ? `0 0 12px ${tier.color}33` : 'none',
-      },
-      on: { click: () => { this._selIdx = idx; this._rerender() } },
-    }, [
-      // Sprite — same LPC-snapshot treatment as the detail portrait.
-      // The bestiary-portrait fallback under it covers cold-start
-      // (textures not yet loaded) and event-class cases where no
-      // adventurer LPC bake exists.
-      h('div', {
-        className: 'qf-advintel-sprite',
-        style: {
-          filter: redacted ? 'grayscale(0.85) brightness(0.5)' : 'none',
-          ...this._classSpriteBg(adv),
-        },
-      }, [
-        this._renderAdvSprite(adv),
-      ]),
-      // Info
-      h('div', { className: 'qf-advintel-card-info' }, [
-        h('div', { className: 'qf-advintel-card-row' }, [
-          h('span', {
-            className: 'pix qf-advintel-card-name',
-            style: { color: redacted ? 'var(--text-dim)' : 'var(--text)' },
-          }, name),
-          veteran && h('span', {
-            className: 'pix qf-advintel-card-vet',
-            title: 'returning hero',
-          }, '★ HERO'),
-        ]),
-        h('div', { className: 'pix qf-advintel-card-class' }, lv === '∞'
-          ? [`${classLabel} · LV `, h('span', { style: { fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontWeight: 'bold', lineHeight: '1' } }, '∞')]
-          : `${classLabel} · LV ${lv}`),
-        h('div', { className: 'qf-advintel-card-stats' }, [
-          h('span', null, [h('span', { style: { color: 'var(--hp)' } }, 'HP'), ' ', _statsRevealed ? String(hp) : '?']),
-          h('span', null, [h('span', { style: { color: 'var(--blood)' } }, 'ATK'), ' ', _statsRevealed ? String(atk) : '?']),
-          h('span', null, [h('span', { style: { color: 'var(--gold)' } }, 'SPD'), ' ', _statsRevealed ? (spd?.toFixed?.(1) ?? String(spd)) : '?']),
-        ]),
-      ]),
-      // Threat chip
-      h('div', { className: 'qf-advintel-card-chipcol' }, [
-        h('span', {
-          className: 'pix qf-advintel-card-chip',
-          style: {
-            color: tier.color,
-            background: `${tier.color.replace(')', '1a)').replace('var(', 'var(')}`,
-            borderColor: tier.color,
-          },
-        }, tier.label),
-        redacted && h('span', { className: 'pix qf-advintel-card-redact' }, '🔒 REDACTED'),
-      ]),
-    ])
-  }
-
-  _renderDetail(sel) {
-    const score = this._threatScore(sel)
-    const tier = tierFor(score)
-    const def = this._classDef(sel)
-    const name = sel.name || 'Unnamed'
-    const classLabel = (def?.name || sel.classId || 'Adventurer').toUpperCase()
-    // Jinwoo's level shows as ∞ (flavour only — see card renderer above).
-    const lv = (sel._shadowMonarch || sel.classId === 'shadow_monarch')
-      ? '∞' : (sel.level ?? sel.lv ?? 1)
-    // Library tier reveals — drives which sections of the detail card
-    // are visible. Stats require Tier 3 (3+ Libs);
-    // personalities require Tier 2 (2+ Libs); planned route requires
-    // Tier 4 (4 Libs). Day phase is always "all revealed".
-    const _statsRevealed         = this._canReveal(TIER_STATS)
-    const _personalitiesRevealed = this._canReveal(TIER_PERSONALITIES)
-    const _routeRevealed         = this._canReveal(TIER_ROUTE)
-    const libCount               = this._libraryCount()
-    const isNight                = this._gameState.meta?.phase === 'night'
-    // HP from resources.maxHp (scaled actual), not stats.hp (unscaled base).
-    const hp  = sel.resources?.maxHp ?? sel.stats?.hp ?? sel.hp ?? 30
-    const atk = sel.stats?.attack ?? sel.atk ?? 5
-    const spd = sel.stats?.speed ?? sel.spd ?? 1.0
-    const notes = def?.flavorText || def?.description || '—'
-    const veteran = this._isVeteran(sel)
-    const redacted = !!sel.redacted
-    const intel = this._knownAboutDungeon(sel)
-    const personalityIds = Array.isArray(sel.personalityIds) ? sel.personalityIds : []
-    const plannedRoute = _routeRevealed ? this._plannedRoute(sel) : []
-    const roomDefs = this._cachedJson('rooms') ?? []
-    const _roomLabel = (defId) => roomDefs.find(d => d.id === defId)?.name?.toUpperCase() ?? String(defId).toUpperCase()
-
-    return h('div', { className: 'qf-advintel-detail' }, [
-      // Adv detail card
-      h('div', { className: 'panel bevel qf-advintel-detail-card' }, [
-        h('div', { className: 'qf-advintel-detail-head' }, [
-          h('div', {
-            className: 'qf-advintel-detail-portrait',
-            style: {
-              borderColor: tier.color,
-              boxShadow: `inset 0 0 0 1px var(--bg-0), 0 0 14px ${tier.color}33`,
-              filter: redacted ? 'grayscale(0.7) brightness(0.6)' : 'none',
-              ...this._classSpriteBg(sel),
-            },
-          }, [
-            // Real LPC adventurer snapshot — uses this specific adv's
-            // pre-rolled spriteVariant when it exists (every spawned adv
-            // has one), falls through to v01 if we only have the
-            // classId (e.g. a Library forecast row before spawn time).
-            // Layered on TOP of the bestiary portrait background fill,
-            // so on a cold start the bg shows until the LPC bake lands.
-            this._renderAdvSprite(sel),
-          ]),
-          h('div', { className: 'qf-advintel-detail-info' }, [
-            h('div', { className: 'pix qf-advintel-detail-class' }, lv === '∞'
-              ? [`${classLabel} · LV `, h('span', { style: { fontFamily: 'system-ui, sans-serif', fontSize: '17px', fontWeight: 'bold', lineHeight: '1' } }, '∞')]
-              : `${classLabel} · LV ${lv}`),
-            h('div', {
-              className: 'pix qf-advintel-detail-name',
-              style: { color: redacted ? 'var(--text-dim)' : 'var(--text)' },
-            }, name),
-            h('div', { className: 'qf-advintel-detail-chiprow' }, [
-              h('span', {
-                className: 'pix qf-advintel-detail-chip',
-                style: { color: tier.color, borderColor: tier.color },
-              }, `THREAT · ${tier.label}`),
-              veteran && h('span', {
-                className: 'pix qf-advintel-detail-vetchip',
-              }, '★ HERO'),
-            ]),
-          ]),
-        ]),
-        // Stat row — redacted at night until 3+ Libraries are built.
-        h('div', { className: 'qf-advintel-detail-stats' }, [
-          this._statTile('HP',  _statsRevealed ? String(hp)                       : '?', 'var(--hp)'),
-          this._statTile('ATK', _statsRevealed ? String(atk)                      : '?', 'var(--blood)'),
-          this._statTile('SPD', _statsRevealed ? (spd?.toFixed?.(1) ?? String(spd)) : '?', 'var(--gold)'),
-        ]),
-        // Library tier 2 — personality chips. Visible during day phase
-        // (live truth), or at night with 2+ Libraries. With fewer Libraries
-        // shows a redaction stub explaining how to unlock.
-        h('div', { className: 'qf-advintel-detail-personalities' }, [
-          h('div', { className: 'pix qf-advintel-relation-label rumor' }, 'TENDENCIES'),
-          (_personalitiesRevealed && personalityIds.length > 0)
-            ? h('div', { className: 'qf-advintel-chips' },
-                personalityIds.map(pid => {
-                  const pd = this._personalityDef(pid)
-                  const label = (pd?.name ?? pid).toUpperCase()
-                  const flavor = pd?.flavorText || pd?.description || ''
-                  return h('span', {
-                    className: 'pix qf-advintel-chip qf-advintel-chip-rumor',
-                    title: flavor,
-                  }, label)
-                })
-              )
-            : (_personalitiesRevealed
-                ? h('div', { className: 'qf-advintel-chips' },
-                    [h('span', { className: 'qf-advintel-chip-empty' }, '—')])
-                : h('div', { className: 'qf-advintel-redact-note' },
-                    isNight
-                      ? `🔒 build ${TIER_PERSONALITIES - libCount} more LIBRARY to reveal`
-                      : '—')
-              ),
-        ]),
-        // Notes
-        h('div', { className: 'qf-advintel-detail-notes' }, notes),
-      ]),
-      // Intel ledger
-      h('div', { className: 'panel bevel qf-advintel-ledger' }, [
-        h('div', { className: 'qf-advintel-ledger-head' }, [
-          h('div', { className: 'pix qf-advintel-ledger-title' },
-            veteran ? "WHAT THEY'LL TELL THE OTHERS" : 'WHAT THEY KNOW'),
-        ]),
-        h('div', { className: 'qf-advintel-ledger-body' },
-          intel.length === 0
-            ? [h('div', { className: 'qf-advintel-ledger-empty' },
-                'No corroborated intel. They walk in blind.')]
-            : intel.map(line => h('div', { className: 'qf-advintel-ledger-row' }, [
-                h('span', { className: 'qf-advintel-ledger-icon' }, '⚠'),
-                h('span', null, line),
-              ]))
-        ),
-        // Library tier 4 — planned route through the dungeon. Visible
-        // during day phase or at night with all 4 Libraries. Computed
-        // on-demand via _plannedRoute (entry → boss BFS through the
-        // active room graph). Hidden at lower tiers with a redaction
-        // stub explaining how to unlock.
-        h('div', { className: 'qf-advintel-route' }, [
-          h('div', { className: 'pix qf-advintel-counter-label' }, '◇ PLANNED ROUTE'),
-          _routeRevealed
-            ? (plannedRoute.length > 0
-                ? h('div', { className: 'qf-advintel-route-list' },
-                    plannedRoute.map((defId, idx) => h('span', { className: 'qf-advintel-route-step' }, [
-                      idx > 0 ? h('span', { className: 'qf-advintel-route-arrow' }, ' › ') : null,
-                      h('span', {
-                        className: 'pix qf-advintel-route-room',
-                        style: { color: defId === 'boss_chamber' ? 'var(--blood)'
-                                      : defId === 'entry_hall'   ? 'var(--text-mute)'
-                                      : 'var(--text)' },
-                      }, _roomLabel(defId)),
-                    ]))
-                  )
-                : h('div', { className: 'qf-advintel-route-empty' },
-                    'No clear path entry → boss.')
-              )
-            : h('div', { className: 'qf-advintel-redact-note' },
-                isNight
-                  ? `🔒 build ${TIER_ROUTE - libCount} more LIBRARY to reveal`
-                  : '—'),
-        ]),
-      ]),
-    ])
-  }
-
-  _statTile(label, value, color) {
-    return h('div', { className: 'qf-advintel-stat' }, [
-      h('div', {
-        className: 'pix qf-advintel-stat-value',
-        style: { color },
-      }, value),
-      h('div', { className: 'pix qf-advintel-stat-label' }, label),
-    ])
-  }
-
-  // What this adv knows about the dungeon — pulled from the shared
-  // knowledge pool keyed by room / trap / item instance IDs. Returns a
-  // list of human-readable strings. Surfaces rooms, minions, traps, and
-  // placed items uniformly so this ledger matches the other intel
-  // surfaces (KnowledgeScreen / RightPanels / KnowledgeMap).
-  _knownAboutDungeon(adv) {
-    const pool = this._gameState.knowledge?.sharedPool ?? {}
-    const out = []
-    const rooms = this._gameState.dungeon?.rooms ?? []
-    const traps = this._gameState.dungeon?.traps ?? []
-    const roomDefs = this._cachedJson('rooms') ?? []
-    const trapDefs = this._cachedJson('trapTypes') ?? []
-    const itemDefs = this._cachedJson('items') ?? []
-    const roomName = (id) => {
-      const r = rooms.find(x => x.instanceId === id)
-      const d = roomDefs.find(x => x.id === r?.definitionId)
-      return d?.name ?? r?.definitionId ?? id
-    }
-    const trapName = (id) => {
-      const t = traps.find(x => x.instanceId === id)
-      const d = trapDefs.find(x => x.id === t?.definitionId)
-      return d?.name ?? t?.definitionId ?? id
-    }
-    const itemName = (entry) => {
-      const d = itemDefs.find(x => x.id === entry?.itemType)
-      return d?.name ?? entry?.itemType ?? 'placed item'
-    }
-    for (const k of Object.keys(pool.rooms ?? {}).slice(0, 4)) {
-      out.push(`Knows the ${roomName(k)} exists.`)
-    }
-    for (const k of Object.keys(pool.enemiesPerRoom ?? {}).slice(0, 3)) {
-      out.push(`Has seen guards in the ${roomName(k)}.`)
-    }
-    for (const k of Object.keys(pool.traps ?? {}).slice(0, 3)) {
-      out.push(`Knows where the ${trapName(k)} is set.`)
-    }
-    for (const e of Object.values(pool.items ?? {}).slice(0, 3)) {
-      out.push(`Knows the ${itemName(e)} is placed.`)
-    }
-    // Only claim prior dungeon knowledge for genuine veterans — same
-    // name-keyed check as the veteran badge. The old instanceId test
-    // matched undefined-to-undefined and added this line for every
-    // adventurer once anyone had escaped.
-    if (this._isVeteran(adv)) {
-      out.unshift('Has been here before — full layout map.')
-    }
-    return out
   }
 
   // Real LPC adventurer sprite, anchored at the bottom of the portrait
