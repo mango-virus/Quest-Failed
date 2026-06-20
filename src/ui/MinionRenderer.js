@@ -569,6 +569,62 @@ export class MinionRenderer {
         }
       }
 
+      // BEAST MASTER · TAMED — a minion tamed by a Beast Master WEARS the handler's
+      // brand so the player can see it now fights for THEM: a glowing paw-print sigil
+      // hovers + pulses on a heel-heartbeat above it, sheds bond-motes that rain down
+      // into the creature (the leash of control), and the sprite wears an amber
+      // control-glow. Persistent companion to AbilityVfx.tamedBrandFx (the lab/demo).
+      {
+        const tamed = !isDead && !!m.tamedByAdvId && m.faction === 'adventurer'
+        if (tamed) {
+          const tdef = this._defMap[m.definitionId]
+          const half = ((tdef?.frameSize ?? PLACEHOLDER_SIZE) * MINION_SCALE * _displayScaleFor(m, tdef)) / 2
+          // Sit clearly ABOVE the sprite (clear of its head) so the brand never
+          // covers the creature.
+          const headY = -(half + 18)
+          // pink control-glow on the sprite (WebGL only) — rhymes with the
+          // tame-moment bond-hearts.
+          if (s.sprite && this._scene.renderer?.type === Phaser.WEBGL && !s._tameGlow) {
+            try { s._tameGlow = s.sprite.postFX.addGlow(0xff99cc, 2.5, 0, false, 0.06, 8) } catch (e) { s._tameGlow = true }
+          }
+          // the hovering paw-brand sigil (parented to the container so it follows)
+          if (!s._tameBrand) {
+            s._tameBrand = this._scene.add.image(0, headY, AbilityVfx.tamedBrandTexture(this._scene))
+              .setBlendMode(Phaser.BlendModes.ADD).setScale(0.9)
+            try { s._tameBrand.postFX.addGlow(0xff99cc, 2, 0, false, 0.08, 8) } catch (e) {}
+            s.container.add(s._tameBrand)
+            s._tameMoteAt = now
+            s._tameMotes = []
+          }
+          // gentle bob + heel-heartbeat double-thump pulse
+          const bob = Math.sin(now / 600) * 2.2
+          const ph  = (now % 1200) / 1200
+          const thump = ph < 0.10 ? Math.sin(ph / 0.10 * Math.PI)
+                      : (ph >= 0.16 && ph < 0.26) ? Math.sin((ph - 0.16) / 0.10 * Math.PI) * 0.62
+                      : 0
+          const pulse = Math.max(0, thump)
+          s._tameBrand.setPosition(0, headY + bob).setScale(0.9 + pulse * 0.24).setAlpha(0.76 + pulse * 0.24)
+          // shed bond-motes that drip a SHORT way down from the brand and fade
+          // just above the creature's head — never over the sprite body.
+          if (AbilityVfx.particlesMult() > 0 && now - (s._tameMoteAt ?? 0) > 300) {
+            s._tameMoteAt = now
+            const mo = this._scene.add.image((Math.random() * 8 - 4), headY + 4, AbilityVfx.softDotTexture(this._scene))
+              .setBlendMode(Phaser.BlendModes.ADD).setTint(Math.random() < 0.5 ? 0xff99cc : 0xffd6e8).setScale(0.2)
+            s.container.add(mo); s._tameMotes.push(mo)
+            this._scene.tweens.add({
+              targets: mo, y: -(half + 4), x: (Math.random() * 10 - 5), alpha: { from: 0.85, to: 0 }, scale: 0.04,
+              duration: 360, ease: 'Quad.easeIn',
+              onComplete: () => { try { mo.destroy() } catch (e) {} const i = s._tameMotes?.indexOf(mo) ?? -1; if (i >= 0) s._tameMotes.splice(i, 1) },
+            })
+          }
+        } else if (s._tameBrand || s._tameGlow || s._tameMotes?.length) {
+          // No longer tamed (or died) — tear the brand / glow / motes down.
+          if (s._tameBrand) { try { s._tameBrand.destroy() } catch (e) {} s._tameBrand = null }
+          if (s._tameGlow)  { try { if (s._tameGlow !== true) s.sprite?.postFX?.remove(s._tameGlow) } catch (e) {} s._tameGlow = null }
+          if (s._tameMotes?.length) { for (const mo of s._tameMotes) { try { mo.destroy() } catch (e) {} } s._tameMotes = [] }
+        }
+      }
+
       // Lich SOUL HARVEST — the Lich WEARS its banked souls: a ring of soul-wisps
       // (one per soul, capped) slowly orbiting the caster + a green glow that
       // intensifies with the count. A readable "how charged am I" tell — you watch

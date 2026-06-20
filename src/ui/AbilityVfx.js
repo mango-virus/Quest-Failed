@@ -951,6 +951,24 @@ function _softDotTexture(scene) {
   return key
 }
 
+// Draw a glowing PAW-PRINT brand (the Beast Master's claim-mark) into a Graphics,
+// local origin at the pad centre: a soft vertical pad + four toe-beans arcing
+// above it, each with a glossy upper-left highlight. The hero silhouette is a paw
+// — deliberately NOT a ring. `s` scales the whole glyph.
+function _drawTamedBrand(g, s = 1, color = 0xff99cc, hi = 0xffd6e8) {
+  g.fillStyle(color, 0.96)
+  // central pad — two stacked discs make a soft vertical oval
+  g.fillCircle(0, 3.2 * s, 5.4 * s)
+  g.fillCircle(0, 5.0 * s, 4.3 * s)
+  // four toe-beans arcing over the pad
+  const toes = [[-5.4, -1.2, 2.4], [-2.0, -4.4, 2.7], [2.0, -4.4, 2.7], [5.4, -1.2, 2.4]]
+  for (const [tx, ty, r] of toes) g.fillCircle(tx * s, ty * s, r * s)
+  // glossy highlights (upper-left of pad + each bean)
+  g.fillStyle(hi, 0.85)
+  g.fillCircle(-1.7 * s, 2.0 * s, 1.9 * s)
+  for (const [tx, ty, r] of toes) g.fillCircle((tx - 0.8) * s, (ty - 0.9) * s, r * 0.42 * s)
+}
+
 // Named effect palettes — keep VFX visually coherent + on-brand. Each: a primary
 // + accent tint. Pass `palette: 'fire'` to the toolkit helpers (resolved by _pal).
 export const VfxPalette = {
@@ -3583,6 +3601,29 @@ export const AbilityVfx = {
     return key
   },
 
+  // Cached PAW-PRINT brand texture (the Beast Master's TAMED claim-mark). Used by
+  // MinionRenderer's persistent worn-status block and tamedBrandFx (lab/demo).
+  tamedBrandTexture(scene) {
+    const key = '__qf_tamedbrand'
+    if (scene.textures.exists(key)) return key
+    const W = 34, H = 34
+    const g = scene.make.graphics({ x: 0, y: 0, add: false })
+    g.translateCanvas(W / 2, H / 2 + 2)
+    _drawTamedBrand(g, 1.25)
+    g.generateTexture(key, W, H)
+    g.destroy()
+    return key
+  },
+
+  // Public accessor for the shared soft radial-dot texture (motes/particles), so
+  // world-space renderers can spawn the same mote sprites the Fx methods use.
+  softDotTexture(scene) { return _softDotTexture(scene) },
+
+  // Public accessor for the particle-density multiplier (qf.video.particles
+  // setting: off→0, low→0.4, med→0.7, high→1). World-space renderers gate their
+  // own particle emission on this so the accessibility setting is respected.
+  particlesMult() { return _particlesMult() },
+
   // A cached DREAD-SPIRIT texture (baked once) — the flowing faceless soul-wisp (head +
   // 3 frayed tails + glow halo) used by Pall of Dread's host of spirits. Baked head-up so
   // each spirit Image rotates to bank into its flight; origin sits on the head.
@@ -5494,6 +5535,48 @@ export const AbilityVfx = {
     _glow(g, o.color, 2, 7)
     scene.tweens.add({ targets: g, scale: 1, alpha: 1, duration: life * 0.3, ease: 'Back.easeOut',
       onComplete: () => scene.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: life * 0.5, onComplete: () => g.destroy() }) })
+    return made
+  },
+
+  // BEAST MASTER · TAMED brand — the persistent "this beast is mine now" status a
+  // Beast-Master-tamed minion WEARS: a glowing paw-print sigil hovers + pulses on a
+  // heel-heartbeat above it, shedding bond-motes that rain down into the creature
+  // (the leash of control made visible) + a warm amber control-glow. This is the
+  // self-contained loop for the VFX Lab + the one-shot stamp; the LIVE in-game
+  // version is attached per-frame in MinionRenderer (shares texture + palette).
+  tamedBrandFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xff99cc, accent: 0xffd6e8, depth: 16, durationMs: 3600, lift: 40, ...opts }
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const bx = x, by = y - o.lift
+    // Motes drip only a SHORT way down from the brand and fade — they stay ABOVE
+    // the sprite so the effect never covers it.
+    const moteEndY = by + Math.min(16, o.lift * 0.42)
+    const halo  = scene.add.image(bx, by, _softDotTexture(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(o.color).setScale(1.5).setAlpha(0).setDepth(o.depth - 0.5); made.push(halo)
+    const brand = scene.add.image(bx, by, AbilityVfx.tamedBrandTexture(scene)).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth).setScale(0.2).setAlpha(0); made.push(brand)
+    _glow(brand, o.color, 3, 9)
+    scene.tweens.add({ targets: brand, scale: 1, alpha: 1, duration: 240, ease: 'Back.easeOut' })
+    scene.tweens.add({ targets: halo,  alpha: 0.4, duration: 240 })
+    // heel-heartbeat (double-thump) + gentle bob
+    const beat = scene.tweens.add({ targets: brand, scale: 1.18, duration: 120, ease: 'Quad.easeOut', yoyo: true, hold: 30, repeat: -1, repeatDelay: 520 })
+    const bob  = scene.tweens.add({ targets: [brand, halo], y: by - 4, duration: 900, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 })
+    // bond-motes raining down into the creature
+    let moteTimer = null
+    if (_particlesMult() > 0) {
+      const emitMote = () => {
+        const m = scene.add.image(bx + (Math.random() * 8 - 4), by + 4, _softDotTexture(scene))
+          .setBlendMode(Phaser.BlendModes.ADD).setTint(Math.random() < 0.5 ? o.color : o.accent).setScale(0.22).setDepth(o.depth - 0.4)
+        made.push(m)
+        scene.tweens.add({ targets: m, y: moteEndY, x: bx + (Math.random() * 10 - 5), alpha: { from: 0.9, to: 0 }, scale: 0.05, duration: 430, ease: 'Quad.easeIn', onComplete: () => { try { m.destroy() } catch (e) {} } })
+      }
+      moteTimer = scene.time.addEvent({ delay: 320, loop: true, callback: emitMote })
+      emitMote()
+    }
+    scene.time.delayedCall(life, () => {
+      try { moteTimer?.remove?.() } catch (e) {}
+      try { beat?.stop?.(); bob?.stop?.() } catch (e) {}
+      scene.tweens.add({ targets: [brand, halo], alpha: 0, scale: 0.5, duration: 240, onComplete: () => made.forEach(ob => { try { ob.destroy() } catch (e) {} }) })
+    })
     return made
   },
 

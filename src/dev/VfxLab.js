@@ -524,7 +524,7 @@ export class VfxLab {
     }
     if (entity.definitionId) {
       const def = (this._scene.cache.json.get('minionTypes') ?? []).find(d => d.id === entity.definitionId)
-      return (def?.abilities ?? []).map(ab => ({
+      const items = (def?.abilities ?? []).map(ab => ({
         label: `${ab.label ?? ab.type} ·${ab.trigger}`,
         ab,
         // onDying kit (Skeleton Reassemble) only fires through the real death
@@ -541,6 +541,14 @@ export class VfxLab {
           MinionAbilities.fireAbility(this._scene, this._entity, this._dummy, this._gs, ab)
         },
       }))
+      // Always-available status preview: the persistent "tamed by a Beast Master"
+      // brand any minion WEARS while controlled (paw-sigil + bond-motes + glow).
+      // Self-contained looping demo so the visual can be reviewed in isolation.
+      items.unshift({
+        label: 'TAMED · status',
+        fire: () => AbilityVfx.tamedBrandFx(this._scene, this._entity.worldX, this._entity.worldY - 4, { durationMs: 4200, lift: 30 }),
+      })
+      return items
     }
     return (CLASS_ABILITIES[entity.classId] ?? []).map(key => ({
       label: ABILITY_DEFS[key]?.label ?? key,
