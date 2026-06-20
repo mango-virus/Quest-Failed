@@ -386,6 +386,9 @@
     },
     "treasure_room": {
       "file": "assets/themes/roomskins/treasure_room.png"
+    },
+    "trap_factory1": {
+      "file": "assets/themes/roomskins/trap_factory1.png"
     }
   },
   "doorSkins": {
@@ -457,6 +460,12 @@
     },
     "treasury_locked": {
       "file": "assets/themes/doorskins/treasury_locked.png"
+    },
+    "entry_locked": {
+      "file": "assets/themes/doorskins/entry_locked.png"
+    },
+    "entry_closed_final": {
+      "file": "assets/themes/doorskins/entry_closed_final.png"
     }
   },
   "active": "Basic"

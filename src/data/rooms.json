@@ -878,13 +878,13 @@
         "theme": null,
         "doorTheme": null,
         "doorSkin": {
-            "locked": "basic_locked",
-            "closed": "entry2_closed",
-            "open": "entry2_open2"
+            "locked": "entry_locked",
+            "closed": "entry_closed_final",
+            "open": "entry_open_final"
         },
         "doorSkinEntrance": {
             "open": "entry_open_1",
-            "locked": "basic_locked",
+            "locked": "entry_closed_1",
             "closed": "entry_closed_1"
         },
         "doorSkinSizeEntrance": {
@@ -894,8 +894,8 @@
         },
         "backgroundImage": "entry_skin",
         "doorSkinSize": {
-            "w": 4.5,
-            "h": 3.5,
+            "w": 3.1,
+            "h": 2.1,
             "nudge": 0
         }
     },
@@ -2021,20 +2021,16 @@
         "flavorText": "Mechanisms. So many mechanisms.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.2,
-                "hue": 105,
-                "bright": 0
-            }
-        },
         "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
+            "closed": "entry_closed_final",
+            "open": "entry_open_final",
+            "locked": "entry_locked"
+        },
+        "backgroundImage": "trap_factory1",
+        "doorSkinSize": {
+            "w": 3.1,
+            "h": 2.1,
+            "nudge": 0
         }
     },
     {
@@ -2336,7 +2332,7 @@
         "backgroundImage": "treasure_room",
         "doorSkinSize": {
             "w": 3,
-            "h": 2,
+            "h": 2.1,
             "nudge": 0
         }
     },
