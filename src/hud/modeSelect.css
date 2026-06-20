@@ -1,0 +1,95 @@
+/* ModeSelect — choose CAMPAIGN vs ENDLESS for a new run (.qf-msel-*).
+   Visual language mirrors CompanionSelect (.qf-csl-*) so the new-run flow reads
+   as one set of screens. Kept in its own file (not styles.css) so the feature
+   commits cleanly. Uses the shared HUD design tokens (--text/--blood/--pix/…). */
+
+.qf-msel {
+  --acc: var(--blood); --accDk: color-mix(in srgb, var(--blood) 48%, #000);
+  --bone: var(--text); --mute: var(--text-mute); --line2: var(--line-2);
+  --faint: #3a3340;
+  position: absolute; inset: 0; z-index: 200; pointer-events: auto;
+  display: flex; flex-direction: column; padding: 30px 60px 26px;
+  font-family: var(--body, 'Pixelify Sans', sans-serif); color: var(--bone);
+  background: #0b0710; overflow: hidden;
+  animation: qf-msel-in .26s ease-out;
+}
+@keyframes qf-msel-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ember field — GPU-composited (transform + opacity only) */
+.qf-msel-embers { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.qf-msel-ember {
+  position: absolute; bottom: -8px; border-radius: 50%;
+  background: color-mix(in srgb, var(--acc) 75%, #ffb060);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--acc) 60%, #ffb060);
+  opacity: 0; animation-name: qf-msel-rise; animation-timing-function: ease-out; animation-iteration-count: infinite;
+}
+@keyframes qf-msel-rise { 0% { transform: translateY(0) scale(1); opacity: 0; } 12% { opacity: .85; } 100% { transform: translateY(-104vh) scale(.4); opacity: 0; } }
+
+/* header — BACK (left) + centered title block */
+.qf-msel-head { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-bottom: 4px; z-index: 5; }
+.qf-msel-back {
+  position: absolute; top: -2px; left: 0; z-index: 8;
+  font-family: var(--pix, 'Press Start 2P', monospace); font-size: 9px; color: var(--mute);
+  cursor: pointer; padding: 10px 14px; background: #0a0710; border: 2px solid var(--line2);
+  transition: color .15s, border-color .15s;
+}
+.qf-msel-back:hover { color: var(--bone); border-color: var(--acc); }
+.qf-msel-htext { text-align: center; }
+.qf-msel-eyebrow { display: flex; align-items: center; gap: 13px; justify-content: center; font-family: var(--sil, 'Silkscreen', monospace); font-size: 11px; letter-spacing: .3em; color: var(--acc); text-transform: uppercase; }
+.qf-msel-eyebrow .ln { width: 42px; height: 2px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--acc) 75%, transparent)); }
+.qf-msel-eyebrow .ln.r { transform: scaleX(-1); }
+.qf-msel-title { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 24px; color: var(--bone); letter-spacing: .02em; margin-top: 8px; text-shadow: 0 4px 0 #0a0710, 0 0 24px color-mix(in srgb, var(--acc) 40%, transparent); }
+.qf-msel-spacer { width: 120px; }
+
+/* card row */
+.qf-msel-cards { position: relative; z-index: 5; flex: 1; display: flex; align-items: center; justify-content: center; gap: 44px; min-height: 0; }
+
+.qf-msel-card {
+  --cardacc: var(--acc);
+  flex: 0 1 460px; align-self: stretch; max-height: 560px;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 38px 36px 32px; cursor: pointer; position: relative;
+  background: linear-gradient(180deg, #15101e, #0d0a14);
+  border: 2px solid var(--faint);
+  box-shadow: inset 0 0 0 2px #0a0710;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.qf-msel-card[data-id="campaign"] { --cardacc: #ff4d4d; }
+.qf-msel-card[data-id="endless"]  { --cardacc: #46b8ff; }
+.qf-msel-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--cardacc) 60%, var(--faint)); }
+.qf-msel-card.on {
+  border-color: var(--cardacc);
+  box-shadow: inset 0 0 0 2px #0a0710, 0 0 30px color-mix(in srgb, var(--cardacc) 38%, transparent), 0 8px 0 color-mix(in srgb, var(--cardacc) 30%, #000);
+}
+
+.qf-msel-sigil { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 40px; line-height: 1; color: var(--cardacc); text-shadow: 0 0 22px color-mix(in srgb, var(--cardacc) 55%, transparent); }
+.qf-msel-kicker { font-family: var(--sil, 'Silkscreen', monospace); font-size: 10px; letter-spacing: .22em; color: var(--cardacc); text-transform: uppercase; }
+.qf-msel-cardtitle { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 30px; color: var(--bone); letter-spacing: .01em; text-shadow: 0 4px 0 #0a0710; }
+.qf-msel-tag { font-size: 16px; color: var(--bone); font-style: italic; line-height: 1.4; opacity: .92; }
+.qf-msel-bullets { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.qf-msel-bullets li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--bone); line-height: 1.35; }
+.qf-msel-tick { color: var(--cardacc); font-size: 9px; margin-top: 5px; flex: 0 0 auto; }
+
+.qf-msel-chosen {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  font-family: var(--sil, 'Silkscreen', monospace); font-size: 10px; letter-spacing: .18em;
+  color: #0a0710; background: var(--cardacc); padding: 4px 16px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--cardacc) 60%, transparent);
+  opacity: 0; transition: opacity .16s ease; pointer-events: none;
+}
+.qf-msel-card.on .qf-msel-chosen { opacity: 1; }
+
+/* footer confirm */
+.qf-msel-foot { position: relative; z-index: 5; display: flex; justify-content: center; flex: 0 0 auto; margin-top: 18px; }
+.qf-msel-confirm {
+  font-family: var(--pix, 'Press Start 2P', monospace); font-size: 13px; letter-spacing: .03em; color: #f0e6d4; cursor: pointer; padding: 16px 30px;
+  border: 2px solid var(--acc); background: linear-gradient(180deg, #1d1726, #12101a);
+  box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000);
+  animation: qf-msel-glow 1.7s ease-in-out infinite;
+}
+@keyframes qf-msel-glow {
+  0%,100% { box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000), 0 0 6px color-mix(in srgb, var(--acc) 24%, transparent); }
+  50%     { box-shadow: inset 0 0 0 2px #0a0710, 0 4px 0 color-mix(in srgb, var(--accDk) 80%, #000), 0 0 24px color-mix(in srgb, var(--acc) 55%, transparent); }
+}
+.qf-msel-confirm:hover { color: #fff; transform: translateY(-2px); }
+.qf-msel-confirm:active { transform: translateY(1px); }

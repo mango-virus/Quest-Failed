@@ -25,6 +25,9 @@ export class CompanionSelect extends Phaser.Scene {
     // underneath this one. Its shutdown handler tears down the (already
     // closed) MainMenuOverlay cleanly.
     if (this.scene.isActive('MainMenu')) this.scene.stop('MainMenu')
+    // ModeSelect precedes us in the new-run flow; stop it so it doesn't linger
+    // as an idle empty scene underneath (scene.start only starts the target).
+    if (this.scene.isActive('ModeSelect')) this.scene.stop('ModeSelect')
 
     // Also stop any in-flight gameplay scenes from a previous run.
     // scene.start only swaps the calling scene; parallel scenes (Game

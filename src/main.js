@@ -28,6 +28,7 @@
 import { Boot }            from './scenes/Boot.js'
 import { Preload }         from './scenes/Preload.js'
 import { MainMenu }        from './scenes/MainMenu.js'
+import { ModeSelect } from './scenes/ModeSelect.js'
 import { CompanionSelect } from './scenes/CompanionSelect.js'
 import { ArchetypeSelect } from './scenes/ArchetypeSelect.js'
 import { Game }            from './scenes/Game.js'
@@ -79,6 +80,7 @@ const config = {
     Boot,
     Preload,
     MainMenu,
+    ModeSelect,
     CompanionSelect,
     ArchetypeSelect,
     Game,
@@ -160,7 +162,7 @@ const NON_LAYOUT_SCENES = new Set([
   // over an active run, and HudScene restart tore down the DOM HUD's
   // event wiring + cached state mid-gameplay.
   'MainMenu', 'HudScene',
-  'CompanionSelect', 'ArchetypeSelect', 'EndOfDay', 'GameOver',
+  'ModeSelect', 'CompanionSelect', 'ArchetypeSelect', 'EndOfDay', 'GameOver',
 ])
 let _resizeTimer = null
 window.__game.scale.on('resize', () => {

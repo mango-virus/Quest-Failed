@@ -890,13 +890,13 @@ export class MainMenuOverlay {
             this._promptForName(() => {
               this.close()
               _stopAllGameplayScenes(game.scene)
-              game.scene.start('CompanionSelect')
+              game.scene.start('ModeSelect')
             })
             return
           }
           this.close()
           _stopAllGameplayScenes(game.scene)
-          game.scene.start('CompanionSelect')
+          game.scene.start('ModeSelect')
         }
         // Beginning a NEW EVIL wipes the current reign's save. When a reign is
         // in progress, confirm first (design: the "ABANDON YOUR REIGN?" grave
@@ -935,6 +935,7 @@ export class MainMenuOverlay {
         try {
           localStorage.setItem('qf.dev.startDayNumber', '50')
           localStorage.setItem('qf.dev.startBossLevel', '12')
+          localStorage.setItem('qf.runMode', 'campaign')   // dev shortcut skips Mode Select
         } catch {}
         this.close()
         _stopAllGameplayScenes(game.scene)
@@ -953,6 +954,7 @@ export class MainMenuOverlay {
           localStorage.setItem('qf.dev.startDayNumber', '8')
           localStorage.setItem('qf.dev.startBossLevel', '4')
           localStorage.setItem('qf.dev.testStage', '1')
+          localStorage.setItem('qf.runMode', 'campaign')   // dev shortcut skips Mode Select
         } catch {}
         this.close()
         _stopAllGameplayScenes(game.scene)
