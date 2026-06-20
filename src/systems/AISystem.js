@@ -1251,21 +1251,10 @@ export class AISystem {
       this._tickAdventurer(active[i], delta, i)
     }
 
-    // De-clump STANDING adventurers — ones idling on the same tile fan out.
-    // STATIONARY only (aiState 'idle'): walking / fleeing / fighting / healing /
-    // at-boss advs are excluded (nudging movers backfires; combat is out of
-    // scope). Doorway-safe (see crowdSeparation).
-    // De-clump STANDING adventurers so they never read as one blob. Includes
-    // FIGHTING/healing advs — they stand still while swinging/channelling (they
-    // tryAttack+return, no _moveToward), so the nudge sticks; two heroes piling on
-    // the same enemy fan out side-by-side. WALKING/fleeing stay excluded (nudging a
-    // mover backfires — the path snaps it back). Doorway-safe (see crowdSeparation).
-    applyCrowdSeparation(active, this._dungeonGrid, {
-      radius: 11,
-      eligible: (a) =>
-        (a.aiState === 'idle' || a.aiState === 'fighting' || a.aiState === 'healing') &&
-        (a.resources?.hp ?? 0) > 0 && a.goal?.type !== 'AT_BOSS',
-    })
+    // NOTE: general STANDING-adventurer de-clump now runs as ONE cross-faction
+    // pass in MinionAISystem (so heroes also separate from the minions they fight,
+    // not just each other). It ticks right after this system each frame. The
+    // AoE-spread positioning counter below stays here — it's adv-only and scoped.
 
     // Bestiary POSITIONING counter (Layer B) — when a STUDIED AoE-threat minion
     // shares a room, the party spreads WIDER there so the area attack catches

@@ -47,6 +47,20 @@ const STATIONARY_DEF_IDS = new Set([
   'ghost1',
 ])
 
+// ── EXPERIMENTAL: transit avoidance (Phase B) ────────────────────────────────
+// Local steer-around for WALKING minions on open floor so they don't phase
+// straight through another unit they're approaching. Deliberately conservative:
+// it only nudges when the other unit is clearly OFF TO ONE SIDE (a well-defined
+// "perpendicular away from it" — no fragile left/right orientation choice), and
+// NEVER on doorway/lane tiles (the corridor L-shape + seam code owns those, and
+// the player asked for free pass-through at doorways). A head-on obstacle isn't
+// steered (no safe side to pick in a 1-wide space) — those still pass through,
+// the accepted trade. Flip TRANSIT_AVOID to false to fully revert to straight-line.
+const TRANSIT_AVOID        = true
+const TRANSIT_LOOK_PX      = TS * 1.15  // only consider units within ~1 tile
+const TRANSIT_SIDE_MIN     = 0.30       // min |lateral| share to count as "off to a side"
+const TRANSIT_STEER_WEIGHT = 0.85       // how hard to curve (blended with travel dir)
+
 export class MinionAISystem {
   constructor(scene, gameState, dungeonGrid, combatSystem) {
     this._scene = scene
@@ -190,6 +204,16 @@ export class MinionAISystem {
     // once here so all N minions amortize one O(advs) sweep instead of
     // each doing their own.
     this._tickAdvsByRoom = new Map()
+    // Combined units-by-room (both factions) for the EXPERIMENTAL transit
+    // avoidance (_transitAvoid) — bounds the per-mover neighbour scan to its room.
+    this._tickUnitsByRoom = TRANSIT_AVOID ? new Map() : null
+    const addUnit = (u) => {
+      if (!this._tickUnitsByRoom) return
+      const r = this._dungeonGrid?.getRoomAtTile?.(u.tileX, u.tileY)
+      if (!r) return
+      const arr = this._tickUnitsByRoom.get(r.instanceId)
+      if (arr) arr.push(u); else this._tickUnitsByRoom.set(r.instanceId, [u])
+    }
     for (const a of (this._gameState.adventurers?.active ?? [])) {
       if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
       const r = this._dungeonGrid?.getRoomAtTile?.(a.tileX, a.tileY)
@@ -197,11 +221,17 @@ export class MinionAISystem {
       const arr = this._tickAdvsByRoom.get(r.instanceId)
       if (arr) arr.push(a)
       else this._tickAdvsByRoom.set(r.instanceId, [a])
+      addUnit(a)
+    }
+    for (const m of minions) {
+      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      addUnit(m)
     }
     for (let i = 0; i < minions.length; i++) {
       this._tickMinion(minions[i], delta, i)
     }
     this._tickAdvsByRoom = null
+    this._tickUnitsByRoom = null
 
     // Hazard zones (Thread E / Widen terrain-shaper) — lingering damage tiles
     // dropped by hazard-trail minions; ticked + expired once per frame.
@@ -244,15 +274,36 @@ export class MinionAISystem {
     // crossfade so MinionRenderer reverse-rises them (corpse → standing zombie).
     MinionAbilities.tickReanimations(this._scene, this._gameState)
 
-    // De-clump STANDING minions — idle guards / settled packs that share a tile
-    // fan out so they don't read as one blob. STATIONARY only (idle with no
-    // patrol target): walking minions are excluded (nudging them backfires) and
-    // so are combat / leashed / never-move defs. Doorway-safe (see crowdSeparation).
-    applyCrowdSeparation(minions, this._dungeonGrid, {
-      radius: 10,
-      eligible: (m) =>
-        m.aiState === 'idle' && !m._patrolTarget && (m.resources?.hp ?? 0) > 0 &&
-        !STATIONARY_DEF_IDS.has(m.definitionId),
+    // De-clump STANDING units so they never read as one blob — CROSS-FACTION:
+    // idle guards / settled packs AND combat swarms fan out, and a minion never
+    // shares a tile with the hero it's fighting. ONE combined pass over both
+    // factions (advs already moved this tick in AISystem) so minions↔minions,
+    // advs↔advs, and minions↔advs all separate. STATIONARY only — walking units
+    // are excluded (the movement code re-centres them each waypoint, so a nudge
+    // backfires); a minion "standing in combat" (_combatStandAt — swings in place,
+    // no _moveToward) counts as stationary, mirroring the adv 'fighting' rule.
+    // Doorway-safe (see crowdSeparation). The adv-only AoE-spread pass stays in
+    // AISystem; the per-faction adv pass there was removed in favour of this one.
+    const now = this._scene?.time?.now ?? 0
+    const advs = this._gameState.adventurers?.active ?? []
+    const minionIds = new Set(minions.map(m => m.instanceId))
+    const crowd = advs.concat(minions)
+    applyCrowdSeparation(crowd, this._dungeonGrid, {
+      radius: 11,
+      eligible: (e) => {
+        if ((e.resources?.hp ?? 0) <= 0 || e.aiState === 'dead') return false
+        if (e._vfxLabFrozen || e._nemDuel || e._nemesisDuel || e._lpDuel) return false
+        if (minionIds.has(e.instanceId)) {
+          if (STATIONARY_DEF_IDS.has(e.definitionId)) return false
+          const standingInCombat = (now - (e._combatStandAt ?? 0)) < 200
+          const trulyIdle = e.aiState === 'idle' && !e._patrolTarget && !e._chasePath
+          return standingInCombat || trulyIdle
+        }
+        // Adventurer — mirror AISystem's standing set; never the boss-orbit
+        // (BossSystem owns AT_BOSS positions) and never a walker/fleer.
+        if (e.goal?.type === 'AT_BOSS') return false
+        return e.aiState === 'idle' || e.aiState === 'fighting' || e.aiState === 'healing'
+      },
     })
     // Phase 1b — patrolling minions close (and re-lock) doors behind them.
     // Generic — applies to every patrolling minion regardless of archetype
@@ -593,17 +644,23 @@ export class MinionAISystem {
             const minY = room.gridY + WT
             const innerW = Math.max(1, room.width  - 2 * WT)
             const innerH = Math.max(1, room.height - 2 * WT)
-            let pick = null
-            for (let attempt = 0; attempt < 8 && !pick; attempt++) {
+            let pick = null, anyFloor = null
+            for (let attempt = 0; attempt < 10 && !pick; attempt++) {
               const rx = minX + Math.floor(Math.random() * innerW)
               const ry = minY + Math.floor(Math.random() * innerH)
               const t = this._dungeonGrid?.getTileType?.(rx, ry)
-              if (t === TILE.FLOOR || t === TILE.BOSS_FLOOR) pick = { x: rx, y: ry }
+              if (t !== TILE.FLOOR && t !== TILE.BOSS_FLOOR) continue
+              if (!anyFloor) anyFloor = { x: rx, y: ry }   // fallback floor (even if claimed)
+              // Wander-target spreading: skip a tile another minion is standing
+              // on or already heading to, so a milling pack fans ACROSS the room
+              // instead of all picking the same spot and clumping. (No movement-
+              // code change — just a smarter destination choice.)
+              if (TRANSIT_AVOID && this._tileClaimedByOtherMinion(rx, ry, minion)) continue
+              pick = { x: rx, y: ry }
             }
-            // Fall back to the minion's own home tile if every roll failed
-            // (tiny room fully covered by decor / etc.) — they'll just
-            // hold position this cycle.
-            if (!pick) pick = { x: minion.homeTileX, y: minion.homeTileY }
+            // Fall back to any floor tile we saw, else the minion's own home tile
+            // (tiny room fully covered by decor / fully claimed) — hold this cycle.
+            if (!pick) pick = anyFloor ?? { x: minion.homeTileX, y: minion.homeTileY }
             minion._patrolTarget = pick
           }
         }
@@ -1282,7 +1339,13 @@ export class MinionAISystem {
       // target doesn't swing at point-blank — they wait for the adv to
       // step off. Symmetric with the adv-side rule in AISystem.
       if (sameRoom && d >= 0.99 && d <= reach + 0.01) {
-        // In range AND same room — attack
+        // In range AND same room — attack. Stamp "standing in combat" so crowd
+        // separation treats it like an idle unit (it swings in place, no
+        // _moveToward, so a nudge sticks) — a swarm rings the hero instead of
+        // stacking. Minions have no 'fighting' aiState (chasing reads 'idle'),
+        // so this timestamp is the signal; it refreshes every in-range tick and
+        // goes stale ~instantly once the minion breaks off to chase/move.
+        minion._combatStandAt = this._scene?.time?.now ?? 0
         this._combatSystem.tryAttack(minion, target, {
           roomId: minion.assignedRoomId,
         })
@@ -1467,6 +1530,58 @@ export class MinionAISystem {
 
   // ── Movement ──────────────────────────────────────────────────────────────
 
+  // True if another LIVE minion is standing on (tx,ty) or already heading there
+  // (its _patrolTarget). Used to spread wander destinations so packs don't clump.
+  _tileClaimedByOtherMinion(tx, ty, self) {
+    for (const m of (this._gameState.minions ?? [])) {
+      if (m === self || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
+      if (m.tileX === tx && m.tileY === ty) return true
+      if (m._patrolTarget && m._patrolTarget.x === tx && m._patrolTarget.y === ty) return true
+    }
+    return false
+  }
+
+  // Walkable open floor at world coords — used to clamp transit-avoidance so a
+  // steer never pushes a minion into a wall, void, or blocked door column.
+  _walkableWorld(wx, wy) {
+    const tiles = this._dungeonGrid?.getTiles?.()
+    const tx = Math.floor(wx / TS), ty = Math.floor(wy / TS)
+    return !!tiles?.[ty] && PathfinderSystem.isWalkable(tiles[ty][tx]) &&
+           !this._dungeonGrid?.isDoorBlocked?.(tx, ty)
+  }
+
+  // EXPERIMENTAL (Phase B) — given a minion travelling in unit dir (ux,uy),
+  // return a perpendicular steer {ax,ay} AWAY from the nearest unit that's both
+  // close and clearly off to one side, so the minion curves around it instead of
+  // walking through. Returns null when disabled, at a doorway, head-on (no safe
+  // side), or with a clear path. Neighbour scan is bounded to the minion's room.
+  _transitAvoid(minion, ux, uy) {
+    if (!TRANSIT_AVOID || !this._tickUnitsByRoom) return null
+    if (this._dungeonGrid?.isLaneOrApproach?.(minion.tileX, minion.tileY)) return null
+    const room = this._dungeonGrid?.getRoomAtTile?.(minion.tileX, minion.tileY)
+    const arr  = room ? this._tickUnitsByRoom.get(room.instanceId) : null
+    if (!arr || arr.length < 2) return null
+    let best = null, bestD = Infinity
+    for (const o of arr) {
+      if (o === minion) continue
+      const vx = o.worldX - minion.worldX
+      const vy = o.worldY - minion.worldY
+      const d  = Math.hypot(vx, vy)
+      if (d > TRANSIT_LOOK_PX || d < 0.01) continue
+      if ((vx * ux + vy * uy) / d <= 0.2) continue   // only dodge what's AHEAD
+      if (d < bestD) { bestD = d; best = { vx, vy, d } }
+    }
+    if (!best) return null
+    // Lateral share of the obstacle vs travel. Small ⇒ head-on ⇒ no safe side.
+    if (Math.abs((ux * best.vy - uy * best.vx) / best.d) < TRANSIT_SIDE_MIN) return null
+    // Perpendicular pointing away from the obstacle (positive dot vs obstacle→me).
+    const ox = -best.vx, oy = -best.vy
+    let px = -uy, py = ux
+    if (px * ox + py * oy < 0) { px = uy; py = -ux }
+    const w = Math.max(0, (TRANSIT_LOOK_PX - best.d) / TRANSIT_LOOK_PX)
+    return { ax: px * w, ay: py * w }
+  }
+
   _moveToward(minion, targetTile, delta) {
     // Slow status (Mage ice Chill, and any future minion slow) — scales the step.
     // slowMult is consumed for adventurers in AISystem; this is its minion counterpart.
@@ -1588,8 +1703,23 @@ export class MinionAISystem {
         }
       }
       if (!moved) {
-        minion.worldX += (dx / dist) * stepPx
-        minion.worldY += (dy / dist) * stepPx
+        // Open-floor step. EXPERIMENTAL transit avoidance: curve around a unit
+        // that's close + ahead + off to one side, but only if the steered heading
+        // still lands on walkable floor (else go straight). Doorway/corridor
+        // motion is handled by the lane branch above and never reaches here.
+        let mux = dx / dist, muy = dy / dist
+        const av = this._transitAvoid(minion, mux, muy)
+        if (av) {
+          let nx = mux + av.ax * TRANSIT_STEER_WEIGHT
+          let ny = muy + av.ay * TRANSIT_STEER_WEIGHT
+          const nm = Math.hypot(nx, ny) || 1
+          nx /= nm; ny /= nm
+          if (this._walkableWorld(minion.worldX + nx * stepPx, minion.worldY + ny * stepPx)) {
+            mux = nx; muy = ny
+          }
+        }
+        minion.worldX += mux * stepPx
+        minion.worldY += muy * stepPx
       }
     }
     // Always sync tile coords from world position so distance + room checks
