@@ -36,14 +36,44 @@ import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 const SPEED_STEPS_EARLY = [1, 2, 4, 8]
 const SPEED_STEPS_HYPER = [1, 4, 8, 16]
 
-// Armed-tool accent — tints the console's top stripe + the armed button.
-// place=blood, move=rumor(blue), upgrade=gold, sell=warn(orange). Mirrors the
-// design's ARMC map (hud-console.jsx).
+// Armed-tool accent — tints the console's top border + the armed button.
+// place=blood, move=rumor, upgrade=info, sell=warn. Mirrors the design's ARMC
+// map (hud-console.jsx); tokens resolve within the bar's `.hc` scope.
 const ARMC = {
   place:   'var(--blood)',
   move:    'var(--rumor)',
-  upgrade: 'var(--gold-bright, #ffcb5c)',
+  upgrade: 'var(--info)',
   sell:    'var(--warn)',
+}
+
+// Inline-SVG button icons, transcribed verbatim from the design's HC_ICONS
+// (hud-console.jsx). Each uses currentColor so the `.hc-bi` colour drives it;
+// the dark cut-out detail uses the design's ink, hoisted to one const so the
+// icon art stays palette-lint clean.
+const INK = '#0a0710' // hex-ok: design ink cut-out baked into the icon glyphs
+const ICONS = {
+  place:   '<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg>',
+  move:    '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l2.5 3h-5z"/><path d="M8 15l2.5-3h-5z"/><path d="M1 8l3-2.5v5z"/><path d="M15 8l-3-2.5v5z"/><rect x="6.6" y="6.6" width="2.8" height="2.8"/></svg>',
+  upgrade: `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.5l5.5 2v4c0 3.5-2.5 5.6-5.5 6.5-3-.9-5.5-3-5.5-6.5v-4z"/><path fill="${INK}" d="M8 5l3 3H9.2v3H6.8V8H5z"/></svg>`,
+  sell:    `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M5.5 2h5l-1 2.2C11.5 5.3 13 7.4 13 9.5A3.5 3.5 0 0 1 9.5 13h-3A3.5 3.5 0 0 1 3 9.5c0-2.1 1.5-4.2 3.5-5.3z"/><path stroke="${INK}" stroke-width="1.5" fill="none" d="M6.4 7.6l3.2 3.2M9.6 7.6l-3.2 3.2"/></svg>`,
+  inspect: `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M8 3.5c4 0 6.5 4.5 6.5 4.5S12 12.5 8 12.5 1.5 8 1.5 8 4 3.5 8 3.5z"/><circle cx="8" cy="8" r="2" fill="${INK}"/></svg>`,
+  rally:   '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><rect x="3.4" y="2" width="1.7" height="12"/><path d="M5.1 2.5h7l-1.6 2.2 1.6 2.2h-7z"/></svg>',
+  begin:   '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5l9 5.5-9 5.5z"/></svg>',
+  blocker: `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.5l6.5 12h-13z"/><rect x="7.2" y="6" width="1.6" height="4" fill="${INK}"/><rect x="7.2" y="11" width="1.6" height="1.6" fill="${INK}"/></svg>`,
+  quake:   '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 13l4-7 2.5 3.5L10.5 6l4 7z"/></svg>',
+  revive:  '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><path d="M8 14.5S1.5 10.5 1.5 5.8A3.3 3.3 0 0 1 8 4.5 3.3 3.3 0 0 1 14.5 5.8C14.5 10.5 8 14.5 8 14.5z"/></svg>',
+  rebuild: '<svg class="hc-svg" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5.6 5.6L12 12"/><path d="M10.4 5.6L4 12"/></g><circle cx="4.6" cy="4.6" r="2.4" fill="none" stroke="currentColor" stroke-width="2"/><rect x="9.6" y="2.4" width="4" height="2.6" rx="0.5" fill="currentColor" transform="rotate(45 11.6 3.7)"/></svg>',
+  roster:  `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M3 2h10v12H3z"/><g fill="${INK}"><rect x="5" y="4.5" width="6" height="1.3"/><rect x="5" y="7.3" width="6" height="1.3"/><rect x="5" y="10.1" width="6" height="1.3"/></g></svg>`,
+  map:     '<svg class="hc-svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="currentColor" d="M8 4l1.6 4L8 12 6.4 8z"/></svg>',
+  intel:   `<svg class="hc-svg" viewBox="0 0 16 16"><path fill="currentColor" d="M8 3.5C6.2 2.3 3.8 2.3 2 3v9.5c1.8-.7 4.2-.7 6 .5 1.8-1.2 4.2-1.2 6-.5V3c-1.8-.7-4.2-.7-6 .5z"/><path stroke="${INK}" stroke-width="1" d="M8 3.8v9.7"/></svg>`,
+  menu:    '<svg class="hc-svg" viewBox="0 0 16 16" fill="currentColor"><rect x="2.5" y="4" width="11" height="1.9"/><rect x="2.5" y="7.05" width="11" height="1.9"/><rect x="2.5" y="10.1" width="11" height="1.9"/></svg>',
+}
+
+// `.hc-bi` icon span — the SVG inherits the span's colour via currentColor.
+function biSpan(name, colorClass) {
+  const span = h('span', { className: 'hc-bi' + (colorClass ? ' ' + colorClass : '') })
+  span.innerHTML = ICONS[name] || ''
+  return span
 }
 
 function _stepsForDay(day) {
@@ -70,127 +100,107 @@ export class BottomBar {
 
   _build() {
     this._refs = {}
+    // Build tools (armed radio group). PLACE carries data-build-anchor — the
+    // Build tray will grow from it (design's fly-out pattern); for now it
+    // toggles the construction drawer (see _onModeClick).
     const modes = [
-      { id: 'place',   label: 'PLACE',   icon: '✛' /* + */,        tip: 'Open the build drawer — place rooms, minions & traps' },
-      { id: 'move',    label: 'MOVE',    icon: '⤷' /* ⤷ */,        tip: 'Pick up & relocate a placed room or minion' },
-      { id: 'upgrade', label: 'UPGRADE', icon: '⬆' /* tier up */,  tip: 'Upgrade a minion or room to its next tier' },
-      { id: 'sell',    label: 'SELL',    icon: '⌫' /* delete */,   tip: 'Sell a placed room, minion or trap back for gold' },
+      { id: 'place',   label: 'PLACE',   tip: 'Open the build menu — place rooms, minions & traps' },
+      { id: 'move',    label: 'MOVE',    tip: 'Pick up & relocate a placed room or minion' },
+      { id: 'upgrade', label: 'UPGRADE', tip: 'Upgrade a minion or room to its next tier' },
+      { id: 'sell',    label: 'SELL',    tip: 'Sell a placed room, minion or trap back for gold' },
+    ]
+    // Launchers. ROSTER/MAP/INTEL carry data-tray-anchor for the future trays.
+    const launchers = [
+      { id: 'roster', label: 'ROSTER', color: 'poison', anchor: 'ROSTER', event: 'OPEN_MINION_ROSTER', tip: 'Review & manage your minion roster' },
+      { id: 'map',    label: 'MAP',    color: 'muted',  anchor: 'MAP',    event: 'OPEN_KNOWLEDGE_MAP', tip: 'Knowledge Map — what the heroes have learned about your dungeon' },
+      { id: 'intel',  label: 'INTEL',  color: 'warn',   anchor: 'INTEL',  event: 'OPEN_ADV_INTEL', nu: true, tip: 'Adventurer Intel — who’s coming & their weaknesses' },
+      { id: 'menu',   label: 'MENU',   color: 'blood',  event: 'OPEN_PAUSE_MENU', tip: 'Pause — options, codex & quit' },
     ]
 
-    const root = h('div', { className: 'qf-bottombar' }, [
-      h('div', { className: 'qf-bottombar-console', ref: el => { this._refs.console = el } }, [
-        // BUILD MODES
-        h('div', { className: 'qf-bb-group qf-bb-modes' }, [
-          modes.map(m => h('button', {
-            className: 'btn qf-bb-mode',
-            dataset: { mode: m.id },
-            ref: el => { this._refs[`mode_${m.id}`] = el; this._registerTip(el, m.tip, m.id) },
-            on: { click: () => this._onModeClick(m.id) },
-          }, [
-            h('span', { className: 'qf-bb-mode-icon' }, m.icon),
-            m.label,
-          ])),
-        ]),
+    const bar = h('div', { className: 'hc-bar hc', ref: el => { this._refs.console = el } }, [
+      // 1. BUILD TOOLS
+      h('div', { className: 'hc-sec' }, modes.map(m => h('button', {
+        className: 'hc-btn hc-t-' + m.id,
+        dataset: m.id === 'place' ? { buildAnchor: '' } : {},
+        ref: el => { this._refs[`mode_${m.id}`] = el; this._registerTip(el, m.tip, m.id) },
+        on: { click: () => this._onModeClick(m.id) },
+      }, [ biSpan(m.id), m.label ]))),
 
-        h('div', { className: 'qf-bb-divider' }),
+      h('div', { className: 'hc-sep' }),
 
-        // PRIMARY ACTION (BEGIN DAY or speed control). The "PHASE · NIGHT/DAY"
-        // readout was dropped per the design — the top-centre phase stamp + the
-        // armed-tool stripe already convey phase/state.
-        h('div', { className: 'qf-bb-group qf-bb-phase' }, [
-          h('button', {
-            className: 'btn primary qf-bb-begin',
-            ref: el => { this._refs.beginBtn = el },
-            // Blocked (disconnected dungeon) → clicking is a no-op; the button
-            // itself shows WHY (e.g. "⚠ PATH OPEN"). Readiness drives the label.
-            on: { click: () => { if (this._ready) EventBus.emit('PHASE_TOGGLE_REQUEST') } },
-          }, '▶  BEGIN DAY'),
+      // 2. BEGIN DAY (night) / SPEED (day) + boss day-active slot.
+      h('div', { className: 'hc-sec' }, [
+        h('button', {
+          className: 'hc-btn hc-begin',
+          ref: el => { this._refs.beginBtn = el },
+          // Blocked (disconnected dungeon) → click is a no-op; the button itself
+          // shows WHY (e.g. "⚠ PATH OPEN"). Readiness drives the label.
+          on: { click: () => { if (this._ready) EventBus.emit('PHASE_TOGGLE_REQUEST') } },
+        }, [ biSpan('begin'), 'BEGIN DAY' ]),
+        h('div', {
+          className: 'hc-spd',
+          ref: el => { this._refs.speedBox = el },
+          style: { display: 'none' },
+        }, [
+          h('span', { className: 'hc-spd-lbl' }, '⏵ SPEED'),
           h('div', {
-            className: 'qf-bb-speed',
-            ref: el => { this._refs.speedBox = el },
-            style: { display: 'none' },
-          }, [
-            h('span', { className: 'pix qf-bb-speed-label' }, '⏵ SPEED'),
-            h('div', {
-              className: 'qf-bb-speed-btns',
-              ref: el => { this._refs.speedBtnsBox = el },
-            }, this._renderSpeedBtns(_stepsForDay(this._gameState?.meta?.dayNumber ?? 1))),
-          ]),
-          // Archetype action slot — BossArchetypeStrip mounts EARTHQUAKE
-          // / SACRIFICE buttons here during day phase so they don't float
-          // above the bar and cover the dungeon view. Empty by default;
-          // gets `.has-buttons` toggled by BossArchetypeStrip when one
-          // is active so the surrounding gap can collapse cleanly.
-          h('div', {
-            className: 'qf-bb-archetype-slot',
-            ref: el => { this._refs.archetypeSlot = el; this.archetypeSlot = el },
-          }),
+            className: 'hc-spd-btns',
+            ref: el => { this._refs.speedBtnsBox = el },
+          }, this._renderSpeedBtns(_stepsForDay(this._gameState?.meta?.dayNumber ?? 1))),
         ]),
+        // Boss day-active slot — BossArchetypeStrip mounts EARTHQUAKE / SACRIFICE
+        // buttons here during day phase (kept as `.qf-bb-archetype-slot` so its
+        // queries still resolve). Empty + collapsed by default.
+        h('div', {
+          className: 'qf-bb-archetype-slot',
+          ref: el => { this._refs.archetypeSlot = el; this.archetypeSlot = el },
+        }),
+      ]),
 
-        h('div', { className: 'qf-bb-divider' }),
+      h('div', { className: 'hc-sep' }),
 
-        // MENUS
-        h('div', { className: 'qf-bb-group qf-bb-menus' }, [
-          // Pay-to-revive — compact green action, grouped with roster/minion
-          // controls. Shown only at night when revivable minions have fallen.
-          h('button', {
-            className: 'btn qf-bb-menu qf-bb-revive',
-            ref: el => { this._refs.reviveBtn = el },
-            style: { display: 'none' },
-            on: { click: () => this._onReviveClick() },
-          }, [
-            h('span', { className: 'qf-bb-menu-icon revive' }, '♥'),
-            h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE'),
-            h('span', { className: 'qf-bb-revive-cost' }, [
-              h('span', { className: 'qf-bb-revive-coin' }),
-              h('span', { className: 'qf-bb-revive-cost-num', ref: el => { this._refs.reviveCost = el } }, ''),
-            ]),
-          ]),
-          // Rebuild broken traps — blue sibling of REVIVE. Shown only at night
-          // when traps have broken (the 5% wear-and-tear). Reuses the revive
-          // button's cost/coin/cant-afford styling via the shared classes.
-          h('button', {
-            className: 'btn qf-bb-menu qf-bb-revive qf-bb-rebuild',
-            ref: el => { this._refs.rebuildBtn = el },
-            style: { display: 'none' },
-            on: { click: () => this._onRebuildClick() },
-          }, [
-            h('span', { className: 'qf-bb-menu-icon rebuild' }, '⚒'),
-            h('span', { ref: el => { this._refs.rebuildLabel = el } }, 'REBUILD'),
-            h('span', { className: 'qf-bb-revive-cost' }, [
-              h('span', { className: 'qf-bb-revive-coin' }),
-              h('span', { className: 'qf-bb-revive-cost-num', ref: el => { this._refs.rebuildCost = el } }, ''),
-            ]),
-          ]),
-          h('button', {
-            className: 'btn qf-bb-menu',
-            ref: el => this._registerTip(el, 'Review & manage your minion roster', 'roster'),
-            on: { click: () => EventBus.emit('OPEN_MINION_ROSTER') },
-          }, [h('span', { className: 'qf-bb-menu-icon poison' }, '▤'), ' ROSTER']),
-          h('button', {
-            className: 'btn qf-bb-menu',
-            ref: el => this._registerTip(el, 'Knowledge Map — what the heroes have learned about your dungeon', 'map'),
-            on: { click: () => EventBus.emit('OPEN_KNOWLEDGE_MAP') },
-          }, [h('span', { className: 'qf-bb-menu-icon muted' }, '◈'), ' MAP']),
-          h('button', {
-            className: 'btn qf-bb-menu',
-            ref: el => this._registerTip(el, 'Adventurer Intel — who’s coming & their weaknesses', 'intel'),
-            on: { click: () => EventBus.emit('OPEN_ADV_INTEL') },
-          }, [h('span', { className: 'qf-bb-menu-icon warn' }, '◈'), ' INTEL']),
-          h('button', {
-            className: 'btn qf-bb-menu',
-            ref: el => this._registerTip(el, 'Pause — options, codex & quit', 'pause'),
-            on: { click: () => EventBus.emit('OPEN_PAUSE_MENU') },
-          }, [h('span', { className: 'qf-bb-menu-icon blood' }, '≡'), ' MENU']),
+      // 3. GOLD ACTIONS — revive / rebuild (night-only; shown when needed).
+      h('div', { className: 'hc-sec' }, [
+        h('button', {
+          className: 'hc-btn act-go',
+          ref: el => { this._refs.reviveBtn = el },
+          style: { display: 'none' },
+          on: { click: () => this._onReviveClick() },
+        }, [
+          biSpan('revive'),
+          h('span', { ref: el => { this._refs.reviveLabel = el } }, 'REVIVE'),
+          h('span', { className: 'hc-cost' }, [ h('i'), h('span', { ref: el => { this._refs.reviveCost = el } }, '') ]),
+        ]),
+        h('button', {
+          className: 'hc-btn act-blu',
+          ref: el => { this._refs.rebuildBtn = el },
+          style: { display: 'none' },
+          on: { click: () => this._onRebuildClick() },
+        }, [
+          biSpan('rebuild'),
+          h('span', { ref: el => { this._refs.rebuildLabel = el } }, 'REBUILD'),
+          h('span', { className: 'hc-cost' }, [ h('i'), h('span', { ref: el => { this._refs.rebuildCost = el } }, '') ]),
         ]),
       ]),
+
+      h('div', { className: 'hc-sep' }),
+
+      // 4. LAUNCHERS — roster / map / intel / menu.
+      h('div', { className: 'hc-sec' }, launchers.map(m => h('button', {
+        className: 'hc-btn',
+        dataset: m.anchor ? { trayAnchor: m.anchor } : {},
+        ref: el => this._registerTip(el, m.tip, m.id),
+        on: { click: () => EventBus.emit(m.event) },
+      }, [ m.nu ? h('span', { className: 'nu' }) : null, biSpan(m.id, m.color), m.label ].filter(Boolean)))),
     ])
+
+    const root = h('div', { className: 'qf-bottombar' }, [ bar ])
 
     // Cache the step-set we mounted with so _rebuildSpeedBtns can detect
     // an actual change vs. a redundant day-start rebuild.
     this._renderedSteps = _stepsForDay(this._gameState?.meta?.dayNumber ?? 1)
 
-    // Initial: PLACE active, 1× speed active (will sync on first tick).
+    // Initial: PLACE armed, 1× speed active (will sync on first tick).
     this._setArmedMode('place')
     this._setActiveSpeed(1)
     return root
@@ -237,6 +247,17 @@ export class BottomBar {
   _onSpeedClick(scale) {
     this._setActiveSpeed(scale)
     EventBus.emit('TIME_SCALE_SET', { scale })
+    this._flashSpeedCue(scale)
+  }
+
+  // Floating "{n}× SPEED" cue that rises above the speed selector on change.
+  _flashSpeedCue(scale) {
+    const box = this._refs.speedBox
+    if (!box) return
+    box.querySelector('.hc-spdcue')?.remove()
+    const cue = h('span', { className: 'hc-spdcue' }, `${scale}× SPEED`)
+    box.appendChild(cue)
+    setTimeout(() => cue.remove(), 700)
   }
 
   // ── Pay-to-revive button ─────────────────────────────────────────
@@ -278,7 +299,7 @@ export class BottomBar {
     const cost   = totalReviveCost(gs, this._allMinionDefs(), this._allEvolutionChains())
     const afford = (gs.player?.gold ?? 0) >= cost
     btn.style.display = ''
-    btn.classList.toggle('cant-afford', !afford)
+    btn.classList.toggle('cant', !afford)
     if (this._refs.reviveLabel) this._refs.reviveLabel.textContent = `REVIVE ${fallen.length}`
     if (this._refs.reviveCost)  this._refs.reviveCost.textContent  = `${cost}`
   }
@@ -309,7 +330,7 @@ export class BottomBar {
     const cost   = totalTrapRebuildCost(gs, this._allTrapDefs())
     const afford = (gs.player?.gold ?? 0) >= cost
     btn.style.display = ''
-    btn.classList.toggle('cant-afford', !afford)
+    btn.classList.toggle('cant', !afford)
     if (this._refs.rebuildLabel) this._refs.rebuildLabel.textContent = `REBUILD ${broken.length}`
     if (this._refs.rebuildCost)  this._refs.rebuildCost.textContent  = `${cost}`
   }
@@ -323,7 +344,7 @@ export class BottomBar {
       if (k.startsWith('speed_')) this._refs[k] = null
     }
     return steps.map(s => h('button', {
-      className: 'qf-bb-speed-btn',
+      className: 'hc-spdb',
       dataset: { speed: s },
       ref: el => { this._refs[`speed_${s}`] = el },
       on: { click: () => this._onSpeedClick(s) },
@@ -362,10 +383,10 @@ export class BottomBar {
     for (const k of ['place', 'move', 'upgrade', 'sell']) {
       const el = this._refs[`mode_${k}`]
       if (!el) continue
-      el.classList.toggle('active', k === active)
+      el.classList.toggle('on', k === active)
     }
-    // Tint the console's top stripe + the armed button in the armed tool's
-    // accent (place=blood, move=rumor, upgrade=gold, sell=warn).
+    // Tint the console's top border + the armed button in the armed tool's
+    // accent (place=blood, move=rumor, upgrade=info, sell=warn).
     this._refs.console?.style.setProperty('--armc', ARMC[active] ?? ARMC.place)
   }
 
@@ -375,13 +396,14 @@ export class BottomBar {
     const btn = this._refs.beginBtn
     if (!btn) return
     const blocked = !this._ready
-    btn.classList.toggle('blocked', blocked)
-    btn.classList.toggle('primary', !blocked)
+    btn.classList.toggle('hc-blocked', blocked)
+    btn.classList.toggle('hc-begin', !blocked)
     btn.setAttribute('aria-disabled', blocked ? 'true' : 'false')
     btn.title = blocked ? 'Resolve this before the day can begin' : ''
-    btn.replaceChildren(...(blocked
-      ? [h('span', { className: 'qf-bb-begin-warn' }, '⚠'), `  ${this._blocker}`]
-      : ['▶  BEGIN DAY']))
+    btn.replaceChildren(
+      biSpan(blocked ? 'blocker' : 'begin'),
+      blocked ? (this._blocker || 'NOT READY') : 'BEGIN DAY',
+    )
   }
 
   _setActiveSpeed(scale) {
@@ -394,7 +416,7 @@ export class BottomBar {
     for (const s of allSteps) {
       const el = this._refs[`speed_${s}`]
       if (!el) continue
-      el.classList.toggle('active', s === scale)
+      el.classList.toggle('on', s === scale)
     }
   }
 

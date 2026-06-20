@@ -2099,6 +2099,103 @@ html.gamepad-active #qf-cursor { display: none; }
   transition: background .18s ease; pointer-events: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   NEW HUD CONSOLE — action bar (design handoff 2026-06-20 · hud-console.jsx).
+   Token-driven crypt-console reskin of the bottom action bar. The design's
+   authoritative crypt palette is scoped on `.hc` (var-defs only, hex-lint
+   exempt). `.hc-bar` is the console pill; it lives inside the existing
+   `.qf-bottombar` strip, which centers it and reserves `--hud-bottom`.
+   ───────────────────────────────────────────────────────────────────────── */
+.hc {
+  --bone:#e8dcc8; --mute:#8a7670; --dim:#5a4a4e; --line:#2e2632; --line2:#3a3140;
+  --blood:#c8334a; --bloodG:#ff4458; --bloodD:#7a1a2a; --gold:#d4a648; --goldB:#ffcb5c;
+  --xp:#4a8fb8; --xpB:#6cc8e8; --poison:#6ba03a; --info:#b78bd9; --rumor:#5cc8d8; --warn:#e89a3c;
+  --bg0:#0d0a12; --bg1:#15111c; --bg2:#1a1622; --ink:#0a0710;
+  /* design accent literals (kept as vars so the rules below stay hex-free) */
+  --hc-go-ic:#84d65a; --hc-blu-ic:#5cb4e6; --hc-coin-hi:#ffe488; --hc-coin-lo:#7a5616; --hc-spd-sh:#4a3010;
+}
+.hc-bar {
+  position: relative; pointer-events: auto; box-sizing: border-box;
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  zoom: 1.5;
+  border-radius: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--armc, var(--blood)) 80%, transparent);
+  border-top: 3px solid var(--armc, var(--blood));
+  background: var(--bg2);
+  box-shadow: inset 0 0 0 1px var(--ink), inset 0 0 0 2px var(--line2), 0 4px 0 rgba(0,0,0,.45);
+}
+.hc-sec { display: flex; align-items: center; gap: 4px; }
+.hc-sep { width: 1px; align-self: stretch; margin: 2px 5px;
+  background: linear-gradient(180deg, transparent, var(--line2) 28%, var(--line2) 72%, transparent); }
+/* shared pixel button — inline icon+label, bevel, sheen sweep, press */
+.hc-btn { position: relative; overflow: hidden; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer;
+  font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--bone);
+  background: var(--bg1); border: 1px solid var(--line2); border-radius: 2px; padding: 9px 13px;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 rgba(0,0,0,.6);
+  transition: transform 80ms cubic-bezier(.2,.8,.2,1), background 140ms, border-color 140ms, box-shadow 140ms, color 140ms, filter 100ms; }
+.hc-btn::before { content:''; position:absolute; top:0; bottom:0; left:-60%; width:38%; transform:skewX(-20deg); pointer-events:none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.09), transparent); transition: left .5s ease; }
+.hc-btn:hover::before { left:140%; }
+.hc-btn:hover { background: color-mix(in srgb, var(--bg2) 78%, #fff 7%); border-color: var(--mute); }
+.hc-btn:active { transform: translateY(2px) scale(.98); filter: brightness(1.25) saturate(1.2); transition-duration: 40ms;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 1px 0 rgba(0,0,0,.6); }
+.hc-bi { font-size: 13px; line-height: 1; color: var(--blood); display: inline-flex; }
+.hc-bi.poison { color: var(--poison); } .hc-bi.warn { color: var(--warn); } .hc-bi.rumor { color: var(--rumor); }
+.hc-bi.gold { color: var(--goldB); } .hc-bi.muted { color: var(--mute); } .hc-bi.info { color: var(--info); } .hc-bi.blood { color: var(--blood); }
+.hc-btn.on { background: color-mix(in srgb, var(--armc, var(--blood)) 40%, var(--ink)); border-color: var(--armc, var(--blood)); color: #fff; }
+.hc-btn.on .hc-bi { color: #fff; }
+/* per-action icon colors */
+.hc-t-place .hc-bi { color: var(--blood); } .hc-t-move .hc-bi { color: var(--rumor); }
+.hc-t-upgrade .hc-bi { color: var(--info); } .hc-t-sell .hc-bi { color: var(--warn); }
+.hc-t-inspect .hc-bi { color: var(--rumor); } .hc-t-rally .hc-bi { color: var(--blood); }
+.hc-begin .hc-bi { color: var(--poison); }
+.act-go .hc-bi { color: var(--poison); } .act-blu .hc-bi { color: var(--xpB); } .act-gold .hc-bi { color: var(--gold); }
+.hc-bar .hc-svg { width: 13px; height: 13px; display: block; filter: drop-shadow(0 1px 0 rgba(0,0,0,.45)); }
+.hc-btn .nu { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; background: var(--poison); box-shadow: 0 0 5px var(--poison); }
+.hc-cost { display: inline-flex; align-items: center; gap: 3px; margin-left: 1px; color: var(--goldB); }
+.hc-cost i { width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, var(--hc-coin-hi), var(--gold) 60%, var(--hc-coin-lo)); }
+.hc-btn.act-go { background: color-mix(in srgb, var(--poison) 42%, var(--ink)); border-color: var(--poison); color: #fff; }
+.hc-btn.act-go .hc-bi { color: var(--hc-go-ic); }
+.hc-btn.act-blu { background: color-mix(in srgb, var(--rumor) 38%, var(--ink)); border-color: var(--rumor); color: #fff; }
+.hc-btn.act-blu .hc-bi { color: var(--hc-blu-ic); }
+.hc-btn.act-gold { background: color-mix(in srgb, var(--gold) 42%, var(--ink)); border-color: var(--goldB); color: #fff; }
+.hc-btn.act-gold .hc-bi { color: #fff; }
+.hc-btn.cant { opacity: .5; filter: saturate(.45); cursor: not-allowed; }
+.hc-btn.cant .hc-cost { color: var(--bloodG); }
+/* BEGIN-DAY blocked state — the button itself says WHY it can't start */
+.hc-blocked { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--bg1)); border-color: color-mix(in srgb, var(--warn) 60%, var(--line2)); cursor: not-allowed; }
+.hc-blocked .hc-bi { color: var(--warn); }
+.hc-blocked:hover { background: color-mix(in srgb, var(--warn) 14%, var(--bg1)); border-color: color-mix(in srgb, var(--warn) 60%, var(--line2)); }
+.hc-blocked:active { transform: none; filter: none; }
+/* BEGIN DAY primary */
+.hc-begin { color: #fff; background: linear-gradient(180deg, var(--blood), var(--bloodD)); border-color: var(--bloodG);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.14), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 color-mix(in srgb, var(--bloodD) 80%, #000);
+  animation: hc-pulseglow 2.4s ease-in-out infinite; }
+.hc-begin .hc-bi { color: #fff; }
+.hc-begin:hover { background: linear-gradient(180deg, var(--bloodG), var(--blood)); }
+@keyframes hc-pulseglow {
+  0%,100% { box-shadow: inset 1px 1px 0 rgba(255,255,255,.14), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 color-mix(in srgb,var(--bloodD) 80%,#000), 0 0 0 rgba(255,68,88,0); }
+  50%     { box-shadow: inset 1px 1px 0 rgba(255,255,255,.14), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 color-mix(in srgb,var(--bloodD) 80%,#000), 0 0 18px rgba(255,68,88,.5); }
+}
+/* speed selector (day) */
+.hc-spd { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 0 4px; }
+.hc-spd-lbl { font-family: 'Silkscreen','Press Start 2P',monospace; font-size: 7px; letter-spacing: .2em; color: var(--mute); }
+.hc-spd-btns { display: inline-flex; gap: 2px; }
+.hc-spdb { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--mute); cursor: pointer; padding: 9px 9px; border-radius: 2px;
+  background: var(--bg1); border: 1px solid var(--line2);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 rgba(0,0,0,.6);
+  transition: transform 80ms cubic-bezier(.2,.8,.2,1), background 120ms, color 120ms, box-shadow 120ms; }
+.hc-spdb:not(.on):hover { color: var(--bone); background: color-mix(in srgb, var(--bg2) 78%, #fff 7%); }
+.hc-spdb:active { transform: translateY(2px) scale(.98); filter: brightness(1.25); transition-duration: 40ms;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 1px 0 rgba(0,0,0,.6); }
+.hc-spdb.on { color: var(--ink); background: var(--gold); border-color: var(--goldB); text-shadow: 1px 1px 0 var(--hc-spd-sh);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.2), inset -1px -1px 0 rgba(0,0,0,.4), 0 3px 0 color-mix(in srgb, var(--gold) 50%, #000); }
+.hc-spdcue { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--goldB); text-shadow: 0 0 8px rgba(255,203,92,.6); pointer-events: none; white-space: nowrap; animation: hc-cue .65s ease-out forwards; }
+@keyframes hc-cue { 0%{opacity:0; transform: translate(-50%,4px)} 22%{opacity:1} 100%{opacity:0; transform: translate(-50%,-13px)} }
+/* boss day-active slot (BossArchetypeStrip mounts EARTHQUAKE/SACRIFICE here) */
+.hc-bar .qf-bb-archetype-slot { display: inline-flex; align-items: center; gap: 4px; }
+.hc-bar .qf-bb-archetype-slot:empty { display: none; }
+
 /* Skinnier bar buttons than the default .btn (matches the design's action bar). */
 .qf-bottombar .btn { font-size: 9px; letter-spacing: .05em; padding: 9px 13px; }
 
