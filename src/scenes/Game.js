@@ -338,18 +338,21 @@ export class Game extends Phaser.Scene {
     // feature flag (default OFF) so the current endless game is untouched until
     // the act campaign is built out. Tracks act state + fires ACT_STARTED /
     // ACT_CLEARED / RUN_VICTORY off the day-advance.
-    if (isActsEnabled(this.gameState)) this.actSystem = track(new ActSystem(this, this.gameState))
+    // Ternary (not `if`) so the OFF branch explicitly NULLs the field — Phaser
+    // reuses this scene instance across runs, so a bare `if` would leave a stale
+    // (destroyed) reference from a prior campaign run alive in a later endless run.
+    this.actSystem = isActsEnabled(this.gameState) ? track(new ActSystem(this, this.gameState)) : null
     // Aldric — the recurring Nemesis (KR P2). Tracks his per-act escalation +
     // fires NEMESIS_* taunts. Spawn integration + right-side rival portrait
     // build on this. Same `acts` gate as ActSystem.
-    if (isActsEnabled(this.gameState)) this.nemesisSystem = track(new NemesisSystem(this, this.gameState))
+    this.nemesisSystem = isActsEnabled(this.gameState) ? track(new NemesisSystem(this, this.gameState)) : null
     // The drafted middle (KR P4). Drafts a Kingdom Response when Act II / III
     // begins + fires KINGDOM_RESPONSE_DRAWN for the announce set-piece and the
     // per-response gimmicks. Same `acts` gate.
-    if (isActsEnabled(this.gameState)) this.kingdomResponseSystem = track(new KingdomResponseSystem(this, this.gameState))
+    this.kingdomResponseSystem = isActsEnabled(this.gameState) ? track(new KingdomResponseSystem(this, this.gameState)) : null
     // The deep per-response modifiers (KR P4) — the rule-bending signature
     // mechanics (Forlorn fury, Pantheon zones, etc.). Same `acts` gate.
-    if (isActsEnabled(this.gameState)) this.kingdomModifierSystem = track(new KingdomModifierSystem(this, this.gameState))
+    this.kingdomModifierSystem = isActsEnabled(this.gameState) ? track(new KingdomModifierSystem(this, this.gameState)) : null
     // Dev VFX sandbox (window.__qfDev) — cheat-name gated. Scriptable spawning of
     // test minions/traps + champion-raid firing so the Kingdom-Response set-pieces
     // can be verified without hand-playing a run. See src/dev/DevSandbox.js.
@@ -363,9 +366,11 @@ export class Game extends Phaser.Scene {
     // Live-run leaderboard heartbeat (2026-05-25). Upserts a 'live'
     // row to Supabase on NIGHT_PHASE_STARTED + run start so other
     // players can see the run in progress on the leaderboard. Fire-
-    // and-forget; network failures swallowed. Remove the construct line
-    // to disable the feature entirely.
-    this.liveRunPublisher    = track(new LiveRunPublisher(this, this.gameState))
+    // and-forget; network failures swallowed.
+    // ENDLESS-ONLY: the leaderboard ranks days-survived, which is the endless
+    // metric; campaign is a fixed win-condition run (judged by victory + NG+),
+    // so campaign runs never publish (the finished/abandoned submits are gated too).
+    this.liveRunPublisher = isActsEnabled(this.gameState) ? null : track(new LiveRunPublisher(this, this.gameState))
     // Phase 1b — per-archetype headline mechanics (Orc Loot the Fallen, etc).
     this.bossArchetypeSystem = track(new BossArchetypeSystem(this, this.gameState))
     this._evolutionSystem    = this.evolutionSystem  // alias for MinionInspector lookup

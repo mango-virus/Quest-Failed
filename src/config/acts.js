@@ -110,14 +110,27 @@ export function currentActResponseId(gameState) {
   return a?.responses?.[a?.current] ?? null
 }
 
-// The act the run is CURRENTLY in — the source of truth over actForDay(day).
-// Normally tracks meta.act.current (ActSystem sets it on each clear), falling
-// back to the day-derived act before act state exists. This matters because of
-// P3 OVERTIME: when a drafted act's Champion survives its final day, the act
-// stays PINNED here past its nominal day range until the Champion is beaten, so
-// the boss tier, the active response, and the spawn dispatch must all read this
-// rather than recomputing the act from the (now-ahead) day number.
+// Boss tier (1..ACT_COUNT) for an ENDLESS run — derived from the boss's LEVEL,
+// not the day (endless has no acts). Tier 1 below the first threshold, then +1 per
+// threshold crossed (Balance.BOSS_ENDLESS_TIER_LEVELS = the levels at which tier
+// reaches 2 / 3 / 4). So the boss ascends + tiers up its abilities as it levels.
+export function endlessTierForLevel(level) {
+  const L = Math.max(1, level | 0)
+  const th = Balance.BOSS_ENDLESS_TIER_LEVELS ?? [4, 7, 10]
+  let tier = 1
+  for (let i = 0; i < th.length && i < ACT_COUNT - 1; i++) if (L >= th[i]) tier = i + 2
+  return Math.max(1, Math.min(ACT_COUNT, tier))
+}
+
+// The boss's current TIER — the single source for ascension form, ability scaling,
+// and the visual sprite tier, in BOTH modes:
+//   • CAMPAIGN: the act the run is in. Tracks meta.act.current (ActSystem sets it
+//     on each clear), falling back to the day-derived act before act state exists.
+//     P3 OVERTIME pins it past the nominal day range until the Champion falls, so
+//     boss tier / active response / spawn dispatch don't recompute from the day.
+//   • ENDLESS: no acts — derived from the boss LEVEL (endlessTierForLevel).
 export function currentAct(gameState) {
+  if (!isActsEnabled(gameState)) return endlessTierForLevel(gameState?.boss?.level ?? 1)
   const a = gameState?.meta?.act?.current
   if (Number.isFinite(a)) return Math.max(1, Math.min(ACT_COUNT, a))
   return actForDay(gameState?.meta?.dayNumber ?? 1)
@@ -133,16 +146,18 @@ export function isActOvertime(gameState) {
 // Per-act boss form names (T1..T4), indexed by tier.
 const ASCENSION_FORMS = ['', 'Nascent', 'Risen', 'Dread', 'Ascended']
 
-// Boss "dark ascension" state for the current act — the ONE source every UI
-// surface (boss overview panel, top-bar badge, …) reads, so they never drift.
-// Returns null when acts are off. `tier` (1..4) = the act number = the boss's
-// current evolved form. The bonuses are the CUMULATIVE surge the boss carries
-// vs its Act-I baseline (compounding per act; mirrors the multiplier applied in
+// Boss "dark ascension" state — the ONE source every UI surface (boss overview
+// panel, top-bar badge, …) reads, so they never drift. `tier` (1..4) = the boss's
+// current evolved form: the ACT in campaign, the LEVEL-derived tier in endless
+// (currentAct handles the split). The bonuses are the CUMULATIVE surge the boss
+// carries vs its tier-1 baseline (mirrors the multiplier in
 // BossSystem._recomputeBossFightStats), so the panel can answer "what has
-// ascending earned me" at a glance.
+// ascending earned me" at a glance. Returns null only with no run.
 export function ascensionInfo(gameState) {
-  if (!isActsEnabled(gameState)) return null
-  const tier = currentAct(gameState)   // pinned in overtime — boss doesn't ascend until cleared
+  // Works in BOTH modes now: campaign tiers by act, endless tiers by boss level
+  // (currentAct handles the split). Returns null only with no run/boss to read.
+  if (!gameState) return null
+  const tier = currentAct(gameState)   // campaign: pinned in overtime · endless: by level
   const e    = tier - 1
   const hpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, e)
   const atkMul = Math.pow(Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20, e)

@@ -120,9 +120,14 @@ export const Balance = {
 
   // Boss Ascension (KR P6) — compounding surge per act in the Kingdom's
   // Reckoning campaign. Tier = act-1, so Act II ×1.28 HP, Act III ×1.64,
-  // Act IV ×2.10 (atk: ×1.20 / ×1.44 / ×1.73). Acts-off games never apply it.
+  // Act IV ×2.10 (atk: ×1.20 / ×1.44 / ×1.73).
   BOSS_ASCENSION_HP_MUL:     1.28,
   BOSS_ASCENSION_ATK_MUL:    1.20,
+  // ENDLESS mode has no acts, so the boss ascends + tiers up its abilities by
+  // LEVEL instead. These are the boss levels at which it reaches tier 2 / 3 / 4
+  // (apex). Mirrors the campaign pace (apex ~lv 10 ≈ campaign day 40). Tier 1 is
+  // every level below the first threshold. Tunable — stretch for a longer climb.
+  BOSS_ENDLESS_TIER_LEVELS:  [4, 7, 10],
   // Dark-ascension chamber aura — escalating sear on adventurers near the
   // ascended boss. Per-second damage = (base + lv×perLv) × tier, every tick.
   BOSS_ASCENSION_AURA_RADIUS_PX: 132,   // ~4 tiles around the boss

@@ -170,10 +170,11 @@ export class VictoryScreen {
         this._detail(),
         this._unlock(nextTier, freshUnlock),
         h('div', { className: 'qf-victory-actions' }, [
-          h('button', { className: 'btn primary', on: { click: () => this._continueEndless() } },
-            'CONTINUE · ETERNAL REIGN'),
           h('button', { className: 'btn', on: { click: () => this._openFullLog() } }, 'FULL LOG'),
-          h('button', { className: 'btn', on: { click: () => this._returnToMenu() } },
+          // Endless is its OWN mode now (chosen on Mode Select) — a won campaign
+          // doesn't bleed into it; the run ENDS here. New Game+ is started fresh
+          // from the menu (the boss-select NG+ chip defaults to the earned tier).
+          h('button', { className: 'btn primary', on: { click: () => this._returnToMenu() } },
             'RETURN TO MENU'),
         ]),
       ]),
@@ -288,15 +289,6 @@ export class VictoryScreen {
       onClose: () => { this._fullLog = null },
     })
     this._fullLog.open()
-  }
-
-  // CONTINUE — the run keeps going past day 40 (acts clamp to the final act;
-  // meta.act.won guards a re-fire). Endless reign for the leaderboard.
-  _continueEndless() {
-    if (this._gs?.meta) this._gs.meta.endlessReign = true
-    EventBus.emit('RUN_CONTINUE_ENDLESS')
-    EventBus.emit('RUN_VICTORY_DISMISSED')
-    this._fadeOut()
   }
 
   // RETURN TO MENU — end the run, mirroring GameOverOverlay's scene teardown.

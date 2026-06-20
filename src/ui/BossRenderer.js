@@ -22,7 +22,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
-import { isActsEnabled, currentAct } from '../config/acts.js'
+import { currentAct } from '../config/acts.js'
 import { AbilityVfx } from './AbilityVfx.js'
 
 // Sprites render at their native frame size × BOSS_SPRITE_SCALE. 64-frame
@@ -419,25 +419,21 @@ export class BossRenderer {
     this._claimedTinted = true
   }
 
-  // ── Evolution: act-driven tier → sprite key ─────────────────────────────
+  // ── Evolution: tier → sprite key ─────────────────────────────────────────
   //
-  // The tier the boss should be wearing now. Acts off → the canonical form (3;
-  // the tier sheets aren't even loaded, so it resolves to the base sheet — the
-  // boss looks exactly as it always has). Acts on → the act number (1..4).
+  // The tier the boss should be wearing now, 1..4 — from currentAct, which is the
+  // ACT in campaign and the LEVEL-derived tier in endless. So the boss visibly
+  // ascends a form in BOTH modes (tier sheets are loaded unconditionally now;
+  // bosses without a given tier sheet fall back to the base sheet).
   _computeTier() {
-    if (!isActsEnabled(this._gameState)) return 3
-    // currentAct (not the day) so the boss DOESN'T ascend during P3 overtime —
-    // it grows a form only when an act is actually cleared.
+    // currentAct pins through P3 overtime in campaign, so the boss grows a form
+    // only when an act is actually cleared (not mid-overtime).
     return Math.max(1, Math.min(4, currentAct(this._gameState)))
   }
 
-  // A small sprite-scale bump per ASCENSION so the boss visibly grows as it
-  // climbs the acts. Acts off → the tier pins to canonical (3) with no ascension,
-  // so it returns 1 (the boss stays exactly the size it's always been in endless
-  // mode). Acts on → +BOSS_TIER_GROWTH per tier above the first (T1 1.00, T2 1.05,
-  // T3 1.10, T4 1.15).
+  // A small sprite-scale bump per ASCENSION so the boss visibly grows as it climbs
+  // tiers (T1 1.00, T2 1.05, T3 1.10, T4 1.15) — applies in both modes.
   _tierScale(tier) {
-    if (!isActsEnabled(this._gameState)) return 1
     const ascensions = Math.max(0, Math.min(3, (tier ?? 1) - 1))
     return 1 + ascensions * BOSS_TIER_GROWTH
   }

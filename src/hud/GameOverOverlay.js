@@ -25,6 +25,7 @@ import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { mvpMinion } from './hudShared.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
+import { isActsEnabled } from '../config/acts.js'
 import { GameOverMusic } from '../systems/GameOverMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { classLabel, minionLabel } from '../util/displayNames.js'
@@ -81,6 +82,9 @@ export class GameOverOverlay {
   _submitRun() {
     if (this._submitted) return
     this._submitted = true
+    // Leaderboard is ENDLESS-ONLY (days-survived ranking). Campaign deaths don't
+    // publish — campaign is judged by victory / NG+, not the survival board.
+    if (isActsEnabled(this._gameState)) return
     try {
       const gs     = this._gameState ?? {}
       const tot    = gs.run?.totals ?? {}

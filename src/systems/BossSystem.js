@@ -2834,14 +2834,13 @@ export class BossSystem {
     // applyMinionScaling's altar-minion-buff hook.
     const altarBuff = this._gameState?.player?._altarBossStatBuff ?? 0
     const altarMul  = 1 + altarBuff
-    // Boss Ascension (KR P6 "dark ascension") — each act the boss absorbs the
-    // fallen kingdom's power and surges. Tier = acts beyond the first (Act II→1,
-    // III→2, IV→3), derived from meta.act.current so it survives save/load with
-    // no separate counter and is a clean no-op when acts are off (meta.act
-    // undefined → tier 0 → ×1). Compounding HP + attack, applied in the same
-    // multiplicative chain as the altar buff so it persists across every
-    // level-up rescale and fight refresh.
-    const ascTier   = Math.max(0, (this._gameState?.meta?.act?.current ?? 1) - 1)
+    // Boss Ascension ("dark ascension") — the boss absorbs power and surges as it
+    // climbs tiers. Tier beyond the first = the surge count (tier 2→1, 3→2, 4→3),
+    // via currentAct: in CAMPAIGN that's the act (II→1, III→2, IV→3); in ENDLESS it's
+    // the LEVEL-derived tier (so the boss ascends by level, not day). Compounding HP
+    // + attack, applied in the same multiplicative chain as the altar buff so it
+    // persists across every level-up rescale + fight refresh.
+    const ascTier   = Math.max(0, currentAct(this._gameState) - 1)
     const ascHpMul  = Math.pow(Balance.BOSS_ASCENSION_HP_MUL  ?? 1.28, ascTier)
     const ascAtkMul = Math.pow(Balance.BOSS_ASCENSION_ATK_MUL ?? 1.20, ascTier)
     // Pact stat modifiers (per-stat multipliers from flags):
