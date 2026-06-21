@@ -31,6 +31,7 @@ const ART_ALLOWLIST = new Set([
   'sprites.js',
   'inGameSnapshot.js',
   'NemesisPortrait.js',
+  'modeSelectArt.js',   // SVG medallion/portal/ring/glyph/torch art (retintable accents use var(--ac))
 ])
 
 const HEX_RE       = /#[0-9a-fA-F]{3,8}\b/g

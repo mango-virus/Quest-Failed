@@ -2591,6 +2591,34 @@ Each cleared act, the player's boss **visibly transforms/ascends** — a new for
 - **Loss** unchanged: boss dies 3× at any point → Game Over.
 - Existing scripted events (Zombie Horde, Solo Leveling, Light Party, Treasure Raid, etc.) still fire *within* acts as flavor/variety, layered on top of the act framework.
 
+### Mode Select — "Choose Your Path" (visual redesign, 2026-06-21)
+
+The mode picker (NEW EVIL → **ModeSelect** → CompanionSelect) was rebuilt to a
+high-fidelity design handoff ("Choose Your Path"): two hero **gate cards** — each
+a runic medallion set into a carved stone doorway with jamb runes, pixel
+wall-torches, and a per-mode particle motif (Campaign = rising war-embers + an
+engraved **rune-halo** ring + crossed-swords glyph; Endless = orbiting motes + an
+interlocking **iron-chain** ring + infinity glyph). Hover/focus/active lights the
+gate and animates the medallion. Reaching this screen always starts a **fresh
+run** (Continue/Resume lives on the Main Menu), so both cards read **"Begin"**
+(Begin the Reckoning / Raise the Siege) with informational **record chips** driven
+by real profile data — Campaign shows "Reckoning won · NG+N ready" once the
+campaign has been cleared (`PlayerProfile.getReckoningTier()`); Endless shows
+"Best · N days held" (`AchievementSystem` metric `daysSurvivedMax`), each hidden
+when there's no data. Implemented in `src/hud/ModeSelectOverlay.js` +
+`src/hud/modeSelectArt.js` (SVG art) + `src/hud/modeSelect.css`.
+
+Below each mode sits a **teaser card** for a future mode:
+- **New Game +** ("The Deeper Dark") — already a real feature (the Reckoning NG+
+  tier, chosen at boss-select). Sealed until the campaign is won; once unsealed it
+  shows an accent-tinted "available" treatment with a ✦ New badge and launches a
+  Campaign run.
+- **Challenge Mode** ("The Gauntlet") — *re-teased as a PLANNED mode.* "Curated
+  trials with brutal modifiers and a single life." NOTE: this revives the
+  challenge-run concept struck on 2026-04-28 (above) — but **only as a sealed
+  teaser**, not yet built. Sealed card shows an unlock-progress bar (days held in
+  Endless, target 50). Building it out is future work; the card promises it.
+
 ### Open specifics to finalize during build
 
 - Exact per-act day counts (default 10/10/10/10) and wave-scaling re-tuning around the act boundaries.
