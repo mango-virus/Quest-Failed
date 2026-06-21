@@ -917,11 +917,13 @@
         "id": "starter_barracks",
         "name": "Barracks",
         "category": "starter",
-        "width": 12,
+        "width": 14,
         "height": 10,
         "tileLayout": [
             [
-                "corner",
+                null,
+                null,
+                null,
                 null,
                 "wall_l",
                 null,
@@ -949,13 +951,14 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
+                null,
+                null,
+                null,
                 null,
                 "floor18",
                 null,
@@ -989,13 +992,14 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
+                null,
+                null,
+                null,
                 null,
                 "floor18",
                 null,
@@ -1026,13 +1030,14 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
+                null,
+                null,
+                null,
                 null,
                 {
                     "id": "floor18",
@@ -1066,13 +1071,14 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
+                null,
+                null,
+                null,
                 null,
                 {
                     "id": "wall_r",
@@ -1101,6 +1107,8 @@
                 null
             ],
             [
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -1150,7 +1158,13 @@
         "flavorText": "The bones rest cheap.",
         "theme": null,
         "doorTheme": null,
-        "backgroundImage": "12x10"
+        "backgroundImage": "gemini_generated_image_odh4q8odh4q8odh4_7",
+        "backgroundImagePool": [
+            "gemini_generated_image_odh4q8odh4q8odh4_7",
+            "gemini_generated_image_odh4q8odh4q8odh4_2",
+            "gemini_generated_image_odh4q8odh4q8odh4_5",
+            "gemini_generated_image_odh4q8odh4q8odh4_6"
+        ]
     },
     {
         "id": "starter_guard_post",

@@ -390,9 +390,6 @@
     "trap_factory1": {
       "file": "assets/themes/roomskins/trap_factory1.png"
     },
-    "6x12": {
-      "file": "assets/themes/roomskins/6x12.png"
-    },
     "12x12_3": {
       "file": "assets/themes/roomskins/12x12_3.png"
     },
@@ -437,6 +434,24 @@
     },
     "12x12": {
       "file": "assets/themes/roomskins/12x12.png"
+    },
+    "gemini_generated_image_odh4q8odh4q8odh4_7": {
+      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_7.png"
+    },
+    "gemini_generated_image_odh4q8odh4q8odh4_6": {
+      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_6.png"
+    },
+    "gemini_generated_image_odh4q8odh4q8odh4_5": {
+      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_5.png"
+    },
+    "gemini_generated_image_odh4q8odh4q8odh4_2": {
+      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_2.png"
+    },
+    "6x12": {
+      "file": "assets/themes/roomskins/6x12.png"
+    },
+    "16x16": {
+      "file": "assets/themes/roomskins/16x16.png"
     }
   },
   "doorSkins": {
