@@ -27,6 +27,7 @@
 // All defaults source variants from the room's currently-assigned theme.
 
 import { RoomEditorOverlay, EDITOR_LAYOUT } from '../hud/RoomEditorOverlay.js'
+import { effectiveUiScale } from '../hud/stageScale.js'
 import { FsHandle }      from '../systems/FsHandle.js'
 import { EventBus }      from '../systems/EventBus.js'
 import { Balance }       from '../config/balance.js'
@@ -283,24 +284,27 @@ export class RoomTileEditor extends Phaser.Scene {
 
   _reapplyCamera() { this._applyEditorCamera(); this._overlay?.onResize?.() }
 
-  // Camera that matches the DOM stageScale transform exactly: a fixed
-  // 1920×1080 logical space, fit-scaled to the window and centred. Pairing
-  // setZoom(s) with centerOn(960,540) reproduces stageScale's
-  // `translate(-50%,-50%) scale(s)` so a logical point in the overlay maps to
-  // the same screen pixel the camera paints — that shared space is what lets
-  // the DOM chrome frame the Phaser paint canvas pixel-for-pixel.
+  // Camera + DOM scale for the editor's fixed 1920×1080 design space.
+  //
+  // The Phaser canvas is native-res (Scale.RESIZE), so the camera fits the design
+  // to the FULL device window: setZoom(s) + centerOn(960,540), s = device-fit.
+  //
+  // The DOM chrome (.qf-redit) lives INSIDE #hud-stage, which stageScale already
+  // zooms by `uiScale`. So the DOM's own fit factor must be the device-fit DIVIDED
+  // by that zoom (`s / uiScale`) — otherwise the editor DOUBLE-scales (4× at 4K /
+  // uiScale-2, too small at sub-1× like 720p/Deck). At uiScale 1 this equals `s`,
+  // so 1080p / 1440p / ultrawide are unchanged. The two then land pixel-for-pixel.
   _applyEditorCamera() {
     const cam = this.cameras.main
     const sw = this.scale.width, sh = this.scale.height
-    if (sw < 32 || sh < 32) { this.uiW = 1920; this.uiH = 1080; this.uiSf = 1; this._setReditSf(1); return }
+    const ui = effectiveUiScale() || 1
+    if (sw < 32 || sh < 32) { this.uiW = 1920; this.uiH = 1080; this.uiSf = 1; this._setReditSf(1 / ui); return }
     const s = Math.min(sw / 1920, sh / 1080)
     cam.setBackgroundColor(COL_BG)
     cam.setZoom(s)
     cam.centerOn(1920 / 2, 1080 / 2)
     this.uiW = 1920; this.uiH = 1080; this.uiSf = s
-    // Mirror the camera's fit-scale onto the DOM overlay so chrome + grid align
-    // (see .qf-redit `scale(var(--redit-sf))`). Updated on every resize.
-    this._setReditSf(s)
+    this._setReditSf(s / ui)
   }
 
   _setReditSf(s) {
