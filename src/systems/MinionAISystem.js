@@ -66,10 +66,7 @@ export class MinionAISystem {
     this._gameState = gameState
     this._dungeonGrid = dungeonGrid
     this._combatSystem = combatSystem
-    // Phase 6e:
-    //   _wokenRooms — barracks-style rooms where combat has started (minions sleep until then)
-    //   _alertedRooms — rooms whose minions are alerted (hall_of_echoes propagation)
-    this._wokenRooms = new Set()
+    // _alertedRooms — rooms whose minions are alerted (hall_of_echoes propagation)
     this._alertedRooms = new Map()  // roomId → expiresAt (scene.time.now)
 
     // Night-wander freeze: while the player is in a sell/move/upgrade tool, the
@@ -214,11 +211,10 @@ export class MinionAISystem {
   }
 
   _resetRoomState() {
-    this._wokenRooms.clear()
     this._alertedRooms.clear()
   }
 
-  // Combat in a barracks wakes everyone there.
+  // Retaliation tracking on combat hits.
   // [Removed 2026-04-30] Hall of Echoes cross-room alert — room retired.
   _onCombatHit({ sourceId, targetId, roomId: hintRoomId }) {
     const source = this._gameState.adventurers.active.find(a => a.instanceId === sourceId)
@@ -237,44 +233,6 @@ export class MinionAISystem {
       target._lastHitBy = sourceId
       target._lastHitAt = this._scene.time?.now ?? 0
     }
-
-    // Wake barracks-style rooms on first combat. Check BOTH the attacker's
-    // and the target's room so a sleepy barracks-minion still wakes when
-    // hit from outside the barracks (e.g. by a ranged adv shooting in).
-    for (const t of [source, target]) {
-      if (!t) continue
-      const room = this._dungeonGrid.getRoomAtTile(t.tileX, t.tileY)
-      if (!room) continue
-      if (room.definitionId === 'starter_barracks' || room.definitionId === 'barracks') {
-        this._wokenRooms.add(room.instanceId)
-      }
-    }
-  }
-
-  _isRoomSleeping(room) {
-    // Phase 6e: starter_barracks sleeps until either (a) combat fires in
-    // the room (handled by _onCombatHit) OR (b) a live, non-invisible
-    // adventurer is currently INSIDE the room. The latter is the
-    // intended "wake on intrusion" behavior — minions shouldn't let an
-    // adv stroll past them in their own quarters and only react once
-    // they've been hit. Invisible (Rogue) advs still slip through
-    // undetected, matching the boss-targeting rule.
-    const sleepy = room.definitionId === 'starter_barracks' || room.definitionId === 'barracks'
-    if (!sleepy) return false
-    if (this._wokenRooms.has(room.instanceId)) return false
-    const advs = this._gameState?.adventurers?.active ?? []
-    for (const a of advs) {
-      if (!a || a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
-      if (a._invisible || a._underground) continue   // invisible rogue / burrowed miner — not present to wake the room
-      if (a.tileX >= room.gridX && a.tileX < room.gridX + room.width &&
-          a.tileY >= room.gridY && a.tileY < room.gridY + room.height) {
-        // Latch awake so subsequent ticks don't re-scan, and so the room
-        // stays alert for the rest of the day even if the adv leaves.
-        this._wokenRooms.add(room.instanceId)
-        return false
-      }
-    }
-    return true
   }
 
   _isRoomAlerted(roomId) {
@@ -788,30 +746,24 @@ export class MinionAISystem {
       if (isEnt && minion.stats) minion.stats.speed = realSpeed
     }
 
-    // Phase QW — Sleeping in barracks: idle minions assigned to a
-    // starter_barracks regen 0.5 HP/sec when no adventurers are visible.
-    // When an adventurer enters their home room they wake up immediately
-    // (the targeting block below picks up the threat).
-    //
-    // Room redesign 2026-04-30 — Sanctum aura: same regen applies to
-    // minions whose home room is directly door-connected to a Sanctum.
+    // Sanctum aura (Room redesign 2026-04-30): idle minions whose home room is
+    // directly door-connected to a Sanctum slowly regen HP when no adventurer is
+    // standing in the room. (The old barracks "sleep + regen" behaviour was
+    // removed 2026-06-21 by user request — a barracks now only grants minion
+    // slots; minions placed there aggro normally like any other room.)
     if (minion.aiState === 'idle' &&
         minion.resources.hp < minion.resources.maxHp &&
         minion.faction === 'dungeon') {
       const home = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
-      if (home) {
-        const isBarracks = home.definitionId === 'starter_barracks'
-        const isSanctumAura = !isBarracks && this._isAdjacentToSanctum(home.instanceId)
-        if (isBarracks || isSanctumAura) {
-          const anyHostileNearby = this._gameState.adventurers.active.some(a =>
-            a.aiState !== 'dead' && _pointInRoom(a.tileX, a.tileY, home)
+      if (home && this._isAdjacentToSanctum(home.instanceId)) {
+        const anyHostileNearby = this._gameState.adventurers.active.some(a =>
+          a.aiState !== 'dead' && _pointInRoom(a.tileX, a.tileY, home)
+        )
+        if (!anyHostileNearby) {
+          minion.resources.hp = Math.min(
+            minion.resources.maxHp,
+            minion.resources.hp + (0.5 * delta) / 1000
           )
-          if (!anyHostileNearby) {
-            minion.resources.hp = Math.min(
-              minion.resources.maxHp,
-              minion.resources.hp + (0.5 * delta) / 1000
-            )
-          }
         }
       }
     }
@@ -1156,9 +1108,6 @@ export class MinionAISystem {
 
     const homeRoom = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
     if (!homeRoom) return null
-
-    // Phase 6e: Barracks-style rooms — minions sleep until combat happens here.
-    if (this._isRoomSleeping(homeRoom)) return null
 
     // Doorway pass-through: a minion in a doorway keeps walking and ignores
     // all targets so it doesn't halt mid-passage to fight.

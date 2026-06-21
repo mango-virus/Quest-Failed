@@ -43,7 +43,6 @@ const mkAdv = (o = {}) => ({
 
 const gs = { minions: [], adventurers: { active: [] }, dungeon: { rooms: ROOMS }, _mechanicFlags: {}, run: {} }
 const ai = new MinionAISystem(scene, gs, grid, {})
-ai._isRoomSleeping = () => false
 ai._isRoomAlerted  = () => false
 
 // Pick a target after positioning `adv` in (tx,ty). The per-tick adv bucket is
