@@ -73,7 +73,6 @@ import { CatacombsRenderer } from '../ui/CatacombsRenderer.js'
 import { TreasuryRenderer } from '../ui/TreasuryRenderer.js'
 import { LibraryRenderer } from '../ui/LibraryRenderer.js'
 import { WishingWellRenderer } from '../ui/WishingWellRenderer.js'
-import { TrapFactoryRenderer } from '../ui/TrapFactoryRenderer.js'
 import { HallOfTrialsRenderer } from '../ui/HallOfTrialsRenderer.js'
 import { GuardPostRenderer } from '../ui/GuardPostRenderer.js'
 import { DecorRenderer }      from '../ui/DecorRenderer.js'
@@ -438,7 +437,6 @@ export class Game extends Phaser.Scene {
     this.treasuryRenderer    = track(new TreasuryRenderer(this, this.gameState))
     this.libraryRenderer     = track(new LibraryRenderer(this, this.gameState))
     this.wishingWellRenderer = track(new WishingWellRenderer(this, this.gameState))
-    this.trapFactoryRenderer = track(new TrapFactoryRenderer(this, this.gameState))
     this.hallOfTrialsRenderer = track(new HallOfTrialsRenderer(this, this.gameState))
     this.guardPostRenderer   = track(new GuardPostRenderer(this, this.gameState))
     this.decorRenderer       = track(new DecorRenderer(this, this.gameState))
@@ -2242,7 +2240,6 @@ export class Game extends Phaser.Scene {
       rtick('treasuryRenderer',    () => this.treasuryRenderer?.update(delta))
       rtick('libraryRenderer',     () => this.libraryRenderer?.update(delta))
       rtick('wishingWellRenderer', () => this.wishingWellRenderer?.update(delta))
-      rtick('trapFactoryRenderer', () => this.trapFactoryRenderer?.update(delta))
       rtick('hallOfTrialsRenderer', () => this.hallOfTrialsRenderer?.update(delta))
       rtick('guardPostRenderer',   () => this.guardPostRenderer?.update(delta))
       rtick('decorRenderer',       () => this.decorRenderer?.update())
@@ -2292,7 +2289,6 @@ export class Game extends Phaser.Scene {
       this.treasuryRenderer?.update(delta)
       this.libraryRenderer?.update(delta)
       this.wishingWellRenderer?.update(delta)
-      this.trapFactoryRenderer?.update(delta)
       this.hallOfTrialsRenderer?.update(delta)
       this.guardPostRenderer?.update(delta)
       this.decorRenderer?.update()
