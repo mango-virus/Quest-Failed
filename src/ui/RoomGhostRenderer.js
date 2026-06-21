@@ -20,14 +20,18 @@
 // positions it at the cursor world coords and tints/alpha-fades it for the
 // validity look.
 
-import { ThemeManager, spriteCoverageHW, readCellEntry } from '../systems/ThemeManager.js'
+import { ThemeManager, spriteCoverageHW, readCellEntry, roomSkinTextureKey } from '../systems/ThemeManager.js'
 import { getRotatedDef } from '../util/roomRotation.js'
 import { Balance } from '../config/balance.js'
 
 const TS = Balance.TILE_SIZE
 
 function _themeTextureKey(id) { return `themesprite-${id}` }
-function _roomSkinTexKey(id)  { return `room-skin-${id}` }
+// Canonical room-skin texture key (matches DungeonRenderer + Preload). Was
+// `room-skin-${id}` here, which never matched the loaded `roomskin-${id}`
+// texture — so the ghost silently fell back to tile-layout and never showed the
+// room's skin. Use the shared helper so the two can't drift again.
+const _roomSkinTexKey = roomSkinTextureKey
 
 // Build the ghost. `scene` = the Phaser scene that owns the canvas (typically
 // the Game scene — its DungeonRenderer textures are registered there).

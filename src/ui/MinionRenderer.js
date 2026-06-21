@@ -1451,6 +1451,20 @@ export class MinionRenderer {
     return prefix
   }
 
+  // Build a translucent placement GHOST sprite for a minion def — used by
+  // NightPhase's build-menu placement preview so the player sees the actual
+  // minion under the cursor before they place it. Same idle texture + tier/
+  // display scale as a real minion, so the preview matches what will land.
+  // Static (frame 0, no animation), un-tinted (true colours). Returns null if
+  // the idle texture isn't registered; the CALLER owns + destroys the sprite.
+  buildPlacementGhost(def) {
+    if (!def || !this._scene) return null
+    const idleKey = def.bossSkinId ? `${def.bossSkinId}-idle` : `minion-${def.id}-idle`
+    if (!this._scene.textures.exists(idleKey)) return null
+    const scale = MINION_SCALE * this._tierScaleFor(def.id) * _displayScaleFor(null, def)
+    return this._scene.add.sprite(0, 0, idleKey, 0).setOrigin(0.5).setScale(scale)
+  }
+
   // Scale multiplier for the minion's current evolution tier. Position-based
   // (chain index) so each evolution makes the sprite visibly larger.
   _tierScaleFor(defId) {

@@ -1481,6 +1481,11 @@ export class NightPhase extends Phaser.Scene {
     // theme/skin changes; just repositioned + retinted on cursor moves.
     this._roomGhost = null
     this._roomGhostKey = null
+    // Minion placement GHOST — the ACTUAL minion sprite under the cursor (built
+    // by the Game scene's MinionRenderer). Rebuilt only when the selected def
+    // changes; just repositioned each cursor move.
+    this._minionGhost = null
+    this._minionGhostKey = null
     // Predicted auto-connect doorway glow — soft pulsing gold radial blobs at
     // each predicted door tile (both ends of the seam). Animated by update().
     this._doorGlow = gameScene.add.graphics().setDepth(20.5)
@@ -1529,6 +1534,9 @@ export class NightPhase extends Phaser.Scene {
     this._roomGhost?.destroy()
     this._roomGhost = null
     this._roomGhostKey = null
+    this._minionGhost?.destroy()
+    this._minionGhost = null
+    this._minionGhostKey = null
     this._doorGlow?.clear()
     this._doorGlowTiles = []
     this._previewTileX = -1
@@ -1938,6 +1946,12 @@ export class NightPhase extends Phaser.Scene {
 
     this._preview.clear()
 
+    // Tear down ghosts that don't belong to the current selection kind, so
+    // switching item/kind never leaves an orphaned ghost at the old cursor spot.
+    if (this._selectedKind !== 'room')   { this._roomGhost?.destroy();      this._roomGhost = null; this._roomGhostKey = null }
+    if (this._selectedKind !== 'trap')   { this._previewTrapGhost?.destroy(); this._previewTrapGhost = null }
+    if (this._selectedKind !== 'minion') { this._minionGhost?.destroy();    this._minionGhost = null; this._minionGhostKey = null }
+
     if (this._selectedKind === 'trap') {
       const fp = def.footprint ?? { w: 1, h: 1 }
       const wx = tx * TS, wy = ty * TS
@@ -2001,13 +2015,36 @@ export class NightPhase extends Phaser.Scene {
         this._rotLabel?.setVisible(false)
       }
     } else if (this._selectedKind === 'minion' || this._selectedKind === 'item') {
-      // Single-tile preview for minions and items
+      // Single-tile preview for minions and items.
       const wx = tx * TS
       const wy = ty * TS
-      this._preview.fillStyle(color, fillA)
-      this._preview.fillRect(wx, wy, TS, TS)
-      this._preview.lineStyle(2, color, 0.7)
-      this._preview.strokeRect(wx, wy, TS, TS)
+      // Minions show a translucent GHOST of the ACTUAL minion under the cursor so
+      // the player sees what they're placing before they place it. Built from the
+      // Game scene's MinionRenderer (same texture + scale as the real minion);
+      // rebuilt only when the selected def changes. Items keep the plain rect.
+      if (this._selectedKind === 'minion') {
+        if (this._minionGhostKey !== def.id) {
+          this._minionGhost?.destroy()
+          this._minionGhost = this.scene.get('Game')?.minionRenderer?.buildPlacementGhost?.(def) ?? null
+          this._minionGhost?.setDepth(19.5)
+          this._minionGhostKey = def.id
+        }
+        if (this._minionGhost) {
+          this._minionGhost.setPosition(wx + TS / 2, wy + TS / 2)
+          this._minionGhost.setAlpha(0.62)
+        }
+      }
+      // Validity footprint: a thin outline when the ghost carries the read,
+      // otherwise the solid colour rect (items, or a minion with no texture).
+      if (this._selectedKind === 'minion' && this._minionGhost) {
+        this._preview.lineStyle(2, color, 0.85)
+        this._preview.strokeRect(wx, wy, TS, TS)
+      } else {
+        this._preview.fillStyle(color, fillA)
+        this._preview.fillRect(wx, wy, TS, TS)
+        this._preview.lineStyle(2, color, 0.7)
+        this._preview.strokeRect(wx, wy, TS, TS)
+      }
       this._rotLabel?.setVisible(false)
     } else {
       // Room placement GHOST — render the actual room (tile-layout sprites or
@@ -2619,6 +2656,9 @@ export class NightPhase extends Phaser.Scene {
       const max = DungeonGridClass.effectiveMaxPerDungeon(def, this._gameState.boss?.level ?? 1)
       const atCap = max != null && this._gameState.dungeon.rooms.filter(r => r.definitionId === def.id).length >= max
       this._cancelSelection()
+      // After dropping a FRESH room, hand off to MOVE mode so the player can
+      // immediately reposition it (a move-drop is already in MOVE, so skip).
+      if (!wasMoveDrop) this._setToolMode('move', 'room_placed')
       if (atCap) this._renderActivePalette()
     }
     this._refreshStats()
