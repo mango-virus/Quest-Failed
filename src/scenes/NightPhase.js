@@ -3334,6 +3334,9 @@ export class NightPhase extends Phaser.Scene {
         this._showPlacementError('The Unteachable — your minions cannot be upgraded')
       } else if (evo.tierOf(minion) >= evo.maxTierOf(minion)) {
         this._showPlacementError(`${label} is already at its highest tier`)
+      } else if (evo.isTierTimeLocked?.(minion)) {
+        const n = evo.nightsUntilNextTier(minion)
+        this._showPlacementError(`${label} evolves in ${n} night${n === 1 ? '' : 's'} — not unlocked yet`)
       } else {
         this._showPlacementError(`${label} can't be upgraded`)
       }

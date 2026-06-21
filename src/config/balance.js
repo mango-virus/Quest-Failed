@@ -825,6 +825,14 @@ export const Balance = {
   // buildScaleMul (escalates per tier, pricier than buying fresh; scales with
   // the run). Index = chain position being REACHED (0/1 = root, buildable).
   MINION_UPGRADE_TIER_MULT:     [0, 2.5, 5, 8],
+  // Tier-unlock GATING (2026-06-20). A minion family can only be upgraded to its
+  // next tier once it has been UNLOCKED (boss reached its T1 unlockLevel) for this
+  // many nights — counting the unlock night as night 1. So T2 opens N nights after
+  // unlock, T3 at 2N, T4 at 3N. Anchored per-family, so minions unlocked early
+  // (e.g. starters on day 1 → T2 on day 10) reach high tiers far sooner than
+  // late-unlocked capstones. Nights are linear, unlike the exponential boss-level
+  // curve, so nobody is stranded waiting for an impossible level.
+  MINION_TIER_UNLOCK_NIGHTS:    10,
   // Trap damage scales with boss level so traps keep pace with the
   // toughening adventurer waves — mirrors minion attack scaling.
   // Halved from 0.12 → 0.06 on 2026-05-24 (lv10 lands at ~1.54× base

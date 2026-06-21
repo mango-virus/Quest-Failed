@@ -4242,6 +4242,10 @@ body:has(.htr-rsz:hover) #qf-cursor { opacity: 0 !important; }
 /* tier chip beside the name (replaces the badge that covered the portrait) */
 .rst-tierchip { flex: 0 0 auto; font-family: 'Press Start 2P', monospace; font-size: 6px; letter-spacing: .04em; color: #fff; padding: 2px 5px; text-shadow: 0 1px 0 #000;
   background: color-mix(in srgb, var(--tier) 50%, #0a0710); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tier) 72%, var(--line2)); }
+/* Per-row tier-upgrade state: ▲ = upgrade ready now; "Nn" = nights until it opens. */
+.rst-upok { flex: 0 0 auto; font-size: 8px; line-height: 1; color: var(--poison); text-shadow: 0 0 6px color-mix(in srgb, var(--poison) 70%, transparent); animation: rst-upok-pulse 1.4s ease-in-out infinite; }
+@keyframes rst-upok-pulse { 0%, 100% { opacity: .55; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-1px); } }
+.rst-upwait { flex: 0 0 auto; font-family: 'Silkscreen', monospace; font-size: 6.5px; letter-spacing: .03em; color: var(--mute); padding: 1px 4px; border-radius: 3px; background: color-mix(in srgb, #fff 6%, #0a0710); box-shadow: inset 0 0 0 1px var(--line2); }
 .rst-kind { font-family: 'Silkscreen', monospace; font-size: 8px; letter-spacing: .06em; color: var(--mute); }
 .rst-traits { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
 .rst-trait { font-family: 'Silkscreen', monospace; font-size: 6.5px; letter-spacing: .05em; color: var(--bone); padding: 1px 5px; background: color-mix(in srgb, var(--rar) 12%, #0a0710); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rar) 32%, var(--line2)); }

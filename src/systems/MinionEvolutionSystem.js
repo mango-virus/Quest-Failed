@@ -28,9 +28,98 @@ export class MinionEvolutionSystem {
     this._chains    = scene.cache.json.get('minionEvolutions') ?? {}
     const defs      = scene.cache.json.get('minionTypes') ?? []
     this._defMap    = Object.fromEntries(defs.map(d => [d.id, d]))
+    this._unlockNights = Balance.MINION_TIER_UNLOCK_NIGHTS ?? 10
+    // Each night: record when newly-available families unlocked, then announce
+    // any family whose next tier just opened (so the player knows to upgrade).
+    this._onNight = () => { this._stampUnlockDays(); this._announceTierUnlocks() }
+    EventBus.on('NIGHT_PHASE_STARTED', this._onNight)
+    this._stampUnlockDays()   // seed for the current state (day-1 starters, or a loaded run)
   }
 
-  destroy() {}
+  destroy() { EventBus.off('NIGHT_PHASE_STARTED', this._onNight) }
+
+  // ── Tier-unlock gating (night-based, per family) ────────────────────────────
+  // chain[0] is the family's buildable T1 — its unlockLevel is when the family
+  // becomes available, and the per-family clock starts there.
+  _familyRoot(minion) {
+    const chain = this._chainContaining(minion?.definitionId)
+    return chain ? chain[0] : null
+  }
+  // Stamp the day each family first becomes available (boss reached its T1
+  // unlockLevel). Idempotent — only stamps families with no record yet.
+  _stampUnlockDays() {
+    const gs = this._gameState
+    const bossLv = gs.boss?.level ?? 1
+    const day    = gs.meta?.dayNumber ?? 1
+    gs.minionUnlockDay ??= {}
+    for (const v of Object.values(this._chains)) {
+      const root = Array.isArray(v?.chain) ? v.chain[0] : null
+      if (!root || gs.minionUnlockDay[root] != null) continue
+      if (bossLv >= (this._defMap[root]?.unlockLevel ?? 1)) gs.minionUnlockDay[root] = day
+    }
+  }
+  // Nights elapsed since a minion's family unlocked (unlock night = night 1).
+  _nightsSinceUnlock(minion) {
+    const root = this._familyRoot(minion)
+    const u = this._gameState.minionUnlockDay?.[root]
+    if (u == null) return 0
+    return Math.max(0, (this._gameState.meta?.dayNumber ?? 1) - u + 1)
+  }
+  // Nights a family must have been unlocked to reach a given tier (T2=N, T3=2N…).
+  _nightsForTier(tier) { return this._unlockNights * Math.max(0, tier - 1) }
+  // Is `targetTier` night-unlocked for this minion's family yet?
+  tierUnlockedByNight(minion, targetTier) {
+    return this._nightsSinceUnlock(minion) >= this._nightsForTier(targetTier)
+  }
+  // Nights remaining until this minion's NEXT tier opens (0 = available now).
+  nightsUntilNextTier(minion) {
+    const chain = this._chainContaining(minion?.definitionId)
+    if (!chain) return 0
+    const idx = chain.indexOf(minion.definitionId)
+    if (idx < 0 || idx >= chain.length - 1) return 0   // final tier — nothing to wait for
+    return Math.max(0, this._nightsForTier(idx + 2) - this._nightsSinceUnlock(minion))
+  }
+  // True when the only thing blocking an upgrade is the night-gate (so the UI can
+  // show "Evolves in N nights" rather than hiding the affordance entirely).
+  isTierTimeLocked(minion) {
+    if (!minion || minion.aiState === 'dead') return false
+    const chain = this._chainContaining(minion.definitionId)
+    if (!chain) return false
+    const idx = chain.indexOf(minion.definitionId)
+    if (idx < 0 || idx >= chain.length - 1) return false
+    return !this.tierUnlockedByNight(minion, idx + 2)
+  }
+
+  // Announce (toast) when a family the player OWNS has its next tier come due.
+  // _minionTierSeen[root] = highest tier already announced, so each tier fires once.
+  _announceTierUnlocks() {
+    const gs = this._gameState
+    gs._minionTierSeen ??= {}
+    const owned = {}   // root → { minTier, chainLen, sample }
+    for (const m of gs.minions ?? []) {
+      if (m.aiState === 'dead' || (m.class ?? 'roster') !== 'roster') continue
+      const chain = this._chainContaining(m.definitionId)
+      if (!chain) continue
+      const root = chain[0]
+      const tier = chain.indexOf(m.definitionId) + 1
+      const o = owned[root] ??= { minTier: 99, chainLen: chain.length, sample: m }
+      if (tier < o.minTier) { o.minTier = tier; o.sample = m }
+    }
+    let unlocked = 0
+    for (const [root, o] of Object.entries(owned)) {
+      const nights = this._nightsSinceUnlock(o.sample)
+      const tierNow = Math.min(o.chainLen, 1 + Math.floor(nights / this._unlockNights))
+      if (tierNow < 2 || o.minTier >= tierNow) continue   // no owned minion can use it yet
+      if (tierNow > (gs._minionTierSeen[root] ?? 1)) {
+        gs._minionTierSeen[root] = tierNow
+        const name = this._defMap[root]?.name ?? 'Your minions'
+        EventBus.emit('SHOW_TOAST', { type: 'info', duration: 5500,
+          message: `${name} can now evolve to Tier ${tierNow} — use the UPGRADE tool.` })
+        unlocked++
+      }
+    }
+    if (unlocked > 0) EventBus.emit('MINION_TIER_UNLOCKED', { count: unlocked })
+  }
 
   // Look up the chain that contains the given def id.
   _chainContaining(defId) {
@@ -74,7 +163,9 @@ export class MinionEvolutionSystem {
     const chain = this._chainContaining(minion.definitionId)
     if (!chain) return false
     const idx = chain.indexOf(minion.definitionId)
-    return idx >= 0 && idx < chain.length - 1
+    if (idx < 0 || idx >= chain.length - 1) return false
+    // Night-gate: the family must have been unlocked long enough for the next tier.
+    return this.tierUnlockedByNight(minion, idx + 2)
   }
 
   // ── Gold-gated upgrade ──────────────────────────────────────────────────────

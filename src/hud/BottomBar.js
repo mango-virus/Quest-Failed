@@ -128,9 +128,9 @@ export class BottomBar {
       h('div', { className: 'hc-sec' }, modes.map(m => h('button', {
         className: 'hc-btn hc-t-' + m.id,
         dataset: m.id === 'place' ? { buildAnchor: '' } : {},
-        ref: el => { this._refs[`mode_${m.id}`] = el; this._registerTip(el, m.tip, m.id) },
+        ref: el => { this._refs[`mode_${m.id}`] = el; this._registerTip(el, m.tip, m.id); if (m.id === 'upgrade') this._badgeBtns.upgrade = el },
         on: { click: () => this._onModeClick(m.id) },
-      }, [ biSpan(m.id), m.label ]))),
+      }, [ m.id === 'upgrade' ? h('span', { className: 'nu' }) : null, biSpan(m.id), m.label ].filter(Boolean)))),
 
       h('div', { className: 'hc-sep' }),
 
@@ -247,7 +247,7 @@ export class BottomBar {
     }
     if (mode === 'move')    EventBus.emit('TOOL_MOVE')
     if (mode === 'sell')    EventBus.emit('TOOL_SELL')
-    if (mode === 'upgrade') EventBus.emit('TOOL_UPGRADE')
+    if (mode === 'upgrade') { this._clearBadge('upgrade'); EventBus.emit('TOOL_UPGRADE') }
   }
 
   _onSpeedClick(scale) {
@@ -485,6 +485,9 @@ export class BottomBar {
     sub('ROOM_REMOVED',    () => this._scheduleBadgeUpdate())
     sub('OPEN_ADV_INTEL',     () => this._clearBadge('intel'))
     sub('OPEN_KNOWLEDGE_MAP', () => this._clearBadge('knowledge'))
+    // Minion tier-unlock dot on the UPGRADE tool — lights when a family's next
+    // tier comes due, clears once the player arms the upgrade tool.
+    sub('MINION_TIER_UNLOCKED', () => this._setBadge('upgrade', true))
     // NightPhase owns the armed-tool state — listen for its broadcast.
     sub('TOOL_MODE_CHANGED', ({ mode }) => {
       this._armedTool = mode || null

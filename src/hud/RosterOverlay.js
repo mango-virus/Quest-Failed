@@ -114,7 +114,7 @@ export class RosterOverlay {
     let sig = ''
     for (const m of (this._gameState.minions ?? [])) {
       const dead = (m.aiState === 'dead' || m.deathDay != null) ? 'd' : ''
-      sig += `${m.instanceId}:${Math.round(m.resources?.hp ?? 0)}:${dead}:${m.assignedRoomId ?? m.roomId ?? ''};`
+      sig += `${m.instanceId}:${m.definitionId}:${Math.round(m.resources?.hp ?? 0)}:${dead}:${m.assignedRoomId ?? m.roomId ?? ''};`
     }
     return sig
   }
@@ -178,6 +178,10 @@ export class RosterOverlay {
     const dead = status === 'dead'
     const tier = this._tierOf(m)
     const tierColor = this._tierColor(tier)
+    // Tier-upgrade state (night-gated): ready now, or N nights until it unlocks.
+    const evo = this._evo()
+    const upReady = !dead && (evo?.canUpgrade?.(m) ?? false)
+    const upWait  = (!upReady && evo?.isTierTimeLocked?.(m)) ? (evo.nightsUntilNextTier?.(m) ?? 0) : 0
     const hp = Math.round(m.resources?.hp ?? 0)
     const maxHp = Math.round(m.resources?.maxHp ?? 1)
     const pct = maxHp > 0 ? Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100))) : 0
@@ -198,6 +202,8 @@ export class RosterOverlay {
         h('span', { className: 'rst-name' }, [
           h('span', { className: 'rst-nm' }, name),
           h('span', { className: 'rst-tierchip' }, tier),
+          upReady ? h('span', { className: 'rst-upok', title: 'Upgrade ready — use the UPGRADE tool' }, '▲') : null,
+          upWait > 0 ? h('span', { className: 'rst-upwait', title: `Evolves in ${upWait} night${upWait === 1 ? '' : 's'}` }, `${upWait}n`) : null,
           m.hasBounty ? h('span', { className: 'rst-bnty' }, '◎') : null,
         ].filter(Boolean)),
         h('span', { className: 'rst-kind' }, `${kind} · ${loc}`),
@@ -310,6 +316,17 @@ export class RosterOverlay {
     for (const s of scenes) {
       const v = s.cache?.json?.get?.(key)
       if (Array.isArray(v) || (v && typeof v === 'object')) return v
+    }
+    return null
+  }
+
+  // The live MinionEvolutionSystem (Game scene) — for the per-row upgrade state.
+  // Cached: the instance is stable for the session, and the roster is rebuilt on
+  // each open, so a scene restart can't leave a stale reference around.
+  _evo() {
+    if (this._evoInst) return this._evoInst
+    for (const s of (window.__game?.scene?.scenes || [])) {
+      if (s?.minionEvolutionSystem) return (this._evoInst = s.minionEvolutionSystem)
     }
     return null
   }
