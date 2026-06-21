@@ -806,6 +806,14 @@ export const Balance = {
   // chip tracks the actual stat escalation.
   ADVENTURER_POST10_HP_PER_DAY:  1.08,
   ADVENTURER_POST10_ATK_PER_DAY: 1.05,
+  // Early-game GRACE ramp (2026-06-21). The opening should be forgiving: a fresh
+  // dungeon's handful of T1 minions shouldn't be wiped by the first 1–2
+  // adventurers. Adventurer HP + ATK are scaled by graceMul for the first few
+  // days, climbing to full by day = FLOOR_DAYS+1. graceMul = min(1, FLOOR +
+  // (1−FLOOR)·(day−1)/DAYS). FLOOR 0.65 / DAYS 4 → day1 65%, d2 74%, d3 82%,
+  // d4 91%, d5+ 100%. Only touches the opening — mid/late tuning is unchanged.
+  ADVENTURER_EARLY_GRACE_FLOOR:  0.65,
+  ADVENTURER_EARLY_GRACE_DAYS:   4,
   // Wave-size escalation past day 9 — every day adds an extra
   // adventurer on top of the standard `1 + floor((day-1)/2)` curve.
   // Applies to all 5 wave-count sites (DayPhase spawn + normalWaveSize,
@@ -1458,11 +1466,18 @@ export function adventurerScaleMultipliers(bossLv = 1, day = 1, bloodMoneyBonus 
   const postTen   = Math.max(0, Math.floor(day || 1) - 9)
   const post10Hp  = Math.pow(Balance.ADVENTURER_POST10_HP_PER_DAY  ?? 1, postTen)
   const post10Atk = Math.pow(Balance.ADVENTURER_POST10_ATK_PER_DAY ?? 1, postTen)
+  // Early-game grace: scale HP + ATK down for the first few days so the opening
+  // isn't a wipe, climbing to full strength by ADVENTURER_EARLY_GRACE_DAYS+1.
+  const graceFloor = Balance.ADVENTURER_EARLY_GRACE_FLOOR ?? 1
+  const graceDays  = Balance.ADVENTURER_EARLY_GRACE_DAYS  ?? 0
+  const graceMul   = graceDays > 0
+    ? Math.min(1, graceFloor + (1 - graceFloor) * (dayOver / graceDays))
+    : 1
   const hpMul  = (1 + Balance.ADVENTURER_HP_PER_BOSS_LV  * lvOver
                      + Balance.ADVENTURER_HP_PER_DAY       * dayOver
-                     + (bloodMoneyBonus || 0)) * post10Hp
+                     + (bloodMoneyBonus || 0)) * post10Hp * graceMul
   const atkMul = (1 + Balance.ADVENTURER_ATK_PER_BOSS_LV * lvOver
-                     + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * post10Atk
+                     + Balance.ADVENTURER_ATK_PER_DAY      * dayOver) * post10Atk * graceMul
   return { hpMul, atkMul }
 }
 
