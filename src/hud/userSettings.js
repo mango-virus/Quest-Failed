@@ -11,6 +11,7 @@ const KEY = {
   vignette:        'qf.video.vignette',
   dungeonVignette: 'qf.video.dungeonVignette',
   shake:           'qf.video.shake',
+  hitstop:         'qf.video.hitstop',
   particles:       'qf.video.particles',
   hotkeys:         'qf.gameplay.hotkeys',
   confirmRun:      'qf.gameplay.confirmRun',
@@ -26,6 +27,7 @@ const DEFAULT_BOOL = {
   vignette:        true,
   dungeonVignette: true,
   shake:           true,
+  hitstop:         true,
   hotkeys:         true,
   confirmRun:      true,
   autosave:        true,
@@ -44,6 +46,11 @@ function _readBool(key) {
 export const userSettings = {
   isShakeEnabled() {
     return _readBool(KEY.shake) ?? DEFAULT_BOOL.shake
+  },
+  // Hit-stop / impact-freeze on heavy blows (HitStopSystem). Independent from
+  // shake so a player can keep one without the other (reduce-motion options).
+  isHitStopEnabled() {
+    return _readBool(KEY.hitstop) ?? DEFAULT_BOOL.hitstop
   },
   isScanlinesEnabled() {
     return _readBool(KEY.scanlines) ?? DEFAULT_BOOL.scanlines

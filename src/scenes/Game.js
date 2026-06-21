@@ -99,6 +99,7 @@ import { MomentVfxSystem }    from '../systems/MomentVfxSystem.js'
 import { CheaterAttackVfxSystem } from '../systems/CheaterAttackVfxSystem.js'
 import { BossAttackVfxSystem }    from '../systems/BossAttackVfxSystem.js'
 import { ScreenShakeSystem }  from '../systems/ScreenShakeSystem.js'
+import { HitStopSystem }      from '../systems/HitStopSystem.js'
 import { RivalBossShowdown }  from '../systems/RivalBossShowdown.js'
 import { ActSystem }          from '../systems/ActSystem.js'
 import { NemesisSystem }      from '../systems/NemesisSystem.js'
@@ -333,6 +334,7 @@ export class Game extends Phaser.Scene {
     // — adds punch without replacing the mechanical telegraph.
     this.bossAttackVfxSystem    = track(new BossAttackVfxSystem(this, this.gameState))
     this.screenShakeSystem   = track(new ScreenShakeSystem(this))
+    this.hitStopSystem       = track(new HitStopSystem(this))
     this.rivalBossShowdown   = track(new RivalBossShowdown(this, this.gameState))
     // "The Kingdom's Reckoning" act framework (KR P1). Gated behind the `acts`
     // feature flag (default OFF) so the current endless game is untouched until
@@ -2077,7 +2079,7 @@ export class Game extends Phaser.Scene {
     this.bossArchetypeSystem?.tick?.(delta)
 
     if (this.gameState.meta.phase === 'day') {
-      const ts = this._getDayTimeScale()
+      const ts = this._getDayTimeScale() * this._hitStopFactor()
       if (ts > 0) {
         // Cap real delta before scaling so a browser frame hitch
         // (tab refocus, GC pause, alt-tab return — anything that
@@ -2318,5 +2320,27 @@ export class Game extends Phaser.Scene {
     const day = this.scene.get('DayPhase')
     if (!day || !this.scene.isActive('DayPhase')) return 0
     return day._timeScale ?? 1
+  }
+
+  // Hit-stop ("impact freeze") — briefly near-freezes the day simulation so a
+  // heavy blow LANDS before the action resumes. Implemented as a multiplier on
+  // the day-sim time scale (NOT scene.time.timeScale) so it NEVER clobbers the
+  // 2×/4×/8× fast-forward the player picked: when the window lapses the sim is
+  // back at the chosen speed with no restore-to-1 bug. Renderers, sprite anims,
+  // particles and the camera keep running (they tick outside this scale), which
+  // is exactly what gives the "frozen pose, world still alive" hit-stop feel.
+  // Driven off REAL wall-clock so a scaled/frozen clock can't strand it;
+  // overlapping requests extend the window (max), never stack or race.
+  hitStop(ms = 70) {
+    if (!(ms > 0)) return
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    this._hitStopUntil = Math.max(this._hitStopUntil ?? 0, now + ms)
+  }
+
+  _hitStopFactor() {
+    if (!this._hitStopUntil) return 1
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    if (now >= this._hitStopUntil) { this._hitStopUntil = 0; return 1 }
+    return Balance.VFX_HITSTOP_FACTOR ?? 0.04
   }
 }

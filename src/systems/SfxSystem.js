@@ -85,6 +85,25 @@ const SFX_DEFAULT_VOL = 0.70
 // is near max. The originally-loud ones simply hit the cap.
 const SFX_BOOST = 1.5
 
+// High-frequency combat / impact cues get a small per-play PITCH + VOLUME
+// jitter so the same sample firing dozens of times a wave stops reading as a
+// machine-gun loop (the single biggest perceived-quality win for a horde
+// game). Detune is in cents (100 = one semitone); ±200c ≈ ±12% pitch — subtle
+// enough to stay "the same sound," varied enough to defeat repetition. UI /
+// musical stings / one-shot celebration cues are deliberately EXCLUDED so they
+// stay crisp and consistent. WebAudio honours `detune`; the HTML5 fallback
+// just ignores it (no error), so this degrades gracefully.
+const PITCH_VARY = new Set([
+  'sfx-take-damage', 'sfx-death',
+  'sfx-human-hit-1', 'sfx-human-hit-2', 'sfx-human-hit-3',
+  'sfx-human-die-1', 'sfx-human-die-2',
+  'sfx-melee-1', 'sfx-melee-2', 'sfx-monk-1', 'sfx-monk-2',
+  'sfx-archer-shoot', 'sfx-mage-attack', 'sfx-beholder-beam', 'sfx-boss-attack',
+  'sfx-collect-gold',
+])
+const PITCH_SPREAD_CENTS = 200   // ± per play
+const VOL_JITTER         = 0.10  // ±10% gain per play
+
 // ── Window-focus tracking ───────────────────────────────────────────────────
 // SFX fired while the game window/tab is in the background are dropped, not
 // queued. When the page loses focus the browser suspends the WebAudio clock,
@@ -388,7 +407,7 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastHumanHitAt < 80) return
     this._lastHumanHitAt = now
-    this._play(`sfx-human-hit-${1 + Math.floor(Math.random() * 3)}`)
+    this._play(this._pickVariant('sfx-human-hit-', 3, '_humanHitLast'))
   }
 
   // Minion death. Adventurer death has its own handler (_onAdventurerDeath).
@@ -405,7 +424,7 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastHumanDieAt < 250) return
     this._lastHumanDieAt = now
-    this._play(`sfx-human-die-${1 + Math.floor(Math.random() * 2)}`)
+    this._play(this._pickVariant('sfx-human-die-', 2, '_humanDieLast'))
   }
 
   _onBossFightStarted() {
@@ -569,9 +588,26 @@ export class SfxSystem {
     if (!this._scene?.cache?.audio?.exists?.(key)) return
     const baseGain = SFX_VOLUMES[key] ?? SFX_DEFAULT_VOL
     const cap = extraBoost ? 4 : 1
-    const vol = Math.min(cap, baseGain * SFX_BOOST * (extraBoost ?? 1) * SfxVolume.getVolume())
+    let vol = Math.min(cap, baseGain * SFX_BOOST * (extraBoost ?? 1) * SfxVolume.getVolume())
     if (vol <= 0) return
-    try { this._scene.sound.play(key, { volume: vol }) } catch {}
+    const cfg = { volume: vol }
+    // Per-play pitch + volume jitter on high-frequency combat cues (see PITCH_VARY).
+    if (PITCH_VARY.has(key)) {
+      cfg.detune = (Math.random() * 2 - 1) * PITCH_SPREAD_CENTS
+      cfg.volume = Math.min(cap, vol * (1 + (Math.random() * 2 - 1) * VOL_JITTER))
+    }
+    try { this._scene.sound.play(key, cfg) } catch {}
+  }
+
+  // Pick a 1-based variant index for a sample pool, avoiding an immediate
+  // repeat so back-to-back hits/deaths never play the exact same file twice
+  // running (random-without-repeat reads better than strict round-robin for
+  // bursty combat). `stateKey` stores the last index on the instance.
+  _pickVariant(prefix, count, stateKey) {
+    let i = 1 + Math.floor(Math.random() * count)
+    if (count > 1 && i === this[stateKey]) i = (i % count) + 1
+    this[stateKey] = i
+    return `${prefix}${i}`
   }
 
   _now() { return this._scene?.time?.now ?? Date.now() }

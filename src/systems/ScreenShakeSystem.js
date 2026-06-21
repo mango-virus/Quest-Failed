@@ -52,14 +52,21 @@ export class ScreenShakeSystem {
   shake(level) { this._shake(level) }
 
   _shake(level) {
+    const p = PROFILES[level] ?? PROFILES.small
+    this._shakeCustom(p.durationMs, p.intensity)
+  }
+
+  // Shared, guarded entry — both the discrete `_shake(level)` profiles and the
+  // continuous damage-scaled combat shake route through here so the master
+  // toggle, user setting, throttle, and camera lookup live in one place.
+  _shakeCustom(durationMs, intensity) {
     if (!Balance.VFX_SCREEN_SHAKE_ENABLED) return
     if (!userSettings.isShakeEnabled()) return
     const now = this._scene.time?.now ?? 0
     if (now - this._lastShake < SHAKE_MIN_GAP_MS) return
     const cam = this._scene._cam ?? this._scene.cameras?.main
     if (!cam?.shake) return
-    const p = PROFILES[level] ?? PROFILES.small
-    cam.shake(p.durationMs, p.intensity)
+    cam.shake(durationMs, intensity)
     this._lastShake = now
   }
 
@@ -79,7 +86,14 @@ export class ScreenShakeSystem {
         if (m.instanceId === sourceId || m.instanceId === targetId) return
       }
     }
-    this._shake('small')
+    // Scale the kinetic beat with the SIZE of the hit so a monster crit reads
+    // bigger than a chip crit — continuous, clamped between the small and
+    // medium profiles. (A lightweight "trauma" curve without owning a custom
+    // per-frame camera offset, which would fight Game._clampCameraToPlayArea.)
+    const lo = PROFILES.small.intensity
+    const hi = PROFILES.medium.intensity
+    const t  = Math.min(1, damage / 120)   // ~120 dmg → full medium intensity
+    this._shakeCustom(PROFILES.small.durationMs, lo + (hi - lo) * t)
   }
 
   _onMedium() { this._shake('medium') }

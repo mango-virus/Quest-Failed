@@ -1417,6 +1417,13 @@ export const Balance = {
   // Flip to false to disable all screen shake without code changes.
   VFX_SCREEN_SHAKE_ENABLED:         true,
 
+  // --- Hit-stop (impact freeze) ---
+  // Briefly near-freezes the day simulation on a heavy blow so the hit LANDS,
+  // then resumes at the player's chosen speed (see Game.hitStop + HitStopSystem).
+  // FACTOR is the sim-time multiplier during the freeze window (0.04 ≈ frozen).
+  VFX_HITSTOP_ENABLED:              true,
+  VFX_HITSTOP_FACTOR:               0.04,
+
   // --- Cheater class ---
   CHEATER_INSTAKILL_CHANCE:    0.15,   // per-attack chance during aimhack window to one-shot a minion
   CHEATER_LAG_SPIKE_CHANCE:    0.05,   // per-attack chance for a 2× damage swing that self-stuns afterward
