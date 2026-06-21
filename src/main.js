@@ -44,6 +44,9 @@ import { installGamepadNav } from './hud/GamepadNav.js'
 // Importing here just installs the key listener (idempotent); the
 // overlay itself only mounts when toggled on. Zero-cost when hidden.
 import './hud/PerfHud.js'
+// ResTest — Ctrl+Shift+0 toggles the resolution-independence test harness on any
+// screen (localhost/desktop only). Importing installs the keybind; zero-cost off.
+import './dev/ResTestOverlay.js'
 // Reduced-motion: apply the html.reduce-motion class at boot (before the menu
 // + its entrance animations render) from the setting folded with the OS pref.
 import './hud/motion.js'

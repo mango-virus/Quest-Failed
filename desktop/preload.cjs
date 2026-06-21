@@ -14,6 +14,9 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('__desktop', {
   isDesktop: true,
+  // True only when running from source (`electron .`), false in a packaged build —
+  // dev-only tooling gates on this so it never surfaces in the shipped app.
+  isDev: ipcRenderer.sendSync('qf:isDev'),
   platform: process.platform,
   // Display name for the editor's "saving to <folder>" UI. Resolved once, synchronously,
   // at preload time (the main handler is registered before the window loads).

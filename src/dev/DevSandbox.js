@@ -25,6 +25,7 @@ import { AbilityVfx } from '../ui/AbilityVfx.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { VfxLab } from './VfxLab.js'
 import { VfxGallery } from './VfxGallery.js'
+import * as ResTest from './ResTestOverlay.js'
 
 const WALKABLE = new Set([TILE.FLOOR, TILE.BOSS_FLOOR])
 // A mixed-tier roster, deliberately including UNDEAD so Inquisition/Excommunicate
@@ -63,6 +64,11 @@ export function installDevSandbox(scene) {
     // VFX GALLERY — the whole AbilityVfx library firing in a labelled grid so you
     // can spot effects that rhyme (same ring/burst/glow) at a glance. Toggle on/off.
     vfxGallery() { const on = VfxGallery.toggle(scene); log(`VFX Gallery ${on ? 'opened' : 'closed'}`); return { ok: true, open: on } },
+
+    // RES TEST — resolution-independence harness: force #hud-stage to any target
+    // logical resolution + uiScale (720p…4K…ultrawide), letterboxed to fit this
+    // monitor, with an overflow scanner + alignment guides. See ResTestOverlay.js.
+    resTest() { const msg = ResTest.toggle(); log(msg); return msg },
 
     // Spawn `minions` test minions + `traps` traps near the boss so champion
     // abilities + the trap-flip have real targets. Returns the counts.
@@ -595,6 +601,7 @@ export function installDevSandbox(scene) {
     help() {
       const h = [
         'window.__qfDev — Kingdom-Response VFX sandbox',
+        "  .resTest()                       resolution-independence harness: sim any res (720p…4K…UW) + overflow scan",
         "  .gallery()                       VFX review: .plan = capture list; .stage(key) stages each for a screenshot",
         "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
         "  .quietDay(true|false)            toggle QUIET mode (no wave + day stays open); false = back to normal",

@@ -137,6 +137,11 @@ function registerFsBridge() {
   // Synchronous root-name lookup for the preload's one-time display string.
   ipcMain.on('qf:rootName', (e) => { e.returnValue = path.basename(GAME_ROOT) })
 
+  // Dev-mode flag: true when running from source (`electron .`), false in a
+  // packaged build. Lets dev-only tooling (e.g. the resolution-test harness) gate
+  // itself off in the shipped app, where __desktop.isDesktop is still true.
+  ipcMain.on('qf:isDev', (e) => { e.returnValue = !app.isPackaged })
+
   ipcMain.handle('qf:writeFile', async (_e, relPath, data) => {
     const abs = resolveInRoot(relPath)
     if (!abs) return { ok: false, error: 'path escapes project root' }
