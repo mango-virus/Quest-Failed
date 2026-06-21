@@ -24,6 +24,24 @@ import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
 
+// One-line "what does this do" blurbs, shown as a hover tooltip on each day-
+// active button (the .qf-bottombar [data-tip] CSS tooltip applies since the
+// strip lives inside the bottom bar). Keyed by archetype id.
+const ABILITY_TIPS = {
+  golem:     'Erupt a chosen room with a quake, hammering the heroes inside.',
+  demon:     'Sacrifice a minion to blast a room with hellfire — grows each use.',
+  lich:      'Spend soul essence to wither a room: damage and no healing.',
+  slime:     'Split your slimes in a room into a fresh surging swarm.',
+  beholder:  "Sear a chosen room with the eye tyrant's burning rays.",
+  orc:       'Hurl a claimed trophy into a room for heavy impact damage.',
+  myconid:   'Colonize a room with fungal bloom — damage and no healing.',
+  lizardman: 'Infect a room with plague that spreads to nearby heroes.',
+  vampire:   'Spend banked Blood to drain a room and heal the boss.',
+  wraith:    'Flood a room with dread — panics and weakens its heroes.',
+  gnoll:     'Send your pack into a frenzy to maul a chosen room.',
+  succubus:  'Mesmerize a room — charm and freeze its heroes.',
+}
+
 export class BossArchetypeStrip {
   constructor(gameState, opts = {}) {
     this._gs        = gameState
@@ -53,61 +71,73 @@ export class BossArchetypeStrip {
     this.el = h('div', { className: 'qf-archstrip' }, [
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-earthquake',
+        dataset: { tip: ABILITY_TIPS.golem },
         ref: el => { this._golemBtn = el },
         on: { click: () => this._onGolemClick() },
       }, 'SEISMIC SLAM'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-sacrifice',
+        dataset: { tip: ABILITY_TIPS.demon },
         ref: el => { this._demonBtn = el },
         on: { click: () => this._onDemonClick() },
       }, 'INFERNAL PACT'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-channel',
+        dataset: { tip: ABILITY_TIPS.lich },
         ref: el => { this._lichBtn = el },
         on: { click: () => this._onLichClick() },
       }, 'CHANNEL SOULS'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-surge',
+        dataset: { tip: ABILITY_TIPS.slime },
         ref: el => { this._slimeBtn = el },
         on: { click: () => this._onSlimeClick() },
       }, 'MITOSIS SURGE'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-gaze',
+        dataset: { tip: ABILITY_TIPS.beholder },
         ref: el => { this._beholderBtn = el },
         on: { click: () => this._onBeholderClick() },
       }, "TYRANT'S GAZE"),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-throw',
+        dataset: { tip: ABILITY_TIPS.orc },
         ref: el => { this._orcBtn = el },
         on: { click: () => this._onOrcClick() },
       }, 'TROPHY THROW'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-seed',
+        dataset: { tip: ABILITY_TIPS.myconid },
         ref: el => { this._myconidBtn = el },
         on: { click: () => this._onMyconidClick() },
       }, 'SEED THE BLOOM'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-spit',
+        dataset: { tip: ABILITY_TIPS.lizardman },
         ref: el => { this._lizardBtn = el },
         on: { click: () => this._onLizardClick() },
       }, 'PLAGUE SPIT'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-rite',
+        dataset: { tip: ABILITY_TIPS.vampire },
         ref: el => { this._vampBtn = el },
         on: { click: () => this._onVampClick() },
       }, 'BLOOD RITE'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-terror',
+        dataset: { tip: ABILITY_TIPS.wraith },
         ref: el => { this._wraithBtn = el },
         on: { click: () => this._onWraithClick() },
       }, 'NIGHT TERROR'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-hunt',
+        dataset: { tip: ABILITY_TIPS.gnoll },
         ref: el => { this._gnollBtn = el },
         on: { click: () => this._onGnollClick() },
       }, 'SOUND THE HUNT'),
       h('button', {
         className: 'qf-archstrip-btn qf-archstrip-kiss',
+        dataset: { tip: ABILITY_TIPS.succubus },
         ref: el => { this._succubusBtn = el },
         on: { click: () => this._onSuccubusClick() },
       }, 'KISS OF RAPTURE'),
