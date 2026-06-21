@@ -865,6 +865,7 @@ export class RoomEditorOverlay {
     if (!panel) return
     const skins = this.scene.uiListRoomSkins?.() || []
     const current = this.scene.uiCurrentRoomSkin?.()
+    const pool = this.scene.uiSkinPool?.() || []
     const st = this.scene.uiGetState?.() || {}
     const roomName = st.activeRoom?.name || '(no room)'
     const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
@@ -915,22 +916,24 @@ export class RoomEditorOverlay {
               curThumb ? h('img', { className: 'qf-skins__thumb', src: curThumb })
                        : h('div', { className: 'qf-skins__thumb q' }, current ? '?' : '—'),
               h('div', { className: 'qf-skins__current-info' }, [
-                h('div', null, current ? `Skin: ${current}` : 'No skin (renders tiles)'),
+                h('div', null, pool.length === 0 ? 'No skin (renders tiles)'
+                             : pool.length === 1 ? `Skin: ${pool[0]}`
+                             : `Random pool: ${pool.length} skins — one is picked when placed`),
                 h('div', { className: 'qf-skins__btn-row' }, [
                   h('button', { className: 'btn sm', on: { click: () => this.scene.uiExportRoomPng?.() } }, '🖼 Export PNG'),
-                  current ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearRoomSkin?.(); this._renderSkins() } } }, 'Clear skin') : null,
+                  pool.length ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearRoomSkin?.(); this._renderSkins() } } }, pool.length > 1 ? 'Clear pool' : 'Clear skin') : null,
                 ]),
               ]),
             ]),
             h('div', { className: 'qf-skins__hint' },
-              'Flow: Export PNG → edit the pixels in any image editor → drop it above → Apply. Doors & decor still draw on top, so leave their areas transparent.'),
+              'Flow: Export PNG → edit the pixels → drop it above → “+ Add”. Add 2+ skins and one is chosen at random each time the room is placed. Doors & decor draw on top, so leave their areas transparent.'),
           ]),
         ]),
         h('div', { className: 'qf-themes__right' }, [
           h('div', { className: 'qf-themes__subhead' }, ['SKIN LIBRARY', h('span', { className: 'qf-themes__count' }, String(skins.length))]),
           skins.length === 0
             ? h('div', { className: 'qf-themes__empty' }, 'No skins yet — drop an edited room PNG to add one.')
-            : h('div', { className: 'qf-skins__grid' }, skins.map((s) => this._skinItem(s, current))),
+            : h('div', { className: 'qf-skins__grid' }, skins.map((s) => this._skinItem(s, pool))),
         ]),
       ]),
       h('div', { className: 'qf-themes__foot' }, [
@@ -942,23 +945,27 @@ export class RoomEditorOverlay {
     ])
   }
 
-  _skinItem(s, current) {
-    const active = s.id === current
-    return h('div', { className: ['qf-skins__item', active && 'is-active'] }, [
+  _skinItem(s, pool) {
+    const inPool = Array.isArray(pool) && pool.includes(s.id)
+    return h('div', { className: ['qf-skins__item', inPool && 'is-active'] }, [
       s.thumb ? h('img', { className: 'qf-skins__thumb', src: s.thumb })
               : h('div', { className: 'qf-skins__thumb q' }, '?'),
+      inPool ? h('div', { className: 'qf-skins__check', title: 'In the random pool' }, '✓') : null,
       h('div', { className: 'qf-skins__item-id', title: s.id }, s.id),
       h('div', { className: 'qf-skins__item-actions' }, [
+        // Toggle this skin in/out of the room's random pool. Add 2+ → one is
+        // chosen at random when the room is placed in-game.
         h('button', {
-          className: 'btn sm', disabled: active,
-          on: { click: () => { this.scene.uiApplyRoomSkin?.(s.id); this._renderSkins() } },
-        }, active ? 'Applied' : 'Apply'),
+          className: ['btn sm', inPool && 'ghost'],
+          title: inPool ? 'Remove from this room’s random pool' : 'Add to this room’s random pool',
+          on: { click: () => { this.scene.uiToggleSkinInPool?.(s.id); this._renderSkins() } },
+        }, inPool ? '✓ In rotation' : '+ Add'),
         h('button', {
           className: 'qf-themes__del', title: 'Delete this skin from the library',
           on: { click: () => { if (window.confirm(`Delete skin “${s.id}”?`)) { this.scene.uiDeleteRoomSkin?.(s.id); this._renderSkins() } } },
         }, '🗑'),
-      ]),
-    ])
+      ].filter(Boolean)),
+    ].filter(Boolean))
   }
 
   async _uploadSkin(files = null) {

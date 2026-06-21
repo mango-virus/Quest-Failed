@@ -16706,11 +16706,17 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
   gap: var(--space-3); padding: 0 var(--space-4) var(--space-5); overflow-y: auto;
 }
 .qf-skins__item {
+  position: relative;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: var(--space-3); background: var(--bg-2);
   border: 2px solid var(--line-2); border-radius: var(--radius-md);
 }
 .qf-skins__item.is-active { border-color: var(--poison); box-shadow: 0 0 14px rgba(107,160,58,0.35); }
+/* In-pool checkmark badge (multi-skin random pool). */
+.qf-skins__check { position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #fff; background: var(--poison); border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .qf-skins__item .qf-skins__thumb { width: 120px; height: 120px; }
 .qf-skins__item-id { font-size: var(--fs-xs); color: var(--text-mute); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qf-skins__item-actions { display: flex; align-items: center; gap: var(--space-2); }

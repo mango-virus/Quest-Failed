@@ -418,6 +418,8 @@ export class RoomTileEditor extends Phaser.Scene {
       doorTheme:       room.doorTheme ?? null,
       backgroundImage: room.backgroundImage ?? null,
       backgroundImageByBoss: room.backgroundImageByBoss ? structuredClone(room.backgroundImageByBoss) : null,
+      backgroundImagePool: Array.isArray(room.backgroundImagePool) ? room.backgroundImagePool.slice() : null,
+      backgroundImagePoolByBoss: room.backgroundImagePoolByBoss ? structuredClone(room.backgroundImagePoolByBoss) : null,
       width:           room.width,
       height:          room.height,
     }
@@ -457,6 +459,8 @@ export class RoomTileEditor extends Phaser.Scene {
       room.doorTheme       = snap.doorTheme
       room.backgroundImage = snap.backgroundImage
       room.backgroundImageByBoss = snap.backgroundImageByBoss
+      room.backgroundImagePool = snap.backgroundImagePool
+      room.backgroundImagePoolByBoss = snap.backgroundImagePoolByBoss
       room.width           = snap.width
       room.height          = snap.height
     }
@@ -618,38 +622,85 @@ export class RoomTileEditor extends Phaser.Scene {
     return { added: ids.length, ids }
   }
 
+  // ── Multi-skin random pool ──────────────────────────────────────────────────
+  // A room can carry SEVERAL skins; one is chosen at random when it's placed
+  // in-game. Stored per skin-target: backgroundImagePool (default) /
+  // backgroundImagePoolByBoss[boss] (boss chamber). The single backgroundImage /
+  // backgroundImageByBoss[boss] mirrors pool[0] as the editor preview + the
+  // legacy fallback (so anything reading the single field still resolves).
+  _skinTargetIsBoss(room, target) { return room?.id === 'boss_chamber' && target && target !== 'default' }
+  // The current target's pool, presenting a legacy single skin as a 1-item pool.
+  uiSkinPool() {
+    const room = this._activeRoom(); if (!room) return []
+    const target = this.uiSkinTarget()
+    const pool = this._skinTargetIsBoss(room, target)
+      ? room.backgroundImagePoolByBoss?.[target]
+      : room.backgroundImagePool
+    if (Array.isArray(pool) && pool.length) return pool.slice()
+    const single = this._skinIdForTarget(room, target)
+    return single ? [single] : []
+  }
+  uiSkinInPool(id) { return this.uiSkinPool().includes(id) }
+  // Toggle a skin into/out of the active target's random pool.
+  uiToggleSkinInPool(id) {
+    const room = this._activeRoom()
+    if (!room || !ThemeManager.hasRoomSkin(id)) return
+    this._pushUndo()
+    const pool = this.uiSkinPool()
+    const i = pool.indexOf(id)
+    if (i >= 0) pool.splice(i, 1); else pool.push(id)
+    this._writeSkinPool(room, this.uiSkinTarget(), pool)
+    this._refreshAll()
+  }
+  _writeSkinPool(room, target, pool) {
+    const clean = (pool || []).filter(s => typeof s === 'string')
+    if (this._skinTargetIsBoss(room, target)) {
+      room.backgroundImagePoolByBoss = room.backgroundImagePoolByBoss || {}
+      room.backgroundImageByBoss     = room.backgroundImageByBoss     || {}
+      if (clean.length) { room.backgroundImagePoolByBoss[target] = clean; room.backgroundImageByBoss[target] = clean[0] }
+      else { delete room.backgroundImagePoolByBoss[target]; delete room.backgroundImageByBoss[target] }
+    } else {
+      if (clean.length) { room.backgroundImagePool = clean; room.backgroundImage = clean[0] }
+      else { room.backgroundImagePool = null; room.backgroundImage = null }
+    }
+  }
+  // "Apply" now means "use ONLY this skin" — set the pool to [id].
   uiApplyRoomSkin(id) {
     const room = this._activeRoom()
     if (!room || !ThemeManager.hasRoomSkin(id)) return
     this._pushUndo()
-    const target = this.uiSkinTarget()
-    if (room.id === 'boss_chamber' && target !== 'default') {
-      room.backgroundImageByBoss = room.backgroundImageByBoss || {}
-      room.backgroundImageByBoss[target] = id
-    } else {
-      room.backgroundImage = id
-    }
+    this._writeSkinPool(room, this.uiSkinTarget(), [id])
     this._refreshAll()
   }
   uiClearRoomSkin() {
     const room = this._activeRoom()
     if (!room) return
     this._pushUndo()
-    const target = this.uiSkinTarget()
-    if (room.id === 'boss_chamber' && target !== 'default') {
-      if (room.backgroundImageByBoss) delete room.backgroundImageByBoss[target]
-    } else {
-      room.backgroundImage = null
-    }
+    this._writeSkinPool(room, this.uiSkinTarget(), [])
     this._refreshAll()
   }
   uiDeleteRoomSkin(id) {
     ThemeManager.removeRoomSkin(id)
     for (const r of this._rooms) {
-      if (r.backgroundImage === id) r.backgroundImage = null
+      // Default target: drop from the pool, then re-anchor the single field.
+      if (Array.isArray(r.backgroundImagePool)) {
+        r.backgroundImagePool = r.backgroundImagePool.filter(s => s !== id)
+        if (!r.backgroundImagePool.length) r.backgroundImagePool = null
+      }
+      if (r.backgroundImage === id) r.backgroundImage = r.backgroundImagePool?.[0] ?? null
+      // Per-boss targets: same, per boss key.
+      if (r.backgroundImagePoolByBoss) {
+        for (const k of Object.keys(r.backgroundImagePoolByBoss)) {
+          r.backgroundImagePoolByBoss[k] = (r.backgroundImagePoolByBoss[k] || []).filter(s => s !== id)
+          if (!r.backgroundImagePoolByBoss[k].length) delete r.backgroundImagePoolByBoss[k]
+        }
+      }
       if (r.backgroundImageByBoss) {
         for (const k of Object.keys(r.backgroundImageByBoss)) {
-          if (r.backgroundImageByBoss[k] === id) delete r.backgroundImageByBoss[k]
+          if (r.backgroundImageByBoss[k] === id) {
+            const next = r.backgroundImagePoolByBoss?.[k]?.[0] ?? null
+            if (next) r.backgroundImageByBoss[k] = next; else delete r.backgroundImageByBoss[k]
+          }
         }
       }
     }
@@ -2556,6 +2607,17 @@ export class RoomTileEditor extends Phaser.Scene {
         }
         if (!r.backgroundImage) delete cleaned.backgroundImage
         if (!r.backgroundImageByBoss || Object.keys(r.backgroundImageByBoss).length === 0) delete cleaned.backgroundImageByBoss
+        // Random-skin pools — only persist when there's a genuine choice (2+).
+        // A 1-item pool is just the single backgroundImage (kept above), so drop it.
+        if (!Array.isArray(r.backgroundImagePool) || r.backgroundImagePool.length < 2) delete cleaned.backgroundImagePool
+        if (r.backgroundImagePoolByBoss) {
+          const pruned = {}
+          for (const [boss, arr] of Object.entries(r.backgroundImagePoolByBoss)) {
+            if (Array.isArray(arr) && arr.length >= 2) pruned[boss] = arr
+          }
+          if (Object.keys(pruned).length) cleaned.backgroundImagePoolByBoss = pruned
+          else delete cleaned.backgroundImagePoolByBoss
+        }
         // Strip all-null door swatches / aprons (e.g. created just by viewing a
         // door state). _flatNull recurses both shapes (doorTiles 3-D, apron 2-D).
         if (_flatNull(r.doorTiles)) delete cleaned.doorTiles

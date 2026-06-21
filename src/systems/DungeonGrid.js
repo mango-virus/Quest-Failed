@@ -267,6 +267,17 @@ export class DungeonGrid {
     const check = this.validatePlacement(definition, gridX, gridY, opts)
     if (!check.valid) return null
 
+    // Multi-skin: when the default skin POOL has entries, bake a random pick now
+    // so this placed instance keeps one stable look (saved + survives reload).
+    // Each placement rolls independently, so two of the same room can differ.
+    // The per-boss pool is resolved at render time instead — DungeonGrid has no
+    // boss reference (see DungeonRenderer._roomSkinKeyFor).
+    const _skinPool = Array.isArray(definition.backgroundImagePool)
+      ? definition.backgroundImagePool.filter(s => typeof s === 'string') : null
+    const _bgImage = (_skinPool && _skinPool.length)
+      ? _skinPool[Math.floor(Math.random() * _skinPool.length)]
+      : (typeof definition.backgroundImage === 'string' ? definition.backgroundImage : null)
+
     const room = {
       // `preserveInstanceId` lets NightPhase's MOVE-drop path reuse
       // the original room's id so adventurer knowledge keyed on it
@@ -325,12 +336,17 @@ export class DungeonGrid {
                       ? definition.colorAdjust : null,
       // Full-room skin id (Phase 4) — when set + its texture loads, the
       // renderer paints one stretched image over the room instead of tiles.
-      backgroundImage: typeof definition.backgroundImage === 'string' ? definition.backgroundImage : null,
+      backgroundImage: _bgImage,
       // Per-boss skin overrides for the boss chamber: { <archetypeId>: skinId }.
       // The renderer picks the active boss's entry, falling back to
       // backgroundImage. Only the boss_chamber uses this.
       backgroundImageByBoss: (definition.backgroundImageByBoss && typeof definition.backgroundImageByBoss === 'object')
-        ? definition.backgroundImageByBoss : null,
+        ? structuredClone(definition.backgroundImageByBoss) : null,
+      // Per-boss random-skin POOL (boss chamber). Resolved + cached into
+      // backgroundImageByBoss at render time (DungeonRenderer has the active
+      // boss); kept on the instance so it's available + saved.
+      backgroundImagePoolByBoss: (definition.backgroundImagePoolByBoss && typeof definition.backgroundImagePoolByBoss === 'object')
+        ? structuredClone(definition.backgroundImagePoolByBoss) : null,
       // Each cp gets `open: false` by default — doors start closed and
       // become open when adventurers walk through (or, for the entry_hall's
       // external cp, automatically at day-start). `style` defaults to

@@ -1059,9 +1059,17 @@ export class DungeonRenderer {
   // archetype's skin, falling back to the room's default backgroundImage.
   _roomSkinKeyFor(room) {
     let id = room?.backgroundImage
-    if (room?.backgroundImageByBoss) {
-      const boss = this._gameState?.player?.bossArchetypeId
-      if (boss && room.backgroundImageByBoss[boss]) id = room.backgroundImageByBoss[boss]
+    const boss = this._gameState?.player?.bossArchetypeId
+    if (boss) {
+      // Per-boss random-skin pool → pick once and cache into backgroundImageByBoss
+      // so the look stays stable (no per-frame re-roll) and saves with the room.
+      if (!room?.backgroundImageByBoss?.[boss]
+          && Array.isArray(room?.backgroundImagePoolByBoss?.[boss])
+          && room.backgroundImagePoolByBoss[boss].length) {
+        const pool = room.backgroundImagePoolByBoss[boss].filter(s => typeof s === 'string')
+        if (pool.length) (room.backgroundImageByBoss ??= {})[boss] = pool[Math.floor(Math.random() * pool.length)]
+      }
+      if (room?.backgroundImageByBoss?.[boss]) id = room.backgroundImageByBoss[boss]
     }
     if (!id) return null
     const key = _roomSkinTexKey(id)
