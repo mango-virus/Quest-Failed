@@ -27,7 +27,7 @@ import { TitleMusic } from '../systems/TitleMusic.js'
 import { EventBus } from '../systems/EventBus.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { GameRequests } from '../systems/GameRequests.js'
-import { applyUiScale } from './stageScale.js'
+import { applyUiScale, DESIGN_W } from './stageScale.js'
 import { KEYBIND_DEFAULTS, getAllBinds, setBind, resetBinds, isReserved, findConflict, keyLabel } from './HudKeybinds.js'
 import { applyReduceMotion } from './motion.js'
 import { applyColorMode } from './colorMode.js'
@@ -395,10 +395,11 @@ export class SettingsOverlay {
       // UI SCALE is the text-scaling control for this zoom-based HUD (it
       // enlarges chrome + text uniformly + crisply). Labelled UI & TEXT SIZE
       // so it reads as the accessibility setting it is (UI_POLISH_PLAN P1-5).
-      this._seg('UI & TEXT SIZE', 'uiScale', [
-        { v: 'auto', l: 'AUTO' }, { v: '1', l: '100%' }, { v: '1.1', l: '110%' },
-        { v: '1.25', l: '125%' }, { v: '1.5', l: '150%' }, { v: '2', l: '200%' },
-      ]),
+      // Options adapt to the display — scales that would clip the fixed ~1920-wide
+      // chrome are hidden (see _uiScaleOptions), so e.g. 1080p offers AUTO/75%/100%
+      // while 4K offers up to 200%. AUTO also handles small screens via the sub-1×
+      // downscale in stageScale.
+      this._seg('UI & TEXT SIZE', 'uiScale', this._uiScaleOptions()),
       this._lever('CRT SCANLINES', 'scanlines'),
       this._lever('EDGE VIGNETTE', 'vignette'),
       this._lever('DUNGEON VIGNETTE', 'dungeonVignette'),
@@ -504,6 +505,28 @@ export class SettingsOverlay {
           on: { click: () => this._set(key, o.v) },
         }, o.l))),
     ])
+  }
+
+  // UI-scale options, filtered to what FITS the current display. A uiScale of u
+  // makes the logical stage `window/u` wide; below the ~1920-wide chrome design it
+  // clips the action bar (e.g. 150% on 1080p == the 1280-wide case that overflows).
+  // So we offer AUTO + only the manual scales where window.innerWidth / u >= 1920.
+  // The currently-saved value is always kept visible even if it no longer fits (so
+  // a scale set on a bigger screen stays selectable). AUTO covers small screens via
+  // stageScale's sub-1× downscale.
+  _uiScaleOptions() {
+    const vw = (typeof window !== 'undefined' && window.innerWidth) || DESIGN_W
+    const maxUi = vw / DESIGN_W
+    const cur = this._draft.uiScale
+    const CAND = [
+      { v: '0.75', l: '75%' }, { v: '1', l: '100%' }, { v: '1.25', l: '125%' },
+      { v: '1.5', l: '150%' }, { v: '2', l: '200%' },
+    ]
+    const opts = [{ v: 'auto', l: 'AUTO' }]
+    for (const o of CAND) {
+      if (Number(o.v) <= maxUi + 0.02 || o.v === cur) opts.push(o)
+    }
+    return opts
   }
 
   _themeTiles() {
