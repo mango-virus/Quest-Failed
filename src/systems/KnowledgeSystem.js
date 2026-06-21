@@ -75,6 +75,9 @@ export class KnowledgeSystem {
     // Knowledge Map "SCRUB INTEL" button — player spends gold to wipe a
     // room from the shared knowledge pool so the next wave walks in blind.
     EventBus.on('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
+    // Doctrine "SCRUB DOCTRINE" button — player spends gold to make the kingdom
+    // FORGET a studied monster type (drops their counters until re-faced).
+    EventBus.on('BESTIARY_SCRUB_REQUEST', this._onBestiaryScrubRequest, this)
     // Dungeon event: Memory Plague — wipe the entire shared pool.
     EventBus.on('KNOWLEDGE_WIPE_ALL', this._onWipeAll, this)
   }
@@ -99,6 +102,7 @@ export class KnowledgeSystem {
     EventBus.off('BEACON_REMOVED',         this._onItemEntityRemoved, this)
     EventBus.off('LOOT_PILE_REMOVED',      this._onLootPileRemoved, this)
     EventBus.off('KNOWLEDGE_SCRUB_REQUEST', this._onScrubRequest, this)
+    EventBus.off('BESTIARY_SCRUB_REQUEST', this._onBestiaryScrubRequest, this)
     EventBus.off('KNOWLEDGE_WIPE_ALL', this._onWipeAll, this)
   }
 
@@ -924,6 +928,29 @@ export class KnowledgeSystem {
       message: `Intel scrubbed · ${cost}g spent`,
       type: 'success',
     })
+  }
+
+  // Doctrine SCRUB — the player pays gold to make the kingdom FORGET a studied
+  // monster TYPE (family or "boss:<arch>"): its bestiary entry is wiped from the
+  // shared pool, every survivor's record, and any in-dungeon wave — so their
+  // adaptive counters against it drop to zero until an adventurer re-faces it
+  // and escapes again. Mirrors _onScrubRequest (room scrub).
+  _onBestiaryScrubRequest({ type, cost = 0 } = {}) {
+    if (!type) return
+    const player = this._gs.player
+    if (!player) return
+    if ((player.gold ?? 0) < cost) {
+      EventBus.emit('SHOW_TOAST', { message: 'Not enough gold to scrub doctrine', type: 'error' })
+      return
+    }
+    const scrub = (k) => { if (k?.bestiary) delete k.bestiary[type] }
+    scrub(this._gs.knowledge?.sharedPool)
+    for (const s of this._gs.knowledge?.survivors ?? []) scrub(s.knowledge)
+    for (const a of this._gs.adventurers?.active ?? []) scrub(a.knowledge)
+
+    if (cost > 0) player.gold -= cost
+    EventBus.emit('KNOWLEDGE_SCRUBBED', { type, cost })
+    EventBus.emit('SHOW_TOAST', { message: `Doctrine scrubbed · ${cost}g spent`, type: 'success' })
   }
 
   _onMinionMutated({ minion }) {

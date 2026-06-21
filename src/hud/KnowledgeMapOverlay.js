@@ -32,6 +32,7 @@
 import { h } from './dom.js'
 import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
+import { snapshotMinion } from './inGameSnapshot.js'
 
 // Design tier metadata for the bespoke MAP tray (KnowledgeTray): maps our
 // FULL/PARTIAL/RUMOR/UNKNOWN intel states → the tray's id / colour / label /
@@ -55,10 +56,13 @@ export class KnowledgeMapOverlay {
   constructor(gameState) {
     this._gameState = gameState
     this._tray = null
-    this._mapFilter = 'all'   // tier filter for the bespoke tray
     this._selRoomId = null    // selected room in the tray's schematic
     this._listener = () => this.toggle()
     this._onResize = () => this._fitMapStage()
+    // Rebuild the open tray when the dungeon layout changes, so the map reflects
+    // placed/removed/moved rooms live (no close-and-reopen needed). Only the MAP
+    // mode reads rooms — skip in MINION INTEL to keep its selection intact.
+    this._onDungeonChanged = () => { if (this._tray && (this._mapMode || 'map') === 'map') this._rerender() }
     EventBus.on('OPEN_KNOWLEDGE_MAP', this._listener)
   }
 
@@ -74,26 +78,34 @@ export class KnowledgeMapOverlay {
   // intel/tier/scrub helpers below are reused.
   open() {
     if (this._tray) return
-    this._mapFilter = 'all'
+    this._mapMode = 'map'
     this._selRoomId = null
+    this._selDoctrine = null
     this._tray = new TrayShell({
       anchorSel: '[data-tray-anchor="MAP"]',
       align:  'right',
       vAlign: 'up',
       accent: 'var(--rumor)',
       width:  'min(64vw, 1040px)',
-      height: 360,
+      height: 384,
       onClose: () => { this._tray = null },
     })
     this._tray.setContent(this._renderTrayContent())
     this._tray.open()
     window.addEventListener('resize', this._onResize)
+    // Live layout updates while open (place / remove / move a room).
+    EventBus.on('ROOM_PLACED', this._onDungeonChanged)
+    EventBus.on('ROOM_REMOVED', this._onDungeonChanged)
+    EventBus.on('ROOM_MOVED', this._onDungeonChanged)
     // Drive the live pip layer (minions/adventurers/items moving in real time).
     this._pipTick = requestAnimationFrame(() => this._tickPips())
   }
 
   close() {
     window.removeEventListener('resize', this._onResize)
+    EventBus.off('ROOM_PLACED', this._onDungeonChanged)
+    EventBus.off('ROOM_REMOVED', this._onDungeonChanged)
+    EventBus.off('ROOM_MOVED', this._onDungeonChanged)
     if (this._pipTick) cancelAnimationFrame(this._pipTick)
     this._pipTick = null
     this._pipEls = null
@@ -108,15 +120,43 @@ export class KnowledgeMapOverlay {
   // ── Bespoke map tray (schematic + dossier) ──────────────────────
   _renderTrayContent() {
     this._report = this._intelReport()
-    const all = this._roomEntries()   // { id, defId, name, x, y, w, h, state }
-    if (!all.length) {
-      return h('div', { className: 'mp-main' }, [
-        h('div', { className: 'mp-empty' }, [
-          h('div', { className: 'mp-empty-eye' }, '◇  NO DUNGEON  ◇'),
-          h('div', { className: 'mp-empty-hint' }, 'Build rooms — then watch what the kingdom learns.'),
-        ]),
-      ])
+    const mode = this._mapMode || 'map'
+    // Mode switch: the dungeon MAP (room intel) vs the KINGDOM DOCTRINE (what
+    // the kingdom has learned about your monster TYPES — mastery + abilities).
+    const modeTabs = [
+      { id: 'map',      label: 'KNOWLEDGE MAP',    glyph: '⊞' },
+      { id: 'doctrine', label: 'MINION INTEL', glyph: '✦' },
+    ]
+    const seg = modeTabs.map(m => h('div', {
+      className: 'htr-segtab mp-modetab' + (mode === m.id ? ' on' : ''),
+      on: { click: () => { if (this._mapMode !== m.id) { this._mapMode = m.id; this._rerender() } } },
+    }, [ h('span', { className: 'tg' }, m.glyph), h('span', { className: 'lb' }, m.label) ]))
+
+    let content
+    if (mode === 'doctrine') {
+      content = this._renderDoctrine()
+    } else {
+      const all = this._roomEntries()   // { id, defId, name, x, y, w, h, state }
+      if (!all.length) {
+        content = h('div', { className: 'mp-main' }, [
+          h('div', { className: 'mp-empty' }, [
+            h('div', { className: 'mp-empty-eye' }, '◇  NO DUNGEON  ◇'),
+            h('div', { className: 'mp-empty-hint' }, 'Build rooms — then watch what the kingdom learns.'),
+          ]),
+        ])
+      } else {
+        // No tier-filter pills — the schematic is already colour-coded by intel.
+        content = this._renderMapMode(all)
+      }
     }
+    return h('div', { className: 'htr-chrome m-col' }, [
+      h('div', { className: 'htr-segbar mp-segbar' }, seg),
+      h('div', { className: 'htr-content' }, [ content ]),
+    ])
+  }
+
+  // The dungeon-map view (schematic + room dossier). `all` = room entries.
+  _renderMapMode(all) {
     const isBoss = (e) => e.defId === 'boss_chamber'
     // Corridors render as rooms too (tier-coloured), so the layout reads as one
     // connected map. TRUE tile proportions: lay everything out in px (tile ×
@@ -131,32 +171,15 @@ export class KnowledgeMapOverlay {
     this._mapLayout = { minX, minY, BASE }
     this._pipEls = new Map()
     if (this._selRoomId == null && all.length) this._selRoomId = all[0].id
-    const filter = this._mapFilter
-    const tabs = [
-      { id: 'all',     label: 'ALL',   glyph: '◈', count: all.length },
-      { id: 'full',    label: 'KNOWN', glyph: '◉', count: all.filter(r => r.state === 'FULL').length },
-      { id: 'partial', label: 'PART',  glyph: '◐', count: all.filter(r => r.state === 'PARTIAL').length },
-      { id: 'rumor',   label: 'RUMOR', glyph: '◌', count: all.filter(r => r.state === 'RUMOR').length },
-      { id: 'hidden',  label: 'DARK',  glyph: '?', count: all.filter(r => r.state === 'UNKNOWN').length },
-    ]
-    const segbar = h('div', { className: 'htr-segbar' }, tabs.map(tb => h('div', {
-      className: 'htr-segtab' + (filter === tb.id ? ' on' : ''),
-      on: { click: () => { this._mapFilter = tb.id; this._rerender() } },
-    }, [
-      h('span', { className: 'tg' }, tb.glyph),
-      h('span', { className: 'lb' }, tb.label),
-      h('span', { className: 'ct' }, String(tb.count)),
-    ])))
     const stageInner = h('div', {
       className: 'mp-scale',
       style: { width: cW + 'px', height: cH + 'px' },
     }, [
       ...all.map((r, i) => {
         const t = MAP_TIER[r.state] || MAP_TIER.UNKNOWN
-        const dim = filter !== 'all' && t.id !== filter
         const on = r.id === this._selRoomId
         return h('div', {
-          className: 'mp-room' + (isBoss(r) ? ' boss' : '') + (r.state === 'FULL' ? ' known' : '') + (on ? ' on' : '') + (dim ? ' dim' : ''),
+          className: 'mp-room' + (isBoss(r) ? ' boss' : '') + (r.state === 'FULL' ? ' known' : '') + (on ? ' on' : ''),
           style: { left: PX(r.x, minX), top: PX(r.y, minY), width: r.w * BASE + 'px', height: r.h * BASE + 'px', '--rc': t.c, '--i': i },
           on: { click: () => { this._selRoomId = r.id; this._rerender() } },
         }, [
@@ -208,10 +231,191 @@ export class KnowledgeMapOverlay {
         ]) : null,
       ].filter(Boolean)) : null,
     ])
-    return h('div', { className: 'htr-chrome m-col' }, [
-      segbar,
-      h('div', { className: 'htr-content' }, [ h('div', { className: 'mp-main' }, [ stage, side ]) ]),
+    return h('div', { className: 'mp-main' }, [ stage, side ])
+  }
+
+  // Kingdom Doctrine — the adaptive-learning bestiary: per monster TYPE the
+  // kingdom has faced-and-survived, its mastery ★ (how hard they now counter
+  // it), and the abilities they've learned. Master-detail: a card list (with
+  // the real idle sprite) + a detail panel (counter strength + abilities +
+  // SCRUB DOCTRINE). Driven by getBestiaryReport().
+  _renderDoctrine() {
+    const rep = this._knowledgeSystem()?.getBestiaryReport?.() ?? { entries: [], knownCount: 0, studyingCount: 0 }
+    // Also list the player's OWN minion types the kingdom hasn't studied yet, so
+    // the doctrine shows every monster you field + whether it's been figured out.
+    const entries = this._mergeUnknownTypes(rep.entries)
+    const hidden = entries.length - rep.entries.length
+    const sub = [
+      `${rep.knownCount} known`,
+      rep.studyingCount ? `${rep.studyingCount} studying` : null,
+      hidden ? `${hidden} hidden` : null,
+    ].filter(Boolean).join(' · ')
+    const head = h('div', { className: 'mp-doc-head' }, [
+      h('span', { className: 'mp-doc-h-l' }, '✦ MINION INTEL'),
+      h('span', { className: 'mp-doc-h-sub' }, sub || 'no forces'),
     ])
+    if (!entries.length) {
+      return h('div', { className: 'mp-doc' }, [ head, h('div', { className: 'mp-doc-empty' }, [
+        h('div', { className: 'mp-doc-empty-eye' }, '◇  NO FORCES  ◇'),
+        h('div', { className: 'mp-doc-empty-hint' }, 'Place minions to field a force. Intel on them only spreads when an adventurer FACES one and ESCAPES — kill them before they flee to keep your monsters a mystery.'),
+      ]) ])
+    }
+    if (!entries.find(e => e.type === this._selDoctrine)) this._selDoctrine = entries[0]?.type
+    const sel = entries.find(e => e.type === this._selDoctrine) || entries[0]
+    const list = h('div', { className: 'mp-doc-list' }, entries.map((e, i) => this._doctrineCard(e, i)))
+    return h('div', { className: 'mp-doc' }, [
+      head,
+      h('div', { className: 'mp-doc-main' }, [ list, this._doctrineDetail(sel) ]),
+    ])
+  }
+
+  // Append the player's currently-fielded minion families that AREN'T already in
+  // the kingdom's report — as "unknown" entries (no mastery, no abilities) so the
+  // doctrine is a complete roster of "your monsters vs what they've figured out".
+  _mergeUnknownTypes(known) {
+    const out = known.slice()
+    const have = new Set(out.map(e => e.type))
+    const fam = (id) => String(id).replace(/\d+$/, '')
+    const seen = new Set()
+    for (const m of (this._gameState.minions ?? [])) {
+      if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
+      const f = fam(m.definitionId)
+      if (!f || have.has(f) || seen.has(f)) continue
+      seen.add(f)
+      out.push({
+        type: f, label: this._prettyAbility(f), isBoss: false,
+        known: false, studyingNow: false, mastery: 0, masteryTier: 0, stale: false, abilities: [],
+      })
+    }
+    return out
+  }
+
+  // Colour by HOW MUCH the kingdom knows (a threat heat-gradient): green = they
+  // have no clue (safe) → red = fully figured out (they hard-counter it). Stale
+  // intel reads orange (it's fading). Boss-ness no longer overrides the colour.
+  _docColor(e) {
+    const ORANGE = '#ff7a2a'
+    if (!e.known && !e.studyingNow) return 'var(--poison)'   // UNKNOWN → green (safe)
+    if (!e.known)                   return 'var(--gold)'      // STUDYING → yellow (forming)
+    if (e.stale)                    return ORANGE             // STALE → orange (fading)
+    const t = e.masteryTier ?? 0                              // KNOWN → green→red by mastery
+    return t >= 3 ? 'var(--blood)'                            // full → red
+         : t >= 2 ? ORANGE                                    // high → orange
+         : 'var(--gold)'                                      // partial → yellow
+  }
+  _docStar(t)  { return '★★★'.slice(0, Math.max(0, t)) + '☆☆☆'.slice(0, Math.max(0, 3 - t)) }
+  _docState(e) { return (e.studyingNow && !e.known) ? '⟳ STUDYING' : e.stale ? 'STALE · counters fading' : e.known ? 'KNOWN' : 'UNKNOWN' }
+  _prettyAbility(id) { return String(id).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }
+
+  _doctrineCard(e, i) {
+    const on = e.type === this._selDoctrine
+    return h('div', {
+      className: 'mp-doc-card' + (e.isBoss ? ' boss' : '') + (on ? ' on' : ''),
+      style: { '--dc': this._docColor(e), '--i': i },
+      on: { click: () => { this._selDoctrine = e.type; this._rerender() } },
+    }, [
+      h('div', { className: 'mp-doc-port' }, [ this._typeSprite(e, 64) ].filter(Boolean)),
+      h('div', { className: 'mp-doc-cardinfo' }, [
+        h('span', { className: 'mp-doc-name' }, e.label),
+        h('span', { className: 'mp-doc-state' }, this._docState(e)),
+      ]),
+      // Big mastery stars on the right (fills the card; ☆ ghosts when unknown).
+      h('span', { className: 'mp-doc-stars' + (e.known ? '' : ' dim') }, e.known ? this._docStar(e.masteryTier) : '☆☆☆'),
+    ])
+  }
+
+  _doctrineDetail(e) {
+    if (!e) return h('div', { className: 'mp-doc-side' })
+    const counter = this._knowledgeSystem()?.getEnemyCounter?.(e.type) ?? { known: e.known, strength: 0, stale: e.stale }
+    const pct = Math.round((counter.strength ?? 0) * 100)
+    const cost = this._bestiaryScrubCost(e)
+    const hint = (!e.known && !e.studyingNow)
+      ? 'No doctrine yet — kill adventurers before they flee to keep it a mystery.'
+      : (e.studyingNow && !e.known)
+        ? 'Being studied now — kill them before they escape to stop it committing.'
+        : e.stale
+          ? 'Counter fading. Leave it to lapse, or scrub now to wipe the slate.'
+          : 'Each survivor sharpens their counter. Scrub to make them forget.'
+    return h('div', { className: 'mp-doc-side', style: { '--dc': this._docColor(e) } }, [
+      h('div', { className: 'mp-doc-d-top' }, [
+        h('div', { className: 'mp-doc-d-port' }, [ this._typeSprite(e, 80) ].filter(Boolean)),
+        h('div', { className: 'mp-doc-d-id' }, [
+          h('span', { className: 'mp-doc-d-name' }, e.label),
+          h('span', { className: 'mp-doc-d-stars' + (e.known ? '' : ' dim') }, e.known ? this._docStar(e.masteryTier) : '☆☆☆'),
+          h('span', { className: 'mp-doc-d-state' }, this._docState(e)),
+        ]),
+      ]),
+      h('div', { className: 'mp-doc-d-div' }),
+      h('div', { className: 'mp-doc-counter' }, [
+        h('div', { className: 'mp-doc-counter-top' }, [ h('span', null, 'COUNTER STRENGTH'), h('b', null, `${pct}%`) ]),
+        h('div', { className: 'mp-doc-counter-bar' }, [ h('div', { className: 'mp-doc-counter-fill', style: { width: pct + '%' } }) ]),
+        h('span', { className: 'mp-doc-counter-note' }, counter.stale
+          ? 'Fading — they haven’t faced it lately.'
+          : pct > 0 ? 'They fight this monster smarter.' : 'No counter yet — they fight it blind.'),
+      ]),
+      h('div', { className: 'mp-doc-abilsec' }, [
+        h('span', { className: 'mp-doc-abilsec-h' }, 'ABILITIES THEY KNOW'),
+        e.abilities.length
+          ? h('div', { className: 'mp-doc-abils' }, e.abilities.map(a => h('span', { className: 'mp-doc-abil' }, this._prettyAbility(a))))
+          : h('span', { className: 'mp-doc-noabil' }, e.known ? 'None learned yet.' : 'Nothing — they haven’t seen it fight.'),
+      ]),
+      h('div', { className: 'mp-doc-d-hint' }, hint),
+      cost > 0 ? h('button', {
+        className: 'mp-scrub',
+        title: 'Spend gold to make the kingdom forget this monster',
+        on: { click: () => this._onScrubBestiary(e, cost) },
+      }, [
+        h('span', { className: 'si' }, '⌫'),
+        h('span', { className: 'sl' }, 'SCRUB DOCTRINE'),
+        h('span', { className: 'sc' }, [ h('span', { className: 'mp-scrub-coin' }), `${cost}g` ]),
+      ]) : h('div', { className: 'mp-doc-d-noscrub' }, 'No intel to scrub.'),
+    ].filter(Boolean))
+  }
+
+  // The monster's live idle sprite (minion) or bestiary portrait (boss).
+  _typeSprite(e, size) {
+    if (e.isBoss) {
+      const arch = String(e.type).replace(/^boss:/, '')
+      return h('div', { className: 'mp-doc-sprite', style: {
+        width: size + 'px', height: size + 'px',
+        backgroundImage: `url('assets/ui/bestiary/portraits/${arch}_p.png'), radial-gradient(circle at center, var(--bg-2), var(--bg-0))`,
+        backgroundSize: 'contain, cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', imageRendering: 'pixelated',
+      } })
+    }
+    const defId = this._minionDefIdForFamily(e.type)
+    const snap = defId ? snapshotMinion(defId, size) : null
+    if (snap) { snap.classList.add('mp-doc-sprite'); return snap }
+    return h('div', { className: 'mp-doc-sprite mp-doc-sprite-fb', style: { width: size + 'px', height: size + 'px' } }, (e.label || '?').charAt(0))
+  }
+
+  // Resolve a bestiary family (e.g. "imp") to a real minion definitionId for
+  // the sprite, by scanning cached minionTypes for a def whose family matches.
+  _minionDefIdForFamily(family) {
+    const defs = this._cachedJson('minionTypes') ?? []
+    const fam = (id) => String(id).replace(/\d+$/, '')
+    return defs.find(d => fam(d.id) === family)?.id ?? `${family}1`
+  }
+
+  // Gold to scrub a monster type's doctrine — scales with mastery + learned
+  // abilities; boss doctrine costs more.
+  _bestiaryScrubCost(e) {
+    if (!e || (!e.known && !e.studyingNow)) return 0
+    const base = [8, 16, 28, 42][e.masteryTier ?? 0] ?? 8
+    return Math.max(0, Math.round((base + (e.abilities?.length ?? 0) * 5) * (e.isBoss ? 1.6 : 1)))
+  }
+
+  _onScrubBestiary(e, cost) {
+    EventBus.emit('SHOW_CONFIRM', {
+      title:        'SCRUB DOCTRINE',
+      message:      `Spend ${cost}g to make the kingdom forget ${e.label}? Their counters reset until an adventurer faces it again.`,
+      confirmLabel: 'SCRUB',
+      cancelLabel:  'KEEP',
+      theme:        'blue',
+      onConfirm: () => {
+        EventBus.emit('BESTIARY_SCRUB_REQUEST', { type: e.type, cost })
+        setTimeout(() => this._rerender(), 60)
+      },
+    })
   }
 
   // Uniformly scale the px schematic (.mp-scale) to fit the stage box,

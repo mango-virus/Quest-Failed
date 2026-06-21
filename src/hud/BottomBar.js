@@ -112,7 +112,7 @@ export class BottomBar {
     // Launchers. ROSTER/MAP/INTEL carry data-tray-anchor for the future trays.
     const launchers = [
       { id: 'roster', label: 'ROSTER', color: 'poison', anchor: 'ROSTER', event: 'OPEN_MINION_ROSTER', tip: 'Review & manage your minion roster' },
-      { id: 'map',    label: 'MAP',    color: 'muted',  anchor: 'MAP',    event: 'OPEN_KNOWLEDGE_MAP', tip: 'Knowledge Map — what the heroes have learned about your dungeon' },
+      { id: 'map',    label: 'KNOWLEDGE', color: 'muted',  anchor: 'MAP',    event: 'OPEN_KNOWLEDGE_MAP', tip: 'Knowledge — the kingdom’s map intel + what they’ve learned about your minions' },
       { id: 'intel',  label: 'INTEL',  color: 'warn',   anchor: 'INTEL',  event: 'OPEN_ADV_INTEL', nu: true, tip: 'Adventurer Intel — who’s coming & their weaknesses' },
       { id: 'menu',   label: 'MENU',   color: 'blood',  event: 'OPEN_PAUSE_MENU', tip: 'Pause — options, codex & quit' },
     ]
