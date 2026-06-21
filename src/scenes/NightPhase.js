@@ -625,6 +625,13 @@ export class NightPhase extends Phaser.Scene {
       EventBus.on(event, fn, this)
       this._hudListeners.push([event, fn])
     }
+    // Checkpoint a mid-night pact the instant it's sealed. Altar/event free-
+    // pacts open the picker DURING the build phase — after the start-of-night
+    // save — so without this a reload before BEGIN DAY rewound past the pick
+    // and re-offered it. Phase is 'night' here so the save gate passes; this
+    // listener is torn down on shutdown, so end-of-day pacts (a different
+    // scene) never reach it.
+    on('PACT_SEALED', () => { if (_autosaveOn()) SaveSystem.save(this._gameState) })
     // Minion Roster — SACRIFICE button (2026-06-02). Permanently destroy a
     // minion with NO gold refund (vs the Sell tool's 50%). Was previously inert
     // (RosterOverlay emitted MINION_SACRIFICE_REQUEST with no listener).
@@ -4401,8 +4408,14 @@ export class NightPhase extends Phaser.Scene {
 
     // Day starts cleanly — make sure no stale highlight survives.
     this._clearDisconnectedHighlight()
-    this._gameState.meta.phase = 'day'
+    // Checkpoint the FULL end-of-night state (everything built + every pact
+    // picked, incl. mid-night altar/event pacts) BEFORE flipping to day. The
+    // night-only save gate refuses once phase === 'day', so this MUST run while
+    // phase is still 'night' — saving after the flip (as it used to) was a
+    // silent no-op, leaving the last checkpoint at the START of the night, so a
+    // reload rewound past mid-night pact picks (player got to pick again).
     if (_autosaveOn()) SaveSystem.save(this._gameState)
+    this._gameState.meta.phase = 'day'
     EventBus.emit('NIGHT_PHASE_ENDED')
     this.scene.start('DayPhase', { gameState: this._gameState })
   }
