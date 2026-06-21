@@ -15,16 +15,14 @@
 //
 // Coord conversion: Phaser runs Scale.RESIZE (native-res canvas), and the DOM
 // FX layer is mounted inside the zoomed #hud-stage. _worldToStage() maps a world
-// point through the camera's worldView into canvas/viewport px (see that method).
-// At uiScale 1 (1080p–1439p) the stage zoom is 1, so logical px == canvas px and
-// floats land correctly. ⚠ At uiScale ≥ 2 (4K auto-scale) the stage is zoomed but
-// the conversion is still in canvas px — float alignment there is UNVERIFIED and
-// must be checked in Electron at 4K (likely needs a ÷uiScale, but the camera-px
-// units depend on Phaser's RESIZE/DPR handling — do NOT change by reasoning alone).
+// point through the camera's worldView into canvas CSS px, then divides by uiScale
+// to land in the stage's logical coords (the stage's zoom re-applies it). No-op at
+// uiScale 1; keeps combat floats on their entity at 4K (uiScale 2) and on small
+// screens (sub-1× downscale). See _worldToStage.
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
-import { ensureStageScaled } from './stageScale.js'
+import { ensureStageScaled, effectiveUiScale } from './stageScale.js'
 import { userSettings } from './userSettings.js'
 
 const FLOAT_TTL = 1200       // ms — matches .combat-float keyframe
@@ -248,11 +246,16 @@ export class DungeonFx {
     if (!cam || !gs.scene.isActive()) return null
     const wv = cam.worldView
     if (!wv || !wv.width || !wv.height) return null
-    // Map the world rect into the camera's viewport rect, then offset
-    // by the viewport's own position on the canvas (cam.x / cam.y).
+    // Map the world rect into the camera's viewport rect, then offset by the
+    // viewport's own position on the canvas (cam.x / cam.y) — this gives canvas
+    // CSS px. The FX layer lives inside #hud-stage, which stageScale zooms by
+    // uiScale, so divide by uiScale to land in the stage's LOGICAL coords (logical
+    // × uiScale == canvas px == where the entity is). No-op at uiScale 1; required
+    // at uiScale ≠ 1 (4K → 2, and small screens → sub-1× via the downscale).
+    const ui = effectiveUiScale() || 1
     return {
-      x: (worldX - wv.x) / wv.width  * cam.width  + (cam.x ?? 0),
-      y: (worldY - wv.y) / wv.height * cam.height + (cam.y ?? 0),
+      x: ((worldX - wv.x) / wv.width  * cam.width  + (cam.x ?? 0)) / ui,
+      y: ((worldY - wv.y) / wv.height * cam.height + (cam.y ?? 0)) / ui,
     }
   }
 
