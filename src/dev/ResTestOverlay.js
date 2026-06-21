@@ -225,25 +225,7 @@ try {
         e.preventDefault(); console.log(toggle())
       }
     })
-    // Always-visible launcher chip (the keybind can be swallowed by the page/host)
-    // — click to toggle the panel. Mounts on body, outside the scaled stage.
-    const mountLauncher = () => {
-      if (typeof document === 'undefined') return
-      if (document.getElementById('qf-rt-launch')) return
-      if (!document.body) { setTimeout(mountLauncher, 400); return }
-      const b = document.createElement('button')
-      b.id = 'qf-rt-launch'; b.textContent = 'RES'
-      b.title = 'Resolution test harness — click (or Ctrl+Shift+0)'
-      b.style.cssText = 'position:fixed;right:7px;bottom:7px;z-index:2147483599;' +
-        'font:bold 9px ui-monospace,monospace;color:#9fd;background:rgba(12,16,22,.72);' +
-        'border:1px solid #2a3744;border-radius:5px;padding:2px 5px;cursor:pointer;opacity:.5'
-      b.onmouseenter = () => { b.style.opacity = '1' }
-      b.onmouseleave = () => { b.style.opacity = '.5' }
-      b.onclick = () => toggle()
-      document.body.appendChild(b)
-    }
-    mountLauncher()
-    console.log('[resTest] harness ready — click the RES chip (bottom-right) / Ctrl+Shift+0 / __qfResTest()')
+    console.log('[resTest] harness ready — Ctrl+Shift+0, __qfResTest(), or __qfDev.resTest()')
   } else {
     console.log('[resTest] NOT installed — host:', h,
       'desktop:', (typeof window !== 'undefined' && window.__desktop && window.__desktop.isDesktop))
