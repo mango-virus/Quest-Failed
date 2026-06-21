@@ -1736,6 +1736,8 @@ export const MinionAbilities = {
     // A dead attacker fires nothing — guards the rare case where the strike that
     // resolves this onHit also downed the attacker (simultaneous trade).
     if (!attacker || attacker.aiState === 'dead' || (attacker.resources?.hp ?? 0) <= 0) return
+    // No abilities while standing in a doorway / door — only inside a room.
+    if (scene?.dungeonGrid?.getTileType?.(attacker.tileX, attacker.tileY) === TILE.DOOR) return
     const abilities = _abilitiesFor(attacker, scene, 'onHit')
     if (!abilities) return
     for (const ab of abilities) {
@@ -1765,6 +1767,8 @@ export const MinionAbilities = {
   tickAbilities(minion, scene, gameState, dungeonGrid, delta) {
     if (!minion || minion.aiState === 'dead' || (minion.resources?.hp ?? 0) <= 0) return
     if (minion.faction !== 'dungeon') return
+    // No abilities while standing in a doorway / door — only inside a room.
+    if (dungeonGrid?.getTileType?.(minion.tileX, minion.tileY) === TILE.DOOR) return
     const abilities = _abilitiesFor(minion, scene, 'onTick')
     if (!abilities) return
     minion._abAccum = minion._abAccum ?? {}

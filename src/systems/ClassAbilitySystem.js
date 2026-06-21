@@ -510,7 +510,10 @@ export class ClassAbilitySystem {
       } else {
         adv._antiMagicNextPulseAt = 0
       }
-      if (!silenced) {
+      // No class abilities while standing in a doorway / door — only inside a
+      // room (matches the minion-ability rule). Buffs above still tick out.
+      const inDoorway = this._scene?.dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR
+      if (!silenced && !inDoorway) {
         switch (adv.classId) {
           case 'knight':          this._considerKnight(adv, now); break
           case 'bard':            this._considerBard(adv, now);   break
