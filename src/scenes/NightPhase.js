@@ -2090,40 +2090,45 @@ export class NightPhase extends Phaser.Scene {
       this._preview.lineStyle(1, color, 0.85)
       this._preview.strokeRect(wx, wy, rw * TS, rh * TS)
 
-      // Predicted auto-connect doorways — the DOOR footprint rects (both the
-      // ghost's side + the neighbour's) so update() can draw the real doors right
-      // where they'll land. Skipped on invalid placement (the red preview already
-      // reads as "won't connect anyway").
+      // Predicted doorways drawn as the real door skins on the ghost.
       this._predictedDoors = []
       this._clearDoorPreviewSprites()
+      // Candidate carries the placing room's own door-skin assignment so the
+      // preview shows THAT room's skin on its side; the neighbour uses its own.
+      const candidate = {
+        gridX: placeTx, gridY: placeTy,
+        width: rw, height: rh,
+        definitionId: def.id,
+        connectionPoints: rotDef.connectionPoints ?? [],
+        doorSkin: def.doorSkin, doorSkinByBoss: def.doorSkinByBoss,
+        doorSkinEntrance: def.doorSkinEntrance,
+        doorSkinSize: def.doorSkinSize, doorSkinSizeEntrance: def.doorSkinSizeEntrance,
+      }
+      const dr = this.scene.get('Game')?._dungeonRenderer
+      // Ghost treatment, same as the room ghost — translucent + a validity tint.
+      const doorTint = check.valid ? 0xc6ffd2 : 0xffc6cf
+      // Each side uses ITS OWN room's assigned door skin (drawn at the exact
+      // placed-door rect/rotation). Doors with no skin fall back to a drawn door.
+      const addDoor = (room, cp, gx, gy, w, h) => {
+        const sprite = dr?.buildDoorSkinPreview?.(room, cp, 'closed')
+        if (sprite) {
+          sprite.setDepth(20.5).setAlpha(0.65).setTint(doorTint)
+          this._doorPreviewSprites.push(sprite)
+        } else {
+          const rect = this._predictedDoorRect(cp, gx, gy, w, h)
+          if (rect) this._predictedDoors.push(rect)
+        }
+      }
+      // Main ENTRANCE door — ALWAYS shown for the entry hall. Its external /
+      // entrance cp faces outside the dungeon and never auto-connects, so it isn't
+      // in the pairs below; draw it whether the spot is valid or not, so the player
+      // always sees where the dungeon's main door lands.
+      for (const cp of (rotDef.connectionPoints ?? [])) {
+        if (cp.external === true || cp.style === 'entrance') addDoor(candidate, cp, placeTx, placeTy, rw, rh)
+      }
+      // Auto-connect doorways — only on a valid placement (the red preview already
+      // reads as "won't connect anyway").
       if (check.valid) {
-        // Candidate carries the placing room's own door-skin assignment so the
-        // preview shows THAT room's skin on its side; the neighbour uses its own.
-        const candidate = {
-          gridX: placeTx, gridY: placeTy,
-          width: rw, height: rh,
-          definitionId: def.id,
-          connectionPoints: rotDef.connectionPoints ?? [],
-          doorSkin: def.doorSkin, doorSkinByBoss: def.doorSkinByBoss,
-          doorSkinEntrance: def.doorSkinEntrance,
-          doorSkinSize: def.doorSkinSize, doorSkinSizeEntrance: def.doorSkinSizeEntrance,
-        }
-        const dr = this.scene.get('Game')?._dungeonRenderer
-        // Each side uses ITS OWN room's assigned door skin (drawn at the exact
-        // placed-door rect/rotation). Doors with no skin fall back to a drawn door.
-        const addDoor = (room, cp, gx, gy, w, h) => {
-          const sprite = dr?.buildDoorSkinPreview?.(room, cp, 'closed')
-          if (sprite) {
-            // Ghost treatment, same as the room ghost — translucent + the soft
-            // valid-tint (doors only render on a valid placement). So the door
-            // reads as part of the ghost, not a solid sprite on top of it.
-            sprite.setDepth(20.5).setAlpha(0.65).setTint(0xc6ffd2)
-            this._doorPreviewSprites.push(sprite)
-          } else {
-            const rect = this._predictedDoorRect(cp, gx, gy, w, h)
-            if (rect) this._predictedDoors.push(rect)
-          }
-        }
         const pairs = this._dungeonGrid.computeAutoConnectPairs?.(candidate) ?? []
         for (const { newCp, otherRoom, otherCp } of pairs) {
           addDoor(candidate, newCp, placeTx, placeTy, rw, rh)
@@ -4252,7 +4257,9 @@ export class NightPhase extends Phaser.Scene {
     // isMove flag stops KnowledgeSystem's stale-mark — preserveInstanceId
     // on the drop will reuse this id so adv knowledge transfers cleanly.
     this._dungeonGrid.removeRoom(room.instanceId, { isMove: true })
-    this._rotation = 0
+    // Keep the room's current orientation on pickup (was reset to 0) — moving a
+    // rotated room should re-place it at the same rotation, not snap to default.
+    this._rotation = room.rotation ?? 0
     this._selectItem(def, 'room')
     this._refreshStats()
   }
@@ -4357,8 +4364,14 @@ export class NightPhase extends Phaser.Scene {
     // refunds the room cost; the player still pays full price on
     // re-place, just with their intel intact.
     this._heldMoveRoomInstanceId = room.instanceId
+    // Capture the room's orientation so the drop re-places it the same way (and
+    // the net-rotation math has the right baseline).
+    this._heldMoveRoomRotation   = room.rotation ?? 0
+    this._heldMoveCaptureW       = room.width
+    this._heldMoveCaptureH       = room.height
     this._dungeonGrid.removeRoom(room.instanceId, { isMove: true })
-    this._rotation = 0
+    // Keep the room's current orientation on pickup (was reset to 0).
+    this._rotation = room.rotation ?? 0
 
     // Switch to rooms tab so the card and placement preview are visible
     if (this._paletteTab !== 'rooms') {
