@@ -51,8 +51,15 @@ export function buildRoomGhost(scene, def, rotation) {
   // the actual texture file already includes the walls/doors/floor art.
   const skinKey = _resolveSkinKey(scene, rotDef)
   if (skinKey) {
-    const img = scene.add.image(0, 0, skinKey).setOrigin(0, 0)
-    img.setDisplaySize(rotDef.width * TS, rotDef.height * TS)
+    // Rotate the skin WITH the room: size to the original (pre-rotation) dims,
+    // spin by `rotation`, centre on the rotated footprint. (rotDef.width/height is
+    // the rotated footprint; swap back for 90/270 to recover the original dims.)
+    const swap = (rotation === 90 || rotation === 270)
+    const ow = (swap ? rotDef.height : rotDef.width)  * TS
+    const oh = (swap ? rotDef.width  : rotDef.height) * TS
+    const img = scene.add.image((rotDef.width * TS) / 2, (rotDef.height * TS) / 2, skinKey).setOrigin(0.5)
+    img.setDisplaySize(ow, oh)
+    if (rotation) img.setAngle(rotation)
     container.add(img)
     return container
   }

@@ -761,6 +761,26 @@ export class DungeonRenderer {
     for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) cells.push(`${x},${y}`)
     return cells
   }
+  // Build ONE previewed door-skin sprite for a (room, cp, state) — used by the
+  // placement preview to show the ACTUAL assigned door skin right where an auto-
+  // connect seam will form. `room` may be a CANDIDATE that isn't placed yet: only
+  // gridX/gridY/width/height + connectionPoints + doorSkin* are read, and it uses
+  // the SAME rect / rotation / size as a placed door (_doorSkinRect /
+  // _doorSkinSizeTiles), so the preview matches exactly what will land. Returns
+  // null when the door has no skin or the cp isn't a single valid wall. The
+  // CALLER positions / alpha-fades / destroys it.
+  buildDoorSkinPreview(room, cp, state = 'closed') {
+    const key = this._doorSkinKeyFor(room, state, cp)
+    if (!key) return null
+    const rect = this._doorSkinRect(room, cp)
+    if (!rect) return null
+    const { w: wTiles, h: hTiles } = this._doorSkinSizeTiles(room, cp)
+    const img = this._scene.add.image(rect.cx, rect.cy, key).setOrigin(0.5)
+    img.setDisplaySize(wTiles * TS, hTiles * TS)
+    if (rect.rot) img.setAngle(rect.rot)
+    return img
+  }
+
   _drawDoorSkins() {
     const rooms = this._gameState?.dungeon?.rooms || []
     // Draw one 4×3 skin image over a single cp's door block (its own side).
@@ -1058,9 +1078,19 @@ export class DungeonRenderer {
     for (const room of rooms) {
       const key = this._roomSkinKeyFor(room)
       if (!key) continue
-      const w = room.width * TS, h = room.height * TS
-      const img = this._scene.add.image(room.gridX * TS + w / 2, room.gridY * TS + h / 2, key).setOrigin(0.5)
-      img.setDisplaySize(w, h)
+      // room.width/height are the placed (rotated) footprint; the skin image is
+      // authored for the room's ORIGINAL orientation. Size it to the original
+      // (pre-rotation) dims, ROTATE by room.rotation, and centre on the footprint
+      // — so the skin turns WITH the room instead of staying upright.
+      const rot  = room.rotation ?? 0
+      const swap = (rot === 90 || rot === 270)
+      const ow = (swap ? room.height : room.width)  * TS
+      const oh = (swap ? room.width  : room.height) * TS
+      const cx = room.gridX * TS + (room.width  * TS) / 2
+      const cy = room.gridY * TS + (room.height * TS) / 2
+      const img = this._scene.add.image(cx, cy, key).setOrigin(0.5)
+      img.setDisplaySize(ow, oh)
+      if (rot) img.setAngle(rot)
       this._cRoomSkins.add(img)
     }
   }

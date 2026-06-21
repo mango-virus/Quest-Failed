@@ -819,7 +819,10 @@ export class NightPhase extends Phaser.Scene {
     this._roomGhostKey = null
     this._doorGlow?.destroy()
     this._doorGlow = null
-    this._doorGlowTiles = []
+    this._predictedDoors = []
+    this._clearDoorPreviewSprites()
+    this._minionGhost?.destroy()
+    this._minionGhost = null
     this._disconnectedHighlight?.destroy()
     this._disconnectedHighlight = null
     this._disconnectedRoomIds   = new Set()
@@ -1496,7 +1499,12 @@ export class NightPhase extends Phaser.Scene {
     // Predicted auto-connect doorway glow — soft pulsing gold radial blobs at
     // each predicted door tile (both ends of the seam). Animated by update().
     this._doorGlow = gameScene.add.graphics().setDepth(20.5)
-    this._doorGlowTiles = []
+    this._predictedDoors = []
+    // Predicted-doorway SKIN sprites — the actual assigned door skin drawn where
+    // each auto-connect seam will form (the placing room's skin on its side, the
+    // neighbour's on theirs). Rebuilt each cursor move; torn down in
+    // _clearPreview / shutdown. (Doors with no skin fall back to _predictedDoors.)
+    this._doorPreviewSprites = []
     // Disconnected-room highlight lives in world space too. Depth 19 sits
     // just under the placement preview so the preview never gets hidden
     // by the pulse outline when the player is mid-placement.
@@ -1545,9 +1553,16 @@ export class NightPhase extends Phaser.Scene {
     this._minionGhost = null
     this._minionGhostKey = null
     this._doorGlow?.clear()
-    this._doorGlowTiles = []
+    this._predictedDoors = []
+    this._clearDoorPreviewSprites()
     this._previewTileX = -1
     this._previewTileY = -1
+  }
+
+  // Tear down the predicted door-SKIN sprites (rebuilt each cursor move).
+  _clearDoorPreviewSprites() {
+    if (this._doorPreviewSprites) for (const s of this._doorPreviewSprites) s?.destroy?.()
+    this._doorPreviewSprites = []
   }
 
   // ── Disconnected-room highlighter ─────────────────────────────────────────
@@ -1593,28 +1608,18 @@ export class NightPhase extends Phaser.Scene {
   // automatically; we no-op when nothing is flagged so the common case
   // is free.
   update(time) {
-    // ── Predicted-doorway gold glow ──
-    // Soft pulsing radial blobs at every predicted auto-connect door tile
-    // (both ends of the seam). Drives the placement preview's "a door will
-    // form HERE" cue without an icon. _doorGlowTiles is set by _drawPreview.
+    // ── Predicted doorways ──
+    // Draw the DOOR that will form at every predicted auto-connect seam, right on
+    // the ghost's wall (and the neighbour's), so the player sees the actual doors
+    // where they'll land instead of an abstract glow. _predictedDoors (footprint
+    // rects) is set by _drawPreview; a gentle alpha pulse keeps them reading as a
+    // live "preview".
     const dg = this._doorGlow
     if (dg) {
       dg.clear()
-      if (this._doorGlowTiles && this._doorGlowTiles.length) {
-        // ~1.1s pulse, range 0.55..1.00 — gentle, not flashy.
-        const pulse = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(time / 175))
-        for (const t of this._doorGlowTiles) {
-          // Stacked translucent gold discs — outer wide + dim, inner tighter
-          // + brighter — approximates a smooth radial glow with Graphics.
-          dg.fillStyle(0xffd87a, 0.10 * pulse)
-          dg.fillCircle(t.x, t.y, TS * 1.30)
-          dg.fillStyle(0xffe9a8, 0.18 * pulse)
-          dg.fillCircle(t.x, t.y, TS * 0.95)
-          dg.fillStyle(0xfff4c4, 0.30 * pulse)
-          dg.fillCircle(t.x, t.y, TS * 0.55)
-          dg.fillStyle(0xffffff, 0.60 * pulse)
-          dg.fillCircle(t.x, t.y, TS * 0.22)
-        }
+      if (this._predictedDoors && this._predictedDoors.length) {
+        const pulse = 0.80 + 0.20 * (0.5 + 0.5 * Math.sin(time / 220))
+        for (const r of this._predictedDoors) this._drawPredictedDoor(dg, r, pulse)
       }
     }
 
@@ -1958,7 +1963,7 @@ export class NightPhase extends Phaser.Scene {
 
     // Tear down ghosts that don't belong to the current selection kind, so
     // switching item/kind never leaves an orphaned ghost at the old cursor spot.
-    if (this._selectedKind !== 'room')   { this._roomGhost?.destroy();      this._roomGhost = null; this._roomGhostKey = null }
+    if (this._selectedKind !== 'room')   { this._roomGhost?.destroy(); this._roomGhost = null; this._roomGhostKey = null; this._clearDoorPreviewSprites(); this._predictedDoors = []; this._doorGlow?.clear() }
     if (this._selectedKind !== 'trap')   { this._previewTrapGhost?.destroy(); this._previewTrapGhost = null }
     if (this._selectedKind !== 'minion') { this._minionGhost?.destroy();    this._minionGhost = null; this._minionGhostKey = null }
 
@@ -2085,27 +2090,44 @@ export class NightPhase extends Phaser.Scene {
       this._preview.lineStyle(1, color, 0.85)
       this._preview.strokeRect(wx, wy, rw * TS, rh * TS)
 
-      // Predicted auto-connect doorways — collect tile centres for the per-
-      // frame pulsing gold radial glow drawn in update(). Skipped on invalid
-      // placement (already-red preview reads as "won't connect anyway").
-      this._doorGlowTiles = []
+      // Predicted auto-connect doorways — the DOOR footprint rects (both the
+      // ghost's side + the neighbour's) so update() can draw the real doors right
+      // where they'll land. Skipped on invalid placement (the red preview already
+      // reads as "won't connect anyway").
+      this._predictedDoors = []
+      this._clearDoorPreviewSprites()
       if (check.valid) {
+        // Candidate carries the placing room's own door-skin assignment so the
+        // preview shows THAT room's skin on its side; the neighbour uses its own.
         const candidate = {
           gridX: placeTx, gridY: placeTy,
           width: rw, height: rh,
           definitionId: def.id,
           connectionPoints: rotDef.connectionPoints ?? [],
+          doorSkin: def.doorSkin, doorSkinByBoss: def.doorSkinByBoss,
+          doorSkinEntrance: def.doorSkinEntrance,
+          doorSkinSize: def.doorSkinSize, doorSkinSizeEntrance: def.doorSkinSizeEntrance,
+        }
+        const dr = this.scene.get('Game')?._dungeonRenderer
+        // Each side uses ITS OWN room's assigned door skin (drawn at the exact
+        // placed-door rect/rotation). Doors with no skin fall back to a drawn door.
+        const addDoor = (room, cp, gx, gy, w, h) => {
+          const sprite = dr?.buildDoorSkinPreview?.(room, cp, 'closed')
+          if (sprite) {
+            // Ghost treatment, same as the room ghost — translucent + the soft
+            // valid-tint (doors only render on a valid placement). So the door
+            // reads as part of the ghost, not a solid sprite on top of it.
+            sprite.setDepth(20.5).setAlpha(0.65).setTint(0xc6ffd2)
+            this._doorPreviewSprites.push(sprite)
+          } else {
+            const rect = this._predictedDoorRect(cp, gx, gy, w, h)
+            if (rect) this._predictedDoors.push(rect)
+          }
         }
         const pairs = this._dungeonGrid.computeAutoConnectPairs?.(candidate) ?? []
         for (const { newCp, otherRoom, otherCp } of pairs) {
-          this._doorGlowTiles.push({
-            x: (placeTx + newCp.x + 0.5) * TS,
-            y: (placeTy + newCp.y + 0.5) * TS,
-          })
-          this._doorGlowTiles.push({
-            x: (otherRoom.gridX + otherCp.x + 0.5) * TS,
-            y: (otherRoom.gridY + otherCp.y + 0.5) * TS,
-          })
+          addDoor(candidate, newCp, placeTx, placeTy, rw, rh)
+          addDoor(otherRoom, otherCp, otherRoom.gridX, otherRoom.gridY, otherRoom.width, otherRoom.height)
         }
       }
 
@@ -2116,6 +2138,62 @@ export class NightPhase extends Phaser.Scene {
         this._rotLabel.setPosition(wx + (rw * TS) / 2, wy - 6)
         this._rotLabel.setVisible(true)
       }
+    }
+  }
+
+  // World rect ({x,y,w,h,horiz}) of the 2-along-wall × WT-deep door footprint for
+  // a connection point — SAME geometry as _stampDoorFootprint, returned as a rect
+  // so the placement preview can draw the predicted DOOR right there. Returns null
+  // for a corner / interior cp (no single valid wall).
+  _predictedDoorRect(cp, gridX, gridY, width, height) {
+    const WT = Balance.WALL_THICKNESS
+    const onTop = cp.y === 0, onBot = cp.y === height - 1
+    const onLft = cp.x === 0, onRgt = cp.x === width - 1
+    const onTopOrBot = onTop || onBot, onLftOrRgt = onLft || onRgt
+    if ((onTopOrBot && onLftOrRgt) || (!onTopOrBot && !onLftOrRgt)) return null
+    const cells = []
+    if (onTopOrBot) {
+      const alongDx = (cp.alongDx === 1 || cp.alongDx === -1) ? cp.alongDx : (((width - 1) - cp.x) >= cp.x ? 1 : -1)
+      const yStart = onTop ? 0 : height - WT, yEnd = onTop ? WT - 1 : height - 1
+      for (let iy = yStart; iy <= yEnd; iy++) { cells.push([cp.x, iy]); cells.push([cp.x + alongDx, iy]) }
+    } else {
+      const alongDy = (cp.alongDy === 1 || cp.alongDy === -1) ? cp.alongDy : (((height - 1) - cp.y) >= cp.y ? 1 : -1)
+      const xStart = onLft ? 0 : width - WT, xEnd = onLft ? WT - 1 : width - 1
+      for (let ix = xStart; ix <= xEnd; ix++) { cells.push([ix, cp.y]); cells.push([ix, cp.y + alongDy]) }
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const [lx, ly] of cells) {
+      const gx = gridX + lx, gy = gridY + ly
+      if (gx < minX) minX = gx
+      if (gx > maxX) maxX = gx
+      if (gy < minY) minY = gy
+      if (gy > maxY) maxY = gy
+    }
+    if (!isFinite(minX)) return null
+    return { x: minX * TS, y: minY * TS, w: (maxX - minX + 1) * TS, h: (maxY - minY + 1) * TS, horiz: onTopOrBot }
+  }
+
+  // Draw a previewed DOOR over a footprint rect: a wooden double-door leaf (frame
+  // + centre seam split along the OPENING axis + brass handles), so the player
+  // sees the actual door where the auto-connect seam will form.
+  _drawPredictedDoor(g, r, alpha = 1) {
+    const pad = 2
+    const x = r.x + pad, y = r.y + pad, w = r.w - 2 * pad, h = r.h - 2 * pad
+    if (w <= 0 || h <= 0) return
+    g.fillStyle(0x7a5230, 0.92 * alpha)          // hex-ok: canvas door-leaf wood fill (placement preview)
+    g.fillRoundedRect(x, y, w, h, 3)
+    g.lineStyle(2, 0x2e1d0e, 0.95 * alpha)        // hex-ok: canvas door frame
+    g.strokeRoundedRect(x, y, w, h, 3)
+    g.lineStyle(1.5, 0x2e1d0e, 0.8 * alpha)       // hex-ok: canvas door seam
+    g.fillStyle(0xd8b24a, 0.9 * alpha)            // hex-ok: canvas brass handle
+    if (r.horiz) {
+      const mx = r.x + r.w / 2
+      g.lineBetween(mx, y, mx, y + h)
+      g.fillCircle(mx - 3, y + h / 2, 1.6); g.fillCircle(mx + 3, y + h / 2, 1.6)
+    } else {
+      const my = r.y + r.h / 2
+      g.lineBetween(x, my, x + w, my)
+      g.fillCircle(x + w / 2, my - 3, 1.6); g.fillCircle(x + w / 2, my + 3, 1.6)
     }
   }
 
