@@ -1854,7 +1854,10 @@ export class Game extends Phaser.Scene {
 
   _setupCamera() {
     this._cam = this.cameras.main
-    this._cam.setBackgroundColor(0x050a12)
+    // Deep-dark backdrop the dungeon's bedrock fades INTO at its edges (matches
+    // DungeonRenderer's DEEP_DARK / edge-fade rim), so the player never hits a
+    // hard black void past the build space. (Was 0x050a12 navy.)
+    this._cam.setBackgroundColor(0x0d0d10)
 
     // Seed the last-known canvas size so _onSceneResize can distinguish a REAL
     // resize (dragging the window edge) from a focus/visibility refresh

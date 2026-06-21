@@ -54,6 +54,15 @@ const MORTAR           = 0x0a1420
 // is tuned to the mid-tone of that desaturated masonry (base bricks +
 // lighter capstones/cornerstones averaged). Replaced the `void_bg.png` tile.
 const VOID_BG_COLOR    = 0x2c2c30
+// The "deep dark" the bedrock fades INTO past the build space — so the player
+// never hits a hard bedrock→black-void edge. Matches Game's camera background
+// so the fade rim and the area beyond it are seamless. (Edge-fade work 2026-06-20.)
+const DEEP_DARK        = 0x0d0d10
+// Edge fade distance in TILES — a FIXED pixel width on all four sides (not a
+// fraction of the grid), so a wide/short dungeon fades by the same amount top
+// and side. A radial/proportional fade compressed the short axis into a hard
+// line; this rectangular border fade is uniform.
+const EDGE_FADE_TILES  = 10
 const BRICK_W          = 32
 const BRICK_H          = 8
 const ROWS_PER_TILE    = TS / BRICK_H   // 4
@@ -265,22 +274,33 @@ export class DungeonRenderer {
     this._gameState = gameState
 
     this._gBg        = scene.add.graphics().setDepth(0)
-    // Flat cold void backdrop — a near-black fill under the whole grid.
-    // Replaced the tiled `void-bg` texture, which clashed with the Crypt
-    // HUD. A white texture tinted to VOID_BG_COLOR keeps this a resizable
-    // TileSprite (setSize on GRID_EXPANDED) with no PNG asset to maintain.
-    // Depth -0.5 keeps it below _gBg so the vignette + carve-halo overlays
-    // still apply on top.  Sized to the full dungeon grid; resized on every
-    // redraw in case of GRID_EXPANDED.
-    this._bgSprite = scene.add.tileSprite(0, 0, 1, 1, '__WHITE')
-      .setOrigin(0, 0).setDepth(-0.5).setTint(VOID_BG_COLOR)
+    // Flat bedrock backdrop (VOID_BG_COLOR) under the whole grid + the edge-fade
+    // margin. A crisp Graphics fillRect (drawn each redraw in _drawEdgeFade),
+    // depth -0.5 (below _gBg's carve-halo overlay). It used to be a VOID_BG_COLOR-
+    // tinted TileSprite, but that bled a 1px WHITE edge texel that showed as a
+    // hairline at the dungeon's top edge at the exact initial camera zoom (and
+    // cleared once the player first zoomed). Graphics fills have hard edges → no
+    // bleed. (Replaced the old tiled `void-bg` PNG before that.)
+    this._gBgFill = scene.add.graphics().setDepth(-0.5)
+    // EDGE FADE — the bedrock backdrop dissolves into the deep dark past the
+    // build space so there's never a hard bedrock→void seam. A uniform-width
+    // rectangular border fade (4 edge strips + 4 corners, each a per-corner
+    // alpha gradient via fillGradientStyle), drawn in _drawEdgeFade(). Sits
+    // BELOW the room art (depth -0.4) so it only darkens the empty surround,
+    // never the placed rooms.
+    this._gFade = scene.add.graphics().setDepth(-0.4)
     // Void-occluder at depth 12 (same role as _gVoidMask): a flat fill in
     // the void colour so sprites bleeding into void cells are hidden behind
     // the backdrop.  A GeometryMask built from _voidMaskMaskG clips it to
     // VOID cells only; _voidMaskMaskG is rebuilt each redraw.
     this._voidMaskMaskG  = scene.add.graphics()
-    this._voidMaskSprite = scene.add.tileSprite(0, 0, 1, 1, '__WHITE')
-      .setOrigin(0, 0).setDepth(12).setTint(VOID_BG_COLOR)
+    // Crisp Graphics fill (not a tinted TileSprite) for the same reason as the
+    // backdrop — the TileSprite bled a 1px WHITE edge texel at the grid's top
+    // row, which (empty on a fresh dungeon) showed as a full-width hairline at
+    // the initial camera zoom. Filled each redraw, clipped to VOID cells by the
+    // shared geometry mask.
+    this._gVoidOcc = scene.add.graphics()
+      .setDepth(12)
       .setMask(this._voidMaskMaskG.createGeometryMask())
     // Grid lines — drawn ABOVE the void-occluder (depth 12) and masked to
     // VOID cells by the same _voidMaskMaskG geometry, so the blueprint grid
@@ -387,11 +407,10 @@ export class DungeonRenderer {
   // ── Public ─────────────────────────────────────────────────────────────────
 
   redraw() {
-    // Resize texture sprites to current dungeon bounds before any drawing.
-    const { gridWidth: _rgw, gridHeight: _rgh } = this._gameState.dungeon
-    const _rW = _rgw * TS, _rH = _rgh * TS
-    this._bgSprite?.setSize(_rW, _rH)
-    this._voidMaskSprite?.setSize(_rW, _rH)
+    // Backdrop fill + edge fade are drawn (grid + fade-margin) in _drawEdgeFade;
+    // the void occluder fill (clipped to void cells) is drawn in _drawVoidMask.
+    this._gBgFill?.clear()
+    this._gFade?.clear()
     this._voidMaskMaskG?.clear()   // rebuilt by _drawVoidMask() below
 
     this._gBg.clear()
@@ -495,8 +514,9 @@ export class DungeonRenderer {
     EventBus.off('ROOM_REMOVED',          this.redraw, this)
     EventBus.off('GRID_EXPANDED',         this.redraw, this)
     EventBus.off('DEBUG_OVERLAY_CHANGED', this.redraw, this)
-    this._bgSprite?.destroy()
-    this._voidMaskSprite?.destroy()
+    this._gBgFill?.destroy()
+    this._gFade?.destroy()
+    this._gVoidOcc?.destroy()
     this._voidMaskMaskG?.destroy()
     this._gBg.destroy()
     this._gGrid.destroy()
@@ -3252,9 +3272,9 @@ export class DungeonRenderer {
   // continuous; per-cell texture stays on _gBg.
   _drawVoidMask() {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
-    // Build the GeometryMask for _voidMaskSprite: fill every VOID cell so
-    // the texture-matched TileSprite is visible there (occluding any sprite
-    // overdraw into the void).  _voidMaskMaskG was cleared at redraw() start.
+    // Build the GeometryMask for the void-occluder: fill every VOID cell so
+    // the occluder fill is visible there (hiding any sprite overdraw into the
+    // void).  _voidMaskMaskG was cleared at redraw() start.
     const mg = this._voidMaskMaskG
     mg.fillStyle(0xffffff, 1)   // colour is irrelevant for GeometryMask
     for (let y = 0; y < gh; y++) {
@@ -3265,20 +3285,53 @@ export class DungeonRenderer {
         mg.fillRect(x * TS, y * TS, TS, TS)
       }
     }
+    // Crisp Graphics occluder, clipped to those VOID cells by the mask (no
+    // TileSprite edge bleed).
+    if (this._gVoidOcc) {
+      this._gVoidOcc.clear()
+      this._gVoidOcc.fillStyle(VOID_BG_COLOR, 1)
+      this._gVoidOcc.fillRect(0, 0, gw * TS, gh * TS)
+    }
   }
 
   _drawBackground() {
-    const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
-    const W = gw * TS
-    const H = gh * TS
-
-    // The flat void backdrop is _bgSprite (depth -0.5). Here we just draw
-    // the vignette darkening and the carve halo on top of it.
-    this._gBg.fillStyle(0x000000, 0.22)
-    this._gBg.fillEllipse(W / 2, H / 2, W * 1.4, H * 1.4)
-    // Lighter halo immediately around each placed room — "freshly chiseled
-    // edge" effect.
+    // The flat bedrock backdrop fill + the edge fade that darkens its outer
+    // margin into DEEP_DARK (so there's no hard bedrock→void seam) are both
+    // drawn in _drawEdgeFade(); then the "freshly chiseled" carve halo.
+    this._drawEdgeFade()
     this._drawCarveHalo()
+  }
+
+  // Uniform-width border fade: the bedrock darkens to DEEP_DARK over a FIXED
+  // EDGE_FADE_TILES margin on ALL four sides (so a wide/short dungeon fades by
+  // the same amount top and side), then the camera background (also DEEP_DARK)
+  // takes over — no hard seam, no aspect-skewed line, no corner poke-through.
+  // Drawn on _gFade (depth -0.4): below the room art, so rooms stay bright.
+  _drawEdgeFade() {
+    const g = this._gFade
+    if (!g) return
+    const { gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    const W = gw * TS, H = gh * TS
+    const FD = EDGE_FADE_TILES * TS
+    const C = DEEP_DARK
+    // Solid bedrock backdrop, grid + fade-margin on all sides (crisp Graphics
+    // fill — no TileSprite texel-bleed seam). The strips below darken its margin.
+    if (this._gBgFill) {
+      this._gBgFill.fillStyle(VOID_BG_COLOR, 1)
+      this._gBgFill.fillRect(-FD, -FD, W + 2 * FD, H + 2 * FD)
+    }
+    // Edge strips — alpha 0 at the grid edge → 1 at the outer rim (grid+FD).
+    // fillGradientStyle(tl, tr, bl, br, aTL, aTR, aBL, aBR)
+    g.fillGradientStyle(C, C, C, C, 1, 1, 0, 0); g.fillRect(0, -FD, W, FD)   // top
+    g.fillGradientStyle(C, C, C, C, 0, 0, 1, 1); g.fillRect(0,  H,  W, FD)   // bottom
+    g.fillGradientStyle(C, C, C, C, 1, 0, 1, 0); g.fillRect(-FD, 0, FD, H)   // left
+    g.fillGradientStyle(C, C, C, C, 0, 1, 0, 1); g.fillRect(W,   0, FD, H)   // right
+    // Corners — clear ONLY at the inner (grid) corner, full dark on the other
+    // three so they meet both adjoining strips' outer edges (no diagonal seam).
+    g.fillGradientStyle(C, C, C, C, 1, 1, 1, 0); g.fillRect(-FD, -FD, FD, FD) // TL (grid corner = BR)
+    g.fillGradientStyle(C, C, C, C, 1, 1, 0, 1); g.fillRect(W,   -FD, FD, FD) // TR (grid corner = BL)
+    g.fillGradientStyle(C, C, C, C, 1, 0, 1, 1); g.fillRect(-FD,  H,  FD, FD) // BL (grid corner = TR)
+    g.fillGradientStyle(C, C, C, C, 0, 1, 1, 1); g.fillRect(W,    H,  FD, FD) // BR (grid corner = TL)
   }
 
   // Per-cell stone-texture pass. Walks every TILE.VOID cell and stamps a
