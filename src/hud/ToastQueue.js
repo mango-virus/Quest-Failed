@@ -87,6 +87,10 @@ const BOUNTY_TTL = 9000
 // time to register that something big happened.
 const LEGENDARY_TTL = 10000
 
+// Shared "wrap, never clip" style — overrides the one-line CSS clamps on the
+// subtitle / flavor slots so a long line wraps to fit instead of ellipsizing.
+const WRAP_STYLE = { 'white-space': 'normal', 'overflow': 'visible', 'text-overflow': 'clip', 'overflow-wrap': 'break-word' }
+
 export class ToastQueue {
   constructor() {
     this._listeners = []
@@ -109,6 +113,19 @@ export class ToastQueue {
     const ttl = kind === 'bounty'                 ? BOUNTY_TTL
               : kind === 'legendary_achievement'  ? LEGENDARY_TTL
               : TOAST_TTL
+    // Title style: WRAP fully (never truncate) — overrides the one-line clamp
+    // in styles.css (parallel-session-owned). Long gameplay messages also step
+    // the font down a notch or two so they stay compact instead of ballooning
+    // the card; short headlines (level/pact/etc.) keep the default 9–10px.
+    const titleLen = title ? String(title).length : 0
+    const titleStyle = {
+      'white-space': 'normal',
+      'overflow': 'visible',
+      'text-overflow': 'clip',
+      'overflow-wrap': 'break-word',
+    }
+    if (titleLen > 80)      { titleStyle['font-size'] = '7.5px'; titleStyle['letter-spacing'] = '0.4px' }
+    else if (titleLen > 44) { titleStyle['font-size'] = '8px';   titleStyle['letter-spacing'] = '0.7px' }
     // Build the toast root. All colour (accent edge, glyph, title, glow) is
     // driven off one inline `--accent` CSS var so the stylesheet owns the look
     // and tiers/variants compose cleanly. Legendary keeps its own gold frame
@@ -124,19 +141,12 @@ export class ToastQueue {
         h('span', { className: 'pix qf-toast-glyph' }, meta.glyph),
         h('div', { className: 'qf-toast-titlecol' }, [
           eyebrow  && h('div', { className: 'pix qf-toast-eyebrow' }, eyebrow),
-          // Let a long title WRAP to two lines (then ellipsis) instead of
-          // truncating mid-word on one line. Inline so it wins over the
-          // .qf-toast-title one-line clamp in styles.css (parallel-session-
-          // owned). The toast is min-height, so it grows to fit the 2nd line.
-          h('div', { className: 'pix qf-toast-title', style: {
-            'white-space': 'normal',
-            'display': '-webkit-box',
-            '-webkit-box-orient': 'vertical',
-            '-webkit-line-clamp': '2',
-            'overflow': 'hidden',
-          } }, title),
-          subtitle && h('div', { className: 'qf-toast-subtitle' }, subtitle),
-          flavor   && h('div', { className: 'qf-toast-flavor' }, flavor),
+          // Title wraps to as many lines as it needs (never clipped); the card
+          // is min-height so it grows to fit. See titleStyle above.
+          h('div', { className: 'pix qf-toast-title', style: titleStyle }, title),
+          // Subtitle/flavor wrap too (CSS clamps them to one line) so no slot truncates.
+          subtitle && h('div', { className: 'qf-toast-subtitle', style: WRAP_STYLE }, subtitle),
+          flavor   && h('div', { className: 'qf-toast-flavor', style: WRAP_STYLE }, flavor),
         ]),
       ]),
       h('div', { className: 'qf-toast-bar', style: { animationDuration: `${ttl}ms` } }),
