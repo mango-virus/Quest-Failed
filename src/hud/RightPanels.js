@@ -303,25 +303,12 @@ export class RightPanels {
         ref: el => { this._refs.waveDock = el },
       }, [
       h('div', { className: 'qf-wave-panelcol' }, [
-      // IncomingWave
-      h('div', {
-        className: 'panel bevel qf-wavepanel',
-        ref: el => { this._refs.wavePanel = el },
-      }, [
-        h('div', { className: 'panel-head' }, [
-          h('div', { className: 'title' }, [
-            h('span', {
-              className: 'diamond',
-              style: { background: 'var(--blood)', boxShadow: '0 0 6px var(--blood)' },
-            }),
-            'INCOMING WAVE',
-          ]),
-        ]),
-        h('div', {
-          className: 'qf-wave-body',
-          ref: el => { this._refs.waveBody = el },
-        }),
-      ]),
+      // IncomingWave — REMOVED from the HUD column (2026-06-20, by user). The
+      // wave preview still lives behind the INTEL action-bar launcher
+      // (AdvIntelOverlay), so the persistent right-corner panel was dropped.
+      // `_renderWave()` self-guards on the absent waveBody ref and
+      // setWaveVisible() on the absent wavePanel ref, so their remaining
+      // subscriptions / tick calls are harmless no-ops.
 
       // AdventurerIntel — REMOVED from the HUD column (crypt-console
       // redesign): it duplicated the INTEL action-bar launcher
