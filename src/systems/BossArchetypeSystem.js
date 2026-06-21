@@ -2801,15 +2801,27 @@ export class BossArchetypeSystem {
     ge.lineStyle(1, VEIN, 0.32)
     ge.lineBetween(cx - hw * 0.95, cy, cx - hw * 0.5, cy - hh * 0.3)
     ge.lineBetween(cx + hw * 0.95, cy, cx + hw * 0.55, cy + hh * 0.25)
-    // (e) BLINK — dark eyelids sweep in from top + bottom, covering (1-open)
-    if (open < 0.98) {
-      const cover = (1 - open) * hh
-      ge.fillStyle(SCLERA, 0.97)
-      ge.fillRect(cx - hw - 2, cy - hh - 2, hw * 2 + 4, cover + 2)
-      ge.fillRect(cx - hw - 2, cy + hh - cover, hw * 2 + 4, cover + 4)
-      ge.lineStyle(1.2, PALE, 0.55)
-      ge.lineBetween(cx - hw, cy - hh + cover, cx + hw, cy - hh + cover)
-      ge.lineBetween(cx - hw, cy + hh - cover, cx + hw, cy + hh - cover)
+    // (e) BLINK — eyelids close along the eye's OWN almond curve. (The old
+    // version swept in two fillRect rectangles, whose corners poked square past
+    // the curved lens — janky.) Each lid is the crescent between the full almond
+    // arc and that same arc scaled by `open`, so the visible aperture is a
+    // shrinking almond and the lids meet cleanly at the tear-ducts (zero area
+    // when open, full almond when shut). N+1 samples match the sclera path.
+    if (open < 0.985) {
+      const lid = (sign) => {
+        ge.beginPath()
+        for (let i = 0; i <= N; i++) { const tt = i / N, px = cx + (-1 + 2 * tt) * hw, py = cy + sign * Math.sin(tt * Math.PI) * hh; if (i === 0) ge.moveTo(px, py); else ge.lineTo(px, py) }
+        for (let i = N; i >= 0; i--) { const tt = i / N; ge.lineTo(cx + (-1 + 2 * tt) * hw, cy + sign * Math.sin(tt * Math.PI) * hh * open) }
+        ge.closePath(); ge.fillPath()
+      }
+      ge.fillStyle(SCLERA, 0.97); lid(-1); lid(1)
+      // pale wet-rim tracing each lid edge (the open-scaled arcs)
+      ge.lineStyle(Math.max(0.8, s * 0.09), PALE, 0.6)
+      for (const sign of [-1, 1]) {
+        ge.beginPath()
+        for (let i = 0; i <= N; i++) { const tt = i / N, px = cx + (-1 + 2 * tt) * hw, py = cy + sign * Math.sin(tt * Math.PI) * hh * open; if (i === 0) ge.moveTo(px, py); else ge.lineTo(px, py) }
+        ge.strokePath()
+      }
     }
   }
 
