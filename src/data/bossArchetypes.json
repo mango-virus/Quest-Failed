@@ -12,12 +12,14 @@
     "headline": {
       "name": "Eye Tyrant — the Eye Barrage",
       "summary": "Each eye-stalk fires a different curse-ray. In the throne fight a tier-gated barrage rotates Petrify, Drain (damage + self-heal), Hex (amplifies your blows) and, at the final act, a Disintegrate death-ray. More eyes open each act.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Eye-stalks fire rotating curse-rays — Petrify, Drain, Hex, then a final Disintegrate death-ray. More eyes open each act."
     },
     "mechanics": [
       {
         "text": "Tyrant's Gaze (day active) — arm, click a room, and lock down everyone inside: Silence (T1) → +Slow (T2) → +Petrify (T3) → +Disintegrate damage (T4). Uses scale with boss level; room-wide, so it scales with the crowd.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Lock down a room: silence inside, then add slow, petrify, and disintegrate damage as it ranks up."
       },
       {
         "text": "Anti-Magic Aura — each day, marks rooms that silence all class abilities inside (the gaze's standing T1 baseline).",
@@ -53,12 +55,14 @@
     "headline": {
       "name": "The Brimstone Pact",
       "summary": "Death is fuel. Sacrifices and every adventurer kill bank INFERNAL POWER (which also regenerates the Demon); the Infernal Pact spends it to rain hellfire on a room — the bigger the reserve, the bigger the cataclysm.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Kills and sacrifices bank Infernal Power; spend it to rain hellfire — the bigger the reserve, the bigger the blast."
     },
     "mechanics": [
       {
         "text": "Infernal Pact (day active) — arm, click a room: burn an imp + spend banked Brimstone to hellfire it (bigger reserve = bigger blast). Higher acts add burning ground, heal-block, and a %HP execute that refunds Brimstone.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Burn an imp and spend banked Brimstone to hellfire a room; late acts add burning ground and executes."
       },
       {
         "text": "Volatile Legion (Act II+) — Hellgate imps EXPLODE in hellfire when a hero kills them. Soul Harvest (Act III+) doubles the Brimstone every death banks. Infernal Ascendance (Act IV) — while the reserve is near full, your whole legion's attacks sear.",
@@ -95,12 +99,14 @@
     "headline": {
       "name": "The Bloom",
       "summary": "Colonize the dungeon. Bloomed rooms gas heroes with spores (and, as the Bloom matures, block their healing and slow them) while your minions inside gain regen. Biomass — banked from every death — spreads the colony and feeds the throne.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Colonize the dungeon — bloomed rooms gas heroes with spores while your minions inside regenerate. Biomass spreads the colony."
     },
     "mechanics": [
       {
         "text": "Seed the Bloom (day active) — arm, click a room, and instantly colonize it (with a spore-burst as the Bloom matures). The colony also creeps into adjacent rooms on its own at higher acts.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Instantly colonize a room with a spore-burst; at higher acts the bloom creeps into neighboring rooms on its own."
       },
       {
         "text": "Corpse Bloom — dead adventurers rot into fungal corpses that poison on contact AND auto-bloom their room, feeding the colony.",
@@ -136,12 +142,14 @@
     "headline": {
       "name": "The Dread Harvest",
       "summary": "Banks DREAD from every fright; it amplifies all fear and drops the break thresholds, so the party panics, knifes itself, and drops dead faster as terror pools.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Every fright banks Dread, amplifying all fear and lowering the break thresholds — the party panics and dies faster."
     },
     "mechanics": [
       {
         "text": "Fear → breaks — enough fear makes a hero flee (dropping gold + spreading panic), knife an ally, or die of fright. Every break feeds DREAD.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Enough fear makes a hero flee, knife an ally, or die of fright — and every break feeds Dread."
       },
       {
         "text": "Night Terror (day) — flood a room with dread: a fear spike, a lingering haunted zone, and at high acts an instant break / mass heart-stop.",
@@ -181,12 +189,14 @@
     "headline": {
       "name": "The Blood Hunt",
       "summary": "Carnage banks FEROCITY, whipping the free Hunter's Pack into a faster, fiercer frenzy and fuelling coordinated hunts the Alpha leads in person.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Carnage banks Ferocity, whipping the free Hunter's Pack into a fiercer frenzy and fueling hunts the Alpha leads."
     },
     "mechanics": [
       {
         "text": "FEROCITY — every kill + the pack's damage banks FEROCITY; high FEROCITY frenzies the pack (more attack + move speed).",
-        "implemented": true
+        "implemented": true,
+        "brief": "Every kill banks Ferocity; high Ferocity frenzies the pack with more attack and move speed."
       },
       {
         "text": "Sound the Hunt (day) — the pack converges on a room and savages everyone (%maxHP rend); the Alpha leaps in and, late, the hunt pursues survivors room to room.",
@@ -226,12 +236,14 @@
     "headline": {
       "name": "The Living Fortress",
       "summary": "The dungeon IS its body. Every room you hold grows its HP and DEF and makes its quakes hit harder. The bigger your fortress, the more unkillable the Golem.",
-      "implemented": true
+      "implemented": true,
+      "brief": "The dungeon is its body — every room you hold raises its HP and Defense and makes its quakes hit harder."
     },
     "mechanics": [
       {
         "text": "Seismic Slam (day active) — arm, click a room: damage scales with how many rooms you've built. Higher acts add a lingering Fissure (DoT + slow), Collapse that buries heroes, and a Cataclysm that shakes adjacent rooms too.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Quake a room for damage that scales with your room count; late acts add fissures, collapses, and cataclysms."
       },
       {
         "text": "Aftershock (Act II+) — periodic tremors chip the most-occupied room; Tremor Network (Act III+) quakes every occupied room; Tectonic Upheaval (Act IV) also briefly roots. Constant, dungeon-wide seismic pressure.",
@@ -268,12 +280,14 @@
     "headline": {
       "name": "The Withering",
       "summary": "In the throne fight it spends banked Soul Essence to blast, drain and wither the party — escalating each act — and self-heals while Essence is held. Every death in your halls banks more.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Spend banked Soul Essence to blast, drain, and wither the party, self-healing while it is held. Every death banks more."
     },
     "mechanics": [
       {
         "text": "Channel Souls — during the day, spend essence on a target room: blast, drain, wither, then (late acts) cage everyone inside. Room-wide, so it scales with the crowd.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Spend essence on a room to blast, drain, and wither everyone inside; late acts cage them too."
       },
       {
         "text": "Soul Harvest — the Lich slowly regenerates while it holds essence; hoard for a deadlier final fight or spend now for kill pressure.",
@@ -309,12 +323,14 @@
     "headline": {
       "name": "The Plague-Bearer",
       "summary": "Its bite carries a living plague. Infected adventurers spread the sickness body-to-body through the whole raid; banked VIRULENCE (per infected kill) makes it leap to more victims and tick harder all run.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Its bite carries a plague that spreads hero-to-hero through the raid; banked Virulence makes it leap farther and tick harder."
     },
     "mechanics": [
       {
         "text": "Plague Spit (day active) — arm, click a room: infect everyone with a heavy dose that then spreads on its own — to neighbors (Act II), farther + a feverish slow (Act III), and across rooms with bursting corpses (Act IV).",
-        "implemented": true
+        "implemented": true,
+        "brief": "Infect a whole room with a heavy dose that then spreads on its own into neighboring rooms."
       },
       {
         "text": "Venom Stack — Lizardman minion attacks stack poison that lingers for the rest of the run (still in effect alongside the boss's plague).",
@@ -350,12 +366,14 @@
     "headline": {
       "name": "Trophy Hunter",
       "summary": "Every hero class your dungeon kills arms the Veteran with their weapon — his throne-fight arsenal grows over the run and sharpens with repeat kills.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Every hero class you kill arms him with their weapon; his arsenal grows all run and sharpens with repeat kills."
     },
     "mechanics": [
       {
         "text": "Trophy Throw (day active) — arm, click a room, and hurl one claimed weapon per trophy type into it: Blade rends, Heavy roots, Arcane hexes, Hunter slows, Faith heals the boss. Empowered trophies hit harder; higher acts throw more of the arsenal (T4 = all of it).",
-        "implemented": true
+        "implemented": true,
+        "brief": "Hurl claimed weapons into a room — blades rend, heavy roots, arcane hexes, hunter slows, faith heals the boss."
       },
       {
         "text": "Warband — orcs in the same room buff each other's ATK and DEF, and each loots permanent ATK per kill.",
@@ -395,12 +413,14 @@
     "headline": {
       "name": "The Blood Sovereign",
       "summary": "Runs the dungeon as a blood economy: every wound feeds a banked BLOOD pool spent on Blood Rites and a growing charmed Court.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Runs the dungeon as a blood economy — every wound banks Blood, spent on Blood Rites and a growing charmed Court."
     },
     "mechanics": [
       {
         "text": "BLOOD — a cut of all damage dealt to heroes (and each kill) banks BLOOD; it heals the Sovereign and powers his abilities.",
-        "implemented": true
+        "implemented": true,
+        "brief": "A cut of all damage and every kill banks Blood, which heals the Sovereign and powers his abilities."
       },
       {
         "text": "Blood Rite (day) — drain %maxHP from everyone in a room; by act it charms the lowest survivor, leaves a Sanguine Pool, then mass-converts the dying.",
@@ -440,12 +460,14 @@
     "headline": {
       "name": "The Rapture",
       "summary": "Banks ALLURE and spends it to mesmerize the party — Infatuated turn on their own, Enraptured freeze defenseless (and take extra damage), Lured walk into your traps.",
-      "implemented": true
+      "implemented": true,
+      "brief": "Banks Allure to mesmerize the party — the Infatuated turn on their own, the Enraptured freeze, the Lured walk into traps."
     },
     "mechanics": [
       {
         "text": "ALLURE — every heart she turns banks ALLURE; it scales how many heroes each mesmerize hits and how long it lasts.",
-        "implemented": true
+        "implemented": true,
+        "brief": "Every heart she turns banks Allure, scaling how many heroes each mesmerize hits and how long it lasts."
       },
       {
         "text": "Kiss of Rapture (day) — beguile a whole room: infatuate all, enrapture the wounded, lure survivors, and (late) freeze the room in mass ecstasy.",
@@ -485,12 +507,14 @@
     "headline": {
       "name": "Mitosis",
       "summary": "A self-multiplying ooze: it buds free gooplings and absorbs the dead, swelling its Mass — the more Mass, the bigger it grows and the larger the horde it splits into in the throne fight.",
-      "implemented": true
+      "implemented": true,
+      "brief": "A self-multiplying ooze — it buds free gooplings and absorbs the dead, swelling its Mass into a bigger throne-fight horde."
     },
     "mechanics": [
       {
         "text": "Mitosis Surge (day active) — arm, click a room: flood it with a wave of gooplings that swarm everyone inside (scales with Mass + the crowd).",
-        "implemented": true
+        "implemented": true,
+        "brief": "Flood a room with a wave of gooplings that swarm everyone inside, scaling with Mass and the crowd."
       },
       {
         "text": "The Horde — roaming gooplings coalesce into bigger slimes and leave acid trails; in the throne fight blobs split, recombine if not bursted, and (late acts) self-heal.",

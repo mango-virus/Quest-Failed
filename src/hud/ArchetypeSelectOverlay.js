@@ -168,7 +168,10 @@ export class ArchetypeSelectOverlay {
     const locked = this._isLocked(b.id)
     const stats  = b.baseFightStats || { hp: 200, attack: 12, defense: 10 }
     const sig    = b.headline || {}
-    const mech   = splitMech((b.mechanics && b.mechanics[0] && b.mechanics[0].text) || '')
+    const m0     = (b.mechanics && b.mechanics[0]) || {}
+    // Name comes from the "Name — body" mechanic string; the body prefers the
+    // brief select-screen blurb (full text stays in the boss-overview kit).
+    const mech   = splitMech(m0.text || '')
 
     const leftTablet = h('div', { className: 'qf-bp-tablet left' }, [
       h('span', { className: 'sil qf-bp-ribbon' }, '☠ Signature · Boss Fight'),
@@ -176,7 +179,7 @@ export class ArchetypeSelectOverlay {
         h('div', { className: 'qf-bp-emblem' }, '☠'),
         h('div', { className: 'pix qf-bp-abname' }, sig.name || b.name),
       ]),
-      h('div', { className: 'qf-bp-abtext' }, sig.summary || ''),
+      h('div', { className: 'qf-bp-abtext' }, sig.brief || sig.summary || ''),
     ])
 
     const throneKids = [
@@ -202,7 +205,7 @@ export class ArchetypeSelectOverlay {
         h('div', { className: 'qf-bp-emblem' }, '◈'),
         h('div', { className: 'pix qf-bp-abname' }, mech.name),
       ]),
-      h('div', { className: 'qf-bp-abtext' }, mech.body),
+      h('div', { className: 'qf-bp-abtext' }, m0.brief || mech.body),
     ])
 
     this._altarEl.replaceChildren(leftTablet, throne, rightTablet)
