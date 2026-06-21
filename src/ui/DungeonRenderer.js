@@ -358,11 +358,17 @@ export class DungeonRenderer {
     // entity passes under. Without the split the one image sat above entities
     // and hid them in the doorway.
     this._cDoorSkins     = scene.add.container(0, 0).setDepth(1.6)
-    // NOT outer-cell masked (unlike the painted-door high layer): the occluder
-    // texture's own alpha decides what hides a character (opaque sky/frame) vs
-    // shows them through (carved passage / transparent apron), and the fill needs
-    // to reach the wall ABOVE the door cells to hide a passing head.
+    // Clipped to the OUTER (seam/archway) cells — same as the painted-door high
+    // layer. Without it, a skinned door's opaque ROOM-SIDE pillars/frame bled over
+    // the cells where a character stands NEXT TO the door and swallowed their head;
+    // clipping keeps only the doorway archway above characters (they pass UNDER it
+    // through the seam) while the room-side frame sits in the LOW copy (below them).
+    // ⚠ TRADE-OFF: this reverses the see-through-gate-top occluder (which un-masked
+    // this layer so its baked fill reached the wall above) — for full-room-skinned
+    // rooms _cDoorSkinWall still covers the sky, but a theme-based room with a
+    // transparent-topped gate could let a head poke out the top again.
     this._cDoorSkinsHigh = scene.add.container(0, 0).setDepth(9)
+    this._cDoorSkinsHigh.setMask(this._outerCellMaskG.createGeometryMask())
     // Per-pixel WALL above a transparent-topped gate: a copy of the room's own
     // skin, masked to the door's SKY region, drawn just over the colour-fill copy
     // so the actual wall texture continues up instead of a flat patch. The colour

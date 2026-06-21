@@ -2129,6 +2129,13 @@ export class NightPhase extends Phaser.Scene {
     if ((this._gameState._mechanicFlags ?? {}).insomniacLockTonight) {
       violations.push('The Insomniac — no building tonight')
     }
+    // Keep doorways clear — no minion on a door or its walkway (same guard items
+    // use). _isAdjacentToDoor covers the door tile itself + the adjacent approach
+    // cells, so a minion can't body-block a passage between rooms.
+    if (this._isAdjacentToDoor(tx, ty)) {
+      violations.push('Cannot place on a doorway')
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'doorway' })
+    }
     const tile = this._dungeonGrid.getTileType(tx, ty)
     if (tile !== TILE.FLOOR && tile !== TILE.BOSS_FLOOR) {
       violations.push('Must place on a room floor')

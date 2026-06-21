@@ -64,6 +64,8 @@ export class TrayShell {
     this._onDragMoveB = (e) => this._dragMove(e)
     this._onDragUpB = (e) => this._dragUp(e)
     this._onFocusDownB = () => { if (this._detached) this.focus() }
+    this._onResizeMoveB = (e) => this._resizeMove(e)
+    this._onResizeUpB = () => this._resizeUp()
   }
 
   get isOpen() { return this._open }
@@ -103,7 +105,12 @@ export class TrayShell {
         className: 'htr-detach', title: 'Detach — pin this panel on screen',
         on: { click: (e) => { e.stopPropagation(); this.detach() } },
       }, [ h('span', { className: 'htr-detach-ic' }, '⛶') ])
-      kids.push(this._titleEl, this._detachTabEl)
+      // Free-form resize handles (edges + corners) — only active when detached.
+      const resizers = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(dir => h('div', {
+        className: 'htr-rsz ' + dir,
+        on: { pointerdown: (e) => this._resizeDown(e, dir) },
+      }))
+      kids.push(this._titleEl, this._detachTabEl, ...resizers)
     }
     const tray = h('div', {
       className: 'htr-tray closed',
@@ -211,6 +218,7 @@ export class TrayShell {
     if (this._detached) this._aimRedock()
     this._detached = false
     this._endDrag()
+    this._endResize()
     this._trayEl?.classList.add('closed')
     this._trayEl?.classList.remove('detached', 'focused', 'htr-small')
     clearTimeout(this._remeasureT)
@@ -357,6 +365,53 @@ export class TrayShell {
     this._titleEl?.classList.remove('dragging')
     window.removeEventListener('pointermove', this._onDragMoveB)
     window.removeEventListener('pointerup', this._onDragUpB)
+  }
+
+  // ── Free-form resize (drag an edge/corner) ───────────────────────
+  _resizeDown(e, dir) {
+    if (e.button !== 0 || !this._detached) return
+    e.preventDefault(); e.stopPropagation()
+    this.focus()
+    const layer = this._el, tray = this._trayEl
+    const lr = layer.getBoundingClientRect()
+    const s = (layer.offsetWidth && lr.width) ? (lr.width / layer.offsetWidth) : 1
+    this._resize = {
+      dir, s, sx: e.clientX, sy: e.clientY,
+      sl: parseFloat(tray.style.left) || 0, st: parseFloat(tray.style.top) || 0,
+      sw: tray.offsetWidth, sh: tray.offsetHeight,
+    }
+    document.body.style.cursor = getComputedStyle(e.currentTarget).cursor
+    window.addEventListener('pointermove', this._onResizeMoveB)
+    window.addEventListener('pointerup', this._onResizeUpB)
+  }
+
+  _resizeMove(e) {
+    if (!this._resize) return
+    const { dir, s, sx, sy, sl, st, sw, sh } = this._resize
+    const dx = (e.clientX - sx) / s, dy = (e.clientY - sy) / s
+    const MINW = 300, MINH = 250
+    const layer = this._el, tray = this._trayEl
+    const maxW = layer.offsetWidth, maxH = layer.offsetHeight
+    let w = sw, ht = sh, l = sl, t = st
+    if (dir.includes('e')) w = Math.max(MINW, Math.min(sw + dx, maxW - sl))
+    if (dir.includes('s')) ht = Math.max(MINH, Math.min(sh + dy, maxH - st))
+    if (dir.includes('w')) { w = Math.max(MINW, Math.min(sw - dx, sl + sw)); l = sl + (sw - w) }
+    if (dir.includes('n')) { ht = Math.max(MINH, Math.min(sh - dy, st + sh)); t = st + (sh - ht) }
+    tray.style.width = w + 'px'; tray.style.height = ht + 'px'
+    tray.style.left = l + 'px'; tray.style.top = t + 'px'
+    // Responsive small-mode tweaks track the live width (the toggle uses this too).
+    tray.classList.toggle('htr-small', w < 470)
+  }
+
+  _resizeUp() { this._endResize() }
+
+  _endResize() {
+    if (!this._resize) return
+    this._resize = null
+    document.body.style.cursor = ''
+    window.removeEventListener('pointermove', this._onResizeMoveB)
+    window.removeEventListener('pointerup', this._onResizeUpB)
+    this._onDetach?.()   // settle: re-fit the map / re-grid for the final size
   }
 
   destroy() {
