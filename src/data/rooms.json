@@ -868,152 +868,7 @@
         "category": "starter",
         "width": 6,
         "height": 12,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_c",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 8,
         "costStep": 3,
@@ -1055,7 +910,8 @@
             "w": 3.1,
             "h": 2.1,
             "nudge": 0
-        }
+        },
+        "backgroundImage": "6x12"
     },
     {
         "id": "starter_barracks",
@@ -1293,7 +1149,8 @@
         "description": "+10 roster minion slots each (scales with boss level). Required for any roster minions — the only ones that can patrol or follow.",
         "flavorText": "The bones rest cheap.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "12x10"
     },
     {
         "id": "starter_guard_post",
@@ -1470,7 +1327,8 @@
         "description": "Minions placed here leave to hunt adventurers in any directly door-connected room. They return to the Guard Post after the kill.",
         "flavorText": "Four doors. One choice.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "10x8"
     },
     {
         "id": "crypt",
@@ -1684,7 +1542,8 @@
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
-        "onDayStart": "crypt_spawnUndead"
+        "onDayStart": "crypt_spawnUndead",
+        "backgroundImage": "8x12"
     },
     {
         "id": "trap_factory",
@@ -2504,7 +2363,8 @@
             "walls": {
                 "sat": -1
             }
-        }
+        },
+        "backgroundImage": "12x10"
     },
     {
         "id": "library_of_whispers",
@@ -2670,10 +2530,7 @@
                     "rot": 90
                 },
                 null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
+                null,
                 null
             ],
             [
@@ -2764,7 +2621,8 @@
         "description": "Reveals the next party’s full intel — size, classes, personalities, scaled stats and planned route — on the Intel panel the night before. One Library tells all. No Library = intel unknown.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "14x10"
     },
     {
         "id": "watchtower",
@@ -2915,7 +2773,8 @@
         "description": "Minions in directly door-connected rooms get a first-strike hit when adventurers enter. Counters Speed Runners and surprise tactics.",
         "flavorText": "We see them before they see themselves.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "8x8"
     },
     {
         "id": "wandering_gate",
@@ -3117,7 +2976,8 @@
         "description": "On entry, teleports the adventurer to a random room — heavily favouring those far from the boss, flinging them back toward the entrance and scrambling their path. Never the Boss Chamber.",
         "flavorText": "Step in. Step out. Hopefully not the same room.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "10x10"
     },
     {
         "id": "veil_of_forgetting",
@@ -3261,7 +3121,8 @@
         "description": "Each Night Phase, erases adventurer intel of all rooms directly door-connected to this one.",
         "flavorText": "What was here? Nothing. Nothing was ever here.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "8x8_2"
     },
     {
         "id": "tar_pit",
@@ -3415,7 +3276,8 @@
         "description": "Adventurers caught inside wade at half speed (Sucking Mire upgrade also roots them on entry). A chokepoint — route the path through it into your traps and minions. Does not slow your minions.",
         "flavorText": "Slow down. Stay a while. Stay forever.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "8x8_2"
     },
     {
         "id": "silence_ward",
@@ -3524,10 +3386,7 @@
                     "rot": 180
                 },
                 null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
+                null,
                 null
             ],
             [
@@ -3719,7 +3578,8 @@
         "description": "Choked with barbed brambles. An adventurer who makes a melee attack while inside takes 30% of the damage they deal back as thorns. Wrap it around a tanky minion. Iron Thorns upgrade: 50% reflect, and ranged attackers get pricked too.",
         "flavorText": "Every blow you land, the briars return.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "8x8_2"
     },
     {
         "id": "catacombs",
@@ -3782,10 +3642,7 @@
                     "rot": 90
                 },
                 null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
+                null,
                 null
             ],
             [
@@ -3924,15 +3781,7 @@
         "flavorText": "Old bones don't die. They just wait their turn.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.5,
-                "hue": -75
-            }
-        }
+        "backgroundImage": "14x8"
     },
     {
         "id": "mimic_vault",
@@ -4020,10 +3869,7 @@
                     "rot": 270
                 },
                 null,
-                {
-                    "id": "floor8",
-                    "rot": 180
-                },
+                null,
                 null,
                 {
                     "id": "floor8",
@@ -4122,18 +3968,8 @@
         "flavorText": "It even has the right sparkle.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": 2,
-                "bright": -0.5,
-                "hue": -15,
-                "contrast": 0
-            }
-        },
-        "onDayStart": "mimicVault_respawnMimics"
+        "onDayStart": "mimicVault_respawnMimics",
+        "backgroundImage": "12x8"
     },
     {
         "id": "hall_of_trials",
@@ -4283,7 +4119,7 @@
                 },
                 null,
                 {
-                    "id": "wall_c",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -4411,15 +4247,8 @@
         "flavorText": "Only the proven walk these stones.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": -180
-            }
-        },
-        "onDayStart": "hallOfTrials_spawnElite"
+        "onDayStart": "hallOfTrials_spawnElite",
+        "backgroundImage": "12x12"
     },
     {
         "id": "wishing_well",
@@ -4564,16 +4393,7 @@
         "flavorText": "Wish carefully. The well listens to one in two.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": -180,
-                "sat": 1.9,
-                "bright": -0.35
-            }
-        }
+        "backgroundImage": "8x8_3"
     },
     {
         "id": "false_exit",
@@ -4833,15 +4653,7 @@
         "flavorText": "They thought they were getting out. They were getting in.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": 75,
-                "sat": 0
-            }
-        }
+        "backgroundImage": "14x10_2"
     },
     {
         "id": "hall_of_madness",
@@ -5119,16 +4931,7 @@
         "flavorText": "He looked at me and I saw the rest of them looking back.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": -90,
-                "sat": 1.5,
-                "bright": -0.5
-            }
-        }
+        "backgroundImage": "12x12_2"
     },
     {
         "id": "throne_room",
@@ -5485,15 +5288,8 @@
         "flavorText": "Every kingdom has a deputy. Mine has teeth.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": 0
-            }
-        },
-        "onDayStart": "throneRoom_spawnMiniBoss"
+        "onDayStart": "throneRoom_spawnMiniBoss",
+        "backgroundImage": "14x14"
     },
     {
         "id": "sanctum",
@@ -5735,10 +5531,6 @@
         "flavorText": "Even the dark needs a quiet place.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            }
-        }
+        "backgroundImage": "12x12_3"
     }
 ]
