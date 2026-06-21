@@ -18,7 +18,7 @@
 // Phase 2 (separate): steamworks.js — achievements, Steam Cloud saves, leaderboards.
 // Phase 3 (separate): electron-builder packaging + code signing + Steam depot upload.
 
-const { app, BrowserWindow, protocol, net, Menu, shell, ipcMain } = require('electron')
+const { app, BrowserWindow, protocol, net, Menu, shell, ipcMain, screen } = require('electron')
 const path = require('node:path')
 
 // Let each monitor render at its true device pixel ratio so text/UI rasterize at
@@ -141,6 +141,25 @@ function registerFsBridge() {
   // packaged build. Lets dev-only tooling (e.g. the resolution-test harness) gate
   // itself off in the shipped app, where __desktop.isDesktop is still true.
   ipcMain.on('qf:isDev', (e) => { e.returnValue = !app.isPackaged })
+
+  // Window-size presets for the Options menu (windowed mode). Resizes the content
+  // area to w×h, clamped to the current display's work area, then re-centres.
+  ipcMain.handle('qf:setWindowSize', (e, w, h) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { ok: false }
+    try {
+      if (win.isMaximized()) win.unmaximize()
+      const area = screen.getDisplayMatching(win.getBounds()).workAreaSize
+      win.setContentSize(Math.min(w | 0, area.width), Math.min(h | 0, area.height))
+      win.center()
+      return { ok: true }
+    } catch (err) { return { ok: false, error: String(err) } }
+  })
+  ipcMain.handle('qf:maximizeWindow', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { ok: false }
+    try { win.maximize(); return { ok: true } } catch (err) { return { ok: false, error: String(err) } }
+  })
 
   ipcMain.handle('qf:writeFile', async (_e, relPath, data) => {
     const abs = resolveInRoot(relPath)

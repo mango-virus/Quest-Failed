@@ -32,4 +32,7 @@ contextBridge.exposeInMainWorld('__desktop', {
   writeFile: (relPath, data) => ipcRenderer.invoke('qf:writeFile', relPath, data),
   readFile:  (relPath)       => ipcRenderer.invoke('qf:readFile', relPath),
   listDir:   (relPath)       => ipcRenderer.invoke('qf:listDir', relPath),
+  // Window-size presets for the Options menu (windowed mode).
+  setWindowSize:  (w, h) => ipcRenderer.invoke('qf:setWindowSize', w, h),
+  maximizeWindow: ()     => ipcRenderer.invoke('qf:maximizeWindow'),
 })

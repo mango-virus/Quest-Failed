@@ -9442,6 +9442,7 @@ html.reduce-motion *::after {
 .qf-op-seg { display: flex; gap: 5px; }
 .qf-op-seg .opt { font-family: var(--pix); font-size: 8px; padding: 9px 11px; cursor: pointer; color: var(--text-mute); background: #0a0710; border: 2px solid var(--line-2); transition: all .12s; }
 .qf-op-seg .opt.on { color: #0a0710; background: var(--acc); border-color: var(--acc); box-shadow: 0 0 8px color-mix(in srgb,var(--acc) 45%,transparent); }
+.qf-op-seg .opt:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
 /* theme tiles */
 .qf-op-themes { display: flex; gap: 14px; padding-top: 6px; }
 .qf-op-theme { flex: 1; cursor: pointer; padding: 14px; background: #0a0710; border: 2px solid var(--line-2); text-align: center; transition: border-color .12s, box-shadow .12s, transform .1s; }

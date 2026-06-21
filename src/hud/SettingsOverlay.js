@@ -392,6 +392,7 @@ export class SettingsOverlay {
     ]
     if (this._tab === 'video') return [
       this._lever('FULLSCREEN', 'fullscreen'),
+      this._windowSizeRow(),
       // UI SCALE is the text-scaling control for this zoom-based HUD (it
       // enlarges chrome + text uniformly + crisply). Labelled UI & TEXT SIZE
       // so it reads as the accessibility setting it is (UI_POLISH_PLAN P1-5).
@@ -527,6 +528,29 @@ export class SettingsOverlay {
       if (Number(o.v) <= maxUi + 0.02 || o.v === cur) opts.push(o)
     }
     return opts
+  }
+
+  // Window-size presets — desktop, windowed mode only. These are ACTIONS (resize
+  // the OS window now via the desktop bridge), not a saved setting, so they don't
+  // ride the draft/save flow. Returns null on web / in fullscreen-less contexts;
+  // buttons disable while FULLSCREEN is on (resize a fullscreen window is moot).
+  _windowSizeRow() {
+    const d = (typeof window !== 'undefined') ? window.__desktop : null
+    if (!d || !d.isDesktop || typeof d.setWindowSize !== 'function') return null
+    const fs = !!this._draft.fullscreen
+    const mk = (label, on) => h('button', {
+      className: 'opt', disabled: fs,
+      on: { click: () => { if (!fs) on() } },
+    }, label)
+    return h('div', { className: 'qf-op-row' }, [
+      h('span', { className: 'qf-op-lbl' }, 'WINDOW SIZE'),
+      h('div', { className: 'qf-op-seg' }, [
+        mk('720p',  () => d.setWindowSize(1280, 720)),
+        mk('1080p', () => d.setWindowSize(1920, 1080)),
+        mk('1440p', () => d.setWindowSize(2560, 1440)),
+        mk('MAX',   () => d.maximizeWindow && d.maximizeWindow()),
+      ]),
+    ])
   }
 
   _themeTiles() {
