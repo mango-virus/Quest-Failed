@@ -2,8 +2,10 @@
 //
 // Sits OVER the Phaser MainMenu scene, which renders the throne-room
 // backdrop (last-played archetype + flanking torches + slow camera pan —
-// see src/scenes/MainMenu.js). Mounts directly into #hud-stage (the
-// 1920×1080 logical stage), independent of the in-game HudRoot.
+// see src/scenes/MainMenu.js). Mounts directly into #hud-stage (the native-res
+// logical stage, sized window/uiScale — see stageScale.js; the .qf-cm root is
+// full-bleed inset:0 so its content centers responsively at any resolution),
+// independent of the in-game HudRoot.
 //
 // Layout B — center-stacked, no side panel:
 //   * Top-center: QUEST / FAILED logo (flanked in-canvas by the torches)
@@ -216,10 +218,10 @@ export class MainMenuOverlay {
   _render() {
     if (!this._el) {
       this._el = h('div', { className: 'qf-cm qcm-pixelbtn' })
-      // Mount into the 1920×1080 #hud-stage so MainMenu letterboxes on
-      // non-16:9 viewports the same way the in-game HUD does. Ensure the
-      // stage is scaled even if HudRoot hasn't mounted yet (which it
-      // hasn't, at the title screen). The .qf-cm root is OPAQUE — it owns
+      // Mount into the native-res #hud-stage so the title scales the same way
+      // the in-game HUD does. Ensure the stage is scaled even if HudRoot hasn't
+      // mounted yet (which it hasn't, at the title screen). The .qf-cm root is
+      // OPAQUE — it owns
       // the whole backdrop (brick wall + torches + walkers), so the Phaser
       // MainMenu scene behind it is no longer the visible title backdrop.
       ensureStageScaled()

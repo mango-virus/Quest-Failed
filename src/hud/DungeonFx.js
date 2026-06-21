@@ -13,12 +13,14 @@
 // Brazier light cones were removed at user request (2026-05-19) — see git history
 // for the prior implementation if we want to revisit.
 //
-// Coord conversion: Phaser runs Scale.FIT at 1920×1080 design size — the
-// canvas's logical pixels equal the stage's logical pixels — so:
-//   stagePx_x = (worldX - cam.scrollX) * cam.zoom
-//   stagePx_y = (worldY - cam.scrollY) * cam.zoom
-// Mount inside #hud-stage and the transform-scale from stageScale
-// applies uniformly.
+// Coord conversion: Phaser runs Scale.RESIZE (native-res canvas), and the DOM
+// FX layer is mounted inside the zoomed #hud-stage. _worldToStage() maps a world
+// point through the camera's worldView into canvas/viewport px (see that method).
+// At uiScale 1 (1080p–1439p) the stage zoom is 1, so logical px == canvas px and
+// floats land correctly. ⚠ At uiScale ≥ 2 (4K auto-scale) the stage is zoomed but
+// the conversion is still in canvas px — float alignment there is UNVERIFIED and
+// must be checked in Electron at 4K (likely needs a ÷uiScale, but the camera-px
+// units depend on Phaser's RESIZE/DPR handling — do NOT change by reasoning alone).
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'

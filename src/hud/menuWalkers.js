@@ -124,6 +124,7 @@ export class MenuWalkers {
     this._walkers = []
     this._bossMeta = {}
     this._raf = 0
+    this._onResize = null
     this._spawnTimer = 0
     this._rotTimer = 0
     this._lastAdvKey = ''   // last spawned adventurer variant — avoid back-to-back repeats
@@ -179,6 +180,11 @@ export class MenuWalkers {
   start() {
     if (this._alive) return
     this._alive = true
+    this._measureStage()
+    if (!this._onResize) {
+      this._onResize = () => this._measureStage()
+      window.addEventListener('resize', this._onResize)
+    }
     this._loadManifest()
     this._buildRoster()   // seed from the fallback; _loadManifest rebuilds on land
     this._measureBoss()
@@ -218,6 +224,7 @@ export class MenuWalkers {
 
   destroy() {
     this._alive = false
+    if (this._onResize) { window.removeEventListener('resize', this._onResize); this._onResize = null }
     if (this._raf) cancelAnimationFrame(this._raf)
     if (this._spawnTimer) clearTimeout(this._spawnTimer)
     if (this._rotTimer) clearTimeout(this._rotTimer)
@@ -384,6 +391,16 @@ export class MenuWalkers {
     if (w.kind === 'adv') wwStrip(w.sheet, (u) => { if (w._el) w._el.style.setProperty('--ww-img', `url('${u}')`) })
 
     this._walkers.push(w)
+  }
+
+  // The logical width the walkers traverse = the live width of their host (a
+  // full-bleed child of the zoomed #hud-stage, so clientWidth is already in
+  // logical px). Re-measured on resize so figures reach the right edge at any
+  // resolution / aspect ratio — was a hardcoded 1920, which left a dead strip on
+  // wider-than-1080p and ultrawide stages.
+  _measureStage() {
+    const w = this._host?.clientWidth
+    if (w) this._stageW = w
   }
 
   // Horizontal centres (logical px) of the on-screen torches, used for the

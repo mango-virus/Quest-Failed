@@ -28,6 +28,7 @@ import { h, mount } from './dom.js'
 import { playSfx } from '../systems/SfxVolume.js'
 import { EventBus } from '../systems/EventBus.js'
 import { Balance } from '../config/balance.js'
+import { effectiveUiScale } from './stageScale.js'
 
 // Recoloured magic-book sheets. Open/Close are 4×3 (12 frames of 272px);
 // the page-turns are 4×4 (16 frames). Frame order is left→right, top→bottom.
@@ -824,7 +825,9 @@ export class PactPicker {
     const stage = document.getElementById('hud-stage')
     if (!stage || !this._bookEl) return
     const stageRect = stage.getBoundingClientRect()
-    const sf        = stageRect.width / 1920 || 1
+    // device→logical px factor = the stage's integer zoom (uiScale), NOT
+    // width/1920 (that was the old FIT model; it mis-scaled FX off-1080p).
+    const sf        = effectiveUiScale()
     const r         = this._bookEl.getBoundingClientRect()
     const srcX = (r.left - stageRect.left) / sf + (r.width  / sf) / 2
     const srcY = (r.top  - stageRect.top)  / sf + (r.height / sf) / 2
@@ -862,7 +865,7 @@ export class PactPicker {
     const brand = this._sealSlot?.querySelector('.qf-ip-brand')
     if (!stage || !brand) return
     const stageRect = stage.getBoundingClientRect()
-    const sf = stageRect.width / 1920 || 1
+    const sf = effectiveUiScale()   // device→logical = integer zoom, not width/1920
     const r  = brand.getBoundingClientRect()
     const cx = (r.left - stageRect.left) / sf + (r.width  / sf) / 2
     const cy = (r.top  - stageRect.top)  / sf + (r.height / sf) / 2
@@ -931,7 +934,7 @@ export class PactPicker {
       if (!this._ashEl) return
       const mote = document.createElement('div')
       mote.className = 'qf-ip-mote'
-      const x  = Math.random() * 1920
+      const x  = Math.random() * (this._ashEl.clientWidth || 1920)   // span the live stage width, not a fixed 1920
       const sz = 2 + ((Math.random() * 3) | 0)
       mote.style.left   = `${x}px`
       mote.style.width  = `${sz}px`

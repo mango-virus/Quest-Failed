@@ -5,10 +5,13 @@
 // for unported panels; this layer renders the panels we've ported and
 // stays out of the way (pointer-events: none) where it has no content.
 //
-// Coordinate system: a fixed 1920×1080 logical stage is transform-scaled
-// to fit the viewport (matches the design source's fit()). The stage
-// doesn't need to align with Phaser world coords — the Phaser canvas
-// shows through wherever this layer leaves empty.
+// Coordinate system: the stage is sized to the NATIVE resolution (logical size
+// = window / uiScale, an integer set by stageScale.js) — NOT a fixed 1920×1080
+// FIT/letterbox (that older model is gone). So the logical stage is variable:
+// 1920×1080 at 1080p, 2560×1440 at 1440p, 1920×1080 at 4K (zoom 2), etc. Author
+// chrome RESPONSIVELY — edge-anchored / centered, never at fixed 1920-frame
+// coords. The stage doesn't need to align with Phaser world coords — the Phaser
+// canvas shows through wherever this layer leaves empty.
 
 import { h, mount } from './dom.js'
 import { ensureStageScaled, DESIGN_W, DESIGN_H } from './stageScale.js'
