@@ -25,6 +25,11 @@ export class RosterOverlay {
     this._filter = 'ALL'
     this._selId = null   // selected minion instanceId (reveals row actions)
     this._listener = () => this.toggle()
+    // Pause the live refresh while a pointer is held, so a click is never
+    // dropped by the DOM being replaced between mousedown and mouseup.
+    this._pointerDown = false
+    this._onPtrDownB = () => { this._pointerDown = true }
+    this._onPtrUpB   = () => { this._pointerDown = false }
     EventBus.on('OPEN_MINION_ROSTER', this._listener)
   }
 
@@ -60,16 +65,22 @@ export class RosterOverlay {
     // loop) — see _rosterSprite.
     this._spriteCache = new Map()
     this._refreshTick = 0
+    this._pointerDown = false
     this._tray.setContent(this._renderTrayContent())
+    this._lastSig = this._rosterSignature()
     this._tray.open()
-    // Live refresh: while open, re-render ~5×/sec so HP drain, deaths, moves,
-    // etc. show in real time as the wave plays.
+    window.addEventListener('pointerdown', this._onPtrDownB, true)
+    window.addEventListener('pointerup',   this._onPtrUpB,   true)
+    // Live refresh: while open, re-render when the roster data changes so HP
+    // drain, deaths, moves, etc. show in real time as the wave plays.
     this._refreshLoop()
   }
 
   close() {
     if (this._refreshRaf) cancelAnimationFrame(this._refreshRaf)
     this._refreshRaf = null
+    window.removeEventListener('pointerdown', this._onPtrDownB, true)
+    window.removeEventListener('pointerup',   this._onPtrUpB,   true)
     this._spriteCache = null
     this._tray?.close()
     this._tray = null
@@ -81,11 +92,15 @@ export class RosterOverlay {
   _refreshLoop() {
     this._refreshRaf = requestAnimationFrame(() => this._refreshLoop())
     if ((this._refreshTick = (this._refreshTick + 1) % 12) !== 0) return
+    if (this._pointerDown) return                    // never replace the DOM mid-click
     if (this._selId != null) {
       const sel = (this._gameState.minions ?? []).find(x => x.instanceId === this._selId)
       if (sel && this._classifyStatus(sel) !== 'dead') return   // still actionable → hold
       this._selId = null
     }
+    // Only rebuild when the roster data actually changed, so a static roster
+    // sits perfectly still (and stays clickable) instead of churning its DOM.
+    if (this._rosterSignature() === this._lastSig) return
     const list = this._tray?.trayEl?.querySelector?.('.rst-list')
     const scroll = list ? list.scrollTop : 0
     this._rerender()
@@ -93,8 +108,19 @@ export class RosterOverlay {
     if (list2) list2.scrollTop = scroll
   }
 
+  // Fingerprint of everything the roster shows — count + each minion's HP /
+  // dead-state / room — so the live refresh can skip identical frames.
+  _rosterSignature() {
+    let sig = ''
+    for (const m of (this._gameState.minions ?? [])) {
+      const dead = (m.aiState === 'dead' || m.deathDay != null) ? 'd' : ''
+      sig += `${m.instanceId}:${Math.round(m.resources?.hp ?? 0)}:${dead}:${m.assignedRoomId ?? m.roomId ?? ''};`
+    }
+    return sig
+  }
+
   _rerender() {
-    if (this._tray) this._tray.setContent(this._renderTrayContent())
+    if (this._tray) { this._tray.setContent(this._renderTrayContent()); this._lastSig = this._rosterSignature() }
   }
 
   // ── Bespoke roster tray (barracks ledger) ───────────────────────

@@ -4065,24 +4065,26 @@ html.gamepad-active #qf-cursor { display: none; }
 .htr-body { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; }
 
 /* ── Detach / float / drag ───────────────────────────────────────── */
-/* Right-edge pull-tab: slides out of the popout; click to detach. */
-.htr-detach { position: absolute; top: 50%; right: -1px; z-index: 7; width: 21px; height: 52px; padding: 0;
+/* Pop-out button: top-right corner — the conventional "open in its own window"
+   affordance. Plus drag-to-tear-off from the docked top strip (the grab cursor). */
+.htr-popout { position: absolute; top: 5px; right: 6px; z-index: 8; width: 28px; height: 28px; padding: 0;
   display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 30%, #14101c), color-mix(in srgb, var(--tc) 62%, #0d0a12));
-  border: 1.5px solid color-mix(in srgb, var(--tc) 80%, transparent); border-left: 0; border-radius: 0 9px 9px 0;
-  color: #fff; box-shadow: 3px 0 10px rgba(0,0,0,.45); transform: translate(100%, -50%); transform-origin: left center; }
-.htr-detach.htr-detach-left { right: auto; left: -1px; border: 1.5px solid color-mix(in srgb, var(--tc) 80%, transparent); border-right: 0; border-radius: 9px 0 0 9px; transform: translate(-100%, -50%); transform-origin: right center; box-shadow: -3px 0 10px rgba(0,0,0,.45); }
-.htr-detach-ic { font-size: 12px; line-height: 1; filter: drop-shadow(0 0 5px var(--tc)); transition: transform .14s; }
-.htr-detach:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 42%, #14101c), color-mix(in srgb, var(--tc) 82%, #0d0a12)); box-shadow: 3px 0 16px color-mix(in srgb, var(--tc) 45%, transparent); }
-.htr-detach:hover .htr-detach-ic { transform: scale(1.18); }
-.htr-detach:active { filter: brightness(1.2); }
+  font-size: 15px; line-height: 1; color: var(--bone);
+  background: color-mix(in srgb, var(--tc) 24%, #14101c);
+  border: 1px solid color-mix(in srgb, var(--tc) 60%, var(--line2)); border-radius: 5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1);
+  transition: background .12s, color .12s, transform .08s, box-shadow .12s; }
+.htr-popout:hover { background: color-mix(in srgb, var(--tc) 52%, #14101c); color: #fff;
+  border-color: color-mix(in srgb, var(--tc) 85%, transparent);
+  box-shadow: 0 2px 9px color-mix(in srgb, var(--tc) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.18); }
+.htr-popout:active { transform: translateY(1px) scale(.96); }
+/* Reserve corner room so the button never overlaps top-row tabs, and hint the
+   tear-off gesture with a grab cursor on the docked top strip. */
+.htr-canpop:not(.detached) .htr-segbar { padding-right: 40px; cursor: grab; }
 @media (prefers-reduced-motion: no-preference) {
-  .htr-tray:not(.closed) .htr-detach { animation: htr-tab-out .42s cubic-bezier(.14,1.4,.3,1) backwards; animation-delay: .26s; }
-  .htr-tray:not(.closed).htr-detach-left .htr-detach,
-  .htr-tray:not(.closed) .htr-detach.htr-detach-left { animation-name: htr-tab-out-l; }
+  .htr-tray:not(.closed) .htr-popout { animation: htr-pop-in .4s cubic-bezier(.14,1.4,.3,1) backwards; animation-delay: .24s; }
 }
-@keyframes htr-tab-out   { from { opacity: 0; transform: translate(-40%, -50%); } to { opacity: 1; transform: translate(100%, -50%); } }
-@keyframes htr-tab-out-l { from { opacity: 0; transform: translate(40%, -50%); }  to { opacity: 1; transform: translate(-100%, -50%); } }
+@keyframes htr-pop-in { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
 
 /* Drag-handle title bar — only present once detached. */
 .htr-titlebar { position: absolute; top: 0; left: 0; right: 0; height: 27px; z-index: 8; display: none; align-items: center; gap: 8px; padding: 0 6px 0 9px;
@@ -4100,7 +4102,7 @@ html.gamepad-active #qf-cursor { display: none; }
 /* Detached state: title bar shows, content shifts down, stem + tab gone, lifted. */
 .htr-tray.detached { padding-top: 27px; transform: none; box-shadow: 0 14px 44px rgba(0,0,0,.62), 0 0 0 1px rgba(0,0,0,.5); }
 .htr-tray.detached .htr-titlebar { display: flex; }
-.htr-tray.detached .htr-stem, .htr-tray.detached .htr-detach { display: none; }
+.htr-tray.detached .htr-stem, .htr-tray.detached .htr-popout { display: none; }
 .htr-tray.detached.focused { border-color: var(--tc); box-shadow: 0 16px 50px rgba(0,0,0,.66), 0 0 0 1px var(--tc), 0 0 26px color-mix(in srgb, var(--tc) 32%, transparent); }
 /* A small "lift-off" pop when detaching. */
 @media (prefers-reduced-motion: no-preference) {

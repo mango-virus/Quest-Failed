@@ -1692,11 +1692,14 @@ export class NightPhase extends Phaser.Scene {
       // (the SELL / UPGRADE tools), we WANT the click to fall through
       // to those handlers instead of being delegated to MinionRenderer.
       const wp = cam.getWorldPoint(p.x, p.y)
-      const minionHitR = TS * 0.55
-      const overMinion = (this._gameState.minions ?? []).some(m => {
-        if (m.aiState === 'dead' || m.resources?.hp <= 0) return false
-        return Math.hypot(wp.x - m.worldX, wp.y - m.worldY) <= minionHitR
-      })
+      // Whether the click lands on a minion's ACTUAL sprite. The minion sprites
+      // live in the Game scene with PIXEL-PERFECT hit areas, so hit-test that
+      // scene's input directly — this exactly mirrors what MinionRenderer will
+      // grab. (The old fixed TS*0.55 circle around the minion CENTRE missed the
+      // larger half of big 128px-frame minions — demons/golems/ents — so a click
+      // on their art picked up the room AND the minion.)
+      const overMinion = (this.scene.get('Game')?.input?.hitTestPointer?.(p) ?? [])
+        .some(go => go && go._isMinionInteractive)
       const minionTargetingMode = this._toolMode === 'sell' || this._toolMode === 'upgrade'
       if (overMinion && !minionTargetingMode) return
 

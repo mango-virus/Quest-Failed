@@ -85,6 +85,10 @@ export class BuildMenu {
     sub('TOGGLE_BUILD_DRAWER', () => this.toggle())
     sub('OPEN_BUILD_DRAWER',   () => this.open())
     sub('DAY_PHASE_BEGAN',     () => this.close())
+    // Arming a real tool (MOVE / SELL / UPGRADE) leaves build mode → close the
+    // drawer. mode === null is PLACE itself (don't close). This also fires on the
+    // place→move hand-off after a room is dropped.
+    sub('TOOL_MODE_CHANGED',   ({ mode } = {}) => { if (mode) this.close() })
     // Something else cleared the armed build → drop our armed state + ghost.
     sub('BUILD_DESELECT', () => { if (this._armedId) { this._armedId = null; this._teardownGhost(); this._rerender() } })
     // Re-render the slots when unlocks / prices / placement counts shift.

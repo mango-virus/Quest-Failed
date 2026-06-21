@@ -110,7 +110,7 @@ export class BottomBar {
     // Build tray will grow from it (design's fly-out pattern); for now it
     // toggles the construction drawer (see _onModeClick).
     const modes = [
-      { id: 'place',   label: 'PLACE',   tip: 'Open the build menu — place rooms, minions & traps' },
+      { id: 'place',   label: 'BUILD',   tip: 'Open the build menu — place rooms, minions & traps' },
       { id: 'move',    label: 'MOVE',    tip: 'Pick up & relocate a placed room or minion' },
       { id: 'upgrade', label: 'UPGRADE', tip: 'Upgrade a minion or room to its next tier' },
       { id: 'sell',    label: 'SELL',    tip: 'Sell a placed room, minion or trap back for gold' },
