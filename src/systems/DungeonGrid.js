@@ -279,6 +279,11 @@ export class DungeonGrid {
       gridY,
       width: definition.width,
       height: definition.height,
+      // Placement rotation (0/90/180/270). Set HERE — before the ROOM_PLACED
+      // emit below — so the first render already knows it (DungeonRenderer rotates
+      // the room skin by it). NightPhase used to set it only AFTER placeRoom
+      // returned, so the placed skin rendered upright until the next full redraw.
+      rotation: opts.rotation ?? 0,
       isActive: true,
       // Sprite-tiling fields copied from the room template — DungeonRenderer
       // reads these at draw time to overlay theme sprites on top of the

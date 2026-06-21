@@ -2639,6 +2639,7 @@ export class NightPhase extends Phaser.Scene {
       dungeonLevel:       this._gameState.boss?.level ?? 1,
       isMove:             wasPickup,
       preserveInstanceId: this._heldMoveRoomInstanceId || null,
+      rotation:           this._rotation,
     })
     if (room) {
       // Stamp the rotation the room was placed at so a future MOVE
