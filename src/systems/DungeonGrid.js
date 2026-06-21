@@ -650,6 +650,29 @@ export class DungeonGrid {
     return this.getTileType(tx, ty - 1) === TILE.DOOR
   }
 
+  // Nearest open FLOOR / BOSS_FLOOR tile to (tx, ty): the tile itself when it's
+  // already open floor, else a ring-by-ring search outward to `maxRing`. Used to
+  // keep death-spawned things (corpses, blood/bone decals, raised minions, loot)
+  // off wall / door / void tiles — a hero that dies in a doorway or is knocked
+  // into a wall would otherwise drop them embedded in the wall. Returns null when
+  // nothing open is within range (caller keeps its original tile as a fallback).
+  nearestFloorTile(tx, ty, maxRing = 2) {
+    const open = (x, y) => {
+      const t = this.getTileType(x, y)
+      return t === TILE.FLOOR || t === TILE.BOSS_FLOOR
+    }
+    if (open(tx, ty)) return { x: tx, y: ty }
+    for (let r = 1; r <= maxRing; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue   // ring perimeter only
+          if (open(tx + dx, ty + dy)) return { x: tx + dx, y: ty + dy }
+        }
+      }
+    }
+    return null
+  }
+
   // Returns the lane-axis ('x' or 'y') if (tx, ty) is part of a doorway
   // CORRIDOR — meaning either a canonical lane DOOR tile or a floor
   // tile cardinally adjacent to one (the approach/exit tile flanking

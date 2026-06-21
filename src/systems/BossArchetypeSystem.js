@@ -572,13 +572,19 @@ export class BossArchetypeSystem {
             lastHurtFrame = f?.frame?.name ?? null
           }
         }
+        // Snap the corpse (and the Vinekin that later sprouts from it) off any
+        // wall / door tile onto the nearest open floor — a hero that fell in a
+        // doorway shouldn't grow a minion embedded in the wall.
+        let fcTX = adv.tileX, fcTY = adv.tileY
+        const fcFt = this._scene?.dungeonGrid?.nearestFloorTile?.(fcTX, fcTY)
+        if (fcFt) { fcTX = fcFt.x; fcTY = fcFt.y }
         this._gameState.fungalCorpses.push({
           instanceId:    `fcor_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           // Track the source adv so the sprout can despawn the dead body
           // sprite that AdventurerRenderer leaves frozen on the death tile.
           advId:         adv.instanceId ?? null,
-          tileX:         adv.tileX,
-          tileY:         adv.tileY,
+          tileX:         fcTX,
+          tileY:         fcTY,
           roomId:        room?.instanceId ?? null,
           daysRemaining: Balance.MYCONID_CORPSE_LIFESPAN_DAYS,
           classId:       adv.classId ?? 'unknown',

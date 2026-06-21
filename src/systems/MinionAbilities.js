@@ -1416,11 +1416,16 @@ export const MinionAbilities = {
     if (this._liveRaisedZombies(gameState, room) >= this.ZOMBIE_ROOM_CAP) return null
     const TS = 32, lvl = gameState.boss?.level ?? 1, now = scene?.time?.now ?? 0
     const hp = Math.max(12, Math.round(20 + lvl * 4)), atk = Math.max(3, Math.round(5 + lvl * 1.2))
-    const tx = adv.tileX ?? Math.round((adv.worldX ?? 0) / TS), ty = adv.tileY ?? Math.round((adv.worldY ?? 0) / TS)
+    let tx = adv.tileX ?? Math.round((adv.worldX ?? 0) / TS), ty = adv.tileY ?? Math.round((adv.worldY ?? 0) / TS)
+    let wx = adv.worldX ?? (tx * TS + TS / 2), wy = adv.worldY ?? (ty * TS + TS / 2)
+    // Don't raise the Risen inside a wall/door (the corpse may have fallen on a
+    // doorway or been knocked into a wall) — snap to the nearest open floor.
+    const _ft = scene?.dungeonGrid?.nearestFloorTile?.(tx, ty)
+    if (_ft && (_ft.x !== tx || _ft.y !== ty)) { tx = _ft.x; ty = _ft.y; wx = tx * TS + TS / 2; wy = ty * TS + TS / 2 }
     const z = {
       instanceId: `min_risen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       definitionId: 'zombie1', name: 'Risen', color: 0x668844, sigil: '☠',
-      tileX: tx, tileY: ty, worldX: adv.worldX ?? (tx * TS + TS / 2), worldY: adv.worldY ?? (ty * TS + TS / 2),
+      tileX: tx, tileY: ty, worldX: wx, worldY: wy,
       homeTileX: tx, homeTileY: ty, assignedRoomId: room,
       class: 'garrison', behaviorType: 'roam', tags: ['undead', 'melee', 'raised'],
       damageType: 'physical', attackRange: 1, faction: 'dungeon', factionExpiresOn: null,

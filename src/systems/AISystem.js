@@ -841,25 +841,6 @@ export class AISystem {
     EventBus.emit('SAY_gloatOverKill', { adventurer: adv })
   }
 
-  // Nearest FLOOR / BOSS_FLOOR walkable, non-door tile around (tx, ty) — used to
-  // keep corpse loot out of doorway funnels. Checks cardinal neighbours first
-  // (where the door's approach floor sits), then diagonals; returns null if the
-  // door is fully boxed in (caller then keeps the door tile as a last resort).
-  _nearestOpenFloorTile(tx, ty) {
-    const ring = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
-    const tiles = this._dungeonGrid?.getTiles?.()
-    for (const [dx, dy] of ring) {
-      const nx = tx + dx, ny = ty + dy
-      const tt = this._dungeonGrid?.getTileType?.(nx, ny)
-      if (tt !== TILE.FLOOR && tt !== TILE.BOSS_FLOOR) continue
-      if (this._dungeonGrid?.isDoorBlocked?.(nx, ny)) continue
-      const row = tiles?.[ny]
-      if (!row || !PathfinderSystem.isWalkable(row[nx])) continue
-      return { x: nx, y: ny }
-    }
-    return null
-  }
-
   // ── LOOT_CORPSE ──────────────────────────────────────────────────────
   // Pile shape: { instanceId, tileX, tileY, fromAdvId, fromAdvName,
   //              buff: { stat, amount, label } }
@@ -876,21 +857,15 @@ export class AISystem {
       { stat: 'speed',   amount: 0.15, label: '+SPD' },
     ]
     const buff = buffPool[Math.floor(Math.random() * buffPool.length)]
-    // Keep the corpse loot OFF doorway tiles. Heroes die at chokepoints, so the
-    // pile often lands on a door; a looter that walks onto it to grab the buff
-    // then stands in the single-file door funnel and blocks everyone behind it
-    // ("bodies in front of doors"). Nudge the drop to the nearest open floor.
-    let dTX = adv.tileX, dTY = adv.tileY, dWX = adv.worldX, dWY = adv.worldY
-    if (this._dungeonGrid?.getTileType?.(dTX, dTY) === TILE.DOOR) {
-      const alt = this._nearestOpenFloorTile(dTX, dTY)
-      if (alt) { dTX = alt.x; dTY = alt.y; dWX = alt.x * TS + TS / 2; dWY = alt.y * TS + TS / 2 }
-    }
+    // Death position is already snapped off doorway / wall tiles in _kill (the
+    // only caller), so the pile — and the looter that walks onto it — stay clear
+    // of the single-file door funnel.
     const pile = {
       instanceId:  `loot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      tileX:       dTX,
-      tileY:       dTY,
-      worldX:      dWX,
-      worldY:      dWY,
+      tileX:       adv.tileX,
+      tileY:       adv.tileY,
+      worldX:      adv.worldX,
+      worldY:      adv.worldY,
       fromAdvId:   adv.instanceId,
       fromAdvName: adv.name ?? 'unknown',
       buff,
@@ -5223,6 +5198,17 @@ export class AISystem {
     }
     adv.aiState = 'dead'
     adv.resources.hp = 0
+
+    // Snap the death position off any wall / door / void tile onto the nearest
+    // open floor BEFORE anything reads it — a hero that died in a doorway or was
+    // knocked into a wall would otherwise drop its corpse, blood/bone decals,
+    // loot pile, and any raised minion embedded in the wall. (No-op for the
+    // common floor death; ADVENTURER_DIED + the graveyard entry below inherit it.)
+    const _ft = this._dungeonGrid?.nearestFloorTile?.(adv.tileX, adv.tileY)
+    if (_ft && (_ft.x !== adv.tileX || _ft.y !== adv.tileY)) {
+      adv.tileX = _ft.x; adv.tileY = _ft.y
+      adv.worldX = _ft.x * TS + TS / 2; adv.worldY = _ft.y * TS + TS / 2
+    }
 
     // Death attribution: prefer the most-recent combat-hit source, fall back to hint
     const killerId   = adv._lastHitBy ?? killerHint
