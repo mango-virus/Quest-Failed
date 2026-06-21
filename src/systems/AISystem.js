@@ -841,6 +841,25 @@ export class AISystem {
     EventBus.emit('SAY_gloatOverKill', { adventurer: adv })
   }
 
+  // Nearest FLOOR / BOSS_FLOOR walkable, non-door tile around (tx, ty) — used to
+  // keep corpse loot out of doorway funnels. Checks cardinal neighbours first
+  // (where the door's approach floor sits), then diagonals; returns null if the
+  // door is fully boxed in (caller then keeps the door tile as a last resort).
+  _nearestOpenFloorTile(tx, ty) {
+    const ring = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+    const tiles = this._dungeonGrid?.getTiles?.()
+    for (const [dx, dy] of ring) {
+      const nx = tx + dx, ny = ty + dy
+      const tt = this._dungeonGrid?.getTileType?.(nx, ny)
+      if (tt !== TILE.FLOOR && tt !== TILE.BOSS_FLOOR) continue
+      if (this._dungeonGrid?.isDoorBlocked?.(nx, ny)) continue
+      const row = tiles?.[ny]
+      if (!row || !PathfinderSystem.isWalkable(row[nx])) continue
+      return { x: nx, y: ny }
+    }
+    return null
+  }
+
   // ── LOOT_CORPSE ──────────────────────────────────────────────────────
   // Pile shape: { instanceId, tileX, tileY, fromAdvId, fromAdvName,
   //              buff: { stat, amount, label } }
@@ -857,12 +876,21 @@ export class AISystem {
       { stat: 'speed',   amount: 0.15, label: '+SPD' },
     ]
     const buff = buffPool[Math.floor(Math.random() * buffPool.length)]
+    // Keep the corpse loot OFF doorway tiles. Heroes die at chokepoints, so the
+    // pile often lands on a door; a looter that walks onto it to grab the buff
+    // then stands in the single-file door funnel and blocks everyone behind it
+    // ("bodies in front of doors"). Nudge the drop to the nearest open floor.
+    let dTX = adv.tileX, dTY = adv.tileY, dWX = adv.worldX, dWY = adv.worldY
+    if (this._dungeonGrid?.getTileType?.(dTX, dTY) === TILE.DOOR) {
+      const alt = this._nearestOpenFloorTile(dTX, dTY)
+      if (alt) { dTX = alt.x; dTY = alt.y; dWX = alt.x * TS + TS / 2; dWY = alt.y * TS + TS / 2 }
+    }
     const pile = {
       instanceId:  `loot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      tileX:       adv.tileX,
-      tileY:       adv.tileY,
-      worldX:      adv.worldX,
-      worldY:      adv.worldY,
+      tileX:       dTX,
+      tileY:       dTY,
+      worldX:      dWX,
+      worldY:      dWY,
       fromAdvId:   adv.instanceId,
       fromAdvName: adv.name ?? 'unknown',
       buff,
@@ -1002,21 +1030,27 @@ export class AISystem {
 
     // ── Avenge / rally forks (build on the NerveSystem death-ripple) ───────────
     const has = (a, id) => a.personalityIds?.includes(id)
+    const now = this._scene?.time?.now ?? 0
+    // Per-leader bark throttle: the mechanical effect (nerve ripple) still fires
+    // on EVERY ally death, but the spoken "rally"/"avenge" line is rate-limited so
+    // a death-cluster (e.g. a vinekin entangle grinder) doesn't spam "Fall back!".
+    const RALLY_SAY_COOLDOWN = 10000
     for (const s of survivors) {
       if (this._isScriptedRole(s)) continue
       const near = Math.hypot((s.tileX ?? 0) - (adventurer.tileX ?? 0),
                               (s.tileY ?? 0) - (adventurer.tileY ?? 0)) <= 7
       if (!near) continue
+      const canBark = (now - (s._lastRallySayAt ?? -1e9)) >= RALLY_SAY_COOLDOWN
       if (has(s, 'berserker')) {
         // The fallen feed the frenzy — a nerve spike + a vengeance cue.
         if (s.nerve != null) s.nerve = Math.min(100, s.nerve + 20)
         EventBus.emit('ADV_AVENGE', { adventurer: s, fallen: adventurer })
-        EventBus.emit('SAY_avenge', { adventurer: s })
+        if (canBark) { s._lastRallySayAt = now; EventBus.emit('SAY_avenge', { adventurer: s }) }
       } else if (has(s, 'raid_leader')) {
         // Hold the line — steady every remaining member.
         for (const m of survivors) if (m !== s && m.nerve != null) m.nerve = Math.min(100, m.nerve + 6)
         EventBus.emit('ADV_RALLY', { adventurer: s })
-        EventBus.emit('SAY_rally', { adventurer: s })
+        if (canBark) { s._lastRallySayAt = now; EventBus.emit('SAY_rally', { adventurer: s }) }
       }
     }
 
@@ -3236,6 +3270,11 @@ export class AISystem {
       // gold/xp/sealed knowledge) instead of a wounded escapee. High-nerve play is the
       // player's friend: bait them bold and they overextend into the grave.
       if (adv.mood === 'bold') { adv._fleeRolled = false; return }
+      // Bleeding must not, on its own, break a hero off — the player wants the
+      // bleed-out KILL, not a wounded escapee chased off by a DoT. If the most
+      // recent damage was bleed, don't roll the retreat; a real (non-bleed) hit
+      // on a later tick still can. (_fleeRolled left untouched so that hit re-rolls.)
+      if (adv._lastHitType === 'bleed') return
       if (adv._fleeRolled) return
       adv._fleeRolled = true
       const nerve = adv.nerve ?? 100
