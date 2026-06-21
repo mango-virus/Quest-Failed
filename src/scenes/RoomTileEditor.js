@@ -688,15 +688,20 @@ export class RoomTileEditor extends Phaser.Scene {
   }
 
   // ── Phase 3: export the exact built room as a PNG ───────────────────────────
-  // Renders the room in CANONICAL orientation at native 32px/tile to an
-  // offscreen canvas — theme/override tiles (with span coverage, per-cell
-  // rotation/flip + per-target colour adjust baked via ctx.filter) then the
-  // decoration layer on top — and downloads it. Un-painted cells stay
-  // transparent so the PNG is an editable starting point for a full-room skin.
+  // Renders the room in CANONICAL orientation to an offscreen canvas — theme/
+  // override tiles (with span coverage, per-cell rotation/flip + per-target colour
+  // adjust baked via ctx.filter) then the decoration layer on top — and downloads
+  // it. Un-painted cells stay transparent so the PNG is an editable starting point
+  // for a full-room skin.
+  //
+  // Exported at 128px/tile (4× the 32px game tile). Source tiles can be up to
+  // 128px native (VALID_SRC_SIZES), so this renders every tile at FULL fidelity
+  // (no downscale) and gives a high-res canvas to paint detail on — the 32px/tile
+  // export used to be the quality ceiling on round-tripped room skins.
   uiExportRoomPng() {
     const room = this._activeRoom()
     if (!room) return { ok: false }
-    const TS = 32, W = room.width, H = room.height
+    const EXPORT_SCALE = 4, TS = 32 * EXPORT_SCALE, W = room.width, H = room.height
     const WT = Balance.WALL_THICKNESS ?? 1
     const canvas = document.createElement('canvas')
     canvas.width = W * TS; canvas.height = H * TS
@@ -791,8 +796,9 @@ export class RoomTileEditor extends Phaser.Scene {
   _curDoorState() { return this._paintMode.startsWith('door-') ? this._paintMode.slice(5) : 'closed' }
 
   // ── Door export + skins (per state, full 4×2 swatch incl. jambs) ────────────
-  // Export the current door state's painted swatch as a PNG (4 cols × 2 rows at
-  // 64px/cell = 256×128) for external editing.
+  // Export the current door state's painted swatch as a PNG (4 cols × 3 rows at
+  // 128px/cell = 512×384) for external editing — high-res so up-to-128px source
+  // door tiles export at full fidelity.
   uiExportDoorPng() {
     const room = this._activeRoom()
     if (!room) return { ok: false }
@@ -800,7 +806,7 @@ export class RoomTileEditor extends Phaser.Scene {
     const dt = this._ensureDoorTiles(room, state)
     const apron = this._ensureDoorApron(room, state)
     const grid = [dt[0], dt[1], apron]   // rows: Outer, Inner, Below(apron)
-    const CELL = 64, COLS = 4, ROWS = 3
+    const CELL = 128, COLS = 4, ROWS = 3
     const canvas = document.createElement('canvas')
     canvas.width = COLS * CELL; canvas.height = ROWS * CELL
     const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false
