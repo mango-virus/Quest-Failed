@@ -60,7 +60,15 @@ export class TrayShell {
     // Bound handlers (stable refs so add/remove pair up).
     // Esc closes anchored trays; a detached (pinned) panel ignores it — close via ✕.
     this._onKey = (e) => { if (e.key === 'Escape' && this._open && !this._detached) { e.stopPropagation(); this.close() } }
-    this._onResize = () => { if (this._open) this._measure() }
+    this._onResize = () => {
+      if (!this._open) return
+      // A DETACHED (torn-off) panel keeps its own floating position — just clamp
+      // it back on-screen. Only an ANCHORED tray re-measures to follow its bar
+      // button (which shifts as the bar reflows). Re-anchoring a detached panel
+      // made it jump back to the button on every window resize.
+      if (this._detached) this._clampIntoView()
+      else this._measure()
+    }
     // A day/night flip closes an anchored tray — but a detached panel stays pinned.
     this._onPhase = () => { if (!this._detached) this.close() }
     this._onDragDownB = (e) => this._dragDown(e)
