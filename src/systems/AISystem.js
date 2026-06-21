@@ -1587,6 +1587,25 @@ export class AISystem {
       this._kill(adv, idx, adv._lastHitBy ?? 'dot')
       return
     }
+    // ── Aldric the Nemesis (Acts I–III) — untrappable story character ─────────
+    // Nothing in the dungeon may trap, freeze, charm, or fling him. Wipe every
+    // crowd-control state each tick so the gates below (knockback / root /
+    // stagger / sunder-stun / panic / petrify) and the charm/lure hijack can
+    // never hold him — he must always be free to stalk and, once alone, withdraw
+    // to the entry. (Death plot-armor is enforced separately in _kill.)
+    if (adv._nemesis) {
+      adv._rootedUntil = 0; adv._staggeredUntil = 0; adv._petrifiedUntil = 0
+      adv._sunderedStunUntil = 0; adv._panickedUntil = 0; adv._luredUntil = 0
+      adv._knockbackUntil = 0; adv._kbVx = 0; adv._kbVy = 0
+      // ...and the slow / control / neuter effects that would impede or seize him.
+      adv._slowUntil = 0; adv._possessedUntil = 0; adv._polyUntil = 0; adv._soulCagedUntil = 0
+      if (adv._charmed || adv.aiState === 'charmed') {
+        adv._charmed = false
+        if (adv.aiState === 'charmed') adv.aiState = 'idle'
+        // Drop the charm-walk goal so he re-picks (stalk / withdraw) at once.
+        if (adv.goal?.type === 'CHARM_WALK') { adv.goal = null; adv.path = null }
+      }
+    }
     // Root / stagger gate — adv stands still for the duration. Any minion
     // already in range gets free swings (CombatSystem hits them normally).
     const _now = this._scene?.time?.now ?? 0
@@ -1773,7 +1792,10 @@ export class AISystem {
             console.log('[oscillation-break] adv', adv.instanceId,
               'at', adv.tileX, adv.tileY, 'unique:', unique.size,
               'goalWas:', adv.goal?.type, 'reason:', adv.goal?.reason)
-            if (wasFlee) {
+            // Aldric never despawns mid-flight — a story character must actually
+            // reach the entry, so he shoves forward through chokepoints (below)
+            // instead of vanishing on an oscillation.
+            if (wasFlee && !adv._nemesis) {
               this._despawn(adv, idx, 'oscillation_at_exit')
               return
             }
@@ -1789,7 +1811,7 @@ export class AISystem {
             // along its own path past the chokepoint instead; if it has no
             // usable path, fall back to a replan. The hard-stuck failsafe below
             // still clears anyone genuinely pinned, so no day-end hang.
-            if (adv.flags?.noFlee || adv._treasureHunter) {
+            if (adv.flags?.noFlee || adv._treasureHunter || adv._nemesis) {
               if (!this._shoveAlongPath(adv, 4)) {
                 adv.path = null
                 adv.goal = this._pickNextGoal(adv)
@@ -2139,6 +2161,13 @@ export class AISystem {
               adv.path = null
               return
             }
+            // Aldric is never force-marched to the throne — if he's looped this
+            // long as the last one alive, withdraw him to the entry instead.
+            if (adv._nemesis) {
+              adv.goal = this._nemesisWithdraw(adv)
+              adv.path = null
+              return
+            }
             adv._forceBossBeeline    = true
             adv._seekExploreTargetId = null
             adv._roomRevisits        = 0
@@ -2473,7 +2502,9 @@ export class AISystem {
         // path like a teleporter or cheater noclip). Runs regardless of
         // trap/minion knowledge so a fresh adv with empty buckets still
         // gets the safety check.
-        if (room.locked) return 9999
+        // Aldric the Nemesis ignores locks — a story character can't be walled
+        // out of his withdrawal to the entry.
+        if (room.locked && !adv._nemesis) return 9999
         // Trap room wins over minion room — same priority as the old
         // costMultiplierForTile (trap is the more localized hazard).
         if (trappedRoomIds.has(room.instanceId)) {
@@ -2493,16 +2524,18 @@ export class AISystem {
       const blockedForAdv = new Set()
       const lockedLocks = this._tickLockedLocks ?? (this._gameState.dungeon?.locks ?? [])
         .filter(l => !l.unlocked && !l.broken)
-      for (const lock of lockedLocks) {
+      // Aldric the Nemesis phases past locked doors (story character — never barred
+      // from his exit); everyone else is hard-blocked by locks they can't open.
+      if (!adv._nemesis) for (const lock of lockedLocks) {
         if (this._canAdvUnlockHere(adv, lock)) continue
         for (const t of lock.doorTiles) blockedForAdv.add(`${t.x},${t.y}`)
       }
-      // Treasure Hunters raid (2026-05-29): raiders are here for LOOT and must
-      // NEVER enter the boss chamber — not even as a transit shortcut. Hard-
-      // block every boss-room tile so the pathfinder routes entirely around it;
-      // if a target is only reachable through the throne, the raider gives up
-      // on it rather than walking in and waking the boss.
-      if (adv._treasureHunter) {
+      // Treasure Hunters raid (2026-05-29) + Aldric the Nemesis (Acts I–III):
+      // neither may EVER enter the boss chamber — not even as a transit shortcut.
+      // Hard-block every boss-room tile so the pathfinder routes entirely around
+      // it. (Aldric only ever stalks non-boss rooms or withdraws to the entry, so
+      // this never strands him; the Act IV duel form is _nemesisDuel, not _nemesis.)
+      if (adv._treasureHunter || adv._nemesis) {
         for (const room of (this._gameState.dungeon?.rooms ?? [])) {
           if (room.definitionId !== 'boss_chamber') continue
           for (let ry = room.gridY; ry < room.gridY + room.height; ry++) {
@@ -4789,6 +4822,20 @@ export class AISystem {
     return { type: 'EXPLORE_ROOM', roomId: pick.instanceId }
   }
 
+  // Aldric's withdrawal (Acts I–III): the instant he stands alone he abandons the
+  // raid. Fires his recoil vow ONCE, then returns a FLEE goal so he bolts for the
+  // entry. He NEVER reaches the throne now — the boss-room hard-block + the removed
+  // SEEK_BOSS keep him out of the chamber entirely — so this replaces the old
+  // throne-stand confrontation beat.
+  _nemesisWithdraw(adv) {
+    if (!adv._nemReeled) {
+      adv._nemReeled = true
+      const act = this._gameState.meta?.nemesis?.act ?? 1
+      EventBus.emit('NEMESIS_RECOIL', { adventurer: adv, act })
+    }
+    return { type: 'FLEE', reason: 'nemesis_withdraw' }
+  }
+
   // His climactic boss-room visit (only ever reached as the last one alive): he
   // confronts the boss, freezes for a beat to deliver his lines (NEMESIS_THRONE
   // now, the withdrawal vow a beat later), then withdraws. No boss fight — the
@@ -4875,10 +4922,10 @@ export class AISystem {
       // the dungeon (prowling room to room, taunting + reacting) and never flees.
       // Only once he is the LAST one alive does he march on the throne, confront the
       // boss, deliver his lines, and withdraw with a vow (_nemReeled → FLEE).
-      if (this._nemesisIsLastAlive(adv)) {
-        if (adv._nemReeled) return { type: 'FLEE' }
-        return { type: 'SEEK_BOSS' }
-      }
+      // Acts I–III: he NEVER enters the boss room. The instant he's the last one
+      // alive, he withdraws — recoil vow + FLEE to the entry — instead of marching
+      // on the throne. While other adventurers live, he keeps stalking non-boss rooms.
+      if (this._nemesisIsLastAlive(adv)) return this._nemesisWithdraw(adv)
       return this._nemesisProwlGoal(adv)
     }
     // The Nemesis, Act IV form — the crowned Hero King (spawned with
