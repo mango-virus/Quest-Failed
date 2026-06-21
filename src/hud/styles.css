@@ -7,6 +7,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
    pointer` declarations below would override and flicker the native
    pointer back on every hover. */
 html, body, * { cursor: none !important; }
+/* Block the blue text-selection highlight game-wide — this is a desktop game,
+   not a document, so a stray drag/double-click selecting button labels (BUILD /
+   MOVE / etc.) just looks broken. Real text fields opt back in below. */
+html, body, * { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+input, textarea, select, [contenteditable=""], [contenteditable="true"], .qf-selectable {
+  -webkit-user-select: text; -moz-user-select: text; user-select: text; }
 button { font: inherit; color: inherit; background: none; border: none; }
 img { image-rendering: pixelated; }
 
@@ -4114,14 +4120,22 @@ html.gamepad-active #qf-cursor { display: none; }
    hit-zones that overhang the border slightly; the cursor signals resizability. */
 .htr-rsz { position: absolute; z-index: 9; display: none; }
 .htr-tray.detached .htr-rsz { display: block; }
-.htr-rsz.n  { top: -3px; left: 12px; right: 12px; height: 8px; cursor: ns-resize; }
-.htr-rsz.s  { bottom: -3px; left: 12px; right: 12px; height: 8px; cursor: ns-resize; }
-.htr-rsz.e  { right: -3px; top: 12px; bottom: 12px; width: 8px; cursor: ew-resize; }
-.htr-rsz.w  { left: -3px; top: 12px; bottom: 12px; width: 8px; cursor: ew-resize; }
-.htr-rsz.ne { top: -4px; right: -4px; width: 15px; height: 15px; cursor: nesw-resize; }
-.htr-rsz.nw { top: -4px; left: -4px; width: 15px; height: 15px; cursor: nwse-resize; }
-.htr-rsz.se { bottom: -4px; right: -4px; width: 15px; height: 15px; cursor: nwse-resize; }
-.htr-rsz.sw { bottom: -4px; left: -4px; width: 15px; height: 15px; cursor: nesw-resize; }
+/* `!important` so the native resize cursor beats the global `cursor: none`
+   reset (the game's custom #qf-cursor) — that reset is why the edge cursor
+   never changed before. The pixel cursor is hidden over a handle (below) so
+   only the resize arrow shows. */
+.htr-rsz.n  { top: -3px; left: 12px; right: 12px; height: 8px; cursor: ns-resize !important; }
+.htr-rsz.s  { bottom: -3px; left: 12px; right: 12px; height: 8px; cursor: ns-resize !important; }
+.htr-rsz.e  { right: -3px; top: 12px; bottom: 12px; width: 8px; cursor: ew-resize !important; }
+.htr-rsz.w  { left: -3px; top: 12px; bottom: 12px; width: 8px; cursor: ew-resize !important; }
+.htr-rsz.ne { top: -4px; right: -4px; width: 15px; height: 15px; cursor: nesw-resize !important; }
+.htr-rsz.nw { top: -4px; left: -4px; width: 15px; height: 15px; cursor: nwse-resize !important; }
+.htr-rsz.se { bottom: -4px; right: -4px; width: 15px; height: 15px; cursor: nwse-resize !important; }
+.htr-rsz.sw { bottom: -4px; left: -4px; width: 15px; height: 15px; cursor: nesw-resize !important; }
+/* Light the hovered edge with the accent so the grab zone reads visually too. */
+.htr-rsz:hover { background: color-mix(in srgb, var(--tc) 24%, transparent); box-shadow: 0 0 9px color-mix(in srgb, var(--tc) 40%, transparent); border-radius: 3px; }
+/* Hide the pixel cursor while over a handle so only the native resize arrow shows. */
+body:has(.htr-rsz:hover) #qf-cursor { opacity: 0 !important; }
 /* a faint grip on the bottom-right corner as the conventional resize affordance */
 .htr-rsz.se::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 6px; height: 6px;
   border-right: 2px solid color-mix(in srgb, var(--tc) 70%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--tc) 70%, transparent); }
