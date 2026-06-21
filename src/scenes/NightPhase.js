@@ -3207,7 +3207,7 @@ export class NightPhase extends Phaser.Scene {
 
     const have = this._gameState.player?.gold ?? 0
     if (!Balance.DEV_INFINITE_GOLD && have < cost) {
-      this._showPlacementError(`Need ${cost}g to upgrade ${label} (you have ${have}g)`)
+      this._showPlacementError(`Upgrade costs ${cost}g — you have ${have}g`)
       return
     }
 

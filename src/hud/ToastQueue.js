@@ -124,7 +124,17 @@ export class ToastQueue {
         h('span', { className: 'pix qf-toast-glyph' }, meta.glyph),
         h('div', { className: 'qf-toast-titlecol' }, [
           eyebrow  && h('div', { className: 'pix qf-toast-eyebrow' }, eyebrow),
-          h('div', { className: 'pix qf-toast-title' }, title),
+          // Let a long title WRAP to two lines (then ellipsis) instead of
+          // truncating mid-word on one line. Inline so it wins over the
+          // .qf-toast-title one-line clamp in styles.css (parallel-session-
+          // owned). The toast is min-height, so it grows to fit the 2nd line.
+          h('div', { className: 'pix qf-toast-title', style: {
+            'white-space': 'normal',
+            'display': '-webkit-box',
+            '-webkit-box-orient': 'vertical',
+            '-webkit-line-clamp': '2',
+            'overflow': 'hidden',
+          } }, title),
           subtitle && h('div', { className: 'qf-toast-subtitle' }, subtitle),
           flavor   && h('div', { className: 'qf-toast-flavor' }, flavor),
         ]),
