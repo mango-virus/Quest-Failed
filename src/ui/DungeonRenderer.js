@@ -285,10 +285,13 @@ export class DungeonRenderer {
     // EDGE FADE — the bedrock backdrop dissolves into the deep dark past the
     // build space so there's never a hard bedrock→void seam. A uniform-width
     // rectangular border fade (4 edge strips + 4 corners, each a per-corner
-    // alpha gradient via fillGradientStyle), drawn in _drawEdgeFade(). Sits
-    // BELOW the room art (depth -0.4) so it only darkens the empty surround,
-    // never the placed rooms.
-    this._gFade = scene.add.graphics().setDepth(-0.4)
+    // alpha gradient via fillGradientStyle), drawn in _drawEdgeFade(). It draws
+    // ONLY the margin frame (never the grid interior), so it sits at a HIGH depth
+    // (12.2 — above the torch/light glow at 9.5 and the void-occluder at 12) where
+    // it ALSO occludes any additive light bleeding past the grid edge into the dark
+    // surround (a torch on a room at the very edge used to leak its glow + a hairline
+    // out there). Rooms are never touched — the frame stops at the grid boundary.
+    this._gFade = scene.add.graphics().setDepth(12.2)
     // Void-occluder at depth 12 (same role as _gVoidMask): a flat fill in
     // the void colour so sprites bleeding into void cells are hidden behind
     // the backdrop.  A GeometryMask built from _voidMaskMaskG clips it to
@@ -3377,6 +3380,15 @@ export class DungeonRenderer {
       this._gBgFill.fillStyle(VOID_BG_COLOR, 1)
       this._gBgFill.fillRect(-FD, -FD, W + 2 * FD, H + 2 * FD)
     }
+    // Opaque void-colour base over the MARGIN frame only (never the grid interior,
+    // so placed rooms stay visible). At this layer's high depth it hides additive
+    // torch/light glow that bleeds past the grid edge; the gradient strips below
+    // then darken it to DEEP_DARK exactly as before (so the look is unchanged).
+    g.fillStyle(VOID_BG_COLOR, 1)
+    g.fillRect(0, -FD, W, FD); g.fillRect(0, H, W, FD)        // top / bottom strips
+    g.fillRect(-FD, 0, FD, H); g.fillRect(W, 0, FD, H)        // left / right strips
+    g.fillRect(-FD, -FD, FD, FD); g.fillRect(W, -FD, FD, FD)  // TL / TR corners
+    g.fillRect(-FD, H, FD, FD); g.fillRect(W, H, FD, FD)      // BL / BR corners
     // Edge strips — alpha 0 at the grid edge → 1 at the outer rim (grid+FD).
     // fillGradientStyle(tl, tr, bl, br, aTL, aTR, aBL, aBR)
     g.fillGradientStyle(C, C, C, C, 1, 1, 0, 0); g.fillRect(0, -FD, W, FD)   // top
