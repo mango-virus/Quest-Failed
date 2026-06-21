@@ -15,7 +15,7 @@ import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
 import { DungeonGrid } from '../systems/DungeonGrid.js'
 import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion, snapshotItem, snapshotTrap } from './inGameSnapshot.js'
+import { liveMinion, snapshotItem, snapshotTrap } from './inGameSnapshot.js'
 import { getRoomThumbnail } from './roomThumbnailCache.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 
@@ -62,6 +62,11 @@ export class BuildMenu {
       accent: this._catInfo().color,
       width:  'min(63vw, 1020px)',
       height: 248,
+      detachable: true,
+      title: 'BUILD',
+      detachedSize:      { width: '560px', height: '470px' },
+      detachedSizeSmall: { width: '440px', height: '400px' },
+      onDetach: () => this._rerender(),   // re-render as a grid for the square shape
       onClose: () => { this._teardownGhost(); this._tray = null },
     })
     this._tray.setContent(this._render())
@@ -105,10 +110,13 @@ export class BuildMenu {
   _render() {
     const cat = this._catInfo()
     const items = this._defsFor(cat)
-    const pages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+    // Floating (square) → show the whole category as a scrollable grid (no pager).
+    const detached = !!this._tray?.isDetached
+    const per = detached ? Math.max(PER_PAGE, items.length) : PER_PAGE
+    const pages = Math.max(1, Math.ceil(items.length / per))
     if (this._page > pages - 1) this._page = pages - 1
-    const start = this._page * PER_PAGE
-    const visible = items.slice(start, start + PER_PAGE)
+    const start = this._page * per
+    const visible = items.slice(start, start + per)
     const bossLv = this._gameState.boss?.level ?? 1
     const gold = this._gameState.player?.gold ?? this._gameState.player?.soulEssence ?? 0
 
@@ -389,7 +397,7 @@ export class BuildMenu {
   _cardArt(def, cat) {
     const fallback = h('span', { className: 'qf-build-card-glyph', style: { color: cat.color } }, cat.glyph)
     if (cat.kind === 'minion') {
-      const snap = snapshotMinion(def.id, 76)
+      const snap = liveMinion(def.id, 76)
       if (snap) { snap.classList.add('qf-build-card-snap'); return snap }
       return pixelSprite(spriteKindForDefId(def.id), 64)
     }

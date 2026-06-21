@@ -201,37 +201,17 @@ export function snapshotTrap(spriteKey, size = 64, frameIdx = 0) {
 // `{ el, stop }` — the caller MUST call stop() when removing the
 // element, otherwise the frame timer leaks. Returns null when the
 // boss sheet/anim isn't loaded (caller falls back to a static image).
-function _animatedFromAnim(animKey, size, { className, cacheKey } = {}) {
-  const anim = window.__game?.anims?.get?.(animKey)
-  if (!anim || !Array.isArray(anim.frames) || anim.frames.length === 0) return null
-
-  const frames = []
-  for (const af of anim.frames) {
-    const fr = af?.frame
-    if (!fr || !fr.source?.image) continue
-    frames.push({
-      src: fr.source.image,
-      sx: fr.cutX || 0, sy: fr.cutY || 0,
-      sw: fr.cutWidth || fr.width, sh: fr.cutHeight || fr.height,
-    })
-  }
-  if (frames.length === 0) return null
-
+// Shared frame-cycling animator. `frames` = [{src,sx,sy,sw,sh}, …]. Uses the
+// UNION alpha-crop across every frame (so the sprite never scale-jitters or
+// clips its idle bob), aspect-fits once, then loops via setInterval. The loop
+// is self-cleaning: once the canvas has been mounted and later removed (panels
+// re-render), or if it's created but never mounted, it stops itself — so
+// callers can treat the returned `.el` like a plain element.
+function _animateFrames(frames, size, { className, cacheKey, fps = 6 } = {}) {
+  if (!frames || frames.length === 0) return null
   const { canvas, ctx } = _makeCanvas(size, size)
   canvas.className = className || 'qf-snap'
-
-  // Boss sheets carry generous transparent padding, and each boss fills
-  // a different fraction of its frame — so a plain frame-fit makes them
-  // look small and inconsistent. Crop to the boss's actual pixels: the
-  // UNION of the alpha-tight bounds across every idle frame.
-  //   * union (not per-frame) → the crop holds the boss in every frame,
-  //     so the idle bob never clips and the sprite never scale-jitters
-  //   * per-boss → each boss is cropped to ITS own pixels, so they all
-  //     end up a consistent, box-filling size whatever the sheet padding
-  const crop = _idleUnionCrop(cacheKey || animKey, frames)
-
-  // Aspect-fit the cropped sprite into the box — computed once (every
-  // idle frame shares one frame size).
+  const crop = _idleUnionCrop(cacheKey || 'anim', frames)
   const pad    = 0.06
   const usable = size * (1 - pad * 2)
   const scale  = Math.min(usable / crop.w, usable / crop.h)
@@ -239,26 +219,35 @@ function _animatedFromAnim(animKey, size, { className, cacheKey } = {}) {
   const drawH  = crop.h * scale
   const dx     = Math.round((size - drawW) / 2)
   const dy     = Math.round((size - drawH) / 2)
-
   let i = 0
   const draw = () => {
     const f = frames[i]
     ctx.clearRect(0, 0, size, size)
-    ctx.drawImage(
-      f.src,
-      f.sx + crop.x, f.sy + crop.y, crop.w, crop.h,
-      dx, dy, drawW, drawH,
-    )
+    ctx.drawImage(f.src, f.sx + crop.x, f.sy + crop.y, crop.w, crop.h, dx, dy, drawW, drawH)
   }
   draw()
-
-  const fps   = anim.frameRate || 6
+  if (frames.length < 2) return { el: canvas, stop: () => {} }   // single frame → static
+  let started = false, idle = 0
   const timer = setInterval(() => {
+    if (canvas.isConnected) { started = true; idle = 0 }
+    else if (started || ++idle > 40) { clearInterval(timer); return }
     i = (i + 1) % frames.length
     draw()
   }, Math.max(40, 1000 / fps))
-
   return { el: canvas, stop: () => clearInterval(timer) }
+}
+
+// Frames from a registered Phaser ANIM (bosses, adventurers — `…-idle-down`).
+function _animatedFromAnim(animKey, size, opts = {}) {
+  const anim = window.__game?.anims?.get?.(animKey)
+  if (!anim || !Array.isArray(anim.frames) || anim.frames.length === 0) return null
+  const frames = []
+  for (const af of anim.frames) {
+    const fr = af?.frame
+    if (!fr || !fr.source?.image) continue
+    frames.push({ src: fr.source.image, sx: fr.cutX || 0, sy: fr.cutY || 0, sw: fr.cutWidth || fr.width, sh: fr.cutHeight || fr.height })
+  }
+  return _animateFrames(frames, size, { cacheKey: animKey, fps: anim.frameRate || 6, ...opts })
 }
 
 // Looping idle boss sprite (`<archId>-idle-down`). { el, stop } or null.
@@ -267,11 +256,22 @@ export function animatedBossSprite(archId, size = 200) {
   return _animatedFromAnim(`${archId}-idle-down`, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + archId })
 }
 
-// Looping idle sprite for a placed-minion def (`minion-<id>-idle-down`). The
-// minion sheets load with the run, so this is ready in-game. { el, stop } or null.
+// Looping idle sprite for a placed-minion def. Preload registers per-direction
+// minion anims (`minion-<id>-idle-down/up/left/right`) for every minion, so use
+// the DOWN (camera-facing) row only — never cycle the whole sheet, or the sprite
+// reads as turning through every direction. { el, stop } or null.
 export function animatedMinion(defId, size = 64) {
   if (!defId) return null
-  return _animatedFromAnim(`minion-${defId}-idle-down`, size, { className: 'qf-snap qf-snap-minion', cacheKey: 'min:' + defId })
+  let a = _animatedFromAnim(`minion-${defId}-idle-down`, size, { className: 'qf-snap qf-snap-minion', cacheKey: 'min:' + defId })
+  // T3 final-forms ship no `minion-<id>` sheet — they're drawn with a boss skin
+  // (`<bossSkinId>-idle-down`, registered for every skin). Mirror snapshotMinion.
+  if (!a) {
+    const def = _minionDef(defId)
+    if (def?.bossSkinId) {
+      a = _animatedFromAnim(`${def.bossSkinId}-idle-down`, size, { className: 'qf-snap qf-snap-minion', cacheKey: 'boss:' + def.bossSkinId })
+    }
+  }
+  return a
 }
 
 // Looping idle sprite for an adventurer class (`adv-<cls>-<vId>-idle-down`).
@@ -441,6 +441,40 @@ export function snapshotAdventurerEntity(adv, size = 64) {
     }
   }
   return snapshotAdventurer(adv.spriteVariant || adv.classId || adv.kind, size)
+}
+
+// ── Live (idle-animated) variants ──────────────────────────────────
+// Same look as the static snapshots, but a looping idle canvas when the anim is
+// registered (sheets loaded); otherwise the static frame. The loop self-stops
+// when the canvas leaves the DOM, so panels can use these like a plain element.
+
+// {el, stop} or null — animated mirror of snapshotAdventurerEntity's resolution.
+export function animatedAdventurerEntity(adv, size = 64) {
+  if (!adv || adv._rivalBossSpriteKey || adv._minionSheet) return null
+  const raw = adv.spriteVariant || adv.classId || adv.kind
+  if (!raw || typeof raw !== 'string') return null
+  if (raw === 'loot_goblin') return animatedMinion('goblin1', size)
+  let cls = raw, v = 'v01'
+  if (raw.includes('/')) { const p = raw.split('/'); cls = p[0]; v = p[1] || 'v01' }
+  let a = animatedAdventurer(cls, size, v) || animatedAdventurer(cls, size, 'v01')
+  if (!a) {
+    const src = _classSpriteSource(cls)
+    if (src && src !== cls) a = animatedAdventurer(src, size, v) || animatedAdventurer(src, size, 'v01')
+  }
+  return a
+}
+
+// Bare-element helpers: looping idle if available, else the static snapshot.
+export function liveMinion(defId, size = 64) {
+  return (animatedMinion(defId, size)?.el) || snapshotMinion(defId, size)
+}
+export function liveAdventurerEntity(adv, size = 64) {
+  return (animatedAdventurerEntity(adv, size)?.el) || snapshotAdventurerEntity(adv, size)
+}
+export function liveAdventurer(classId, size = 64, variant = 'v01') {
+  let cls = classId, v = variant
+  if (typeof classId === 'string' && classId.includes('/')) { const p = classId.split('/'); cls = p[0]; v = p[1] || variant }
+  return (animatedAdventurer(cls, size, v)?.el) || snapshotAdventurer(classId, size, variant)
 }
 
 // ── On-demand sheet warming for DOM previews ───────────────────────

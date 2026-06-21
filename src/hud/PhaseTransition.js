@@ -20,7 +20,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { incomingWaveParty } from './wavePreview.js'
-import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
+import { liveAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { pixelSprite } from './sprites.js'
 
 const TRANSITION_MS = 2400
@@ -132,7 +132,7 @@ export class PhaseTransition {
       })
       // Real in-game sprite (south-facing idle, auto-cropped) — falls back to
       // the procedural pixel sprite until the LPC sheet warms in.
-      const snap = snapshotAdventurerEntity(adv, size) || pixelSprite(adv.classId, size)
+      const snap = liveAdventurerEntity(adv, size) || pixelSprite(adv.classId, size)
       if (snap) tile.appendChild(snap)
       return tile
     })

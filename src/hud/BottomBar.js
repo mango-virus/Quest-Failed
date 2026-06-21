@@ -32,6 +32,7 @@ import { Balance } from '../config/balance.js'
 import { getBind, keyLabel, KEYBINDS_CHANGED } from './HudKeybinds.js'
 import { fallenRevivable, totalReviveCost } from '../util/minionRevive.js'
 import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
+import { hasActiveLibrary } from './wavePreview.js'
 
 const SPEED_STEPS_EARLY = [1, 2, 4, 8]
 const SPEED_STEPS_HYPER = [1, 4, 8, 16]
@@ -92,6 +93,11 @@ export class BottomBar {
     // when a disconnected room island would stop the day from starting.
     this._ready   = true
     this._blocker = null
+    // "New since you last looked" dot on the KNOWLEDGE + INTEL launchers.
+    // _badgeBtns is filled by the launcher refs in _build(); _seen snapshots the
+    // signal value when the panel is opened (null = init on first evaluation).
+    this._badgeBtns = {}
+    this._seen = { intel: null, knowledge: null }
 
     this.el = this._build()
     this._wireEvents()
@@ -112,8 +118,8 @@ export class BottomBar {
     // Launchers. ROSTER/MAP/INTEL carry data-tray-anchor for the future trays.
     const launchers = [
       { id: 'roster', label: 'ROSTER', color: 'poison', anchor: 'ROSTER', event: 'OPEN_MINION_ROSTER', tip: 'Review & manage your minion roster' },
-      { id: 'map',    label: 'KNOWLEDGE', color: 'muted',  anchor: 'MAP',    event: 'OPEN_KNOWLEDGE_MAP', tip: 'Knowledge — the kingdom’s map intel + what they’ve learned about your minions' },
-      { id: 'intel',  label: 'INTEL',  color: 'warn',   anchor: 'INTEL',  event: 'OPEN_ADV_INTEL', nu: true, tip: 'Adventurer Intel — who’s coming & their weaknesses' },
+      { id: 'map',    label: 'KNOWLEDGE', color: 'muted',  anchor: 'MAP',    event: 'OPEN_KNOWLEDGE_MAP', badge: 'knowledge', tip: 'Knowledge — the kingdom’s map intel + what they’ve learned about your minions' },
+      { id: 'intel',  label: 'INTEL',  color: 'warn',   anchor: 'INTEL',  event: 'OPEN_ADV_INTEL', badge: 'intel', tip: 'Adventurer Intel — who’s coming & their weaknesses' },
       { id: 'menu',   label: 'MENU',   color: 'blood',  event: 'OPEN_PAUSE_MENU', tip: 'Pause — options, codex & quit' },
     ]
 
@@ -189,9 +195,9 @@ export class BottomBar {
       h('div', { className: 'hc-sec' }, launchers.map(m => h('button', {
         className: 'hc-btn',
         dataset: m.anchor ? { trayAnchor: m.anchor } : {},
-        ref: el => this._registerTip(el, m.tip, m.id),
+        ref: el => { this._registerTip(el, m.tip, m.id); if (m.badge) this._badgeBtns[m.badge] = el },
         on: { click: () => EventBus.emit(m.event) },
-      }, [ m.nu ? h('span', { className: 'nu' }) : null, biSpan(m.id, m.color), m.label ].filter(Boolean)))),
+      }, [ m.badge ? h('span', { className: 'nu' }) : null, biSpan(m.id, m.color), m.label ].filter(Boolean)))),
     ])
 
     const root = h('div', { className: 'qf-bottombar' }, [ bar ])
@@ -420,11 +426,65 @@ export class BottomBar {
     }
   }
 
+  // ── Launcher "new" badges (INTEL / KNOWLEDGE) ─────────────────────
+  // INTEL signal = how many adventurer CLASSES the player currently has dossier
+  // intel on (a Library + a kill of that class) — grows when a new class is
+  // killed, or when a Library is built and reveals prior kills.
+  _intelSignal() {
+    const gs = this._gameState
+    return hasActiveLibrary(gs) ? (gs?.run?.classesKilled?.length ?? 0) : 0
+  }
+
+  // KNOWLEDGE signal = total distinct things the kingdom has learned about the
+  // dungeon (leaked rooms / traps / treasure / items + studied minion types) —
+  // grows whenever an adventurer escapes with new intel.
+  _knowledgeSignal() {
+    const k = this._gameState?.knowledge?.sharedPool ?? {}
+    let n = 0
+    for (const key of ['rooms', 'traps', 'treasureChests', 'keyChests', 'items', 'mimics', 'enemiesPerRoom', 'bestiary']) {
+      n += Object.keys(k[key] ?? {}).length
+    }
+    return n
+  }
+
+  // Show a dot when the current signal exceeds what the player last saw. First
+  // evaluation snapshots the baseline (so existing intel doesn't flag as new).
+  _updateBadges() {
+    if (this._seen.intel == null)     this._seen.intel = this._intelSignal()
+    if (this._seen.knowledge == null) this._seen.knowledge = this._knowledgeSignal()
+    this._setBadge('intel',     this._intelSignal()     > this._seen.intel)
+    this._setBadge('knowledge', this._knowledgeSignal() > this._seen.knowledge)
+  }
+
+  _setBadge(key, on) { this._badgeBtns?.[key]?.classList.toggle('has-nu', !!on) }
+
+  // Opening a panel = the player has now seen its current state → clear the dot.
+  _clearBadge(key) {
+    this._seen[key] = key === 'intel' ? this._intelSignal() : this._knowledgeSignal()
+    this._setBadge(key, false)
+  }
+
+  // Coalesce many same-frame gains (a wave kills several adventurers) into one
+  // re-evaluation, run AFTER the systems that mutate the signal state this frame.
+  _scheduleBadgeUpdate() {
+    if (this._badgeScheduled) return
+    this._badgeScheduled = true
+    requestAnimationFrame(() => { this._badgeScheduled = false; this._updateBadges() })
+  }
+
   _wireEvents() {
     const sub = (event, fn) => {
       EventBus.on(event, fn)
       this._listeners.push([event, fn])
     }
+    // Launcher "new" dots: re-evaluate when intel/knowledge could have grown,
+    // and clear when the player opens the matching panel.
+    sub('ADVENTURER_DIED', () => this._scheduleBadgeUpdate())   // class intel
+    sub('INTEL_LEAKED',    () => this._scheduleBadgeUpdate())   // dungeon knowledge
+    sub('ROOM_PLACED',     () => this._scheduleBadgeUpdate())   // a Library reveals prior kills
+    sub('ROOM_REMOVED',    () => this._scheduleBadgeUpdate())
+    sub('OPEN_ADV_INTEL',     () => this._clearBadge('intel'))
+    sub('OPEN_KNOWLEDGE_MAP', () => this._clearBadge('knowledge'))
     // NightPhase owns the armed-tool state — listen for its broadcast.
     sub('TOOL_MODE_CHANGED', ({ mode }) => {
       this._armedTool = mode || null
@@ -453,9 +513,16 @@ export class BottomBar {
     // Also catch the load path — when continuing a save into day 30+,
     // the initial _build ran before SaveSystem rehydrated the day count.
     // Re-check on Game.js's load-completed broadcast.
-    sub('GAME_STATE_LOADED', () => this._rebuildSpeedBtns())
+    sub('GAME_STATE_LOADED', () => {
+      this._rebuildSpeedBtns()
+      // Re-baseline the badges to the loaded state (don't flag pre-existing intel).
+      this._seen.intel = null; this._seen.knowledge = null
+      this._updateBadges()
+    })
     // Keep the tooltips' keybind hints in sync when the player rebinds (P1-3).
     sub(KEYBINDS_CHANGED, () => this._refreshTips())
+    // Snapshot the badge baseline now (so the next gain reads as "new").
+    this._updateBadges()
   }
 
   _tick() {

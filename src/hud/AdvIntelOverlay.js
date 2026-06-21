@@ -28,7 +28,7 @@
 import { h } from './dom.js'
 import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
-import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
+import { liveAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { adventurerDisplayLevel, adventurerScaleMultipliers, ngPlusEnemyMul } from '../config/balance.js'
 import { hasActiveLibrary, hasClassIntel } from './wavePreview.js'
 
@@ -106,6 +106,10 @@ export class AdvIntelOverlay {
       accent: 'var(--info)',
       width:  'min(46vw, 760px)',
       height: 384,
+      detachable: true,
+      title: 'INTEL',
+      detachedSize:      { width: '540px', height: '560px' },
+      detachedSizeSmall: { width: '440px', height: '470px' },
       onClose: () => { this._tray = null },
     })
     this._tray.setContent(this._renderTrayContent())
@@ -538,16 +542,16 @@ export class AdvIntelOverlay {
   // box. Returns null when neither the spriteVariant nor the class's
   // v01 texture is loaded (cold-start) so the background portrait
   // shows through unobscured.
-  _renderAdvSprite(adv) {
-    const snap = snapshotAdventurerEntity(adv, 120)
+  _renderAdvSprite(adv, size = 64) {
+    // Fit the whole sprite inside its port (the ports flex-centre it). Snapshot
+    // a touch larger than the smallest port and let max-width/height scale it
+    // down — so nothing gets cropped (the old 120px bottom-anchor cut off heads).
+    const snap = liveAdventurerEntity(adv, size)
     if (!snap) return null
-    snap.style.position = 'absolute'
-    snap.style.left = '50%'
-    snap.style.bottom = '4px'
-    snap.style.transform = 'translateX(-50%)'
+    snap.style.maxWidth = '100%'
+    snap.style.maxHeight = '100%'
     snap.style.imageRendering = 'pixelated'
     snap.style.pointerEvents = 'none'
-    snap.classList.add('qf-advintel-sprite')
     return snap
   }
 

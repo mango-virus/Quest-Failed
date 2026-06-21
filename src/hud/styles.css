@@ -2153,7 +2153,10 @@ html.gamepad-active #qf-cursor { display: none; }
 .hc-begin .hc-bi { color: var(--poison); }
 .act-go .hc-bi { color: var(--poison); } .act-blu .hc-bi { color: var(--xpB); } .act-gold .hc-bi { color: var(--gold); }
 .hc-bar .hc-svg { width: 13px; height: 13px; display: block; filter: drop-shadow(0 1px 0 rgba(0,0,0,.45)); }
-.hc-btn .nu { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; background: var(--poison); box-shadow: 0 0 5px var(--poison); }
+/* "new since you last looked" dot — hidden until the launcher has .has-nu */
+.hc-btn .nu { display: none; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; background: var(--poison); box-shadow: 0 0 5px var(--poison); }
+.hc-btn.has-nu .nu { display: block; animation: hc-nu-pulse 1.4s ease-in-out infinite; }
+@keyframes hc-nu-pulse { 0%, 100% { box-shadow: 0 0 4px var(--poison); } 50% { box-shadow: 0 0 9px var(--poison); } }
 .hc-cost { display: inline-flex; align-items: center; gap: 3px; margin-left: 1px; color: var(--goldB); }
 .hc-cost i { width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, var(--hc-coin-hi), var(--gold) 60%, var(--hc-coin-lo)); }
 .hc-btn.act-go { background: color-mix(in srgb, var(--poison) 42%, var(--ink)); border-color: var(--poison); color: #fff; }
@@ -4061,6 +4064,104 @@ html.gamepad-active #qf-cursor { display: none; }
 @media (prefers-reduced-motion: no-preference) { .htr-tray:not(.closed) .htr-burst { animation: htr-burst .6s ease-out; } }
 .htr-body { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; }
 
+/* ── Detach / float / drag ───────────────────────────────────────── */
+/* Right-edge pull-tab: slides out of the popout; click to detach. */
+.htr-detach { position: absolute; top: 50%; right: -1px; z-index: 7; width: 21px; height: 52px; padding: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 30%, #14101c), color-mix(in srgb, var(--tc) 62%, #0d0a12));
+  border: 1.5px solid color-mix(in srgb, var(--tc) 80%, transparent); border-left: 0; border-radius: 0 9px 9px 0;
+  color: #fff; box-shadow: 3px 0 10px rgba(0,0,0,.45); transform: translate(100%, -50%); transform-origin: left center; }
+.htr-detach.htr-detach-left { right: auto; left: -1px; border: 1.5px solid color-mix(in srgb, var(--tc) 80%, transparent); border-right: 0; border-radius: 9px 0 0 9px; transform: translate(-100%, -50%); transform-origin: right center; box-shadow: -3px 0 10px rgba(0,0,0,.45); }
+.htr-detach-ic { font-size: 12px; line-height: 1; filter: drop-shadow(0 0 5px var(--tc)); transition: transform .14s; }
+.htr-detach:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 42%, #14101c), color-mix(in srgb, var(--tc) 82%, #0d0a12)); box-shadow: 3px 0 16px color-mix(in srgb, var(--tc) 45%, transparent); }
+.htr-detach:hover .htr-detach-ic { transform: scale(1.18); }
+.htr-detach:active { filter: brightness(1.2); }
+@media (prefers-reduced-motion: no-preference) {
+  .htr-tray:not(.closed) .htr-detach { animation: htr-tab-out .42s cubic-bezier(.14,1.4,.3,1) backwards; animation-delay: .26s; }
+  .htr-tray:not(.closed).htr-detach-left .htr-detach,
+  .htr-tray:not(.closed) .htr-detach.htr-detach-left { animation-name: htr-tab-out-l; }
+}
+@keyframes htr-tab-out   { from { opacity: 0; transform: translate(-40%, -50%); } to { opacity: 1; transform: translate(100%, -50%); } }
+@keyframes htr-tab-out-l { from { opacity: 0; transform: translate(40%, -50%); }  to { opacity: 1; transform: translate(-100%, -50%); } }
+
+/* Drag-handle title bar — only present once detached. */
+.htr-titlebar { position: absolute; top: 0; left: 0; right: 0; height: 27px; z-index: 8; display: none; align-items: center; gap: 8px; padding: 0 6px 0 9px;
+  cursor: grab; user-select: none; border-radius: 6.5px 6.5px 0 0; border-bottom: 1px solid #060409;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 50%, #1a1622), color-mix(in srgb, var(--tc) 24%, #100c18)); box-shadow: inset 0 1px 0 rgba(255,255,255,.16); }
+.htr-titlebar.dragging { cursor: grabbing; }
+.htr-tb-grip { color: color-mix(in srgb, #fff 70%, var(--tc)); font-size: 12px; line-height: 1; letter-spacing: -1px; opacity: .85; }
+.htr-tb-title { flex: 1; min-width: 0; font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: .06em; color: #fff; text-shadow: 0 1px 0 #050308; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.htr-tb-size, .htr-tb-x { flex: 0 0 auto; width: 19px; height: 19px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  font-size: 11px; color: var(--bone); background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); border-radius: 4px; transition: background .12s, color .12s; }
+.htr-tb-size { font-size: 12px; }
+.htr-tb-size:hover { background: color-mix(in srgb, var(--tc) 60%, #0d0a12); color: #fff; border-color: color-mix(in srgb, var(--tc) 80%, transparent); }
+.htr-tb-x:hover { background: var(--blood); color: #fff; border-color: var(--blood); }
+
+/* Detached state: title bar shows, content shifts down, stem + tab gone, lifted. */
+.htr-tray.detached { padding-top: 27px; transform: none; box-shadow: 0 14px 44px rgba(0,0,0,.62), 0 0 0 1px rgba(0,0,0,.5); }
+.htr-tray.detached .htr-titlebar { display: flex; }
+.htr-tray.detached .htr-stem, .htr-tray.detached .htr-detach { display: none; }
+.htr-tray.detached.focused { border-color: var(--tc); box-shadow: 0 16px 50px rgba(0,0,0,.66), 0 0 0 1px var(--tc), 0 0 26px color-mix(in srgb, var(--tc) 32%, transparent); }
+/* A small "lift-off" pop when detaching. */
+@media (prefers-reduced-motion: no-preference) {
+  .htr-tray.htr-detaching { animation: htr-detachpop .34s cubic-bezier(.2,1.5,.35,1); }
+}
+@keyframes htr-detachpop { 0% { transform: scale(.985); } 45% { transform: scale(1.035); } 100% { transform: scale(1); } }
+
+/* ── Detached = square: stack the master-detail (list/map on top, detail below) ── */
+.htr-tray.detached .mp-doc-main,
+.htr-tray.detached .mp-main { flex-direction: column; }
+
+/* MINION INTEL: card grid on top, detail as a 3-column strip below. */
+.htr-tray.detached .mp-doc-list { flex: 1 1 auto; }
+.htr-tray.detached .mp-doc-side { flex: 0 0 auto; width: 100%; border-left: 0; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: auto minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas: 'top counter abil' 'top hint scrub'; column-gap: 16px; row-gap: 9px; align-items: start; padding: 12px 16px; }
+.htr-tray.detached .mp-doc-d-top { grid-area: top; align-self: center; }
+.htr-tray.detached .mp-doc-d-div { display: none; }
+.htr-tray.detached .mp-doc-counter { grid-area: counter; }
+.htr-tray.detached .mp-doc-abilsec { grid-area: abil; }
+.htr-tray.detached .mp-doc-d-hint { grid-area: hint; margin-top: 0; }
+.htr-tray.detached .mp-doc-side .mp-scrub { grid-area: scrub; align-self: end; width: 100%; }
+
+/* MAP: schematic on top, room dossier as a row strip below. */
+.htr-tray.detached .mp-stage { flex: 1 1 auto; }
+.htr-tray.detached .mp-side { flex: 0 0 auto; width: 100%; border-left: 0; border-top: 1px solid var(--line);
+  flex-direction: row; align-items: stretch; gap: 18px; padding: 12px 16px 12px 16px; }
+.htr-tray.detached .mp-expo { flex: 0 0 auto; align-self: center; border-bottom: 0; padding-bottom: 0; padding-right: 18px; border-right: 1px solid var(--line); }
+.htr-tray.detached .mp-det { flex: 1; }
+
+/* ROSTER: floating (square) is too narrow for 2 columns → go single-column so
+   each row's name | HP | status has full width and stops colliding. */
+.htr-tray.detached .rst-list { grid-template-columns: 1fr; }
+
+/* BUILD: floating → the whole category as a scrollable 3-up card grid (no pager). */
+.htr-tray.detached .bsh-arrow { display: none; }
+.htr-tray.detached .bsh-rowclip { overflow-y: auto; overflow-x: hidden; }
+.htr-tray.detached .bsh-row { flex-wrap: wrap; align-content: flex-start; height: auto; gap: 10px; }
+.htr-tray.detached .bsh-card { flex: 0 0 calc(33.333% - 7px); height: 142px; }
+.htr-tray.detached.htr-small .bsh-card { flex: 0 0 calc(50% - 5px); }
+
+/* BOSS: floating → stack the hero as a horizontal band on top, chrome (tabs +
+   skills/pacts) below at full width so the cards + tab labels stop truncating. */
+.htr-tray.detached .bss-main { flex-direction: column; min-height: 0; }
+/* let the chrome (tabs + skills/pacts body) bound its height so bss-content
+   scrolls instead of the cards spilling out the bottom of the floating panel. */
+.htr-tray.detached .htr-chrome { min-height: 0; }
+.htr-tray.detached .bss-hero { flex: 0 0 auto; width: 100%; border-right: 0; border-bottom: 1px solid #060409; border-radius: 7px 7px 0 0;
+  display: grid; grid-template-columns: auto minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas: 'id hp xp' 'id lives core'; column-gap: 16px; row-gap: 8px; align-items: center; }
+.htr-tray.detached .bss-id    { grid-area: id; }
+.htr-tray.detached .bss-hp    { grid-area: hp; }
+.htr-tray.detached .bss-xp    { grid-area: xp; }
+.htr-tray.detached .bss-lives { grid-area: lives; }
+.htr-tray.detached .bss-core  { grid-area: core; }
+.htr-tray.detached .bss-flavor { display: none; }   /* keep the band short; flavor shows when docked */
+.htr-tray.detached .bss-hp, .htr-tray.detached .bss-xp, .htr-tray.detached .bss-lives, .htr-tray.detached .bss-core { min-width: 0; }
+/* Small floating boss: identity full-width, then HP|XP and LIVES|CORE rows — the
+   3-up band is too narrow at the small size and spilled past the edge. */
+.htr-tray.detached.htr-small .bss-hero { grid-template-columns: 1fr 1fr; grid-template-areas: 'id id' 'hp xp' 'lives core'; }
+
 /* chrome region that holds nav + content inside a tray */
 .htr-chrome { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; }
 .htr-chrome.m-rail { flex-direction: row; }
@@ -4102,10 +4203,13 @@ html.gamepad-active #qf-cursor { display: none; }
   box-shadow: inset 0 0 0 1px #060409, inset 4px 0 0 var(--rar); transition: background .12s, transform .08s, box-shadow .12s; }
 .rst-row:hover { transform: translateX(2px); background: linear-gradient(90deg, color-mix(in srgb, var(--rar) 16%, #15111d), #161220); }
 .rst-row.on { box-shadow: inset 0 0 0 1px var(--rar), inset 4px 0 0 var(--rar), 0 0 14px color-mix(in srgb, var(--rar) 30%, transparent); }
-.rst-port { width: 44px; height: 44px; flex: 0 0 auto; background: #08060d center 14% / cover no-repeat; image-rendering: pixelated; box-shadow: inset 0 0 0 1px var(--rar), inset 0 0 12px rgba(0,0,0,.6); position: relative; }
-.rst-tier { position: absolute; top: 0; left: 0; font-family: 'Press Start 2P', monospace; font-size: 6px; color: #fff; padding: 2px 4px; background: color-mix(in srgb, var(--rar) 55%, #0a0710); text-shadow: 0 1px 0 #000; }
+.rst-port { width: 44px; height: 44px; flex: 0 0 auto; background: #08060d; image-rendering: pixelated; box-shadow: inset 0 0 0 1px var(--rar), inset 0 0 12px rgba(0,0,0,.6); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .rst-id { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.rst-name { font-family: 'Press Start 2P', monospace; font-size: 8.5px; color: #fff; text-shadow: 0 1px 0 #050308; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
+.rst-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.rst-nm { flex: 0 1 auto; min-width: 0; font-family: 'Press Start 2P', monospace; font-size: 8.5px; color: #fff; text-shadow: 0 1px 0 #050308; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* tier chip beside the name (replaces the badge that covered the portrait) */
+.rst-tierchip { flex: 0 0 auto; font-family: 'Press Start 2P', monospace; font-size: 6px; letter-spacing: .04em; color: #fff; padding: 2px 5px; text-shadow: 0 1px 0 #000;
+  background: color-mix(in srgb, var(--tier) 50%, #0a0710); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tier) 72%, var(--line2)); }
 .rst-kind { font-family: 'Silkscreen', monospace; font-size: 8px; letter-spacing: .06em; color: var(--mute); }
 .rst-traits { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
 .rst-trait { font-family: 'Silkscreen', monospace; font-size: 6.5px; letter-spacing: .05em; color: var(--bone); padding: 1px 5px; background: color-mix(in srgb, var(--rar) 12%, #0a0710); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rar) 32%, var(--line2)); }
@@ -4116,12 +4220,26 @@ html.gamepad-active #qf-cursor { display: none; }
 .rst-hp-fill { height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--sc) 65%, #000), var(--sc)); box-shadow: 0 0 6px color-mix(in srgb, var(--sc) 50%, transparent); }
 .rst-status { flex: 0 0 auto; font-family: 'Press Start 2P', monospace; font-size: 6.5px; color: var(--sc); padding: 5px 8px; background: color-mix(in srgb, var(--sc) 12%, #0a0710); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sc) 45%, var(--line2)); }
 .rst-bnty { font-family: 'Press Start 2P', monospace; font-size: 6px; color: #0a0710; background: var(--goldB); padding: 2px 5px; box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 60%, transparent); }
-/* selected-row actions (MOVE / RENAME / SELL) — design's .rst-act button */
+/* selected-row actions (MOVE / RENAME / SELL) — the action-bar button look
+   (.hc-btn: bevel + sheen sweep + press). Our default button style. */
 .rst-acts { flex: 0 0 auto; display: flex; gap: 5px; align-items: center; }
-.rst-act { flex: 0 0 auto; position: relative; overflow: hidden; font-family: 'Press Start 2P', monospace; font-size: 6.5px; color: var(--bone); cursor: pointer; padding: 7px 8px; letter-spacing: .04em; border: 0;
-  background: var(--bg1); box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 2px 0 rgba(0,0,0,.6); transition: filter .1s, transform .06s, color .12s, box-shadow .12s; }
-.rst-act:hover { color: #fff; box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), inset 0 -2px 0 var(--tc), 0 2px 0 rgba(0,0,0,.6); }
-.rst-act:active { transform: translateY(2px); }
+.rst-act { flex: 0 0 auto; position: relative; overflow: hidden; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  font-family: 'Press Start 2P', monospace; font-size: 6.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--bone);
+  background: var(--bg1); border: 1px solid var(--line2); border-radius: 2px; padding: 7px 9px;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 3px 0 rgba(0,0,0,.6);
+  transition: transform 80ms cubic-bezier(.2,.8,.2,1), background 140ms, border-color 140ms, box-shadow 140ms, color 140ms; }
+.rst-act::before { content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 38%; transform: skewX(-20deg); pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.09), transparent); transition: left .5s ease; }
+.rst-act:hover::before { left: 140%; }
+.rst-act:hover { background: color-mix(in srgb, var(--bg2) 78%, #fff 7%); border-color: var(--mute); color: #fff; }
+.rst-act:active { transform: translateY(2px) scale(.98); filter: brightness(1.25) saturate(1.2); transition-duration: 40ms;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.05), inset -1px -1px 0 rgba(0,0,0,.5), 0 1px 0 rgba(0,0,0,.6); }
+.rst-act.sell:hover { background: color-mix(in srgb, var(--blood) 34%, var(--ink)); border-color: var(--blood); }
+
+/* dead minions: greyed + faded, their own quiet section; not interactive */
+.rst-row[data-st="dead"] { opacity: .56; cursor: default; }
+.rst-row[data-st="dead"]:hover { transform: none; background: linear-gradient(90deg, color-mix(in srgb, var(--rar) 9%, #15111d), #120e1a); }
+.rst-row[data-st="dead"] .rst-port, .rst-row[data-st="dead"] .rst-id { filter: grayscale(.5); }
 
 /* ───────── INTEL: threat briefing tray ───────── */
 .itl-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; z-index: 2; }
@@ -4461,7 +4579,7 @@ html.gamepad-active #qf-cursor { display: none; }
   .htr-tray:not(.closed):not(.htr-summoned) .rst-row { animation: htr-rise .3s backwards; animation-delay: calc(var(--i) * 45ms + 90ms); }
   .rst-row[data-st="wounded"] .rst-hp-fill { animation: rst-hppulse 1.1s ease-in-out infinite; }
 }
-.rst-row[data-st="ready"] .rst-hp-fill { box-shadow: 0 0 9px color-mix(in srgb, var(--sc) 70%, transparent); }
+.rst-row[data-st="healthy"] .rst-hp-fill { box-shadow: 0 0 9px color-mix(in srgb, var(--sc) 70%, transparent); }
 
 /* ---------- Toast queue ---------- */
 /* Docked top-right, flush beneath the dungeon-log button as the tail of the

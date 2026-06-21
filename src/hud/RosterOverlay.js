@@ -15,6 +15,7 @@ import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
 import { minionLabel } from '../util/displayNames.js'
+import { liveMinion } from './inGameSnapshot.js'
 
 export class RosterOverlay {
   constructor(gameState) {
@@ -48,15 +49,48 @@ export class RosterOverlay {
       accent: 'var(--poison)',
       width:  'min(52vw, 820px)',
       height: 348,
+      detachable: true,
+      title: 'ROSTER',
+      detachedSize:      { width: '520px', height: '540px' },
+      detachedSizeSmall: { width: '420px', height: '450px' },
       onClose: () => { this._tray = null },
     })
+    // Reused animated sprite canvases (keyed per minion) so the live refresh
+    // can rebuild rows without recreating sprites (which would restart the idle
+    // loop) — see _rosterSprite.
+    this._spriteCache = new Map()
+    this._refreshTick = 0
     this._tray.setContent(this._renderTrayContent())
     this._tray.open()
+    // Live refresh: while open, re-render ~5×/sec so HP drain, deaths, moves,
+    // etc. show in real time as the wave plays.
+    this._refreshLoop()
   }
 
   close() {
+    if (this._refreshRaf) cancelAnimationFrame(this._refreshRaf)
+    this._refreshRaf = null
+    this._spriteCache = null
     this._tray?.close()
     this._tray = null
+  }
+
+  // ~5 fps live refresh. Paused while a row is selected (the action panel is
+  // open and the player is interacting) — unless that minion just died, in which
+  // case we resume + clear the stale selection. Scroll position is preserved.
+  _refreshLoop() {
+    this._refreshRaf = requestAnimationFrame(() => this._refreshLoop())
+    if ((this._refreshTick = (this._refreshTick + 1) % 12) !== 0) return
+    if (this._selId != null) {
+      const sel = (this._gameState.minions ?? []).find(x => x.instanceId === this._selId)
+      if (sel && this._classifyStatus(sel) !== 'dead') return   // still actionable → hold
+      this._selId = null
+    }
+    const list = this._tray?.trayEl?.querySelector?.('.rst-list')
+    const scroll = list ? list.scrollTop : 0
+    this._rerender()
+    const list2 = this._tray?.trayEl?.querySelector?.('.rst-list')
+    if (list2) list2.scrollTop = scroll
   }
 
   _rerender() {
@@ -66,20 +100,21 @@ export class RosterOverlay {
   // ── Bespoke roster tray (barracks ledger) ───────────────────────
   _renderTrayContent() {
     const minions = this._minions()
+    const cls = (m) => this._classifyStatus(m)
     const counts = {
-      ALL:     minions.length,
-      READY:   minions.filter(m => this._classifyStatus(m) === 'ready').length,
-      WOUNDED: minions.filter(m => this._classifyStatus(m) === 'wounded').length,
-      IDLE:    minions.filter(m => this._classifyStatus(m) === 'idle').length,
+      ALL:  minions.length,
+      HURT: minions.filter(m => cls(m) === 'hurt').length,
+      DEAD: minions.filter(m => cls(m) === 'dead').length,
     }
-    const filtered = this._filter === 'ALL'
-      ? minions
-      : minions.filter(m => this._classifyStatus(m).toUpperCase() === this._filter)
+    let filtered = this._filter === 'HURT' ? minions.filter(m => cls(m) === 'hurt')
+                 : this._filter === 'DEAD' ? minions.filter(m => cls(m) === 'dead')
+                 : minions
+    // Dead minions sink to the bottom as their own faded section (stable sort).
+    filtered = [...filtered].sort((a, b) => (cls(a) === 'dead' ? 1 : 0) - (cls(b) === 'dead' ? 1 : 0))
     const TABS = [
-      { id: 'ALL',     label: 'ALL',   glyph: '▤', c: counts.ALL },
-      { id: 'READY',   label: 'READY', glyph: '✦', c: counts.READY },
-      { id: 'WOUNDED', label: 'HURT',  glyph: '✚', c: counts.WOUNDED },
-      { id: 'IDLE',    label: 'IDLE',  glyph: '◌', c: counts.IDLE },
+      { id: 'ALL',  label: 'ALL',  glyph: '▤', c: counts.ALL },
+      { id: 'HURT', label: 'HURT', glyph: '✚', c: counts.HURT },
+      { id: 'DEAD', label: 'DEAD', glyph: '☠', c: counts.DEAD },
     ]
     const segbar = h('div', { className: 'htr-segbar' }, TABS.map(tb => h('div', {
       className: 'htr-segtab' + (this._filter === tb.id ? ' on' : ''),
@@ -91,14 +126,14 @@ export class RosterOverlay {
     ])))
     const summary = h('div', { className: 'rst-summary' }, [
       h('span', null, [ h('b', null, String(minions.length)), ' MINIONS' ]),
-      h('span', { className: 'chip', style: { '--c': 'var(--warn)' } }, [ h('span', { className: 'd' }), `${counts.WOUNDED} HURT` ]),
-      h('span', { className: 'chip', style: { '--c': 'var(--text-mute)' } }, [ h('span', { className: 'd' }), `${counts.IDLE} IDLE` ]),
+      h('span', { className: 'chip', style: { '--c': '#ff7a2a' } }, [ h('span', { className: 'd' }), `${counts.HURT} HURT` ]),
+      h('span', { className: 'chip', style: { '--c': 'var(--mute)' } }, [ h('span', { className: 'd' }), `${counts.DEAD} DEAD` ]),
     ])
     const list = h('div', { className: 'rst-list' },
       filtered.length === 0
         ? [ h('div', { className: 'rst-empty' }, [
             h('span', { className: 'ic' }, '◌'),
-            `No minions ${this._filter === 'ALL' ? 'in roster' : this._filter.toLowerCase()}`,
+            this._filter === 'ALL' ? 'No minions in roster' : `No ${this._filter.toLowerCase()} minions`,
           ]) ]
         : filtered.map((m, i) => this._renderRosterRow(m, i)))
     return h('div', { className: 'htr-chrome m-col' }, [
@@ -110,12 +145,13 @@ export class RosterOverlay {
   }
 
   _renderRosterRow(m, idx) {
-    const status = this._classifyStatus(m)
-    const statusColor = status === 'ready' ? 'var(--poison)'
-                      : status === 'wounded' ? 'var(--warn)'
-                      : 'var(--text-mute)'
+    const status = this._classifyStatus(m)          // healthy / hurt / dead
+    const statusColor = status === 'healthy' ? 'var(--poison)'
+                      : status === 'hurt'    ? '#ff7a2a'
+                      : 'var(--mute)'               // dead
+    const dead = status === 'dead'
     const tier = this._tierOf(m)
-    const rar = this._tierColor(tier)
+    const tierColor = this._tierColor(tier)
     const hp = Math.round(m.resources?.hp ?? 0)
     const maxHp = Math.round(m.resources?.maxHp ?? 1)
     const pct = maxHp > 0 ? Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100))) : 0
@@ -124,19 +160,18 @@ export class RosterOverlay {
     const kind = (def?.name || minionLabel(m.definitionId) || '').toString()
     const tags = (m._revivedAdv ? ['undead'] : (def?.tags ?? [])).slice(0, 3)
     const loc = this._minionLocationLabel(m)
-    const selected = this._selId === m.instanceId
+    const selected = !dead && this._selId === m.instanceId   // dead rows aren't actionable
     return h('div', {
       className: 'rst-row' + (selected ? ' on' : ''),
       dataset: { st: status },
-      style: { '--rar': rar, '--sc': statusColor, '--i': idx },
-      on: { click: () => { this._selId = selected ? null : m.instanceId; this._rerender() } },
+      style: { '--rar': statusColor, '--sc': statusColor, '--tier': tierColor, '--i': idx },
+      on: dead ? {} : { click: () => { this._selId = selected ? null : m.instanceId; this._rerender() } },
     }, [
-      h('div', { className: 'rst-port', style: this._spriteBg(this._spriteFor(m)) }, [
-        h('span', { className: 'rst-tier' }, tier),
-      ]),
+      h('div', { className: 'rst-port' }, [ this._rosterSprite(m) ].filter(Boolean)),
       h('div', { className: 'rst-id' }, [
         h('span', { className: 'rst-name' }, [
-          name,
+          h('span', { className: 'rst-nm' }, name),
+          h('span', { className: 'rst-tierchip' }, tier),
           m.hasBounty ? h('span', { className: 'rst-bnty' }, '◎') : null,
         ].filter(Boolean)),
         h('span', { className: 'rst-kind' }, `${kind} · ${loc}`),
@@ -150,7 +185,7 @@ export class RosterOverlay {
         ? h('div', { className: 'rst-acts' }, [
             h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onReassign(m) } } }, 'MOVE'),
             h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onRename(m) } } }, 'RENAME'),
-            h('button', { className: 'rst-act', on: { click: (e) => { e.stopPropagation(); this._onSacrifice(m) } } }, 'SELL'),
+            h('button', { className: 'rst-act sell', on: { click: (e) => { e.stopPropagation(); this._onSacrifice(m) } } }, 'SELL'),
           ])
         : h('div', { className: 'rst-hp' }, [
             h('div', { className: 'rst-hp-top' }, [ h('span', null, 'HP'), h('span', { className: 'rst-hp-val' }, `${hp}/${maxHp}`) ]),
@@ -162,18 +197,18 @@ export class RosterOverlay {
 
   // ── Data helpers ────────────────────────────────────────────────
   _minions() {
-    // Only show living roster minions (the player's hunters), not
-    // garrison/system minions that ride along.
+    // The player's roster — including the dead (shown faded in their own
+    // section). Permadead minions are spliced from gameState.minions elsewhere,
+    // so anything still here with aiState 'dead' is a wave casualty worth showing.
     return (this._gameState.minions ?? [])
-      .filter(m => m.aiState !== 'dead' && m.deathDay == null)
   }
 
+  // healthy (full HP) → green, hurt (any missing HP) → orange, dead → grey.
   _classifyStatus(m) {
-    const hp    = m.resources?.hp ?? 0
-    const maxHp = m.resources?.maxHp ?? 1
-    if (maxHp > 0 && hp / maxHp < 0.6) return 'wounded'
-    if (m.aiState === 'idle')          return 'idle'
-    return 'ready'
+    if (m.aiState === 'dead' || m.deathDay != null) return 'dead'
+    const hp    = Math.round(m.resources?.hp ?? 0)
+    const maxHp = Math.round(m.resources?.maxHp ?? 1)
+    return (hp < maxHp) ? 'hurt' : 'healthy'
   }
 
   // Sprite uses the existing bestiary portrait when one exists for the
@@ -182,6 +217,24 @@ export class RosterOverlay {
   _spriteFor(m) {
     const id = String(m.definitionId || '').replace(/[0-9]+$/, '') // strip tier suffix
     return id
+  }
+
+  // The minion's actual idle sprite (same source as the bestiary doctrine), so
+  // every family shows — the old bestiary-portrait PNGs were missing for many.
+  _rosterSprite(m) {
+    // Reuse the same canvas across live re-renders (it gets re-parented into the
+    // new row) so the idle animation keeps playing instead of restarting.
+    const key = `${m.instanceId}:${m.definitionId}`
+    const cache = this._spriteCache
+    if (cache?.has(key)) return cache.get(key)
+    const snap = liveMinion(m.definitionId, 56)
+    if (!snap) return null
+    snap.style.maxWidth = '100%'
+    snap.style.maxHeight = '100%'
+    snap.style.imageRendering = 'pixelated'
+    snap.style.pointerEvents = 'none'
+    cache?.set(key, snap)
+    return snap
   }
 
   _roomName(roomId) {

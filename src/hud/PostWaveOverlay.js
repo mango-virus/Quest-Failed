@@ -21,7 +21,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
+import { liveMinion, liveAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { mvpMinion } from './hudShared.js'
@@ -264,8 +264,8 @@ export class PostWaveOverlay {
     // sheet AdventurerRenderer borrows for the loot_goblin class);
     // everyone else uses their LPC variant via snapshotAdventurer.
     const spriteEl = isGoblin
-      ? (snapshotMinion('goblin1', 38) || pixelSprite('goblin', 38))
-      : (snapshotAdventurerEntity(adv, 38)
+      ? (liveMinion('goblin1', 38) || pixelSprite('goblin', 38))
+      : (liveAdventurerEntity(adv, 38)
          || pixelSprite(advKind, 38))
     return h('div', {
       className: 'qf-pws-row pws-row',
@@ -329,7 +329,7 @@ export class PostWaveOverlay {
       ]),
       isSlain && adv.killerKind && h('div', {
         className: 'qf-pws-row-killer',
-      }, snapshotMinion(adv.killerKind, 28)
+      }, liveMinion(adv.killerKind, 28)
          || pixelSprite(spriteKindForDefId(adv.killerKind), 28)),
     ])
   }
@@ -340,7 +340,7 @@ export class PostWaveOverlay {
       mvp
         ? h('div', { className: 'qf-pws-mvp-card' }, [
             h('div', { className: 'qf-pws-mvp-spritebox' },
-              snapshotMinion(mvp.definitionId, 36)
+              liveMinion(mvp.definitionId, 36)
               || pixelSprite(spriteKindForDefId(mvp.definitionId), 36)),
             h('div', { className: 'qf-pws-mvp-textcol' }, [
               h('div', { className: 'pix qf-pws-mvp-name' },

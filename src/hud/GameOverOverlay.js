@@ -20,7 +20,7 @@ import { h } from './dom.js'
 import { Overlay } from './Overlay.js'
 import { EventBus } from '../systems/EventBus.js'
 import { pixelSprite, spriteKindForDefId } from './sprites.js'
-import { snapshotMinion, snapshotAdventurerEntity } from './inGameSnapshot.js'
+import { liveMinion, liveAdventurerEntity } from './inGameSnapshot.js'
 import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { mvpMinion } from './hudShared.js'
@@ -276,7 +276,7 @@ export class GameOverOverlay {
               mvpMinion ? `${mvpMinion.lifetime?.kills ?? 0}☠` : '—',
               'var(--poison)',
               mvpMinion
-                ? (snapshotMinion(mvpMinion.definitionId, 28)
+                ? (liveMinion(mvpMinion.definitionId, 28)
                   || pixelSprite(spriteKindForDefId(mvpMinion.definitionId), 28))
                 : null,
             ),
@@ -295,7 +295,7 @@ export class GameOverOverlay {
               final ? `${final.name} · ${classLabel(final.classId).toUpperCase()}` : '— unknown —',
               final ? `LV ${final.level ?? final.lv ?? 1}` : '—',
               'var(--blood)',
-              final ? (snapshotAdventurerEntity(final, 28)
+              final ? (liveAdventurerEntity(final, 28)
                 || pixelSprite(spriteKindForDefId(final.classId), 28)) : null,
             ),
           ]),

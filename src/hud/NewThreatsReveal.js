@@ -18,7 +18,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
-import { snapshotAdventurer } from './inGameSnapshot.js'
+import { liveAdventurer } from './inGameSnapshot.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 
 // One-line, mechanics-first blurbs for each unlockable class (curated UI copy;
@@ -179,7 +179,7 @@ export class NewThreatsReveal {
 
   _entry(cls) {
     const portrait = h('div', { className: 'qf-ntr-portrait' })
-    const snap = (() => { try { return snapshotAdventurer(cls.id, 52, 'v01') } catch (e) { return null } })()
+    const snap = (() => { try { return liveAdventurer(cls.id, 52, 'v01') } catch (e) { return null } })()
     if (snap) {
       portrait.appendChild(snap)
     } else {

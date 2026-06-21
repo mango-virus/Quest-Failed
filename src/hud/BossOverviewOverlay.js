@@ -45,6 +45,10 @@ export class BossOverviewOverlay {
       accent: 'var(--blood)',
       width:  'min(50vw, 820px)',
       height: 340,
+      detachable: true,
+      title: 'BOSS',
+      detachedSize:      { width: '540px', height: '560px' },
+      detachedSizeSmall: { width: '440px', height: '470px' },
       onClose: () => { this._tray = null },
     })
     this._tray.setContent(this._renderTrayContent())
@@ -85,7 +89,7 @@ export class BossOverviewOverlay {
     const pacts = this._activePacts()
 
     const hero = h('div', { className: 'bss-hero' }, [
-      h('div', { style: { display: 'flex', gap: '12px', alignItems: 'center' } }, [
+      h('div', { className: 'bss-id', style: { display: 'flex', gap: '12px', alignItems: 'center' } }, [
         h('div', { className: 'bss-portwrap' }, [
           h('div', {
             className: 'bss-port',
@@ -98,7 +102,7 @@ export class BossOverviewOverlay {
           h('span', { className: 'bss-tag' }, tagline),
         ]),
       ]),
-      h('div', null, [
+      h('div', { className: 'bss-hp' }, [
         h('div', { className: 'bss-bar-top' }, [ h('span', null, 'HEALTH'), h('b', null, `${hp} / ${maxHp}`) ]),
         h('div', { className: 'bss-bar-track' }, [ h('div', { className: 'bss-bar-fill hp', style: { width: hpPct + '%' } }) ]),
       ]),
@@ -106,7 +110,7 @@ export class BossOverviewOverlay {
         h('span', { className: 'll' }, 'LIVES'),
         ...Array.from({ length: maxLives }, (_, i) => h('span', { className: 'h' + (i < lives ? '' : ' dim') }, '♥')),
       ]),
-      h('div', null, [
+      h('div', { className: 'bss-xp' }, [
         h('div', { className: 'bss-bar-top' }, [ h('span', null, `XP → LV ${level + 1}`), h('b', null, `${xp} / ${xpMax}`) ]),
         h('div', { className: 'bss-bar-track' }, [ h('div', { className: 'bss-bar-fill xp', style: { width: xpPct + '%' } }) ]),
       ]),
@@ -135,7 +139,7 @@ export class BossOverviewOverlay {
     const body = h('div', { className: 'bss-content' }, [ this._renderBossSection(this._tab, abilities, pacts, totals) ])
 
     const chrome = h('div', { className: 'htr-chrome m-col' }, [ segbar, h('div', { className: 'htr-content' }, [ body ]) ])
-    return h('div', { style: { display: 'flex', flex: '1', minWidth: 0 } }, [ hero, chrome ])
+    return h('div', { className: 'bss-main', style: { display: 'flex', flex: '1', minWidth: 0 } }, [ hero, chrome ])
   }
 
   _renderBossSection(id, abilities, pacts, totals) {
