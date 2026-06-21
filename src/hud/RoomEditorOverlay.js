@@ -1070,6 +1070,11 @@ export class RoomEditorOverlay {
                 h('div', null, current ? `Skin: ${current}` : 'No skin (theme / procedural door)'),
                 h('div', { className: 'qf-skins__btn-row' }, [
                   current ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearDoorSkin?.(); this._renderDoorSkins() } } }, 'Clear skin') : null,
+                  current ? h('button', {
+                    className: 'btn sm',
+                    title: `Make this the default ${doorState} door for every room with no skin of its own`,
+                    on: { click: () => { this.scene.uiSetDefaultDoorSkinFromCurrent?.(); this._renderDoorSkins() } },
+                  }, '★ Set as default') : null,
                 ]),
               ]),
             ]),
@@ -1077,6 +1082,7 @@ export class RoomEditorOverlay {
               'One image is drawn over the whole doorway and auto-rotates per door direction in-game. Applies to the selected state (closed / open / locked).'),
           ]),
           current ? this._doorSkinSizeControls() : null,
+          this._doorSkinDefaultCard(skins, doorState),
         ]),
         h('div', { className: 'qf-themes__right', style: { overflowY: 'auto' } }, [
           current ? h('div', { className: 'qf-themes__subhead' }, 'PREVIEW · in-room (top-wall door)') : null,
@@ -1143,6 +1149,69 @@ export class RoomEditorOverlay {
     ])
   }
 
+  // The GLOBAL default door skin card — the current state's default thumb + clear,
+  // plus its own size sliders. The default fills every door (connecting / boss /
+  // entrance) that has no skin of its own; ★ Set as default (on the applied card)
+  // promotes the shown skin into it.
+  _doorSkinDefaultCard(skins, doorState) {
+    const defId = this.scene.uiGetDefaultDoorSkinId?.()
+    const defThumb = defId ? (skins.find((s) => s.id === defId)?.thumb) : null
+    return h('div', { className: 'qf-skins__current', style: { marginTop: '12px' } }, [
+      h('div', { className: 'qf-themes__subhead' }, '✦ DEFAULT DOOR SKIN · all rooms'),
+      h('div', { className: 'qf-skins__current-body' }, [
+        defThumb ? h('img', { className: 'qf-skins__thumb', src: defThumb })
+                 : h('div', { className: 'qf-skins__thumb q' }, '—'),
+        h('div', { className: 'qf-skins__current-info' }, [
+          h('div', null, defId ? `${doorState}: ${defId}` : `No default for the “${doorState}” state`),
+          h('div', { className: 'qf-skins__btn-row' }, [
+            defId ? h('button', { className: 'btn sm ghost', on: { click: () => { this.scene.uiClearDefaultDoorSkin?.(); this._renderDoorSkins() } } }, 'Clear default') : null,
+          ]),
+        ]),
+      ]),
+      h('div', { className: 'qf-skins__hint' },
+        this.scene.uiHasDefaultDoorSkin?.()
+          ? 'Used by every door — connecting, boss, and entrance — that has no skin of its own. Per state; the size below applies to all default doors.'
+          : 'Apply a skin to a room, then “★ Set as default” to make it the fallback for every unskinned door. You can size it here once set.'),
+      this.scene.uiHasDefaultDoorSkin?.() ? this._doorDefaultSizeControls() : null,
+    ])
+  }
+
+  // Size sliders for the GLOBAL default door skin (one shared {w,h,nudge}). Mirrors
+  // _doorSkinSizeControls but writes the ThemeManager default instead of a room.
+  _doorDefaultSizeControls() {
+    const FIELDS = [
+      { field: 'w',     label: 'Width (along wall)', min: 2,  max: 16, step: 0.1 },
+      { field: 'h',     label: 'Depth (into room)',  min: 2,  max: 12, step: 0.1 },
+      { field: 'nudge', label: 'Nudge (deeper)',     min: -4, max: 8,  step: 0.1 },
+    ]
+    const fmt = (n) => { const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1) }
+    return h('div', { className: 'qf-redit__color-group', style: { marginTop: '8px' } }, [
+      h('div', { className: 'qf-redit__color-head' }, [
+        h('span', { className: 'qf-redit__color-name' }, 'DEFAULT SIZE'),
+        h('button', { className: 'qf-redit__link-btn', on: { click: () => { this.scene.uiResetDefaultDoorSkinSize?.(); this._renderDoorSkins() } } }, 'Reset'),
+      ]),
+      ...FIELDS.map((f) => {
+        const v = (this.scene.uiGetDefaultDoorSkinSize?.() || {})[f.field] ?? (f.field === 'nudge' ? 0 : f.field === 'w' ? 4 : 3)
+        let valEl
+        return h('div', { className: 'qf-redit__slider-row' }, [
+          h('span', { className: 'qf-redit__slider-label' }, f.label),
+          h('input', {
+            className: 'qf-redit__slider', type: 'range',
+            min: f.min, max: f.max, step: f.step, value: v,
+            on: {
+              input: (e) => {
+                const nv = +e.target.value
+                this.scene.uiSetDefaultDoorSkinSize?.(f.field, nv)
+                if (valEl) valEl.textContent = fmt(nv)
+              },
+            },
+          }),
+          h('span', { className: 'qf-redit__slider-val nonzero', ref: (e) => (valEl = e) }, fmt(v)),
+        ])
+      }),
+    ])
+  }
+
   // A live mini-render of the door skin placed over the room's floor art, at the
   // exact size/position the in-game renderer uses (top-wall door, anchored at the
   // wall edge, growing into the room). The box fills its column width (measured
@@ -1150,6 +1219,7 @@ export class RoomEditorOverlay {
   // so _syncDoorPreview can move the gate during a slider drag without a rebuild.
   _doorSkinPreviewBox(curThumb, bgThumb, roomW, roomH) {
     this._doorPrevRoom = { roomW, roomH }
+    this._doorPrevZoom ??= 1
     const doorImg = h('img', {
       src: curThumb || '',
       ref: (e) => (this._refs.doorPrevImg = e),
@@ -1159,31 +1229,73 @@ export class RoomEditorOverlay {
       ref: (e) => (this._refs.doorPrevFloorLine = e),
       style: { position: 'absolute', left: 0, right: 0, top: '0px', height: '1px', background: 'rgba(255,255,255,0.12)' },
     })
-    return h('div', {
-      ref: (e) => { this._refs.doorPrevBox = e; if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this._layoutDoorPreview()) },
+    // The room canvas — sized to tile×dims in _layoutDoorPreview; carries the
+    // room's floor art so the gate sits over it.
+    const canvas = h('div', {
+      ref: (e) => (this._refs.doorPrevCanvas = e),
       style: {
-        position: 'relative', flex: '0 0 auto', width: '100%', maxWidth: '460px', minHeight: '120px',
-        margin: '4px auto 12px', borderRadius: '3px', overflow: 'hidden',
-        border: '1px solid #000', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        position: 'relative', flex: '0 0 auto', width: '0px', height: '0px', imageRendering: 'pixelated',
         background: bgThumb ? `#15110f center/cover no-repeat url(${bgThumb})` : '#2b2b2b',
       },
     }, [
       floorLine,
       curThumb ? doorImg : h('div', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px' } }, 'no skin'),
     ])
+    // Fixed-height scroll viewport — the preview never grows past this, so the
+    // DOOR SKIN LIBRARY below it always stays visible regardless of room shape or
+    // zoom. (The old box grew to tile×roomH with tile = width/roomW, so a narrow
+    // room blew the preview up to thousands of px and buried the library.)
+    const viewport = h('div', {
+      ref: (e) => { this._refs.doorPrevBox = e; if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => this._layoutDoorPreview()) },
+      style: {
+        height: '240px', maxWidth: '460px', margin: '4px auto 10px', overflow: 'auto',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        borderRadius: '3px', border: '1px solid #000', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        background: '#1a1614', // hex-ok: dev-tool editor preview frame (not game HUD, no boss retint)
+      },
+    }, [canvas])
+    // Zoom control — Fit (default) keeps the whole gate-on-wall in frame; zoom in
+    // to inspect the seam, out to shrink. Scales the canvas inside the fixed
+    // viewport (which scrolls when zoomed past the frame).
+    const zoomRow = h('div', {
+      style: { display: 'flex', alignItems: 'center', gap: '8px', maxWidth: '460px', margin: '0 auto 2px' },
+    }, [
+      h('span', { className: 'qf-redit__slider-label', style: { minWidth: 'auto' } }, 'Zoom'),
+      h('button', { className: 'btn sm ghost', title: 'Zoom out', on: { click: () => this._setDoorZoom((this._doorPrevZoom ?? 1) - 0.25) } }, '−'),
+      h('input', {
+        className: 'qf-redit__slider', type: 'range', min: 0.5, max: 3, step: 0.05, value: this._doorPrevZoom,
+        ref: (e) => (this._refs.doorPrevZoom = e),
+        on: { input: (e) => this._setDoorZoom(+e.target.value) },
+      }),
+      h('button', { className: 'btn sm ghost', title: 'Zoom in', on: { click: () => this._setDoorZoom((this._doorPrevZoom ?? 1) + 0.25) } }, '+'),
+      h('button', { className: 'btn sm ghost', title: 'Fit to frame', on: { click: () => this._setDoorZoom(1) } }, 'Fit'),
+    ])
+    return h('div', null, [zoomRow, viewport])
   }
 
-  // Measure the mounted preview box, size it to the room aspect, and place the
-  // gate + floor line. Called after mount and on any modal re-render.
+  // Fit the whole room into the FIXED viewport at zoom 1 (no axis can overflow),
+  // then scale by the zoom factor. The canvas grows/shrinks inside the viewport,
+  // which scrolls when zoomed in — the library below never moves.
   _layoutDoorPreview() {
-    const box = this._refs.doorPrevBox, room = this._doorPrevRoom
-    if (!box || !room) return
-    const w = box.clientWidth || 400
-    const tile = w / room.roomW
-    box.style.height = `${tile * room.roomH}px`
+    const box = this._refs.doorPrevBox, canvas = this._refs.doorPrevCanvas, room = this._doorPrevRoom
+    if (!box || !canvas || !room) return
+    const availW = (box.clientWidth || 440) - 4
+    const availH = (box.clientHeight || 240) - 4
+    const fitTile = Math.min(availW / room.roomW, availH / room.roomH)
+    const tile = Math.max(2, fitTile * (this._doorPrevZoom ?? 1))
+    canvas.style.width = `${tile * room.roomW}px`
+    canvas.style.height = `${tile * room.roomH}px`
     this._doorPrevGeom = { tile, roomW: room.roomW, roomH: room.roomH }
     if (this._refs.doorPrevFloorLine) this._refs.doorPrevFloorLine.style.top = `${2 * tile}px`
     this._syncDoorPreview()
+  }
+
+  // Set the door-preview zoom (clamped) and re-layout in place — no modal rebuild,
+  // so it stays smooth and keeps slider focus.
+  _setDoorZoom(z) {
+    this._doorPrevZoom = Math.max(0.5, Math.min(3, Math.round((z ?? 1) * 100) / 100))
+    if (this._refs.doorPrevZoom) this._refs.doorPrevZoom.value = this._doorPrevZoom
+    this._layoutDoorPreview()
   }
 
   // Live-move the preview gate to the current size (called during slider drag).

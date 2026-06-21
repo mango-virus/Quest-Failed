@@ -963,6 +963,40 @@ export class RoomTileEditor extends Phaser.Scene {
     this._populatePaintCanvas()
     this._notifyDom()
   }
+  // ── Global DEFAULT door skin (every door with no skin of its own) ───────────
+  // Lives in the ThemeManager manifest (saved by "Save skins + assignments"), not
+  // per-room — so changing/clearing it updates every defaulted door at once.
+  uiGetDefaultDoorSkinId() { return ThemeManager.defaultDoorSkinId(this._curDoorState()) }
+  uiHasDefaultDoorSkin() { return !!ThemeManager.getDefaultDoorSkin() }
+  // Promote the skin currently shown for the active STATE to the global default;
+  // seed the default SIZE from this room's size the first time so it starts sane.
+  uiSetDefaultDoorSkinFromCurrent() {
+    const id = this.uiCurrentDoorSkin()
+    if (!id) return
+    ThemeManager.setDefaultDoorSkinId(this._curDoorState(), id)
+    if (!ThemeManager.defaultDoorSkinSize()) ThemeManager.setDefaultDoorSkinSize(this.uiGetDoorSkinSize())
+    this._notifyDom()
+  }
+  uiClearDefaultDoorSkin() {
+    ThemeManager.setDefaultDoorSkinId(this._curDoorState(), null)
+    this._notifyDom()
+  }
+  uiGetDefaultDoorSkinSize() {
+    const s = ThemeManager.defaultDoorSkinSize()
+    const d = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
+    return { w: s?.w ?? d.w, h: s?.h ?? d.h, nudge: s?.nudge ?? d.nudge }
+  }
+  uiSetDefaultDoorSkinSize(field, value) {
+    const rng = RoomTileEditor.DOOR_SKIN_SIZE_RANGE[field]
+    if (!rng) return
+    const v = Math.max(rng.min, Math.min(rng.max, Number(value) || 0))
+    ThemeManager.setDefaultDoorSkinSize({ ...this.uiGetDefaultDoorSkinSize(), [field]: v })
+    this._notifyDom()
+  }
+  uiResetDefaultDoorSkinSize() {
+    ThemeManager.setDefaultDoorSkinSize({ ...RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT })
+    this._notifyDom()
+  }
   uiDeleteDoorSkin(id) {
     ThemeManager.removeDoorSkin(id)
     for (const r of this._rooms) {

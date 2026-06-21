@@ -490,50 +490,6 @@
         "flavorText": "Every dungeon has a heart. This is yours.",
         "theme": null,
         "doorTheme": "Gnoll",
-        "doorTiles": {
-            "closed": [
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "open": [
-                [
-                    "door_open_l",
-                    null,
-                    "door_open_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ],
-            "locked": [
-                [
-                    "door_locked_l",
-                    null,
-                    "door_locked_r",
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null
-                ]
-            ]
-        },
         "backgroundImageByBoss": {
             "gnoll": "gemini_generated_image_wfw7g7wfw7g7wfw7_1",
             "lizardman": "lizardman_boss_room",
@@ -593,7 +549,14 @@
         },
         "backgroundImage": "basic_boss_room",
         "doorSkin": {
-            "closed": "basic_door_closed_skin"
+            "closed": "entry_closed_final",
+            "open": "entry_open_final",
+            "locked": "entry_locked"
+        },
+        "doorSkinSize": {
+            "w": 3.1,
+            "h": 2.1,
+            "nudge": 0
         }
     },
     {
@@ -1084,9 +1047,14 @@
         "theme": null,
         "doorTheme": null,
         "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
+            "closed": "entry_closed_final",
+            "open": "entry_open_final",
+            "locked": "entry_locked"
+        },
+        "doorSkinSize": {
+            "w": 3.1,
+            "h": 2.1,
+            "nudge": 0
         }
     },
     {
@@ -1325,12 +1293,7 @@
         "description": "+10 roster minion slots each (scales with boss level). Required for any roster minions — the only ones that can patrol or follow.",
         "flavorText": "The bones rest cheap.",
         "theme": null,
-        "doorTheme": null,
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
-        }
+        "doorTheme": null
     },
     {
         "id": "starter_guard_post",
@@ -1507,21 +1470,7 @@
         "description": "Minions placed here leave to hunt adventurers in any directly door-connected room. They return to the Guard Post after the kill.",
         "flavorText": "Four doors. One choice.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "hue": -30,
-                "sat": -0.2
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "crypt",
@@ -1735,20 +1684,7 @@
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -1
-            }
-        },
-        "onDayStart": "crypt_spawnUndead",
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "onDayStart": "crypt_spawnUndead"
     },
     {
         "id": "trap_factory",
@@ -2568,11 +2504,6 @@
             "walls": {
                 "sat": -1
             }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
         }
     },
     {
@@ -2833,21 +2764,7 @@
         "description": "Reveals the next party’s full intel — size, classes, personalities, scaled stats and planned route — on the Intel panel the night before. One Library tells all. No Library = intel unknown.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": 0,
-                "hue": 120
-            }
-        },
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
-        }
+        "doorTheme": null
     },
     {
         "id": "watchtower",
@@ -2998,21 +2915,7 @@
         "description": "Minions in directly door-connected rooms get a first-strike hit when adventurers enter. Counters Speed Runners and surprise tactics.",
         "flavorText": "We see them before they see themselves.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.3,
-                "hue": -165
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "wandering_gate",
@@ -3214,23 +3117,7 @@
         "description": "On entry, teleports the adventurer to a random room — heavily favouring those far from the boss, flinging them back toward the entrance and scrambling their path. Never the Boss Chamber.",
         "flavorText": "Step in. Step out. Hopefully not the same room.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": 2,
-                "hue": -150,
-                "bright": -0.4,
-                "contrast": -0.3
-            }
-        },
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
-        }
+        "doorTheme": null
     },
     {
         "id": "veil_of_forgetting",
@@ -3374,22 +3261,7 @@
         "description": "Each Night Phase, erases adventurer intel of all rooms directly door-connected to this one.",
         "flavorText": "What was here? Nothing. Nothing was ever here.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -1,
-                "bright": -0.05,
-                "contrast": -0.6
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "tar_pit",
@@ -3543,23 +3415,7 @@
         "description": "Adventurers caught inside wade at half speed (Sucking Mire upgrade also roots them on entry). A chokepoint — route the path through it into your traps and minions. Does not slow your minions.",
         "flavorText": "Slow down. Stay a while. Stay forever.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.5,
-                "bright": -0.55,
-                "hue": 20,
-                "contrast": 0.1
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "silence_ward",
@@ -3711,23 +3567,7 @@
         "description": "Aura: adventurers in this room and any directly door-connected room cannot use class abilities — no Cleric heals, no Mage or Necromancer spells, no Bard songs. Dead Zone upgrade also makes the silenced take +15% damage. Place it around your kill rooms.",
         "flavorText": "In here, no one is listening. Not even the gods.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -1,
-                "bright": -0.18,
-                "hue": 200,
-                "contrast": -0.2
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "thorn_hall",
@@ -3879,23 +3719,7 @@
         "description": "Choked with barbed brambles. An adventurer who makes a melee attack while inside takes 30% of the damage they deal back as thorns. Wrap it around a tanky minion. Iron Thorns upgrade: 50% reflect, and ranged attackers get pricked too.",
         "flavorText": "Every blow you land, the briars return.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            },
-            "floor": {
-                "sat": -0.35,
-                "hue": 78,
-                "bright": -0.28,
-                "contrast": 0.05
-            }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "doorTheme": null
     },
     {
         "id": "catacombs",
@@ -4108,11 +3932,6 @@
                 "sat": -0.5,
                 "hue": -75
             }
-        },
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
         }
     },
     {
@@ -4314,12 +4133,7 @@
                 "contrast": 0
             }
         },
-        "onDayStart": "mimicVault_respawnMimics",
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
-        }
+        "onDayStart": "mimicVault_respawnMimics"
     },
     {
         "id": "hall_of_trials",
@@ -4605,12 +4419,7 @@
                 "hue": -180
             }
         },
-        "onDayStart": "hallOfTrials_spawnElite",
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
-        }
+        "onDayStart": "hallOfTrials_spawnElite"
     },
     {
         "id": "wishing_well",
@@ -4764,11 +4573,6 @@
                 "sat": 1.9,
                 "bright": -0.35
             }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
         }
     },
     {
@@ -5037,11 +4841,6 @@
                 "hue": 75,
                 "sat": 0
             }
-        },
-        "doorSkin": {
-            "locked": "basic_locked",
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open"
         }
     },
     {
@@ -5329,11 +5128,6 @@
                 "sat": 1.5,
                 "bright": -0.5
             }
-        },
-        "doorSkin": {
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin",
-            "locked": "basic_locked"
         }
     },
     {
@@ -5699,12 +5493,7 @@
                 "hue": 0
             }
         },
-        "onDayStart": "throneRoom_spawnMiniBoss",
-        "doorSkin": {
-            "locked": "basic_locked",
-            "open": "basic_open",
-            "closed": "basic_door_closed_skin"
-        }
+        "onDayStart": "throneRoom_spawnMiniBoss"
     },
     {
         "id": "sanctum",
@@ -5950,11 +5739,6 @@
             "walls": {
                 "sat": -1
             }
-        },
-        "doorSkin": {
-            "closed": "basic_door_closed_skin",
-            "open": "basic_open",
-            "locked": "basic_locked"
         }
     }
 ]

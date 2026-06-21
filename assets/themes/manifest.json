@@ -468,5 +468,15 @@
       "file": "assets/themes/doorskins/entry_closed_final.png"
     }
   },
+  "defaultDoorSkin": {
+    "closed": "entry_closed_final",
+    "open": "entry_open_final",
+    "locked": "entry_locked",
+    "size": {
+      "w": 3.1,
+      "h": 2.1,
+      "nudge": 0
+    }
+  },
   "active": "Basic"
 }

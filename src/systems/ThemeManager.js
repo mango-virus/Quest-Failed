@@ -274,6 +274,7 @@ const state = {
   themes:  Object.create(null),    // name → { slots: { <slot>: [spriteId,…] } }
   roomSkins: Object.create(null),  // id → { file }   (full-room skin PNGs)
   doorSkins: Object.create(null),  // id → { file }   (single-image door skins)
+  defaultDoorSkin: null,           // { closed?, open?, locked?, size?:{w,h,nudge} } — global fallback for unskinned doors
   active:  null,                   // active theme name (used by preview + game)
   rolls:   new Map(),              // (themeName|slot|x|y) → spriteId  (cache)
 }
@@ -287,6 +288,7 @@ export const ThemeManager = {
     state.themes  = {}
     state.roomSkins = {}
     state.doorSkins = {}
+    state.defaultDoorSkin = null
     state.active  = null
     state.rolls.clear()
     if (!manifest) return
@@ -328,6 +330,15 @@ export const ThemeManager = {
         state.doorSkins[id] = { file: typeof s.file === 'string' ? s.file : doorSkinPath(id) }
       }
     }
+    if (manifest.defaultDoorSkin && typeof manifest.defaultDoorSkin === 'object') {
+      const dd = manifest.defaultDoorSkin, out = {}
+      for (const st of ['closed', 'open', 'locked']) if (typeof dd[st] === 'string') out[st] = dd[st]
+      if (dd.size && typeof dd.size === 'object') {
+        out.size = { w: +dd.size.w || 4, h: +dd.size.h || 3, nudge: +dd.size.nudge || 0 }
+      }
+      // Only keep a default if it names at least one state skin (a lone size is meaningless).
+      state.defaultDoorSkin = Object.keys(out).some(k => k !== 'size') ? out : null
+    }
     if (manifest.active && manifest.active in state.themes) state.active = manifest.active
   },
 
@@ -338,6 +349,7 @@ export const ThemeManager = {
       themes:    structuredClone(state.themes),
       roomSkins: structuredClone(state.roomSkins),
       doorSkins: structuredClone(state.doorSkins),
+      defaultDoorSkin: state.defaultDoorSkin ? structuredClone(state.defaultDoorSkin) : null,
       active:    state.active,
     }
   },
@@ -440,7 +452,37 @@ export const ThemeManager = {
   getDoorSkin(id) { return state.doorSkins[id] || null },
   hasDoorSkin(id) { return id in state.doorSkins },
   addDoorSkin(id, file) { state.doorSkins[id] = { file: file || doorSkinPath(id) } },
-  removeDoorSkin(id) { delete state.doorSkins[id] },
+  removeDoorSkin(id) {
+    delete state.doorSkins[id]
+    // Drop it from the global default too, so a deleted skin can't linger as a fallback.
+    if (state.defaultDoorSkin) {
+      for (const st of ['closed', 'open', 'locked']) if (state.defaultDoorSkin[st] === id) delete state.defaultDoorSkin[st]
+      if (!['closed', 'open', 'locked'].some(st => state.defaultDoorSkin[st])) state.defaultDoorSkin = null
+    }
+  },
+
+  // ── Global DEFAULT door skin — the fallback for EVERY door with no skin of its
+  // own (connecting, per-boss, and entrance). Per-state skin ids + ONE shared size
+  // ({w,h,nudge}, matching per-room doorSkinSize). Persisted in the manifest, so
+  // the editor's "Save skins + assignments" carries it and the game reads it at boot.
+  getDefaultDoorSkin() { return state.defaultDoorSkin },
+  defaultDoorSkinId(doorState) { return state.defaultDoorSkin?.[doorState] || null },
+  defaultDoorSkinSize() { return state.defaultDoorSkin?.size || null },
+  setDefaultDoorSkinId(doorState, id) {
+    if (!['closed', 'open', 'locked'].includes(doorState)) return
+    if (id) { (state.defaultDoorSkin ??= {})[doorState] = id }
+    else if (state.defaultDoorSkin) {
+      delete state.defaultDoorSkin[doorState]
+      // A default with no remaining state skins is meaningless — drop it (size and all).
+      if (!['closed', 'open', 'locked'].some(st => state.defaultDoorSkin[st])) state.defaultDoorSkin = null
+    }
+  },
+  setDefaultDoorSkinSize(size) {
+    if (!state.defaultDoorSkin) return   // no default skin → nothing to size
+    if (!size) { delete state.defaultDoorSkin.size; return }
+    state.defaultDoorSkin.size = { w: +size.w || 4, h: +size.h || 3, nudge: +size.nudge || 0 }
+  },
+  clearDefaultDoorSkin() { state.defaultDoorSkin = null },
 
   // ── Slot variant edits (mutate the named theme) ──
   setSlotVariants(themeName, slot, ids) {

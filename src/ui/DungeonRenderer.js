@@ -591,8 +591,11 @@ export class DungeonRenderer {
     // FLOOR cells in the footprint still draw (so the room floor shows under the
     // skin's transparent base — the apron row).
     this._doorSkinFootprint = new Set()
+    // When a global DEFAULT door skin exists, EVERY room can have skinned doors,
+    // so don't skip rooms that lack a skin of their own — the per-cp check decides.
+    const _hasDefaultDoorSkin = !!ThemeManager.getDefaultDoorSkin?.()
     for (const room of (this._gameState?.dungeon?.rooms || [])) {
-      if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
+      if (!_hasDefaultDoorSkin && !room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
         if (!this._cpHasDoorSkin(room, cp)) continue
         // Per-room doors: a room's skin only covers ITS OWN wall. The paired
@@ -659,13 +662,23 @@ export class DungeonRenderer {
   // connecting set (per-boss override → default). `cp` is optional — when omitted
   // (paired-room lookups), the connecting set is used.
   _doorSkinKeyFor(room, state, cp = null) {
+    let id = this._roomOwnDoorSkinId(room, state, cp)
+    // Global fallback: every door with NO skin of its own uses the editor's
+    // default door skin (connecting, per-boss, and entrance alike).
+    if (!id) id = ThemeManager.defaultDoorSkinId?.(state) || null
+    if (!id) return null
+    const key = doorSkinTextureKey(id)
+    return this._scene.textures.exists(key) ? key : null
+  }
+  // The room's OWN door-skin id for this state/cp (entrance → per-boss →
+  // connecting), WITHOUT the global default — lets size resolution tell an
+  // explicit room skin from one that fell through to the default.
+  _roomOwnDoorSkinId(room, state, cp = null) {
     const boss = this._gameState?.player?.bossArchetypeId
     let id = null
     if (this._cpIsEntrance(cp)) id = room.doorSkinEntrance?.[state] || null
     if (!id) id = (boss && room.doorSkinByBoss?.[boss]?.[state]) || room.doorSkin?.[state] || null
-    if (!id) return null
-    const key = doorSkinTextureKey(id)
-    return this._scene.textures.exists(key) ? key : null
+    return id
   }
   // True when this cp's door has a skin for its current state — used to
   // suppress the sliced / procedural door so the single image stands alone.
@@ -683,7 +696,14 @@ export class DungeonRenderer {
   // connecting size → default); omitting cp uses the connecting size.
   _doorSkinSizeTiles(room, cp = null) {
     const s = (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null) ?? room?.doorSkinSize
-    return { w: s?.w ?? 4, h: s?.h ?? 3, nudge: s?.nudge ?? 0 }
+    if (s) return { w: s.w ?? 4, h: s.h ?? 3, nudge: s.nudge ?? 0 }
+    // No per-room override: a door rendering the GLOBAL DEFAULT skin (room has no
+    // skin of its own for this state) uses the default skin's size.
+    if (cp && !this._roomOwnDoorSkinId(room, this._doorStateFor(cp), cp)) {
+      const d = ThemeManager.defaultDoorSkinSize?.()
+      if (d) return { w: d.w ?? 4, h: d.h ?? 3, nudge: d.nudge ?? 0 }
+    }
+    return { w: 4, h: 3, nudge: 0 }
   }
   // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =
   // jambs+door, rows = outer/inner/apron), so one image can be drawn over it.
@@ -778,8 +798,9 @@ export class DungeonRenderer {
       // just above the colour fill (which stays as a no-hole fallback).
       this._addDoorSkinWallTexture(forRoom, forCp, rect, wTiles, hTiles, key)
     }
+    const hasDefaultDoorSkin = !!ThemeManager.getDefaultDoorSkin?.()
     for (const room of rooms) {
-      if (!room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
+      if (!hasDefaultDoorSkin && !room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
         const state = this._doorStateFor(cp)
         const key = this._doorSkinKeyFor(room, state, cp)
