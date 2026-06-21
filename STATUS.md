@@ -44,7 +44,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 
 | Content | Count | File | Notes |
 |---|---|---|---|
-| Boss archetypes | **12** | `bossArchetypes.json` | beholder, demon, myconid, wraith, gnoll, golem, lich, lizardman, orc, vampire, succubus, slime. All have wired headline abilities. **Base fight stats are flat (200/12/10) across all 12** — differentiation is abilities-only (deferred stat-profile pass). |
+| Boss archetypes | **12** | `bossArchetypes.json` | beholder, demon, myconid, wraith, gnoll, golem, lich, lizardman, orc, vampire, succubus, slime. All have wired headline abilities. **Base fight stats are now per-archetype combat profiles** (e.g. Golem 300/8/16 fortress, Demon 160/16/6 glass cannon; avg ≈ centroid 200/12/10) shown on the boss-select screen with comparative bars + a role label. |
 | Rooms | **24** | `rooms.json` | ~16 have wired behaviors in `RoomBehaviorSystem.js`; the rest are pure layout. |
 | Minions | **64** | `minionTypes.json` | Families × tiers (e.g. goblin1/2/3, slime1–9, skeleton1/2/3). |
 | Evolution chains | **22** | `minionEvolutions.json` | Evolution data lives HERE, not in `minionTypes.json`'s `evolutionPaths` (which is empty by design). |
@@ -72,7 +72,7 @@ Vanilla JS ES modules, no build step, static deploy. Live at mango-virus.github.
 **Stubbed / partial / deferred (don't assume these work):**
 - **Personality combos** — retired/empty (see above).
 - **Special minion roles** — scavenger, mimic_handler, engineer, mourner, echo are partially/not implemented despite older "✅ DONE" claims.
-- **Boss per-archetype base stats** — flat 200/12/10; differentiation deferred.
+- ~~**Boss per-archetype base stats** — flat 200/12/10; differentiation deferred.~~ **DONE** — distinct per-archetype combat profiles (centroid-neutral), shown on boss-select. (Late-game: base *ratios* compress under the shared `(base + 15·lvl)·1.20^lvl` curve — a follow-up could add per-archetype scaling multipliers if sharper high-level identity is wanted.)
 - **Personality data** — carries dead fields (`decisionOverrides`, `reactions`, unused tags); full revamp pending. Don't fix personality bugs in isolation — wait for the rework.
 - **Nocturna achievement unlock** — pending (her character work in progress).
 

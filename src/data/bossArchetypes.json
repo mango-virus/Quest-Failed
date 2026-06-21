@@ -37,9 +37,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 170,
+      "attack": 15,
+      "defense": 9
     }
   },
   {
@@ -84,9 +84,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 160,
+      "attack": 16,
+      "defense": 6
     }
   },
   {
@@ -124,9 +124,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 250,
+      "attack": 9,
+      "defense": 12
     }
   },
   {
@@ -171,9 +171,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 150,
+      "attack": 11,
+      "defense": 16
     }
   },
   {
@@ -218,9 +218,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 180,
+      "attack": 16,
+      "defense": 7
     }
   },
   {
@@ -265,9 +265,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 300,
+      "attack": 8,
+      "defense": 16
     }
   },
   {
@@ -305,9 +305,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 150,
+      "attack": 15,
+      "defense": 6
     }
   },
   {
@@ -348,9 +348,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
+      "hp": 230,
       "attack": 12,
-      "defense": 10
+      "defense": 11
     }
   },
   {
@@ -395,9 +395,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 240,
+      "attack": 15,
+      "defense": 9
     }
   },
   {
@@ -443,7 +443,7 @@
     },
     "baseFightStats": {
       "hp": 200,
-      "attack": 12,
+      "attack": 14,
       "defense": 10
     }
   },
@@ -489,9 +489,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 130,
+      "attack": 13,
+      "defense": 6
     }
   },
   {
@@ -532,9 +532,9 @@
       "blockedMechanicTags": []
     },
     "baseFightStats": {
-      "hp": 200,
-      "attack": 12,
-      "defense": 10
+      "hp": 280,
+      "attack": 8,
+      "defense": 7
     }
   }
 ]

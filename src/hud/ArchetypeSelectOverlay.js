@@ -34,6 +34,24 @@ function hexToCss(c) {
   return /^[0-9a-fA-F]{6}$/.test(s) ? '#' + s : '#ddaa55'
 }
 
+// One-word combat identity per archetype — summarises the baseFightStats spread
+// (set in bossArchetypes.json) so the player reads the playstyle at a glance on
+// the select screen. Keep in sync with the stat profiles if they're re-tuned.
+const COMBAT_ROLE = {
+  golem:     'Living Fortress',
+  slime:     'Endless Mass',
+  myconid:   'Attrition Tank',
+  orc:       'Heavy Bruiser',
+  lizardman: 'Resilient',
+  vampire:   'Sustain Duelist',
+  gnoll:     'Frenzied Striker',
+  beholder:  'Caster Tyrant',
+  wraith:    'Evasive Phantom',
+  demon:     'Glass Cannon',
+  lich:      'Frail Archmage',
+  succubus:  'Fragile Controller',
+}
+
 // Split a "Name — body" mechanic string into its title + sentence. Mechanics
 // in bossArchetypes.json are authored as "Tyrant's Gaze (day active) — arm,
 // click a room…"; the em-dash separates the ability name from its effect.
@@ -161,12 +179,40 @@ export class ArchetypeSelectOverlay {
     })
   }
 
+  // Max of each base stat across all archetypes — drives the comparative bar
+  // widths in the crest so the player sees a boss's stat relative to the field
+  // (the tankiest boss reads a full HP bar, the glassiest a sliver). Cached.
+  _statMaxes() {
+    if (this._statMaxCache) return this._statMaxCache
+    let hp = 1, atk = 1, def = 1
+    for (const a of this._archs) {
+      const s = a.baseFightStats || {}
+      hp  = Math.max(hp,  s.hp      ?? 0)
+      atk = Math.max(atk, s.attack  ?? 0)
+      def = Math.max(def, s.defense ?? 0)
+    }
+    return (this._statMaxCache = { hp, atk, def })
+  }
+
+  // One crest cell: label, value, and a comparative fill bar (value ÷ field max).
+  _statBar(label, val, max) {
+    const pct = Math.round(100 * Math.min(1, (val ?? 0) / (max || 1)))
+    return h('div', { className: 'st' }, [
+      h('i', null, label),
+      h('b', null, String(val ?? '?')),
+      h('div', { className: 'qf-bp-bar' }, [
+        h('div', { className: 'qf-bp-bar-fill', style: { width: pct + '%' } }),
+      ]),
+    ])
+  }
+
   // Throne (center) + two ability tablets — rebuilt per selection so the
   // sweep/float entrance animations re-trigger.
   _renderAltar() {
     const b      = this._arch(this._selected)
     const locked = this._isLocked(b.id)
     const stats  = b.baseFightStats || { hp: 200, attack: 12, defense: 10 }
+    const maxes  = this._statMaxes()
     const sig    = b.headline || {}
     const m0     = (b.mechanics && b.mechanics[0]) || {}
     // Name comes from the "Name — body" mechanic string; the body prefers the
@@ -189,10 +235,11 @@ export class ArchetypeSelectOverlay {
       ].filter(Boolean)),
       h('div', { className: 'pix qf-bp-name' }, b.name),
       h('div', { className: 'sil qf-bp-tag' }, b.tagline || ''),
+      COMBAT_ROLE[b.id] && h('div', { className: 'sil qf-bp-role' }, COMBAT_ROLE[b.id]),
       h('div', { className: 'qf-bp-crest' }, [
-        h('div', { className: 'st' }, [h('i', null, 'HP'),  h('b', null, String(stats.hp ?? '?'))]),
-        h('div', { className: 'st' }, [h('i', null, 'ATK'), h('b', null, String(stats.attack ?? '?'))]),
-        h('div', { className: 'st' }, [h('i', null, 'DEF'), h('b', null, String(stats.defense ?? '?'))]),
+        this._statBar('HP',  stats.hp,      maxes.hp),
+        this._statBar('ATK', stats.attack,  maxes.atk),
+        this._statBar('DEF', stats.defense, maxes.def),
       ]),
       h('div', { className: 'qf-bp-flavor' }, '“' + (b.flavorText || '') + '”'),
     ]

@@ -13027,6 +13027,11 @@ button.qf-op-cap:hover { filter: brightness(1.3); border-color: var(--gold-brigh
 .qf-bp-crest .st + .st { border-left: 1px solid color-mix(in srgb, var(--bc) 30%, #2e2632); }
 .qf-bp-crest i { font-family: var(--sil, 'Silkscreen', monospace); font-size: 8px; letter-spacing: .12em; color: #8a7670; font-style: normal; }
 .qf-bp-crest b { font-family: var(--pix, 'Press Start 2P', monospace); font-size: 14px; color: #f0e6d4; }
+/* combat-role identity + comparative stat bars (boss-select) */
+.qf-bp-role { font-family: var(--sil, 'Silkscreen', monospace); font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: color-mix(in srgb, var(--bc) 70%, white); margin-top: 8px; }
+.qf-bp-crest .st .qf-bp-bar { width: 52px; height: 4px; margin-top: 3px; border-radius: 2px; background: rgba(0,0,0,.5); overflow: hidden; }
+.qf-bp-bar-fill { height: 100%; border-radius: 2px; background: var(--bc); box-shadow: 0 0 5px color-mix(in srgb, var(--bc) 55%, transparent); transform-origin: left center; animation: qf-bp-bargrow .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes qf-bp-bargrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* ability tablets */
 .qf-bp-tablet { position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--bc) 13%, #15111c), #0b0811);
   border: 1px solid color-mix(in srgb, var(--bc) 48%, #2e2632);

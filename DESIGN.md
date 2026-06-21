@@ -371,6 +371,27 @@ _(Code-verified 2026-06-03: every box below ticked against the actual implementa
 
 ---
 
+## Boss base-stat combat profiles (2026-06-21)
+
+Previously deferred (*"boss stats flat for now"* — all 12 archetypes shared `baseFightStats`
+200/12/10; differentiation was abilities-only). **Un-deferred + shipped 2026-06-21:** each
+archetype now has a distinct combat profile that reinforces its fantasy, redistributed around
+the **same centroid** (avg ≈ 200/12/10) so overall difficulty is unchanged — it redistributes,
+it doesn't inflate. Profiles (HP / ATK / DEF · role):
+
+Golem 300/8/16 Living Fortress · Slime 280/8/7 Endless Mass · Myconid 250/9/12 Attrition Tank ·
+Orc 240/15/9 Heavy Bruiser · Lizardman 230/12/11 Resilient · Vampire 200/14/10 Sustain Duelist ·
+Gnoll 180/16/7 Frenzied Striker · Beholder 170/15/9 Caster Tyrant · Wraith 150/11/16 Evasive
+Phantom · Demon 160/16/6 Glass Cannon · Lich 150/15/6 Frail Archmage · Succubus 130/13/6
+Fragile Controller.
+
+The **boss-select screen** (`ArchetypeSelectOverlay`) shows each boss's HP/ATK/DEF with
+comparative fill **bars** (value ÷ field max) + a one-word **combat-role label** so the player
+reads the playstyle at a glance. Data-only stat change; the existing `_recomputeBossFightStats`
+level/ascension/pact scaling applies on top. **Caveat:** base *ratios* compress late-game under
+the shared `(base + 15·lvl)·1.20^lvl` curve — a follow-up could add per-archetype scaling
+multipliers (needs `sim:balance`) if sharper high-level identity is wanted.
+
 ## Older-class ability redesign (2026-06-14)
 
 The 9 "older" adventurer classes (Knight, Bard, Monk, Cleric, Mage, Necromancer, Ranger,
@@ -1258,7 +1279,7 @@ Different types of dungeon room ideas for example:
 6. **The Colosseum** — A large arena room. When adventurers enter, doors lock and waves of minions spawn. The trick: there's a lever mid-room the party has to reach to open the exit. Greedy types ignore the lever to loot the mini boss first. *(🚫 REMOVED — wave-spawn-while-locked never shipped.)*
 7. **The Mirror Maze** — A room full of reflective pillars. Adventurers can lose track of each other. Minions with stealth thrive here. Cartographers are less effective — the map geometry is intentionally disorienting. *(🚫 REMOVED — fake-marker idea folded into the Whispered Lies dark pact instead.)*
 8. **The Obelisk Room** — A dark room with a glowing obelisk. Standing near it heals adventurers — but slowly charges a trap that summons a wave of minions when fully charged. Do they heal or rush through? They decide based on their personality/type. *(🚫 REMOVED — wave-charge mechanic never shipped.)*
-9. **Barracks** — Minions actively sleep here between patrols. Parties can sneak through silently — but any combat wakes everyone. The Speedrunner wants to dash through. The Paranoid refuses to move until every minion is dead. *(✅ SHIPPED as `starter_barracks` — sneak-through mechanic kept; "sleep wakes on combat" simplified.)*
+9. **Barracks** — Minions actively sleep here between patrols. Parties can sneak through silently — but any combat wakes everyone. The Speedrunner wants to dash through. The Paranoid refuses to move until every minion is dead. *(🚫 SLEEP MECHANIC REMOVED 2026-06-21, by user — the "sleep until an adventurer enters / combat fires" behaviour (and the barracks HP-regen perk) is gone; a `starter_barracks` now simply grants minion slots, and minions placed there aggro like any other room. The sneak-through/ambush idea is retired.)*
 
 **I want many many different rooms that can be added to the dungeon.**
 
