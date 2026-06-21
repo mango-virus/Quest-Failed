@@ -9,6 +9,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { drawTwinkle } from './treasureShine.js'
 
 const TS = Balance.TILE_SIZE
 // Chest sprites are 31×32 native — too small to read at game zoom.
@@ -21,6 +22,11 @@ export class TreasureChestRenderer {
     this._gameState = gameState
     this._sprites   = {}    // chestId → Sprite
     this._glows     = {}    // chestId → Ellipse (cursed-relic aura only)
+    // Shared golden SHINE twinkle, drawn each frame on every UNOPENED chest
+    // (excluding mimic-disguised bait — a mimic shouldn't sparkle like real
+    // loot). Additive so it reads as light on the dark dungeon.
+    this._gShine = scene.add.graphics().setDepth(2.7)
+    try { this._gShine.setBlendMode(Phaser.BlendModes.ADD) } catch {}
 
     EventBus.on('TREASURE_CHEST_OPENED', this._onChestOpened, this)
   }
@@ -29,6 +35,8 @@ export class TreasureChestRenderer {
     EventBus.off('TREASURE_CHEST_OPENED', this._onChestOpened, this)
     for (const s of Object.values(this._sprites)) s?.destroy?.()
     for (const g of Object.values(this._glows))   g?.destroy?.()
+    try { this._gShine?.destroy() } catch {}
+    this._gShine = null
     this._sprites = {}
     this._glows   = {}
   }
@@ -36,6 +44,8 @@ export class TreasureChestRenderer {
   update() {
     const chests = this._gameState.dungeon?.treasureChests ?? []
     const seen = new Set()
+    this._gShine?.clear()
+    const t = (this._scene.time?.now ?? 0) / 1000
     for (const c of chests) {
       seen.add(c.instanceId)
       const cx = c.tileX * TS + TS / 2
@@ -56,6 +66,14 @@ export class TreasureChestRenderer {
       if (!c.opened && s.anims?.currentAnim?.key?.endsWith('-open')) s.stop()
       if (!c.opened && s.frame?.name !== 0)        s.setFrame(0)
       else if (c.opened && !s.anims?.isPlaying && s.frame?.name !== 3) s.setFrame(3)
+
+      // Golden shine on every UNOPENED chest (an emptied chest goes dark). All
+      // chest ENTITIES shine — including Cursed Relic (`_cursed`) and Mimic
+      // Vault bait (`_mimicCursed`); only actual mimic-MINION disguises (drawn
+      // in MinionRenderer) stay un-shined. Same glint as the Treasury floor + key chests.
+      if (this._gShine && !c.opened) {
+        drawTwinkle(this._gShine, cx, cy - TS * 0.7, t, (c.tileX + c.tileY) * 1.3)
+      }
 
       // Cursed Relic (event chest) + Mimic Vault cursed chest — blacken
       // the chest and pulse a purple aura under it so the curse reads

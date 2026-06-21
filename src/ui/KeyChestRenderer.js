@@ -7,6 +7,7 @@
 
 import { EventBus } from '../systems/EventBus.js'
 import { Balance }  from '../config/balance.js'
+import { drawTwinkle } from './treasureShine.js'
 
 const TS = Balance.TILE_SIZE
 // Match the treasure-chest renderer scale so both chest types read the
@@ -18,6 +19,10 @@ export class KeyChestRenderer {
     this._scene     = scene
     this._gameState = gameState
     this._sprites   = {}    // chestId → Sprite
+    // Shared golden SHINE twinkle, drawn each frame on every UNOPENED key chest
+    // (matches the treasure chests + Treasury floor).
+    this._gShine = scene.add.graphics().setDepth(2.7)
+    try { this._gShine.setBlendMode(Phaser.BlendModes.ADD) } catch {}
 
     EventBus.on('KEY_CHEST_OPENED', this._onChestOpened, this)
     EventBus.on('NIGHT_PHASE_STARTED', this._refreshAll, this)
@@ -27,12 +32,16 @@ export class KeyChestRenderer {
     EventBus.off('KEY_CHEST_OPENED', this._onChestOpened, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._refreshAll, this)
     for (const s of Object.values(this._sprites)) s?.destroy?.()
+    try { this._gShine?.destroy() } catch {}
+    this._gShine = null
     this._sprites = {}
   }
 
   update() {
     const chests = this._gameState.dungeon?.keyChests ?? []
     const seen = new Set()
+    this._gShine?.clear()
+    const t = (this._scene.time?.now ?? 0) / 1000
     for (const c of chests) {
       seen.add(c.instanceId)
       // Anchor bottom-center on the chest's tile — same as the treasure
@@ -49,6 +58,9 @@ export class KeyChestRenderer {
         s.setPosition(cx, cy)
       }
       s.setFrame(c.opened ? 1 : 0)
+      if (this._gShine && !c.opened) {
+        drawTwinkle(this._gShine, cx, cy - TS * 0.7, t, (c.tileX + c.tileY) * 1.3)
+      }
     }
     // Cull sprites whose chest is gone (sold/cleared).
     for (const id of Object.keys(this._sprites)) {
