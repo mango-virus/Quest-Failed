@@ -698,7 +698,12 @@ export class DungeonRenderer {
   // `cp` optional — entrance cps read the entrance size (→ fall back to the
   // connecting size → default); omitting cp uses the connecting size.
   _doorSkinSizeTiles(room, cp = null) {
-    const s = (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null) ?? room?.doorSkinSize
+    // PER-DOOR size: the entrance cp reads its own size; every connecting door
+    // reads the size for ITS WALL (`doorSkinSizeByDir[direction]`) so each wall's
+    // door is sized independently. The legacy single `doorSkinSize` is the
+    // fallback, so rooms authored before per-wall sizing keep their look.
+    const perWall = (cp && cp.direction) ? room?.doorSkinSizeByDir?.[cp.direction] : null
+    const s = (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null) ?? perWall ?? room?.doorSkinSize
     if (s) return { w: s.w ?? 4, h: s.h ?? 3, nudge: s.nudge ?? 0 }
     // No per-room override: a door rendering the GLOBAL DEFAULT skin (room has no
     // skin of its own for this state) uses the default skin's size.

@@ -325,6 +325,11 @@ export class DungeonGrid {
       // (e.g. the grand entrance renders a bigger gate than a normal door).
       doorSkinSize:   (definition.doorSkinSize && typeof definition.doorSkinSize === 'object')
                       ? definition.doorSkinSize : null,
+      // Per-WALL door-skin footprint overrides { <direction>: { w, h, nudge } }
+      // so each connecting door can be sized independently (legacy doorSkinSize
+      // above is the fallback for any wall without an entry).
+      doorSkinSizeByDir: (definition.doorSkinSizeByDir && typeof definition.doorSkinSizeByDir === 'object')
+                      ? definition.doorSkinSizeByDir : null,
       // Separate skin set + size for the MAIN ENTRANCE (external/entrance cp),
       // distinct from the connecting-door skin above. Falls back to doorSkin.
       doorSkinEntrance:     (definition.doorSkinEntrance && typeof definition.doorSkinEntrance === 'object')

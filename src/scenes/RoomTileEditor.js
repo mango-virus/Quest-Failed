@@ -361,6 +361,7 @@ export class RoomTileEditor extends Phaser.Scene {
     this._clearHeld()
     this._skinTarget = 'default'
     this._doorRole = 'interior'
+    this._doorWall = null   // re-default to the new room's first connecting wall
     this._activeRoomId = id
     this._refreshAll()
   }
@@ -416,6 +417,7 @@ export class RoomTileEditor extends Phaser.Scene {
       doorSkin:        room.doorSkin ? structuredClone(room.doorSkin) : null,
       doorSkinByBoss:  room.doorSkinByBoss ? structuredClone(room.doorSkinByBoss) : null,
       doorSkinSize:    room.doorSkinSize ? structuredClone(room.doorSkinSize) : null,
+      doorSkinSizeByDir: room.doorSkinSizeByDir ? structuredClone(room.doorSkinSizeByDir) : null,
       doorSkinEntrance:     room.doorSkinEntrance ? structuredClone(room.doorSkinEntrance) : null,
       doorSkinSizeEntrance: room.doorSkinSizeEntrance ? structuredClone(room.doorSkinSizeEntrance) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
@@ -457,6 +459,7 @@ export class RoomTileEditor extends Phaser.Scene {
       room.doorSkin        = snap.doorSkin
       room.doorSkinByBoss  = snap.doorSkinByBoss
       room.doorSkinSize    = snap.doorSkinSize
+      room.doorSkinSizeByDir = snap.doorSkinSizeByDir
       room.doorSkinEntrance     = snap.doorSkinEntrance
       room.doorSkinSizeEntrance = snap.doorSkinSizeEntrance
       room.colorAdjust     = snap.colorAdjust
@@ -1010,10 +1013,41 @@ export class RoomTileEditor extends Phaser.Scene {
   }
   // The size field this room/role writes to: the entrance role uses
   // doorSkinSizeEntrance, everything else doorSkinSize.
-  _doorSizeKey() { return this._doorRoleEntrance() ? 'doorSkinSizeEntrance' : 'doorSkinSize' }
+  // PER-DOOR (per-wall) SIZE. The connecting-door size lives in
+  // `room.doorSkinSizeByDir[<direction>]` — one entry per wall — so each wall's
+  // door is sized independently and never bleeds into other doors or other
+  // rooms. The legacy single `room.doorSkinSize` is the read-fallback so older
+  // rooms keep their look until a wall is re-sized. The entrance role keeps its
+  // own `room.doorSkinSizeEntrance`.
+  //
+  // The active wall = `_doorWall`, chosen from the room's CONNECTING cps
+  // (entrance cps excluded — those use the entrance role). Defaults to the first.
+  _connectingDoorWalls() {
+    const out = []
+    for (const cp of (this._activeRoom()?.connectionPoints || [])) {
+      if (cp.external === true || cp.style === 'entrance') continue
+      if (cp.direction && !out.includes(cp.direction)) out.push(cp.direction)
+    }
+    return out
+  }
+  uiDoorWalls() { return this._connectingDoorWalls() }
+  uiDoorWall() {
+    const walls = this._connectingDoorWalls()
+    if (this._doorWall && walls.includes(this._doorWall)) return this._doorWall
+    return walls[0] || null
+  }
+  uiSetDoorWall(dir) { this._doorWall = dir; this._refreshAll() }
+
   uiGetDoorSkinSize() {
-    const s = this._activeRoom()?.[this._doorSizeKey()]
+    const room = this._activeRoom()
     const d = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
+    let s
+    if (this._doorRoleEntrance()) {
+      s = room?.doorSkinSizeEntrance
+    } else {
+      const wall = this.uiDoorWall()
+      s = (wall && room?.doorSkinSizeByDir?.[wall]) ?? room?.doorSkinSize   // legacy fallback
+    }
     return { w: s?.w ?? d.w, h: s?.h ?? d.h, nudge: s?.nudge ?? d.nudge }
   }
   uiBeginDoorSizeEdit() { if (this._activeRoom()) this._pushUndo() }
@@ -1022,8 +1056,15 @@ export class RoomTileEditor extends Phaser.Scene {
     const rng = RoomTileEditor.DOOR_SKIN_SIZE_RANGE[field]
     if (!room || !rng) return
     const v = Math.max(rng.min, Math.min(rng.max, Number(value) || 0))
-    const cur = this.uiGetDoorSkinSize()
-    room[this._doorSizeKey()] = { ...cur, [field]: v }
+    const next = { ...this.uiGetDoorSkinSize(), [field]: v }
+    if (this._doorRoleEntrance()) {
+      room.doorSkinSizeEntrance = next
+    } else {
+      const wall = this.uiDoorWall()
+      if (!wall) return
+      room.doorSkinSizeByDir = room.doorSkinSizeByDir || {}
+      room.doorSkinSizeByDir[wall] = next
+    }
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -1031,7 +1072,15 @@ export class RoomTileEditor extends Phaser.Scene {
     const room = this._activeRoom()
     if (!room) return
     this._pushUndo()
-    delete room[this._doorSizeKey()]
+    if (this._doorRoleEntrance()) {
+      delete room.doorSkinSizeEntrance
+    } else {
+      const wall = this.uiDoorWall()
+      if (room.doorSkinSizeByDir && wall) {
+        delete room.doorSkinSizeByDir[wall]
+        if (Object.keys(room.doorSkinSizeByDir).length === 0) delete room.doorSkinSizeByDir
+      }
+    }
     this._populatePaintCanvas()
     this._notifyDom()
   }
@@ -2672,6 +2721,17 @@ export class RoomTileEditor extends Phaser.Scene {
         const isDefaultSize = (s) => !s || ((s.w ?? dDef.w) === dDef.w && (s.h ?? dDef.h) === dDef.h && (s.nudge ?? dDef.nudge) === dDef.nudge)
         if (isDefaultSize(r.doorSkinSize)) delete cleaned.doorSkinSize
         if (isDefaultSize(r.doorSkinSizeEntrance)) delete cleaned.doorSkinSizeEntrance
+        // Per-wall door sizes: drop walls equal to the default, then the map if empty.
+        if (r.doorSkinSizeByDir && typeof r.doorSkinSizeByDir === 'object') {
+          const pw = {}
+          for (const [dir, sz] of Object.entries(r.doorSkinSizeByDir)) {
+            if (!isDefaultSize(sz)) pw[dir] = sz
+          }
+          if (Object.keys(pw).length) cleaned.doorSkinSizeByDir = pw
+          else delete cleaned.doorSkinSizeByDir
+        } else {
+          delete cleaned.doorSkinSizeByDir
+        }
         const pruneSkinByBoss = (map) => {
           if (!map || typeof map !== 'object') return null
           const out = {}
