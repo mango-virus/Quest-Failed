@@ -2073,6 +2073,11 @@ export class Game extends Phaser.Scene {
     // night→day transition where time scale isn't yet applied).
     this._dungeonRenderer?.update(delta)
 
+    // Screen-shake trauma decay + per-frame camera shake. Ticked in REAL frame
+    // time (not the scaled sim) so shake feels the same at any fast-forward
+    // speed, and run in both phases so leftover trauma always bleeds off.
+    this.screenShakeSystem?.update(delta)
+
     // Phase 1b.4 — Lich Phylactery damage tick. Always runs (real time so
     // hunters keep biting through pause-fast-slow). Gated internally by
     // archetype + phylactery presence.

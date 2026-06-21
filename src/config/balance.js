@@ -1416,6 +1416,9 @@ export const Balance = {
   // (crits, big hits, Golem Earthquake, Beholder Petrify, etc.).
   // Flip to false to disable all screen shake without code changes.
   VFX_SCREEN_SHAKE_ENABLED:         true,
+  // Trauma-model shake (accumulator + trauma² + per-axis directional bias,
+  // driven per-frame through cam.shake). false → legacy discrete profiles.
+  VFX_SHAKE_TRAUMA:                 true,
 
   // --- Hit-stop (impact freeze) ---
   // Briefly near-freezes the day simulation on a heavy blow so the hit LANDS,
