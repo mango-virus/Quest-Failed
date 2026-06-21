@@ -16,7 +16,7 @@ export const Balance = {
   MAX_GRID_SIZE: 100,
 
   // --- Starting currencies (new run) ---
-  STARTING_GOLD: 30,
+  STARTING_GOLD: 50,
 
   // DEV: when true, spending gold (placing rooms / minions / traps) is a
   // no-op so the player can freely test all content. Toggle back to `false`

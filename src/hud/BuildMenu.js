@@ -81,10 +81,12 @@ export class BuildMenu {
 
   _wireEvents() {
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
-    // PLACE button toggles; explicit open; day phase closes (no building by day).
+    // PLACE button toggles; explicit open; day phase closes the DOCKED drawer
+    // (no building by day) — but a player who popped the panel out keeps it:
+    // detached menus persist across phase flips until the player closes them.
     sub('TOGGLE_BUILD_DRAWER', () => this.toggle())
     sub('OPEN_BUILD_DRAWER',   () => this.open())
-    sub('DAY_PHASE_BEGAN',     () => this.close())
+    sub('DAY_PHASE_BEGAN',     () => { if (!this._tray?.isDetached) this.close() })
     // Arming a real tool (MOVE / SELL / UPGRADE) leaves build mode → close the
     // drawer. mode === null is PLACE itself (don't close). This also fires on the
     // place→move hand-off after a room is dropped.

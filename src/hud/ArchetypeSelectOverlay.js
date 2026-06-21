@@ -1,7 +1,7 @@
 // ArchetypeSelectOverlay — the DOM boss picker (crypt redesign, 2026-06-15).
 //
 // Shown by the ArchetypeSelect scene after the companion picker: the form you
-// BECOME. An enthronement altar — a central crowned boss portrait flanked by
+// BECOME. An enthronement altar — a central boss portrait flanked by
 // two engraved ability tablets (SIGNATURE · Boss Fight = the throne-fight
 // headline; PASSIVE · Dungeon Power = the first dungeon mechanic), an HP/ATK/DEF
 // crest, a flavor line, and a coin rail of all 12 archetypes. The whole scene
@@ -183,7 +183,6 @@ export class ArchetypeSelectOverlay {
     ])
 
     const throneKids = [
-      h('div', { className: 'qf-bp-crown' }, '♛'),
       h('div', { className: 'qf-bp-arch' + (locked ? ' locked' : '') }, [
         this._portrait(b.id, 188),
         locked && h('div', { className: 'qf-bp-archlock' }, '🔒'),

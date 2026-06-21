@@ -1270,7 +1270,14 @@ export class MinionAISystem {
     // O(minions × advs) to O(minions × advs-in-room). The non-same-room
     // paths fall back to the full adv list because they legitimately
     // engage across rooms.
-    const advPool = (requireSameRoom && this._tickAdvsByRoom)
+    // When this minion holds a target lock (currentTargetId — set during a prior
+    // engagement), scan the FULL adv list so a locked quarry that has walked into
+    // another room is still found and pursued. The spatial bucket only holds advs
+    // standing in THIS room, so without this a locked target would vanish from the
+    // pool the instant it crossed a doorway and the minion would give up — the
+    // opposite of the sticky-pursuit rule below. Idle / searching minions (no
+    // lock) keep the cheap home-room-bucket fast path.
+    const advPool = (requireSameRoom && this._tickAdvsByRoom && !minion.currentTargetId)
       ? (this._tickAdvsByRoom.get(homeRoom.instanceId) ?? [])
       : this._gameState.adventurers.active
     for (const adv of advPool) {
@@ -1291,41 +1298,33 @@ export class MinionAISystem {
       // can walk past a blocking minion without the minion halting to fight.
       if (this._dungeonGrid?.getTileType?.(adv.tileX, adv.tileY) === TILE.DOOR) continue
 
-      // Fleeing-chase gate. Cross-room pursuit is gated on the minion
-      // having ALREADY engaged this specific adv on a prior tick
-      // (currentTargetId match). That naturally limits chasers to:
-      //   - minions that were fighting the adv when they started fleeing
-      //     (currentTargetId was set during the in-room engagement and
-      //     persists across the room transition)
-      //   - minions in rooms the fleeing adv subsequently enters (they
-      //     pick the adv up via the regular same-room match below, set
-      //     currentTargetId, and from the next tick onward inherit the
-      //     cross-room exception)
-      // Distant minions that never saw the adv have no lock and stay
-      // home — no dungeon-wide stampede every time someone runs.
-      // Pursuit ends when the adv reaches entry_hall regardless.
+      // Cross-room pursuit gate. Pursuit is gated on the minion having ALREADY
+      // engaged this specific adv on a prior tick (currentTargetId match). That
+      // naturally limits chasers to:
+      //   - minions that were fighting the adv when it broke away (currentTargetId
+      //     was set during the in-room engagement and persists across the move)
+      //   - minions in rooms the adv subsequently enters (they pick it up via the
+      //     regular same-room match below, set currentTargetId, and from the next
+      //     tick onward inherit the cross-room lock)
+      // Distant minions that never saw the adv have no lock and stay home — no
+      // dungeon-wide stampede every time someone walks past. Pursuit ends only at
+      // the release conditions in the "Sticky pursuit" note just below.
       const advRoom = this._dungeonGrid?.getRoomAtTile?.(adv.tileX, adv.tileY)
-      const isFleeingAdv = adv.aiState === 'fleeing'
+      const advRoomDef = advRoom?.definitionId
       const wasMyTarget = !!(minion.currentTargetId && adv.instanceId === minion.currentTargetId)
-      if (isFleeingAdv && canChaseFleeing && wasMyTarget && advRoom?.definitionId === 'entry_hall') continue
-      const isFleeChaseTarget = isFleeingAdv && canChaseFleeing && wasMyTarget &&
-                                advRoom?.definitionId !== 'entry_hall'
-      // Short leash (2026-06-09, by user): a NON-fleeing adv this minion is
-      // ALREADY fighting (currentTargetId) stays engaged a few tiles past the
-      // room boundary, so a hero just walking through can't make the minion
-      // abruptly give up mid-fight. Anchored to the HOME room (not the minion)
-      // and capped tight so the minion stays a room defender, never a dungeon-
-      // wide chaser — once the quarry is >LEASH from home the leash breaks and
-      // the no-target return-home flow takes over. (Fleeing advs use the wider
-      // isFleeChaseTarget path above.)
-      const LEASH_TILES = 4
-      const _lx = Math.max(homeRoom.gridX - adv.tileX, 0, adv.tileX - (homeRoom.gridX + homeRoom.width - 1))
-      const _ly = Math.max(homeRoom.gridY - adv.tileY, 0, adv.tileY - (homeRoom.gridY + homeRoom.height - 1))
-      // Garrison minions (Crypt, Throne Room mini-bosses, …) are strictly
-      // home-bound and NEVER leash-chase out of their room — matches
-      // canChaseFleeing = !isGarrison above; keeps a throne mini-boss on its throne.
-      const isLeashedTarget = !isGarrison && wasMyTarget && !isFleeingAdv && Math.hypot(_lx, _ly) <= LEASH_TILES
-
+      // Sticky pursuit (2026-06-21, by user): once a mobile minion has locked
+      // onto an adventurer (currentTargetId, set during a prior engagement) it
+      // pursues that adv ANYWHERE in the dungeon — whether the hero is fleeing or
+      // just walking away — and NEVER gives up. The lock is released only when:
+      //   1. the adv escapes to the entry hall (out of the dungeon), or
+      //   2. the adv reaches the boss chamber (the boss's fight to finish), or
+      //   3. a higher-priority target re-aggros the minion — taunt / cursed
+      //      brand / retaliation — handled by the priority bump further below.
+      // This replaces the old short 4-tile "leash" that made a minion give up
+      // and walk home the moment a hero it was fighting crossed the room border.
+      // Garrison minions (throne mini-bosses, Crypt defenders) and stationary
+      // defs stay strictly room-bound and never chase (canChaseFleeing is false
+      // for them — keeps a throne mini-boss on its throne).
       // Is this adv inside the minion's home room, or the room the
       // minion is currently standing in? A minion that drifted out of
       // its home room (chased a target, got displaced, path home broken
@@ -1349,7 +1348,18 @@ export class MinionAISystem {
       }
       const inMinionRoom = inHome || (inStanding && !isGarrison) || inAdjacentBeat
 
-      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isFleeChaseTarget && !isLeashedTarget) continue
+      // Lock-release: a locked target only counts as "escaped" once it has LEFT
+      // the minion's room INTO the entry hall (out of the dungeon) or the boss
+      // chamber. Gate on !inMinionRoom — otherwise a defender whose OWN room IS
+      // the entry hall (where adventurers spawn/enter) would give up the instant
+      // it locked on and ignore intruders standing right in its room. (Minions
+      // standing IN the boss chamber are handled by the early-return above, so
+      // here this only releases a chaser whose quarry fled into it.)
+      const lockReleased = !inMinionRoom && (advRoomDef === 'entry_hall' || advRoomDef === 'boss_chamber')
+      if (canChaseFleeing && wasMyTarget && lockReleased) continue
+      const isLockedTarget = canChaseFleeing && wasMyTarget && !lockReleased
+
+      if (requireSameRoom && !isRetaliationTarget && !inMinionRoom && !isLockedTarget) continue
 
       // Distance gate. An adv sharing the minion's room is ALWAYS
       // engageable — a guard notices any intruder who walks in, no
@@ -1360,7 +1370,7 @@ export class MinionAISystem {
       // limits cross-room targets — an alerted / hunt / whisperersTongue
       // minion scanning neighbouring rooms.
       const d = Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY)
-      if (!inMinionRoom && !isRetaliationTarget && !isFleeChaseTarget && !isLeashedTarget) {
+      if (!inMinionRoom && !isRetaliationTarget && !isLockedTarget) {
         const range = isAlerted ? aggro * 2.5 : aggro
         if (d > range) continue
       }
@@ -1373,7 +1383,7 @@ export class MinionAISystem {
       // fleeing adv mid-pursuit (which would let the original quarry
       // escape).
       const basePriority = isRetaliationTarget ? Math.max(2, _adventurerPriority(adv)) : _adventurerPriority(adv)
-      const priority = (isFleeChaseTarget || isLeashedTarget) ? Math.max(2, basePriority) : basePriority
+      const priority = isLockedTarget ? Math.max(2, basePriority) : basePriority
       if (priority > bestPriority || (priority === bestPriority && d < bestDist)) {
         best = adv
         bestDist = d
