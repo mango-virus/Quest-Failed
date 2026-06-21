@@ -162,8 +162,15 @@ export class BossArchetypeSystem {
     this._plagueFightTimer   = null
     this._plagueSpreadAt     = 0    // contagion-spread cadence stamp
     this._petrifyFxGraphics  = null
-    // Beholder Anti-Magic Aura — graphics layer for the daily purple glow.
+    // Beholder Anti-Magic Aura — "Tyrant's Watch". Floor veil + hovering eyes
+    // (each a detailed beholder eye that drifts, tracks + blinks), driven per
+    // frame from tick(). _antiMagicFx = floor veil, _antiMagicGlow = additive
+    // eye/thread glow, _antiMagicEyeFx = the eye detail, _antiMagicEyes = state.
     this._antiMagicFx        = null
+    this._antiMagicGlow      = null
+    this._antiMagicEyeFx     = null
+    this._antiMagicEyes      = []
+    this._antiMagicTime      = 0
 
     EventBus.on('ADVENTURER_DIED',    this._onAdvDied,        this)
     EventBus.on('MINION_DIED',        this._onMinionDied,     this)
@@ -413,7 +420,10 @@ export class BossArchetypeSystem {
     this._petrifyFxGraphics?.destroy?.()
     this._petrifyFxGraphics = null
     this._antiMagicFx?.destroy?.()
-    this._antiMagicFx = null
+    this._antiMagicGlow?.destroy?.()
+    this._antiMagicEyeFx?.destroy?.()
+    this._antiMagicFx = this._antiMagicGlow = this._antiMagicEyeFx = null
+    this._antiMagicEyes = []
   }
 
   _archId() {
@@ -2592,7 +2602,7 @@ export class BossArchetypeSystem {
       if (r._antiMagic) r._antiMagic = false
     }
     this._gameState._antiMagicRoomIds = []
-    this._antiMagicFx?.clear?.()
+    this._teardownAntiMagicWatch()
   }
 
   _rollAntiMagicRooms() {
@@ -2620,29 +2630,186 @@ export class BossArchetypeSystem {
     })
   }
 
+  // ── Tyrant's Watch — the anti-magic aura's LOOK ─────────────────────────
+  // Called once per day (after the rooms roll): ensure the three graphics layers
+  // and re-seed an eye set for the silenced rooms. Drawing is per-frame in
+  // _tickAntiMagicWatch so the eyes hover, scan + blink. (Replaces the old flat
+  // purple border.)
   _renderAntiMagicAura() {
-    if (this._archId() !== 'beholder') return
-    const s  = this._scene
+    if (this._archId() !== 'beholder') { this._teardownAntiMagicWatch(); return }
+    const s = this._scene
     if (!s?.add?.graphics) return
-    if (!this._antiMagicFx) {
-      this._antiMagicFx = s.add.graphics().setDepth(2.6)
-    }
-    const g = this._antiMagicFx
-    g.clear()
+    if (!this._antiMagicFx)    this._antiMagicFx    = s.add.graphics().setDepth(2.6)
+    if (!this._antiMagicGlow)  this._antiMagicGlow  = s.add.graphics().setDepth(10.9).setBlendMode(Phaser.BlendModes.ADD)
+    if (!this._antiMagicEyeFx) this._antiMagicEyeFx = s.add.graphics().setDepth(11)
+    this._seedAntiMagicEyes()
+  }
+
+  // Place 1–3 hovering eyes per silenced room, spread across the upper band so
+  // they read as watching DOWN over the room. Each carries its own drift / blink /
+  // scan seeds; _tickAntiMagicWatch animates from these.
+  _seedAntiMagicEyes() {
     const TS = Balance.TILE_SIZE
     const rooms = this._gameState?.dungeon?.rooms ?? []
+    const eyes = []
+    let seed = 1
     for (const r of rooms) {
       if (!r._antiMagic) continue
-      const x = r.gridX * TS
-      const y = r.gridY * TS
-      const w = r.width  * TS
-      const h = r.height * TS
-      g.fillStyle(0x9b32d4, 0.10)
+      const w = r.width, h = r.height
+      const n = Math.max(1, Math.min(3, Math.floor((w * h) / 14)))
+      const size = Math.max(11, Math.min(18, Math.round(Math.min(w, h) * TS * 0.16)))
+      for (let i = 0; i < n; i++) {
+        const fx = (i + 0.5) / n
+        const jx = (((seed * 53) % 17) / 17 - 0.5) * 0.16
+        const jy = (((seed * 97) % 13) / 13) * 0.22
+        eyes.push({
+          roomId: r.instanceId,
+          bx: (r.gridX + (fx + jx) * w) * TS,
+          by: (r.gridY + (0.30 + jy) * h) * TS,
+          s: size,
+          phase: (seed * 1.7) % (Math.PI * 2),
+          blinkSeed: (seed * 0.37) % 1,
+          scanSeed: (seed * 2.11) % (Math.PI * 2),
+        })
+        seed++
+      }
+    }
+    this._antiMagicEyes = eyes
+  }
+
+  _teardownAntiMagicWatch() {
+    this._antiMagicFx?.clear?.()
+    this._antiMagicGlow?.clear?.()
+    this._antiMagicEyeFx?.clear?.()
+    this._antiMagicEyes = []
+  }
+
+  // Per-frame draw of the whole watch — floor veil + suppression threads + eyes.
+  // Cheap (a few rooms × ≤3 eyes). Runs even while the boss is "down" (the aura
+  // is ambient, not a boss action).
+  _tickAntiMagicWatch(delta) {
+    const g = this._antiMagicFx, gl = this._antiMagicGlow, ge = this._antiMagicEyeFx
+    if (!g || !gl || !ge) return
+    this._antiMagicTime += (delta || 16) / 1000
+    const t = this._antiMagicTime
+    const TS = Balance.TILE_SIZE
+    const VIOLET = 0x9b32d4, BRIGHT = 0xc64bff, PALE = 0xe2a5ff
+    g.clear(); gl.clear(); ge.clear()
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+
+    // (1) Floor veil — a soft, breathing anti-magic membrane per silenced room
+    // (no hard 1px border): faint fill + two inset glow strokes that pulse.
+    let anyRoom = false
+    for (const r of rooms) {
+      if (!r._antiMagic) continue
+      anyRoom = true
+      const x = r.gridX * TS, y = r.gridY * TS, w = r.width * TS, h = r.height * TS
+      const breathe = 0.5 + 0.5 * Math.sin(t * 1.3 + (r.gridX + r.gridY) * 0.4)
+      g.fillStyle(VIOLET, 0.05 + 0.04 * breathe)
       g.fillRect(x, y, w, h)
-      g.lineStyle(3, 0xc64bff, 0.55)
-      g.strokeRect(x + 1, y + 1, w - 2, h - 2)
-      g.lineStyle(1, 0xffe6ff, 0.45)
-      g.strokeRect(x + 4, y + 4, w - 8, h - 8)
+      g.lineStyle(2, BRIGHT, 0.10 + 0.10 * breathe)
+      g.strokeRect(x + 3, y + 3, w - 6, h - 6)
+      g.lineStyle(1, VIOLET, 0.05 + 0.06 * (1 - breathe))
+      g.strokeRect(x + 7, y + 7, w - 14, h - 14)
+    }
+    if (!anyRoom || this._antiMagicEyes.length === 0) return
+
+    // live eye positions (slow hover)
+    for (const e of this._antiMagicEyes) {
+      e._x = e.bx + Math.sin(t * 0.7 + e.phase) * 5
+      e._y = e.by + Math.cos(t * 0.5 + e.phase * 1.3) * 3.5
+    }
+
+    // (2) Suppression threads — thin violet filaments linking the eyes within a
+    // room, flickering (the magic being throttled between them).
+    const byRoom = new Map()
+    for (const e of this._antiMagicEyes) {
+      if (!byRoom.has(e.roomId)) byRoom.set(e.roomId, [])
+      byRoom.get(e.roomId).push(e)
+    }
+    for (const [, list] of byRoom) {
+      if (list.length < 2) continue
+      const flick = 0.16 + 0.14 * (0.5 + 0.5 * Math.sin(t * 4 + list[0].phase))
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i], b = list[(i + 1) % list.length]
+        gl.lineStyle(2.5, BRIGHT, flick * 0.4); gl.lineBetween(a._x, a._y, b._x, b._y)
+        ge.lineStyle(1, PALE, flick);           ge.lineBetween(a._x, a._y, b._x, b._y)
+      }
+    }
+
+    // (3) The eyes. Each gazes toward the nearest live adventurer in range (else
+    // a slow circular scan), and blinks every few seconds (staggered).
+    const advs = this._gameState?.adventurers?.active ?? []
+    for (const e of this._antiMagicEyes) {
+      let gx = Math.cos(t * 0.6 + e.scanSeed), gy = Math.sin(t * 0.9 + e.scanSeed) * 0.7
+      let locked = false, bestD = (TS * 7) ** 2
+      for (const a of advs) {
+        if ((a?.resources?.hp ?? 0) <= 0) continue
+        const dx = (a.worldX ?? 0) - e._x, dy = (a.worldY ?? 0) - e._y
+        const d = dx * dx + dy * dy
+        if (d < bestD) { bestD = d; gx = dx; gy = dy; locked = true }
+      }
+      const gm = Math.hypot(gx, gy) || 1
+      const interval = 3.5 + e.blinkSeed * 2
+      const bp = (t + e.blinkSeed * 9) % interval
+      const bd = 0.16
+      const open = bp < bd ? Math.abs(Math.cos((bp / bd) * Math.PI)) : 1
+      this._drawTyrantEye(ge, gl, e._x, e._y, e.s, gx / gm, gy / gm, open, locked ? 1 : 0)
+    }
+  }
+
+  // A single detailed beholder eye: additive aura (gl) + opaque detail (ge) at
+  // (cx,cy). s = lens half-width; (gx,gy) = unit gaze dir; open = 0..1 eyelid;
+  // alert = 0..1 (1 = locked on an adventurer → hotter, constricted pupil).
+  _drawTyrantEye(ge, gl, cx, cy, s, gx, gy, open, alert) {
+    const SCLERA = 0x3a1048, IRIS = 0x7c28aa, IRIS_HOT = 0xc64bff, IRIS_RIM = 0x4e196a
+    const STRI = 0x65218a, PALE = 0xe2a5ff, PUPIL = 0x080310, VEIN = 0x7a1228
+    const N = 14, hw = s, hh = s * 0.62
+    // additive aura
+    gl.fillStyle(0x9b32d4, 0.05); gl.fillCircle(cx, cy, s * 2.3)
+    gl.fillStyle(0x9b32d4, 0.08); gl.fillCircle(cx, cy, s * 1.5)
+    gl.fillStyle(IRIS_HOT, 0.10 + 0.06 * alert); gl.fillCircle(cx, cy, s * 0.95)
+    // (a) sclera almond
+    ge.fillStyle(SCLERA, 0.92); ge.beginPath()
+    for (let i = 0; i <= N; i++) { const tt = i / N, px = cx + (-1 + 2 * tt) * hw, py = cy - Math.sin(tt * Math.PI) * hh; if (i === 0) ge.moveTo(px, py); else ge.lineTo(px, py) }
+    for (let i = 0; i <= N; i++) { const tt = i / N, px = cx + (1 - 2 * tt) * hw, py = cy + Math.sin(tt * Math.PI) * hh; ge.lineTo(px, py) }
+    ge.closePath(); ge.fillPath()
+    // (b) iris + pupil move together toward the gaze
+    const ex = cx + gx * s * 0.26, ey = cy + gy * s * 0.26
+    const ir = s * 0.6
+    ge.fillStyle(IRIS, 0.96); ge.fillCircle(ex, ey, ir)
+    ge.fillStyle(IRIS_HOT, 0.42 + 0.18 * alert); ge.fillCircle(ex, ey, ir * 0.78)
+    const fibers = 18
+    for (let i = 0; i < fibers; i++) {
+      const ang = (i / fibers) * Math.PI * 2
+      const col = (i % 2 === 0) ? PALE : STRI
+      ge.lineStyle(1, col, 0.5)
+      ge.lineBetween(ex + Math.cos(ang) * ir * 0.34, ey + Math.sin(ang) * ir * 0.34, ex + Math.cos(ang) * ir * 0.94, ey + Math.sin(ang) * ir * 0.94)
+    }
+    ge.lineStyle(1.5, IRIS_RIM, 0.7); ge.strokeCircle(ex, ey, ir)
+    ge.lineStyle(1, PALE, 0.45); ge.strokeCircle(ex, ey, ir * 0.42)
+    // pupil — deep, dilated normally / constricting when locked on, with a hot
+    // inner glow + a bright catchlight for life
+    gl.fillStyle(IRIS_HOT, 0.30 + 0.20 * alert); gl.fillCircle(ex, ey, ir * 0.5)
+    ge.fillStyle(PUPIL, 0.97); ge.fillCircle(ex, ey, ir * (0.36 - 0.08 * alert))
+    ge.fillStyle(0xffffff, 0.85); ge.fillCircle(ex - s * 0.12, ey - s * 0.14, s * 0.07)
+    // (c) bright pale lid-rim along the top arc
+    ge.lineStyle(Math.max(0.8, s * 0.1), PALE, 0.68); ge.beginPath()
+    for (let i = 0; i <= N; i++) { const tt = i / N, px = cx + (-1 + 2 * tt) * hw, py = cy - Math.sin(tt * Math.PI) * hh; if (i === 0) ge.moveTo(px, py); else ge.lineTo(px, py) }
+    ge.strokePath()
+    // (d) faint blood veins in the sclera corners
+    ge.lineStyle(1, VEIN, 0.32)
+    ge.lineBetween(cx - hw * 0.95, cy, cx - hw * 0.5, cy - hh * 0.3)
+    ge.lineBetween(cx + hw * 0.95, cy, cx + hw * 0.55, cy + hh * 0.25)
+    // (e) BLINK — dark eyelids sweep in from top + bottom, covering (1-open)
+    if (open < 0.98) {
+      const cover = (1 - open) * hh
+      ge.fillStyle(SCLERA, 0.97)
+      ge.fillRect(cx - hw - 2, cy - hh - 2, hw * 2 + 4, cover + 2)
+      ge.fillRect(cx - hw - 2, cy + hh - cover, hw * 2 + 4, cover + 4)
+      ge.lineStyle(1.2, PALE, 0.55)
+      ge.lineBetween(cx - hw, cy - hh + cover, cx + hw, cy - hh + cover)
+      ge.lineBetween(cx - hw, cy + hh - cover, cx + hw, cy + hh - cover)
     }
   }
 
@@ -2860,6 +3027,8 @@ export class BossArchetypeSystem {
     // below has its own _diedThisDay / destroyed handling and still needs to
     // run regardless, so it sits outside this guard.)
     if (!this._bossDown()) this._tickBossPassives(delta)
+    // Tyrant's Watch animates regardless of boss-down (it's an ambient aura).
+    if (this._archId() === 'beholder') this._tickAntiMagicWatch(delta)
     if (this._archId() !== 'lich') return
     const phyl = this._gameState?.phylactery
     if (!phyl) return
