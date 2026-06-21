@@ -1612,9 +1612,13 @@ export class MinionRenderer {
     if (!def) return
     const idleKey = this._idleTextureKey(def, m.definitionId)
     if (this._scene.textures.exists(idleKey)) s.sprite.setTexture(idleKey, 0)
-    const tierScale = this._tierScaleFor(m.definitionId)
-    const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
-    const dispScale = _displayScaleFor(m, def)
+    // Raised adventurers pin to RAISED_DEAD_SCALE alone — skeleton1's base
+    // tier/displayScale must not inflate the borrowed adventurer sprite (see
+    // _createAnimatedSprite for the full rationale).
+    const isRaisedAdv = !!m._raisedSpriteVariant
+    const tierScale = isRaisedAdv ? 1 : this._tierScaleFor(m.definitionId)
+    const baseScale = isRaisedAdv ? RAISED_DEAD_SCALE : MINION_SCALE
+    const dispScale = isRaisedAdv ? 1 : _displayScaleFor(m, def)
     s.sprite.setScale(baseScale * tierScale * dispScale)
     s.currentAnim = null   // force play() with the new prefix next tick
   }
@@ -1626,9 +1630,15 @@ export class MinionRenderer {
     // intent (capstones / wall tops should hide entities behind them).
     const c = s.add.container(m.worldX, m.worldY).setDepth(7)
 
-    const tierScale = this._tierScaleFor(m.definitionId)
-    const baseScale = m._raisedSpriteVariant ? RAISED_DEAD_SCALE : MINION_SCALE
-    const dispScale = _displayScaleFor(m, def)
+    // Raised adventurers (Undying Court / Lich Necromancy) wear an LPC adventurer
+    // sheet but reuse `skeleton1` as the base def — so its tier/displayScale (1.35,
+    // to bump the LPC SKELETON to creature size) must NOT leak onto the adventurer
+    // sprite, or the revived hero renders ~35% bigger than its living self. Pin it
+    // to RAISED_DEAD_SCALE (= AdventurerRenderer's 0.75) alone.
+    const isRaisedAdv = !!m._raisedSpriteVariant
+    const tierScale = isRaisedAdv ? 1 : this._tierScaleFor(m.definitionId)
+    const baseScale = isRaisedAdv ? RAISED_DEAD_SCALE : MINION_SCALE
+    const dispScale = isRaisedAdv ? 1 : _displayScaleFor(m, def)
     const sprite = s.add.sprite(0, 0, idleKey, 0)
       .setOrigin(0.5)
       .setScale(baseScale * tierScale * dispScale)
