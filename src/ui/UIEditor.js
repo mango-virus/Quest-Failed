@@ -69,6 +69,9 @@ const DEFAULT_TEXT_STYLE = {
   strokeThickness: 3,
 }
 
+// In-app text prompt — window.prompt() is unsupported in Electron (returns null).
+import { domPrompt } from '../hud/domPrompt.js'
+
 export class UIEditor {
   constructor(scene) {
     this.scene = scene
@@ -732,7 +735,7 @@ export class UIEditor {
 
   // ─── Text editing ─────────────────────────────────────────────────────
 
-  editSelectedText() {
+  async editSelectedText() {
     if (this.selection.size !== 1) {
       this._flashStatus('Select a single text item to edit')
       return
@@ -742,7 +745,7 @@ export class UIEditor {
       this._flashStatus('Selected item is not text')
       return
     }
-    const next = window.prompt('Edit text:', it.obj.text)
+    const next = await domPrompt({ title: 'EDIT TEXT', value: it.obj.text })
     if (next === null) return
     this._pushUndo()
     it.obj.setText(next)
@@ -767,8 +770,8 @@ export class UIEditor {
     this._scheduleAutoSave()
   }
 
-  createTextBox() {
-    const text = window.prompt('New text box content:', 'NEW TEXT')
+  async createTextBox() {
+    const text = await domPrompt({ title: 'NEW TEXT BOX', message: 'Content:', value: 'NEW TEXT' })
     if (text === null) return
     const cam = this.scene.cameras.main
     const cx = (cam.width / cam.zoom) / 2

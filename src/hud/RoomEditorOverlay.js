@@ -16,6 +16,7 @@
 
 import { h, mount } from './dom.js'
 import { ensureStageScaled } from './stageScale.js'
+import { domPrompt } from './domPrompt.js'
 
 // ── Shared layout (1920×1080 logical) ───────────────────────────────────────
 // Panel band sizes. The derived `canvas` rect is the transparent centre the
@@ -820,17 +821,17 @@ export class RoomEditorOverlay {
 
   async _saveThemes() { await this.scene.uiSaveThemes?.(); this._renderThemes() }
 
-  _newTheme() {
-    const name = window.prompt('New theme name (e.g. Jungle, Spooky):')
+  async _newTheme() {
+    const name = await domPrompt({ title: 'NEW THEME', message: 'Name (e.g. Jungle, Spooky):', placeholder: 'Theme name' })
     if (!name) return
     const r = this.scene.uiCreateTheme?.(name)
     if (r?.ok) this._editingTheme = r.name
     else if (r?.msg) this._themeMsg = r.msg
     this._renderThemes()
   }
-  _renameTheme() {
+  async _renameTheme() {
     if (!this._editingTheme) return
-    const name = window.prompt('Rename theme:', this._editingTheme)
+    const name = await domPrompt({ title: 'RENAME THEME', message: 'New name:', value: this._editingTheme })
     if (!name) return
     const r = this.scene.uiRenameTheme?.(this._editingTheme, name)
     if (r?.ok) this._editingTheme = r.name
@@ -857,12 +858,18 @@ export class RoomEditorOverlay {
   closeSkins() {
     this._skinsEl?.remove()
     this._skinsEl = null
+    // Apply the canvas-preview repaint we deferred while the modal was open
+    // (skin pool toggles skip it so the editor doesn't freeze per click).
+    this.scene.uiRefreshPreview?.()
     this.refresh()
   }
 
   _renderSkins() {
     const panel = this._refs.skinsPanel
     if (!panel) return
+    // Preserve the library grid's scroll across the re-mount so toggling a
+    // skin in/out of the pool doesn't snap the list back to the top.
+    const prevScroll = panel.querySelector('.qf-skins__grid')?.scrollTop ?? 0
     const skins = this.scene.uiListRoomSkins?.() || []
     const current = this.scene.uiCurrentRoomSkin?.()
     const pool = this.scene.uiSkinPool?.() || []
@@ -943,6 +950,8 @@ export class RoomEditorOverlay {
         h('button', { className: 'btn', on: { click: () => this._saveSkins() } }, '⤓ Save skins + assignments'),
       ]),
     ])
+    const grid = panel.querySelector('.qf-skins__grid')
+    if (grid) grid.scrollTop = prevScroll
   }
 
   _skinItem(s, pool) {

@@ -28,6 +28,7 @@
 
 import { RoomEditorOverlay, EDITOR_LAYOUT } from '../hud/RoomEditorOverlay.js'
 import { effectiveUiScale } from '../hud/stageScale.js'
+import { domPrompt } from '../hud/domPrompt.js'
 import { FsHandle }      from '../systems/FsHandle.js'
 import { EventBus }      from '../systems/EventBus.js'
 import { Balance }       from '../config/balance.js'
@@ -396,9 +397,10 @@ export class RoomTileEditor extends Phaser.Scene {
   uiResizeRoom() {
     const room = this._activeRoom()
     if (!room) return
-    this._pushUndo()
+    // `_promptResize` is async (DOM modal, not window.prompt — which Electron
+    // doesn't support) and does the undo-snapshot + refresh itself once the
+    // player confirms a valid size.
     this._promptResize(room)
-    this._refreshAll()
   }
 
   // ── Undo (snapshot of the active room's editable state) ─────────────────────
@@ -654,8 +656,17 @@ export class RoomTileEditor extends Phaser.Scene {
     const i = pool.indexOf(id)
     if (i >= 0) pool.splice(i, 1); else pool.push(id)
     this._writeSkinPool(room, this.uiSkinTarget(), pool)
-    this._refreshAll()
+    // No _refreshAll() here: this is only invoked from the open Skins modal,
+    // whose canvas + main-overlay preview sit BEHIND it. Repainting them on
+    // every toggle (redrawing the full skin texture + rebuilding the whole
+    // editor overlay) froze the UI for ~a second for nothing — the player
+    // can't see it. The modal re-renders itself; uiRefreshPreview() (called on
+    // modal close) syncs the hidden canvas preview.
   }
+
+  // Repaint just the Phaser room-preview canvas. Called when the Skins modal
+  // closes to apply the pool changes that were deferred while it was open.
+  uiRefreshPreview() { this._populatePaintCanvas() }
   _writeSkinPool(room, target, pool) {
     const clean = (pool || []).filter(s => typeof s === 'string')
     if (this._skinTargetIsBoss(room, target)) {
@@ -1083,18 +1094,27 @@ export class RoomTileEditor extends Phaser.Scene {
     if (!key) return null
     this._thumbCache ||= {}
     if (key in this._thumbCache) return this._thumbCache[key]
+    // DOWNSCALE to a thumbnail. Room/door skins can be multi-megapixel (4–5 MB
+    // PNGs); encoding them at FULL resolution — ×~30 on the first open of the
+    // Skins panel — froze the editor for seconds and bloated the cache. Thumbs
+    // render at ~150px, so cap the long edge. Small pixel sprites (32px tiles /
+    // decor) are ≤ the cap → drawn 1:1, so they stay crisp.
+    const MAX = 256
     let url = null
     try {
       if (this.textures.exists(key)) {
         const src = this.textures.get(key).getSourceImage()
-        if (src instanceof HTMLCanvasElement) {
-          url = src.toDataURL()
-        } else if (src) {
-          const w = src.naturalWidth || src.width || 32
-          const h = src.naturalHeight || src.height || 32
+        const sw = src?.naturalWidth || src?.width || 0
+        const sh = src?.naturalHeight || src?.height || 0
+        if (src && sw && sh) {
+          const scale = Math.min(1, MAX / Math.max(sw, sh))
+          const dw = Math.max(1, Math.round(sw * scale))
+          const dh = Math.max(1, Math.round(sh * scale))
           const c = document.createElement('canvas')
-          c.width = w; c.height = h
-          c.getContext('2d').drawImage(src, 0, 0, w, h)
+          c.width = dw; c.height = dh
+          const ctx = c.getContext('2d')
+          ctx.imageSmoothingEnabled = scale < 1   // smooth when shrinking; crisp pixel art at 1:1
+          ctx.drawImage(src, 0, 0, sw, sh, 0, 0, dw, dh)
           url = c.toDataURL()
         }
       }
@@ -2370,20 +2390,23 @@ export class RoomTileEditor extends Phaser.Scene {
 
   // Prompt for a new W×H and resize the active room. Min is 2·WALL_THICKNESS+1
   // (walls + one interior tile); max is grid-fittable.
-  _promptResize(room) {
+  async _promptResize(room) {
     if (!room) return
     const MIN = 2 * (Balance.WALL_THICKNESS ?? 2) + 1
     const MAX = 30
-    const inp = window.prompt(
-      `Resize "${room.name}" — width × height in tiles.\n` +
-      `Grows / shrinks from the TOP-LEFT (existing layout is preserved).\n` +
-      `Min ${MIN}, max ${MAX}. Saved to rooms.json on the next Save-to-disk.`,
-      `${room.width}x${room.height}`)
+    const inp = await domPrompt({
+      title: `RESIZE ${(room.name || 'ROOM').toUpperCase()}`,
+      message: `Width × height in tiles. Grows / shrinks from the top-left (layout preserved). ` +
+               `Min ${MIN}, max ${MAX}. Saved to rooms.json on the next Save-to-disk.`,
+      value: `${room.width}x${room.height}`,
+      placeholder: 'e.g. 8x12',
+    })
     if (inp == null) return
     const m = String(inp).trim().match(/^(\d+)\s*[x×*, ]\s*(\d+)$/i)
     if (!m) { this._toast('Bad format — use e.g. "13x9".', true); return }
     const w = Math.max(MIN, Math.min(MAX, parseInt(m[1], 10)))
     const h = Math.max(MIN, Math.min(MAX, parseInt(m[2], 10)))
+    this._pushUndo()
     if (this._resizeRoom(room, w, h)) {
       this._populatePaintCanvas()
       this._notifyDom()
@@ -2391,6 +2414,7 @@ export class RoomTileEditor extends Phaser.Scene {
     } else {
       this._toast('No change.')
     }
+    this._refreshAll()
   }
 
   // Lossless resize: reshape tileLayout to newW×newH anchored TOP-LEFT (grow =
