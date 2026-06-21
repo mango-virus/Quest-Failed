@@ -164,7 +164,29 @@ export class BuildMenu {
       ]),
     ].filter(Boolean))
 
-    return h('div', { className: 'htr-chrome m-col' }, [ segbar, h('div', { className: 'htr-content' }, [ mid ]) ])
+    return h('div', {
+      className: 'htr-chrome m-col',
+      on: { wheel: (e) => this._onWheel(e) },
+    }, [ segbar, h('div', { className: 'htr-content' }, [ mid ]) ])
+  }
+
+  // Mouse-wheel over the menu pages through the slots (anchored pager). The
+  // detached floating grid scrolls natively (overflow-y:auto), so leave it alone.
+  _onWheel(e) {
+    if (this._tray?.isDetached) return
+    const items = this._defsFor(this._catInfo())
+    const pages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+    if (pages <= 1) return
+    e.preventDefault()
+    // Throttle so one wheel notch = one page and a trackpad burst doesn't fly
+    // through every page at once. Use only the delta SIGN (robust to deltaMode).
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    if (now - (this._lastWheelAt || 0) < 130) return
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    if (!d) return
+    this._lastWheelAt = now
+    const next = Math.min(pages - 1, Math.max(0, this._page + (d > 0 ? 1 : -1)))
+    if (next !== this._page) { this._page = next; this._rerender() }
   }
 
   _renderSlot(def, cat, absIdx, i, bossLv, gold) {
