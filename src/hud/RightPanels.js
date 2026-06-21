@@ -24,7 +24,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { adventurerDisplayLevel } from '../config/balance.js'
 import { getEligibleClasses } from '../util/classSpawn.js'
 import { pixelSprite } from './sprites.js'
-import { snapshotAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
+import { liveAdventurerEntity, warmAdvSnapshotsThen } from './inGameSnapshot.js'
 import { pactLabel } from '../util/displayNames.js'
 
 import { fleeReasonFlavor } from '../util/fleeFlavor.js'
@@ -75,7 +75,7 @@ function _advKind(classId) {
   return ADV_SPRITE[id] || 'knight'
 }
 
-const LOG_KINDS = {
+export const LOG_KINDS = {
   // Player-perspective color coding. Every meaningful kind has its own
   // color so the log reads at a glance; only generic system-info rows
   // stay text-mute. Categories:
@@ -168,7 +168,7 @@ const LOG_KINDS = {
   // ── Plunderers (KR P5) — thieves rob your treasury. Tarnished-gold ⚿. ─
   plunder:     { color: '#cdae5e',          glyph: '⚿' },
 }
-const LOG_MAX = 50
+const LOG_MAX = 200
 // Coalesce window for burst-prone log entries (2026-05-27). See
 // _addLogCoalesced. Same window as ToastQueue.COALESCE_WINDOW_MS so
 // both surfaces fold the same burst into one row / one toast.
@@ -249,6 +249,32 @@ const LOG_TEXT_COLOR_KINDS = new Set([
   'boss-fight', 'ability', 'event', 'nemesis', 'champion', 'champion-down', 'mage', 'pantheon', 'inquisition', 'ascension', 'plunder',
 ])
 
+// Build a single dungeon-log row element. Exported so the DUNGEON LOG tab in the
+// Knowledge tray (KnowledgeMapOverlay) renders rows identically to the live feed
+// RightPanels records. `recent` controls the highlight opacity (newest rows are
+// full alpha). A row whose `count > 1` shows a coalesce "× N" pill.
+export function buildLogRowEl(row, recent = true) {
+  const meta = LOG_KINDS[row.kind] || LOG_KINDS.info
+  const text = h('span', {
+    className: 'qf-log-text',
+    style: { color: LOG_TEXT_COLOR_KINDS.has(row.kind) ? meta.color : 'var(--text)' },
+  }, row.base ?? row.text)
+  if ((row.count ?? 1) > 1) {
+    text.appendChild(h('span', { className: 'qf-coalesce-pill' }, `× ${row.count}`))
+  }
+  if (row.contexts) text.appendChild(document.createTextNode(` — ${row.contexts}`))
+  return h('div', {
+    className: 'log-row qf-log-row',
+    style: { opacity: recent ? 1 : 0.72 },
+  }, [
+    h('span', {
+      className: 'pix qf-log-glyph',
+      style: { color: meta.color, textShadow: `0 0 4px ${meta.color}` },
+    }, meta.glyph),
+    text,
+  ])
+}
+
 export class RightPanels {
   constructor(gameState) {
     this._gameState = gameState
@@ -317,48 +343,13 @@ export class RightPanels {
       // intel-coloured rooms. `_renderIntel()` self-guards on the absent
       // body ref, so its subscriptions/tick calls are harmless no-ops.
 
-      // DungeonLog — a button that toggles a dropdown (crypt-console
-      // design). The live feed keeps streaming into the (always-present,
-      // merely hidden) list while collapsed, so no rows are lost; FULL ▸
-      // opens the full-run overlay (shared with PostWave/Pause). `.hc`
-      // puts the design tokens in scope for the .hc-maplog* chrome.
-      h('div', { className: 'qf-maplog-wrap hc' }, [
-        h('button', {
-          className: 'hc-maplog-btn',
-          ref: el => { this._refs.logBtn = el },
-          title: 'Toggle the dungeon log',
-          on: { click: () => this._toggleLog() },
-        }, [
-          h('span', { className: 'ldot' }),
-          h('span', { className: 'hc-maplog-lbl' }, 'DUNGEON LOG'),
-          h('span', { className: 'chev' }, '▾'),
-        ]),
-        h('div', {
-          className: 'hc-maplog closed',
-          ref: el => { this._refs.logDrop = el },
-        }, [
-          h('div', { className: 'lhead' }, [
-            h('span', { className: 'ltitle' }, [
-              h('span', { className: 'dot' }),
-              'DUNGEON LOG',
-            ]),
-            h('div', { className: 'lhead-r' }, [
-              h('span', { className: 'llive' }, [ h('span', { className: 'i' }), 'LIVE' ]),
-              h('span', {
-                className: 'lfull',
-                title: 'Open the full run log',
-                on: { click: () => this._openFullLog() },
-              }, 'FULL ▸'),
-            ]),
-          ]),
-          h('div', {
-            className: 'qf-log-body llist',
-            ref: el => { this._refs.logBody = el },
-          }, [
-            h('div', { className: 'qf-log-rail' }),
-          ]),
-        ]),
-      ]),
+      // DungeonLog — REMOVED from the HUD column (2026-06-20, by user). The log
+      // now lives as a "DUNGEON LOG" tab in the Knowledge popout
+      // (KnowledgeMapOverlay). RightPanels still RECORDS the feed (_logRows +
+      // _addLog/_addLogCoalesced) and emits DUNGEON_LOG_UPDATED; the tab reads
+      // it. The old display methods (_appendLogRow / _buildLogRowEl /
+      // _toggleLog / _scheduleLogScroll) self-guard on the now-absent refs →
+      // inert no-ops.
       ]),
       ]),
     ])
@@ -503,7 +494,7 @@ export class RightPanels {
     // that will spawn tomorrow, not a generic class placeholder.
     // Falls back to bare classId (snapshotAdventurer defaults to v01)
     // for legacy saves / event-replacement spawns with no pre-roll.
-    const advSnap = snapshotAdventurerEntity(p, 48)
+    const advSnap = liveAdventurerEntity(p, 48)
     const spriteEl = advSnap
       ? (() => {
           advSnap.classList.add('qf-wave-tile-adv')
@@ -871,7 +862,15 @@ export class RightPanels {
     const row = { text, kind }
     this._logRows.push(row)
     if (this._logRows.length > LOG_MAX) this._logRows.shift()
-    this._appendLogRow(row)
+    this._emitLogUpdated()
+  }
+
+  // Signal the DUNGEON LOG tab (KnowledgeMapOverlay) to repaint. RightPanels no
+  // longer DISPLAYS the log (the panel moved into the Knowledge popout) — it
+  // just records the feed into _logRows; the tab reads it on this event. The
+  // rows array is passed by reference (the tab snapshots/renders it).
+  _emitLogUpdated() {
+    EventBus.emit('DUNGEON_LOG_UPDATED', { rows: this._logRows })
   }
 
   // Coalesce a same-key log entry. First fire pushes a fresh row;
@@ -894,7 +893,7 @@ export class RightPanels {
     this._logCoalesce ??= {}
     const now = performance.now()
     const c = this._logCoalesce[key]
-    const stillActive = c && c.row && c.rowEl && c.rowEl.parentNode
+    const stillActive = c && c.row && this._logRows.includes(c.row)
       && (now - c.lastAt) < LOG_COALESCE_WINDOW_MS
     if (stillActive) {
       c.count += 1
@@ -920,28 +919,22 @@ export class RightPanels {
       const customText = opts.textFormatter
         ? opts.textFormatter(effectiveBase, c.count, ctxList)
         : null
-      const span = c.rowEl.querySelector('.qf-log-text')
-      if (span) {
-        span.textContent = ''
-        if (customText != null) {
-          span.appendChild(document.createTextNode(customText))
-          c.row.text = customText
-        } else {
-          span.appendChild(document.createTextNode(effectiveBase))
-          if (c.count > 1) {
-            const pill = document.createElement('span')
-            pill.className = 'qf-coalesce-pill'
-            pill.textContent = `× ${c.count}`
-            span.appendChild(pill)
-          }
-          if (ctxList) {
-            span.appendChild(document.createTextNode(` — ${ctxList}`))
-          }
-          c.row.text = ctxList
-            ? `${effectiveBase} × ${c.count} — ${ctxList}`
-            : `${effectiveBase} × ${c.count}`
-        }
+      // Data-only update — the DUNGEON LOG tab repaints from _logRows on the
+      // emit below (RightPanels no longer renders the log feed itself).
+      // buildLogRowEl reads row.base + row.count (→ "× N" pill) + row.contexts;
+      // row.text is the plain-text equivalent for any non-DOM consumer.
+      if (customText != null) {
+        c.row.base = customText; c.row.count = 1; c.row.contexts = null
+        c.row.text = customText
+      } else {
+        c.row.base     = effectiveBase
+        c.row.count    = c.count
+        c.row.contexts = ctxList || null
+        c.row.text = ctxList
+          ? `${effectiveBase} × ${c.count} — ${ctxList}`
+          : `${effectiveBase} × ${c.count}`
       }
+      this._emitLogUpdated()
       return
     }
     // First fire — push a normal row, then bookkeep so subsequent fires
@@ -950,11 +943,9 @@ export class RightPanels {
     // brief headline (see effectiveBase use in the stillActive branch).
     const firstText = contextItem ? `${baseText} — ${contextItem}` : baseText
     this._addLog(firstText, kind)
-    const rowEl = this._refs.logBody?.lastChild ?? null
     const row = this._logRows[this._logRows.length - 1] ?? null
     this._logCoalesce[key] = {
       row,
-      rowEl,
       baseText,
       coalescedBase: opts.coalescedBase ?? null,
       contexts: contextItem ? [contextItem] : [],

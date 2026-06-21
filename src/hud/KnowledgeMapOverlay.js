@@ -32,7 +32,8 @@
 import { h } from './dom.js'
 import { TrayShell } from './TrayShell.js'
 import { EventBus } from '../systems/EventBus.js'
-import { snapshotMinion } from './inGameSnapshot.js'
+import { liveMinion } from './inGameSnapshot.js'
+import { buildLogRowEl, LOG_KINDS } from './RightPanels.js'   // shared log-row renderer + kind colours
 
 // Design tier metadata for the bespoke MAP tray (KnowledgeTray): maps our
 // FULL/PARTIAL/RUMOR/UNKNOWN intel states → the tray's id / colour / label /
@@ -64,9 +65,27 @@ export class KnowledgeMapOverlay {
     // mode reads rooms — skip in MINION INTEL to keep its selection intact.
     this._onDungeonChanged = () => { if (this._tray && (this._mapMode || 'map') === 'map') this._rerender() }
     EventBus.on('OPEN_KNOWLEDGE_MAP', this._listener)
+
+    // DUNGEON LOG tab — RightPanels records the live feed and emits
+    // DUNGEON_LOG_UPDATED with the rows (by reference); we cache it so the LOG
+    // tab can render it. Subscribed for the overlay's whole lifetime (like
+    // OPEN_KNOWLEDGE_MAP) so the cache is current the moment the tray opens.
+    // Re-render is throttled to one per frame (log bursts during a wave).
+    this._logRows = []
+    this._logRerenderScheduled = false
+    this._onLogUpdated = ({ rows } = {}) => {
+      if (rows) this._logRows = rows
+      if (this._tray && (this._mapMode || 'map') === 'log' && !this._logRerenderScheduled) {
+        this._logRerenderScheduled = true
+        requestAnimationFrame(() => { this._logRerenderScheduled = false; this._repaintLog() })
+      }
+    }
+    EventBus.on('DUNGEON_LOG_UPDATED', this._onLogUpdated)
   }
 
   toggle() {
+    // The action-bar button toggles the panel open/closed — including when it's
+    // floating (closing it re-docks). Bring-to-front is done by clicking the panel.
     if (this._tray) this.close()
     else this.open()
   }
@@ -88,6 +107,11 @@ export class KnowledgeMapOverlay {
       accent: 'var(--rumor)',
       width:  'min(64vw, 1040px)',
       height: 384,
+      detachable: true,
+      title: 'KNOWLEDGE',
+      detachedSize:      { width: '580px', height: '560px' },   // square when floating
+      detachedSizeSmall: { width: '430px', height: '430px' },   // compact toggle
+      onDetach: () => this._rerender(),                     // reflow + re-fit the map
       onClose: () => { this._tray = null },
     })
     this._tray.setContent(this._renderTrayContent())
@@ -124,8 +148,9 @@ export class KnowledgeMapOverlay {
     // Mode switch: the dungeon MAP (room intel) vs the KINGDOM DOCTRINE (what
     // the kingdom has learned about your monster TYPES — mastery + abilities).
     const modeTabs = [
-      { id: 'map',      label: 'KNOWLEDGE MAP',    glyph: '⊞' },
-      { id: 'doctrine', label: 'MINION INTEL', glyph: '✦' },
+      { id: 'map',      label: 'KNOWLEDGE MAP', glyph: '⊞' },
+      { id: 'doctrine', label: 'MINION INTEL',  glyph: '✦' },
+      { id: 'log',      label: 'DUNGEON LOG',   glyph: '✎' },
     ]
     const seg = modeTabs.map(m => h('div', {
       className: 'htr-segtab mp-modetab' + (mode === m.id ? ' on' : ''),
@@ -133,7 +158,9 @@ export class KnowledgeMapOverlay {
     }, [ h('span', { className: 'tg' }, m.glyph), h('span', { className: 'lb' }, m.label) ]))
 
     let content
-    if (mode === 'doctrine') {
+    if (mode === 'log') {
+      content = this._renderLog()
+    } else if (mode === 'doctrine') {
       content = this._renderDoctrine()
     } else {
       const all = this._roomEntries()   // { id, defId, name, x, y, w, h, state }
@@ -205,6 +232,7 @@ export class KnowledgeMapOverlay {
     const st = MAP_TIER[sel?.state] || MAP_TIER.UNKNOWN
     const expo = this._exposurePct()
     const scrubCost = sel ? this._scrubCost(sel) : 0
+    const sq = !!this._tray?.isDetached   // square/floating → compact scrub label
     const side = h('div', { className: 'mp-side' }, [
       h('div', { className: 'mp-expo' }, [
         h('span', { className: 'mp-expo-pct', style: { color: expo >= 70 ? 'var(--blood)' : expo >= 40 ? 'var(--warn)' : 'var(--poison)' } }, `${expo}%`),
@@ -226,7 +254,7 @@ export class KnowledgeMapOverlay {
           on: { click: () => this._onScrub(sel, scrubCost) },
         }, [
           h('span', { className: 'si' }, '⌫'),
-          h('span', { className: 'sl' }, 'SCRUB INTEL'),
+          h('span', { className: 'sl' }, sq ? 'SCRUB' : 'SCRUB INTEL'),
           h('span', { className: 'sc' }, [ h('span', { className: 'mp-scrub-coin' }), `${scrubCost}g` ]),
         ]) : null,
       ].filter(Boolean)) : null,
@@ -329,6 +357,7 @@ export class KnowledgeMapOverlay {
     const counter = this._knowledgeSystem()?.getEnemyCounter?.(e.type) ?? { known: e.known, strength: 0, stale: e.stale }
     const pct = Math.round((counter.strength ?? 0) * 100)
     const cost = this._bestiaryScrubCost(e)
+    const sq = !!this._tray?.isDetached   // square/floating → compact scrub label
     const hint = (!e.known && !e.studyingNow)
       ? 'No doctrine yet — kill adventurers before they flee to keep it a mystery.'
       : (e.studyingNow && !e.known)
@@ -366,7 +395,7 @@ export class KnowledgeMapOverlay {
         on: { click: () => this._onScrubBestiary(e, cost) },
       }, [
         h('span', { className: 'si' }, '⌫'),
-        h('span', { className: 'sl' }, 'SCRUB DOCTRINE'),
+        h('span', { className: 'sl' }, sq ? 'SCRUB' : 'SCRUB DOCTRINE'),
         h('span', { className: 'sc' }, [ h('span', { className: 'mp-scrub-coin' }), `${cost}g` ]),
       ]) : h('div', { className: 'mp-doc-d-noscrub' }, 'No intel to scrub.'),
     ].filter(Boolean))
@@ -383,7 +412,7 @@ export class KnowledgeMapOverlay {
       } })
     }
     const defId = this._minionDefIdForFamily(e.type)
-    const snap = defId ? snapshotMinion(defId, size) : null
+    const snap = defId ? liveMinion(defId, size) : null
     if (snap) { snap.classList.add('mp-doc-sprite'); return snap }
     return h('div', { className: 'mp-doc-sprite mp-doc-sprite-fb', style: { width: size + 'px', height: size + 'px' } }, (e.label || '?').charAt(0))
   }
@@ -620,8 +649,120 @@ export class KnowledgeMapOverlay {
     })
   }
 
+  // ── DUNGEON LOG tab ─────────────────────────────────────────────
+  // The live feed, relocated from the right HUD column. Rows come from
+  // RightPanels (the recorder) via _logRows; it now holds up to 200 entries
+  // (the old full-run overlay + its button were removed 2026-06-20 — the longer
+  // in-tab feed replaces them).
+  // Built to match the sibling tabs: reuses the .mp-doc /
+  // .mp-doc-head / .mp-doc-main crypt-console chrome (so it reads identically),
+  // with a readable-width scrolling FEED on the left + a "tonight's tally" side
+  // panel on the right. Log-specific bits are inline-styled (the .mp-* CSS is
+  // the parallel session's styles.css — kept untouched).
+  _renderLog() {
+    const tree = h('div', { className: 'mp-doc' }, [
+      h('div', { className: 'mp-doc-head' }, [
+        h('span', { className: 'mp-doc-h-l' }, '✎ DUNGEON LOG'),
+        h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', marginLeft: 'auto' } }, [
+          h('span', { className: 'llive' }, [ h('span', { className: 'i' }), 'LIVE' ]),
+        ]),
+      ]),
+      // The feed + tally live in this container; _repaintLog swaps just these two
+      // on a live log event (not the whole tray), so updates are smooth/cheap.
+      h('div', {
+        className: 'mp-doc-main',
+        ref: el => { this._logMainEl = el },
+      }, [ this._buildLogFeed(), this._renderTally() ]),
+    ])
+    // Opening the tab pins to the newest entry.
+    this._applyFeedScroll('bottom')
+    return tree
+  }
+
+  // The scrolling feed column. Scroll position is owned by _applyFeedScroll
+  // (pin-to-newest vs. stay-put-when-scrolled-up), not set here.
+  _buildLogFeed() {
+    const rows = this._logRows || []
+    return h('div', {
+      className: 'mp-logfeed',
+      style: {
+        flex: '1 1 auto', minWidth: '0', minHeight: '0', display: 'flex', flexDirection: 'column',
+        gap: '1px', overflowY: 'auto', padding: '10px 12px',
+      },
+      ref: el => { this._logFeedEl = el },
+    }, rows.length
+      ? rows.map((r, i) => buildLogRowEl(r, i >= rows.length - 3))
+      : [ h('div', {
+            style: { color: 'var(--text-mute)', fontSize: '12px', padding: '8px 2px', lineHeight: '1.6' },
+          }, 'No events yet — the log fills as the night and day unfold.') ])
+  }
+
+  // Apply the feed's scroll AFTER it's (re)built + attached (rAF, so scrollHeight
+  // is valid). target: 'bottom' pins to the newest entry; a number restores that
+  // exact scrollTop.
+  _applyFeedScroll(target) {
+    const el = this._logFeedEl
+    if (!el) return
+    requestAnimationFrame(() => {
+      if (!el.isConnected) return
+      el.scrollTop = target === 'bottom' ? el.scrollHeight : target
+    })
+  }
+
+  // Smooth LIVE update: when a log event arrives while the tab is open, rebuild
+  // ONLY the feed + tally — not the whole tray (which would recompute the map
+  // intel and flicker). Throttled to one/frame from _onLogUpdated.
+  //
+  // Scroll discipline: if the player is already at (within STICK_PX of) the
+  // bottom, keep pinning to the newest entry; if they've scrolled UP to read
+  // history, leave them put (restore the prior scrollTop).
+  _repaintLog() {
+    const main = this._logMainEl
+    if (!main || !main.isConnected) return
+    const STICK_PX = 48
+    const old = this._logFeedEl
+    const atBottom = !old || (old.scrollHeight - old.scrollTop - old.clientHeight) <= STICK_PX
+    const prevTop = old ? old.scrollTop : 0
+    main.replaceChildren(this._buildLogFeed(), this._renderTally())
+    this._applyFeedScroll(atBottom ? 'bottom' : prevTop)
+  }
+
+  // The "tonight's tally" side panel — the run's running counts, glyph-coded with
+  // the same LOG_KINDS colours as the feed. Reads gameState.run.totals.
+  _renderTally() {
+    const t = this._gameState?.run?.totals ?? {}
+    const day = this._gameState?.meta?.dayNumber ?? 1
+    const pacts = (this._gameState?.history?.pacts ?? []).length
+    const stat = (kind, label, value) => {
+      const meta = LOG_KINDS[kind] || LOG_KINDS.info
+      return h('div', { style: {
+        display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 2px',
+        borderBottom: '1px solid var(--line-2, rgba(255,255,255,0.06))',
+      } }, [
+        h('span', { className: 'pix', style: { color: meta.color, textShadow: `0 0 5px ${meta.color}`, width: '14px', textAlign: 'center', fontSize: '12px' } }, meta.glyph),
+        h('span', { style: { flex: '1 1 auto', color: 'var(--text-mute)', fontSize: '11px', letterSpacing: '0.4px', textTransform: 'uppercase' } }, label),
+        h('span', { className: 'pix', style: { color: meta.color, fontSize: '13px', fontWeight: 'bold' } }, String(value)),
+      ])
+    }
+    return h('div', { style: {
+      flex: '0 0 224px', minWidth: '0', display: 'flex', flexDirection: 'column',
+      padding: '10px 14px', overflowY: 'auto',
+      borderLeft: '1px solid var(--line-2, rgba(255,255,255,0.10))',
+      background: 'rgba(0,0,0,0.18)',
+    } }, [
+      h('div', { className: 'mp-doc-h-l', style: { marginBottom: '6px', fontSize: '11px', opacity: 0.85 } }, `TALLY · DAY ${day}`),
+      stat('kill',        'Slain',        t.advsKilled ?? t.kills ?? 0),
+      stat('flee',        'Escaped',      t.advsEscaped ?? 0),
+      stat('minion-lost', 'Minions lost', t.minionsLost ?? 0),
+      stat('gold',        'Gold earned',  t.gold ?? 0),
+      stat('steal',       'Gold lost',    t.goldLost ?? 0),
+      stat('pact',        'Pacts sealed', pacts),
+    ])
+  }
+
   destroy() {
     EventBus.off('OPEN_KNOWLEDGE_MAP', this._listener)
+    EventBus.off('DUNGEON_LOG_UPDATED', this._onLogUpdated)
     this._overlay?.close()
     this._overlay = null
   }
