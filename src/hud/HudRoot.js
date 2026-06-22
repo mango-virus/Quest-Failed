@@ -392,6 +392,17 @@ export class HudRoot {
       }
     }
 
+    // The boss — its live body in the throne room. Bigger hit radius for the
+    // scale-2 sprite. Checked before rooms so it wins over the boss-chamber tile.
+    const boss = gs.boss
+    if (boss && (boss.worldX != null || boss.tileX != null)) {
+      const bx = boss.worldX ?? (boss.tileX * TS + TS / 2)
+      const by = boss.worldY ?? (boss.tileY * TS + TS / 2)
+      if (Math.hypot(wx - bx, wy - by) <= R * 2) {
+        return { kind: 'boss', entity: boss, key: 'boss' }
+      }
+    }
+
     for (const r of (gs.dungeon?.rooms ?? [])) {
       if (r.definitionId === 'boss_chamber') continue   // too large — skip
       if (tx >= r.gridX && tx < r.gridX + r.width &&

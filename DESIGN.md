@@ -4049,3 +4049,33 @@ not a base behavior. The `starter_guard_post` room still promotes its occupants 
 
 Implementation: `src/data/minionTypes.json` behaviorType per minion (roam 27 / home 25 / patrol 12);
 wander-scope + engagement-scope + return-home in `MinionAISystem` driven off the 3 types.
+
+---
+
+## Hover-inspector redesign (2026-06-21) — LOCKED SPEC (verbatim)
+
+Scrap the current hover popups (`InspectPopup`) and redesign them to **better match
+the current in-game UI look** (crypt-console HUD). Per-type fields the hover must show
+(user's exact wording):
+
+- **Minions:** name, tier number, HP, Attack, the name of its ability/abilities, and a
+  very brief description of what its ability does. Description generic — only state what
+  the ability does.
+- **Adventurers:** name, level, hp, attack, class, personality type, the name of its
+  ability/abilities, and a very brief description of what its ability does (generic).
+- **Items:** item name, what it does as an item (very brief, generic — only what it does).
+- **Traps:** trap name, how much damage it does, what it does as a trap (very brief, generic).
+- **Rooms:** room name, what it does as a room (very brief, generic — what it does / the
+  benefit the player gets).
+- **Bosses:** name, level, ascension tier, hp, attack, the name of its ability/abilities
+  **(NOT the active day ability)**, and a very brief description of what its ability does (generic).
+
+**Decisions (user, 2026-06-21):** (1) AUTHOR NEW generic ability one-liners for minions +
+bosses (don't reuse the verbose build-menu strings). (2) ADD a boss hover (none exists
+today — new HudRoot hit-test + content). Boss "abilities (not day-active)" = the throne-fight
+signature + passive mechanics, excluding any mechanic tagged "(day active)". (3) Mock up ONE
+type first for visual sign-off, then apply to all.
+
+**Acceptance checklist:** ☐ minion fields ☐ adventurer fields ☐ item fields ☐ trap fields
+☐ room fields ☐ boss fields+hover ☐ generic ability lines authored (minions+bosses)
+☐ visual matches in-game crypt HUD ☐ verified on-screen.

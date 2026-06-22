@@ -21,6 +21,8 @@ import { minionAbilityInfo } from '../systems/MinionAbilities.js'
 import { ABILITY_DEFS } from '../systems/ClassAbilitySystem.js'
 import { passiveIncomeMul } from '../config/balance.js'
 import { hasActiveLibrary, hasClassIntel } from './wavePreview.js'
+import { MINION_HOVER_ABILITIES, BOSS_HOVER_ABILITIES } from '../data/hoverAbilities.js'
+import { ascensionInfo } from '../config/acts.js'
 
 const STAT_LABEL = { attack: 'ATK', defense: 'DEF', maxHp: 'MAX HP', speed: 'SPD' }
 
@@ -34,47 +36,9 @@ const CAT_COLOR = {
   item:       'var(--gold-bright)',
   placed:     'var(--info)',
   trap:       'var(--rumor)',
+  boss:       'var(--blood-glow)',
 }
 
-// Friendly one-line descriptions of each AI goal type, shown on the
-// adventurer hover panel. Unmapped types fall back to a humanized form
-// of the raw goal id (lower-case, underscores → spaces).
-const GOAL_LABELS = {
-  SEEK_BOSS:         'Hunting the boss',
-  AT_BOSS:           'Fighting the boss',
-  EXPLORE_ROOM:      'Exploring the dungeon',
-  HUNT_PHYLACTERY:   'Seeking the phylactery',
-  CHARM_WALK:        'Charmed',
-  SEEK_VENDETTA:     'Out for vengeance',
-  FOLLOW_LEADER:     'Following the leader',
-  ATTACK_ALLY:       'Attacking an ally',
-  FLEE:              'Fleeing the dungeon',
-  TACTICAL_RETREAT:  'Retreating',
-  WANDER:            'Wandering',
-  SEEK_TREASURE:     'Going for treasure',
-  ESCAPE_WITH_LOOT:  'Escaping with loot',
-  SEEK_HEAL:         'Looking for healing',
-  SEEK_KEY_CHEST:    'Searching for a key',
-  OPEN_LOCKED_DOOR:  'Working a locked door',
-  LOOT_CORPSE:       'Looting a corpse',
-}
-
-function advGoalLabel(adv) {
-  if (adv?.aiState === 'dead') return 'Slain'
-  const type = adv?.goal?.type
-  if (!type) return 'Idle'
-  return GOAL_LABELS[type] ?? String(type).toLowerCase().replace(/_/g, ' ')
-}
-
-// Nerve mood (AI overhaul) — band name + the 0–100 nerve value. NerveSystem
-// seeds nerve on its first tick, so an adv inspected pre-seed reads "—".
-const MOOD_LABELS = { bold: 'Bold', steady: 'Steady', wary: 'Wary', spooked: 'Spooked', breaking: 'Breaking' }
-function advMoodLabel(adv) {
-  if (adv?.aiState === 'dead') return '—'
-  if (!adv?._nerveSeeded || adv?.nerve == null) return '—'
-  const band = MOOD_LABELS[adv.mood] ?? 'Steady'
-  return `${band} (${Math.round(adv.nerve)})`
-}
 
 // ABILITY_DEFS keys are prefixed by a short class tag, not the full
 // classId — map classId → prefix so the hover panel can list a class's
@@ -151,12 +115,16 @@ export class InspectPopup {
     }
     this._hide()
     this._key = key
+    const kicker = this._kicker(kind, entity, defId)
     this._el = h('div', {
       className: 'qf-inspect',
       style: { '--cat-color': CAT_COLOR[kind] || 'var(--line-bright)' },
     }, [
-      h('div', { className: 'pix qf-inspect-name' }, this._title(kind, entity, defId)),
-      ...this._content(kind, entity, defId),
+      h('div', { className: 'qf-inspect-head' }, [
+        h('div', { className: 'qf-inspect-name' }, this._title(kind, entity, defId)),
+        kicker ? h('div', { className: 'qf-inspect-kicker', dataset: kicker.tier ? { tier: String(kicker.tier) } : {} }, kicker.text) : null,
+      ].filter(Boolean)),
+      h('div', { className: 'qf-inspect-body' }, this._content(kind, entity, defId)),
     ])
     document.body.appendChild(this._el)
     this._position(x, y)
@@ -209,7 +177,7 @@ export class InspectPopup {
     return false
   }
 
-  // ── Content (footer-style: stat boxes + flavor + ability lines) ────
+  // ── Content (crypt-console redesign: stat chips + ability list) ────
   _content(kind, entity, defId) {
     let parts = []
     if      (kind === 'room')       parts = this._roomContent(entity)
@@ -218,7 +186,24 @@ export class InspectPopup {
     else if (kind === 'item')       parts = this._itemContent(entity)
     else if (kind === 'placed')     parts = this._placedContent(defId, entity)
     else if (kind === 'trap')       parts = this._trapContent(entity, defId)
+    else if (kind === 'boss')       parts = this._bossContent(entity)
     return parts.filter(Boolean)
+  }
+
+  // Right-side header chip → { text, tier? }. tier (1–4) colour-codes the chip as
+  // a rarity ramp (steel → blue → purple → gold). Level chips carry no tier.
+  _kicker(kind, entity, defId) {
+    if (kind === 'minion') {
+      if (entity._revivedAdv) return { text: `LV ${this._int(entity._raisedLevel ?? entity.level ?? 1)}` }
+      const tier = this._minionTierNum(entity)
+      return { text: `TIER ${tier}`, tier }
+    }
+    if (kind === 'adventurer') {
+      if (entity._shadowMonarch || entity.classId === 'shadow_monarch') return { text: 'LV ∞' }
+      return { text: `LV ${this._int(entity.displayLevel ?? entity.level ?? 1)}` }
+    }
+    if (kind === 'boss') return { text: `LV ${this._int(entity.level ?? 1)}` }
+    return null
   }
 
   _statsGrid(boxes) {
@@ -229,50 +214,55 @@ export class InspectPopup {
       className: 'qf-inspect-stats',
       style: { gridTemplateColumns: `repeat(${boxes.length}, 1fr)` },
     }, boxes.map(([label, value]) => h('div', { className: 'qf-inspect-stat' }, [
-      h('div', { className: 'pix qf-inspect-stat-label' }, label),
-      // The ∞ glyph isn't in the pixel font, so the `pix` class renders it as
-      // a tiny fallback. Drop `pix` for it and size it up so it reads clearly.
-      disp(value) === '∞'
-        ? h('div', { className: 'qf-inspect-stat-value', style: { fontSize: '22px', lineHeight: '1', fontWeight: 'bold' } }, '∞')
-        : h('div', { className: 'pix qf-inspect-stat-value' }, disp(value)),
+      h('div', { className: 'qf-inspect-stat-label' }, label),
+      h('div', { className: 'qf-inspect-stat-value' + (disp(value) === '∞' ? ' inf' : '') }, disp(value)),
     ])))
   }
 
-  _descLine(text) {
-    return h('div', { className: 'qf-inspect-desc' }, text)
+  _descLine(text, locked = false) {
+    return h('div', { className: 'qf-inspect-desc' + (locked ? ' qf-inspect-locked' : '') }, text)
   }
 
   // Never show decimals in player-facing numbers — round, pass non-numbers
   // (e.g. the '?' fallback) through untouched.
   _int(v) { return Number.isFinite(v) ? Math.round(v) : v }
 
-  // Tagged ABILITY / BEHAVIOR lines — same shape as the construction
-  // footer's ability block.
-  _abilityLines(definitionId) {
-    const info = minionAbilityInfo(definitionId)
-    if (!info) return null
-    return this._abilityBlock(info.ability, info.behavior)
+  // Ability list — each entry is a coloured NAME over a brief generic one-liner.
+  // `abilities` = [{ name, desc }]. `divided` adds a top rule (separates it from
+  // the labeled lines above, e.g. on the adventurer panel).
+  _abilityList(abilities, divided = false) {
+    const list = (abilities || []).filter(a => a && a.name)
+    if (!list.length) return null
+    return h('div', { className: 'qf-inspect-abilities' + (divided ? ' divided' : '') },
+      list.map(ab => h('div', { className: 'qf-inspect-ability' }, [
+        h('div', { className: 'qf-inspect-ability-name' }, String(ab.name)),
+        ab.desc ? h('div', { className: 'qf-inspect-ability-desc' }, ab.desc) : null,
+      ].filter(Boolean))))
   }
 
-  // Render an ABILITY / BEHAVIOR block from explicit strings.
-  _abilityBlock(ability, behavior) {
-    const line = (tag, text) => h('div', { className: 'qf-inspect-ability' }, [
-      h('span', { className: 'pix qf-inspect-ability-tag' }, tag),
-      h('span', { className: 'qf-inspect-ability-text' }, text),
-    ])
-    return h('div', { className: 'qf-inspect-abilities' }, [
-      ability  && line('ABILITY',  ability),
-      behavior && line('BEHAVIOR', behavior),
-    ])
+  // Labeled rows (CLASS / PERSONALITY) — `rows` = [[tag, value], …].
+  _labeledLines(rows) {
+    const valid = (rows || []).filter(([, v]) => v != null && v !== '')
+    if (!valid.length) return null
+    return h('div', { className: 'qf-inspect-lines' }, valid.map(([tag, val]) =>
+      h('div', { className: 'qf-inspect-line' }, [
+        h('div', { className: 'qf-inspect-line-tag' }, tag),
+        h('div', { className: 'qf-inspect-line-val' }, val),
+      ])))
+  }
+
+  // Extract a clean ability NAME from a longer "Name — blurb" / "Name (note)"
+  // string (used for the boss-ability fallback off bossArchetypes.json).
+  _cleanAbilityName(text) {
+    const s = String(text || '')
+    const i = s.search(/\s[—(]/)
+    return (i > 0 ? s.slice(0, i) : s).trim()
   }
 
   _roomContent(room) {
     const def = this._roomDef(room)
-    const boxes = []
-    if (room.width && room.height) boxes.push(['SIZE', `${room.width}×${room.height}`])
-    boxes.push(['STATUS', room.isActive === false ? 'OFF' : 'ACTIVE'])
     return [
-      this._statsGrid(boxes),
+      room.isActive === false ? this._descLine('⊘ OFFLINE — not connected to the dungeon.', true) : null,
       def?.description ? this._descLine(def.description) : null,
     ]
   }
@@ -284,35 +274,47 @@ export class InspectPopup {
     if (m._revivedAdv) return this._revivedAdvContent(m)
     const hp    = m.resources?.hp ?? m.stats?.hp ?? '?'
     const maxHp = m.resources?.maxHp ?? hp
-    const boxes = [
-      ['TIER', this._minionTier(m)],
-      ['HP',   `${this._int(hp)}/${this._int(maxHp)}`],
-      ['ATK',  m.stats?.attack ?? '?'],
-      // Minions scale to the BOSS level (m.bossLevel); the per-minion XP level
-      // was removed 2026-05-29.
-      ['LV',   m.bossLevel ?? 1],
-    ]
-    const def = this._minionDef(m)
-    // Converted thralls share the vampire_minion1 def but roam in the open
-    // — override the def's "Sleep on Ceiling" behavior text so the panel
-    // doesn't claim it's invisible when it is plainly visible and wandering.
+    // Converted thralls share the vampire_minion1 def but roam in the open — give
+    // them their own ability line rather than the base def's.
     const abilities = m._isVampireThrall
-      ? this._abilityBlock(
-          'Bloodthirst — heals for 50% of damage dealt.',
-          'Roams the dungeon, hunting any intruders it crosses.',
-        )
-      : this._abilityLines(m.definitionId)
+      ? [{ name: 'Bloodthirst', desc: 'Heals itself for part of the damage it deals.' }]
+      : (MINION_HOVER_ABILITIES[m.definitionId] || this._fallbackMinionAbilities(m))
     return [
       this._reinforcementBadge(m),
-      this._statsGrid(boxes),
-      def?.description ? this._descLine(def.description) : null,
-      abilities,
+      this._statsGrid([
+        ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
+        ['ATK', m.stats?.attack ?? '?'],
+      ]),
+      this._abilityList(abilities),
     ]
+  }
+
+  // Until a family's generic lines are authored in hoverAbilities.js, parse the
+  // existing MINION_ABILITY_INFO "Name — blurb" string into one {name, desc}.
+  _fallbackMinionAbilities(m) {
+    const info = minionAbilityInfo(m.definitionId)
+    if (!info?.ability) return null
+    const i = info.ability.indexOf(' — ')
+    return [{
+      name: i > 0 ? info.ability.slice(0, i).trim() : 'Ability',
+      desc: i > 0 ? info.ability.slice(i + 3).trim() : info.ability.trim(),
+    }]
+  }
+
+  _minionTierNum(m) {
+    const id     = m?.definitionId
+    const chains = this._cachedJson('minionEvolutions') ?? {}
+    for (const data of Object.values(chains)) {
+      const chain = data?.chain
+      if (Array.isArray(chain)) { const i = chain.indexOf(id); if (i !== -1) return i + 1 }
+    }
+    const def = this._minionDef(m)
+    return def?.tier || 1
   }
 
   // The Undying Court — hover content for a revived adventurer minion: reads as
   // the risen hero (class, carried combat profile + abilities), not the skeleton
-  // base def it's rendered on.
+  // base def it's rendered on. (Level shows in the header kicker.)
   _revivedAdvContent(m) {
     const cls = (this._cachedJson('adventurerClasses') ?? []).find(x => x.id === m._raisedClassId)
     const className = cls?.name || (m._raisedClassId
@@ -320,21 +322,20 @@ export class InspectPopup {
       : 'Adventurer')
     const hp    = m.resources?.hp ?? '?'
     const maxHp = m.resources?.maxHp ?? hp
-    const boxes = [
-      ['LV',  m._raisedLevel ?? m.level ?? 1],
-      ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
-      ['ATK', m.stats?.attack ?? '?'],
-      ['DEF', m.stats?.defense ?? 0],
-    ]
     const labels = revivedAbilityLabels(m._raisedClassId)
     return [
       h('div', { className: 'qf-inspect-reinf' }, [
         h('span', { className: 'qf-inspect-reinf-icon' }, '⚰'),
         `RISEN ${className.toUpperCase()}`,
       ]),
-      this._statsGrid(boxes),
-      this._descLine(`A fallen ${className} raised by The Undying Court — an undead minion that keeps its class’s abilities. Sells for nothing.`),
-      labels ? this._abilityBlock(labels, 'Fights for the dungeon as its class.') : null,
+      this._statsGrid([
+        ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
+        ['ATK', m.stats?.attack ?? '?'],
+        ['DEF', m.stats?.defense ?? 0],
+      ]),
+      labels
+        ? this._abilityList([{ name: 'Risen Hero', desc: `Fights for you, keeping its ${className} abilities: ${labels}.` }])
+        : this._descLine(`A fallen ${className} raised to fight for the dungeon.`),
     ]
   }
 
@@ -363,70 +364,41 @@ export class InspectPopup {
     if (!hasClassIntel(this._gs, def)) return this._advLockedContent(cls)
     const hp    = a.resources?.hp ?? a.stats?.hp ?? '?'
     const maxHp = a.resources?.maxHp ?? hp
-    const boxes = [
-      // Jinwoo's level reads as ∞ (flavour only — his real level is untouched).
-      ['LV',  (a._shadowMonarch || a.classId === 'shadow_monarch') ? '∞' : (a.displayLevel ?? a.level ?? 1)],
-      ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
-      ['ATK', a.stats?.attack ?? '?'],
-    ]
-    const flavor = def?.flavorText || def?.description || ''
     return [
-      this._statsGrid(boxes),
-      flavor ? this._descLine(flavor) : null,
-      this._advLines(a, cls),
-      this._advAbilityBlock(def),
+      this._statsGrid([
+        ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
+        ['ATK', a.stats?.attack ?? '?'],
+      ]),
+      this._labeledLines([
+        ['CLASS',       cls],
+        ['PERSONALITY', this._personalityNames(a) || '—'],
+      ]),
+      this._advAbilityList(def),
     ]
   }
 
-  // Locked hover for a class whose intel isn't unlocked yet. Shows the class
-  // identity + a notice that tells the player how to unlock it (build a
-  // Library, or defeat one of this class this run).
+  // Locked hover for a class whose intel isn't unlocked yet — class identity +
+  // how to unlock it (build a Library, or defeat one of this class this run).
   _advLockedContent(cls) {
     const notice = hasActiveLibrary(this._gs)
       ? `Defeat a ${cls} this run to study its stats and abilities.`
       : 'Build a Library of Whispers to study the fallen.'
     return [
-      h('div', { className: 'qf-inspect-abilities' }, [
-        h('div', { className: 'qf-inspect-ability' }, [
-          h('span', { className: 'pix qf-inspect-ability-tag' }, 'CLASS'),
-          h('span', { className: 'qf-inspect-ability-text' }, cls),
-        ]),
-      ]),
-      h('div', { className: 'qf-inspect-desc qf-inspect-locked' }, `⊘ INTEL LOCKED — ${notice}`),
+      this._labeledLines([['CLASS', cls]]),
+      this._descLine(`⊘ INTEL LOCKED — ${notice}`, true),
     ]
   }
 
-  // Tagged CLASS / PERSONALITY / MOOD / GOAL lines — same row style
-  // as the minion panel's ABILITY / BEHAVIOR block. (The structured
-  // ability list renders separately in _advAbilityBlock.)
-  _advLines(a, cls) {
-    const line = (tag, text) => h('div', { className: 'qf-inspect-ability' }, [
-      h('span', { className: 'pix qf-inspect-ability-tag' }, tag),
-      h('span', { className: 'qf-inspect-ability-text' }, text),
-    ])
-    return h('div', { className: 'qf-inspect-abilities' }, [
-      line('CLASS',       cls),
-      line('PERSONALITY', this._personalityNames(a)   || '—'),
-      line('MOOD',        advMoodLabel(a)),
-      line('GOAL',        advGoalLabel(a)),
-    ])
-  }
-
-  // Structured per-class ability list (name + what it does) — the new intel
-  // section. Reads adventurerClasses.json's `abilities` array; falls back to
-  // the ClassAbilitySystem labels for any class without authored copy.
-  _advAbilityBlock(def) {
+  // Per-class abilities (name + brief desc) from adventurerClasses.json's
+  // `abilities`; falls back to the ClassAbilitySystem labels for classes that
+  // have no authored copy.
+  _advAbilityList(def) {
     const abilities = Array.isArray(def?.abilities) ? def.abilities : []
-    if (!abilities.length) {
-      const labels = advAbilityLabels(def?.id)
-      if (!labels) return null
-      return this._abilityBlock(labels, null)
+    if (abilities.length) {
+      return this._abilityList(abilities.map(ab => ({ name: ab.name, desc: ab.desc })), true)
     }
-    return h('div', { className: 'qf-inspect-abilities qf-inspect-kit' },
-      abilities.map(ab => h('div', { className: 'qf-inspect-ability' }, [
-        h('span', { className: 'pix qf-inspect-ability-tag' }, String(ab.name || '').toUpperCase()),
-        h('span', { className: 'qf-inspect-ability-text' }, ab.desc || ''),
-      ])))
+    const labels = advAbilityLabels(def?.id)
+    return labels ? this._abilityList([{ name: labels, desc: '' }], true) : null
   }
 
   _personalityNames(a) {
@@ -441,8 +413,9 @@ export class InspectPopup {
     const label = STAT_LABEL[stat] ?? String(stat).toUpperCase()
     const amt   = p.buff?.amount
     return [
-      this._statsGrid([['GRANTS', amt != null ? `+${amt} ${label}` : `+${label}`]]),
-      this._descLine('Dropped loot. An adventurer who picks it up gains a permanent stat boost.'),
+      this._descLine(amt != null
+        ? `Dropped loot. An adventurer who grabs it permanently gains +${amt} ${label}.`
+        : `Dropped loot. An adventurer who grabs it gains a permanent ${label} boost.`),
     ]
   }
 
@@ -482,17 +455,59 @@ export class InspectPopup {
     ]
   }
 
-  // Placed trap — resolved from trapTypes.json (currently empty, so this
-  // gracefully shows nothing until trap content ships).
+  // Placed trap — resolved from trapTypes.json: damage chip + generic description.
   _trapContent(t, defId) {
     const def = this._trapDef(defId)
-    const boxes = []
-    const dmg = t.stats?.damage ?? def?.damage ?? def?.baseStats?.damage
-    if (dmg != null) boxes.push(['DMG', dmg])
-    const parts = []
-    if (boxes.length)     parts.push(this._statsGrid(boxes))
-    if (def?.description) parts.push(this._descLine(def.description))
-    return parts
+    const dmg = t.stats?.damage ?? def?.damage ?? def?.baseDamage ?? def?.baseStats?.damage
+    return [
+      dmg != null ? this._statsGrid([['DAMAGE', dmg]]) : null,
+      def?.description ? this._descLine(def.description) : null,
+    ]
+  }
+
+  // Boss hover — name + level (kicker) + ascension tier + HP/ATK + its abilities
+  // (the throne-fight signature + passive mechanics), EXCLUDING the day-active
+  // ability, each with a brief generic line.
+  _bossContent(b) {
+    const def = this._bossDef(b)
+    const hp    = b.hp ?? b.resources?.hp ?? '?'
+    const maxHp = b.maxHp ?? b.resources?.maxHp ?? hp
+    const atk   = b.attack ?? b.stats?.attack ?? def?.baseFightStats?.attack ?? '?'
+    const asc   = ascensionInfo(this._gs)
+    const tier  = asc ? (asc.tierLabel || asc.label || (asc.tier != null ? `Tier ${asc.tier}` : null)) : null
+    return [
+      this._statsGrid([
+        ['HP',  `${this._int(hp)}/${this._int(maxHp)}`],
+        ['ATK', this._int(atk)],
+      ]),
+      tier ? this._labeledLines([['ASCENSION', tier]]) : null,
+      this._abilityList(this._bossAbilities(b, def), true),
+    ]
+  }
+
+  // Boss abilities for the hover: authored generic lines if present, else derived
+  // from bossArchetypes.json — the throne-fight signature (`headline`) + passive
+  // `mechanics`, dropping any mechanic tagged "(day active)".
+  _bossAbilities(b, def) {
+    const authored = BOSS_HOVER_ABILITIES[def?.id]
+    if (authored?.length) return authored
+    if (!def) return null
+    const out = []
+    if (def.headline?.name) {
+      out.push({ name: this._cleanAbilityName(def.headline.name), desc: def.headline.brief || def.headline.summary || '' })
+    }
+    for (const m of (def.mechanics || [])) {
+      if (/\(day active\)/i.test(m.text || '')) continue
+      out.push({ name: this._cleanAbilityName(m.text), desc: m.brief || '' })
+    }
+    return out
+  }
+
+  _bossDef(b) {
+    // player.bossArchetypeId is sometimes prefixed "the_" (e.g. the_lich); the
+    // JSON ids are not — strip it so the lookup matches.
+    const id = String(b?.archetypeId || b?.definitionId || this._gs?.player?.bossArchetypeId || '').replace(/^the_/, '')
+    return id ? ((this._cachedJson('bossArchetypes') ?? []).find(d => d.id === id) || null) : null
   }
 
   // ── Title ─────────────────────────────────────────────────────────
@@ -506,6 +521,7 @@ export class InspectPopup {
       return (this._itemsDef(defId)?.name || 'Item').toUpperCase()
     }
     if (kind === 'trap')       return (this._trapDef(defId)?.name || 'Trap').toUpperCase()
+    if (kind === 'boss')       return (entity.name || this._bossDef(entity)?.name || 'The Dark Lord').toUpperCase()
     return ''
   }
 
@@ -543,20 +559,6 @@ export class InspectPopup {
   // Mirrors RosterOverlay._tierOf — same logic, kept inline so this
   // module stays self-contained. Fallback to def.tier or T1 for
   // minions outside any evolution chain (mimics, garrison spawns).
-  _minionTier(m) {
-    const id     = m?.definitionId
-    const chains = this._cachedJson('minionEvolutions') ?? {}
-    for (const data of Object.values(chains)) {
-      const chain = data?.chain
-      if (Array.isArray(chain)) {
-        const i = chain.indexOf(id)
-        if (i !== -1) return `T${i + 1}`
-      }
-    }
-    const def = this._minionDef(m)
-    return def?.tier ? `T${def.tier}` : 'T1'
-  }
-
   destroy() {
     EventBus.off('SHOW_INSPECT', this._onShow)
     EventBus.off('HIDE_INSPECT', this._onHide)
