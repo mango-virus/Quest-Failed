@@ -648,6 +648,9 @@ export class TutorialSystem {
     // Dev TEST STAGE — hints off, so they don't pop while testing.
     if (globalThis.__qfDevTestStage) return
     if (!meta.tutorialEnabled) return
+    // The guided first run (coach-marks, Beat 1/2) teaches these visually — don't
+    // also fire the old text popups underneath it. They resume once it ends.
+    if (meta.guidedRunActive) return
     // NOTE: we deliberately do NOT gate on the global
     // `qf.gameplay.tutorials` localStorage key here. That key can be stale
     // 'false' from a previous run's opt-out at the moment the boot's

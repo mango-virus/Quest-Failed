@@ -210,7 +210,11 @@ export class CoachMark {
     if (advance === 'next') {
       bubble.appendChild(h('div', { className: 'qf-cm-row' },
         [h('button', { className: 'qf-cm-next', on: { click: () => finish(true) } }, opts.nextLabel || 'Got it ›')]))
-    } else if (advance === 'tap') {
+    } else if (advance === 'tap' || advance === 'hold') {
+      // 'tap' advances when the target is clicked (listener bound in layout()).
+      // 'hold' shows the same hint but binds NO listener — the caller keeps the
+      // spotlight up through a multi-step action and dismisses it externally
+      // (CoachMark.hide()) once a game event confirms the action.
       bubble.appendChild(h('div', { className: 'qf-cm-row' }, [h('span', { className: 'qf-cm-hint' }, opts.hint || 'Try it →')]))
     }
 

@@ -29,6 +29,7 @@ import { PactDetailPopup }     from './PactDetailPopup.js'
 import { AdvIntelOverlay }      from './AdvIntelOverlay.js'
 import { KnowledgeMapOverlay }  from './KnowledgeMapOverlay.js'
 import { FlipCinematic }        from './FlipCinematic.js'
+import { GuidedRun }            from './GuidedRun.js'
 import { TutorialOverlay }      from './TutorialOverlay.js'
 import { LongGameOverlay }      from './LongGameOverlay.js'
 import { BossLevelUpOverlay }   from './BossLevelUpOverlay.js'
@@ -148,6 +149,7 @@ export class HudRoot {
     this._pauseOverlay   = new PauseOverlay(this._gameState)
     this._confirmPopup   = new ConfirmPopup()
     this._reviveChoicePop = new ReviveChoicePopup()
+    this._guidedRun      = new GuidedRun(this._gameState)   // onboarding Beat 1/2 driver (coach-marks)
     this._rosterOverlay  = new RosterOverlay(this._gameState)
     this._bossOverlay    = new BossOverviewOverlay(this._gameState)
     this._pactDetailPop  = new PactDetailPopup()
@@ -423,6 +425,7 @@ export class HudRoot {
     this._pauseOverlay?.destroy();   this._pauseOverlay = null
     this._confirmPopup?.destroy();   this._confirmPopup = null
     this._reviveChoicePop?.destroy(); this._reviveChoicePop = null
+    this._guidedRun?.destroy();      this._guidedRun = null
     this._rosterOverlay?.destroy();  this._rosterOverlay = null
     this._bossOverlay?.destroy();    this._bossOverlay = null
     this._pactDetailPop?.destroy();  this._pactDetailPop = null
