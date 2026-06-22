@@ -127,6 +127,34 @@ const TRAP_SFX = {
   saw_blade:       'sfx-melee-1',        // saw slash
 }
 
+// Boss SIGNATURE-ability fire events → a fitting dramatic cue. Most of these
+// fired SILENTLY before (only petrify had a sound), so the boss's marquee
+// moments had no audio. Type-matched to existing samples: beholder/lightning →
+// energy beam, lich channel / myconid spores → summon, rituals/charm/fear →
+// the dark-pact sting, physical slams/throws/quakes → boss-attack, vortex →
+// warp. Only ONE boss is active per run, so its ability becomes a consistent
+// "voice". (PACT_BOSS_PETRIFY_FIRED is already wired elsewhere — not here.)
+const BOSS_ABILITY_SFX = {
+  BEHOLDER_GAZE_FIRED:       'sfx-beholder-beam',
+  BEHOLDER_PETRIFY_FIRED:    'sfx-beholder-beam',
+  DEMON_SACRIFICE_FIRED:     'sfx-dark-pact',
+  FINAL_BREATH_TRIGGERED:    'sfx-boss-attack',
+  GNOLL_HUNT_FIRED:          'sfx-boss-attack',
+  GOLEM_EARTHQUAKE_FIRED:    'sfx-boss-attack',
+  LICH_CHANNEL_FIRED:        'sfx-necro-summon',
+  LIZARD_SPIT_FIRED:         'sfx-beholder-beam',
+  MYCONID_SEED_FIRED:        'sfx-necro-summon',
+  ORC_TROPHY_THROW_FIRED:    'sfx-boss-attack',
+  PACT_BOSS_HELLFIRE_FIRED:  'sfx-boss-attack',
+  PACT_BOSS_LIGHTNING_FIRED: 'sfx-beholder-beam',
+  PACT_BOSS_SHOCKWAVE_FIRED: 'sfx-boss-attack',
+  PACT_BOSS_VORTEX_FIRED:    'sfx-teleport',
+  SLIME_SURGE_FIRED:         'sfx-boss-attack',
+  SUCCUBUS_KISS_FIRED:       'sfx-dark-pact',
+  VAMPIRE_RITE_FIRED:        'sfx-dark-pact',
+  WRAITH_TERROR_FIRED:       'sfx-dark-pact',
+}
+
 // ── Window-focus tracking ───────────────────────────────────────────────────
 // SFX fired while the game window/tab is in the background are dropped, not
 // queued. When the page loses focus the browser suspends the WebAudio clock,
@@ -293,6 +321,23 @@ export class SfxSystem {
     // The duel is fully scripted (emits no COMBAT_HIT), so it's silent without
     // wiring its bespoke beats here. `cue` comes from BossSystem._nemSfx.
     on('NEMESIS_DUEL_SFX',             this._onNemesisDuelSfx)
+
+    // ── Boss signature abilities (were mostly silent) ───────────────────
+    // Wire every BOSS_ABILITY_SFX event to a fitting dramatic cue, per-key
+    // rate-limited inside _onBossAbility so a fast passive can't machine-gun.
+    for (const evt of Object.keys(BOSS_ABILITY_SFX)) {
+      on(evt, () => this._onBossAbility(BOSS_ABILITY_SFX[evt]))
+    }
+  }
+
+  // A boss signature ability fired — play its mapped cue, per-key rate-limited
+  // (a boss with a fast-ticking passive shouldn't stack the same sound).
+  _onBossAbility(key) {
+    const now = this._now()
+    if (!this._bossAbilityAt) this._bossAbilityAt = {}
+    if (now - (this._bossAbilityAt[key] ?? 0) < 200) return
+    this._bossAbilityAt[key] = now
+    this._play(key)
   }
 
   // Aldric climax duel — map each scripted beat to a sound. Rapid clash/slash
@@ -501,8 +546,15 @@ export class SfxSystem {
     this._play('sfx-necro-summon')
   }
 
-  _onAbilityTriggered({ abilityId }) {
-    if (abilityId === 'arcane_burst') this._play('sfx-mage-attack')
+  _onAbilityTriggered({ abilityId, adventurer } = {}) {
+    // Only abilities with an UNAMBIGUOUS type-matched sample get a cue here
+    // (others would need their own assets to not mislead). Positional.
+    const sp = this._spatial(adventurer)
+    switch (abilityId) {
+      case 'arcane_burst':  this._play('sfx-mage-attack', undefined, sp); break  // mage blast
+      case 'stunning_palm': this._play('sfx-monk-1',      undefined, sp); break  // monk strike
+      case 'riposte':       this._play('sfx-melee-2',     undefined, sp); break  // melee counter
+    }
   }
 
   _onAllyHealed()    { this._play('sfx-cleric-heal') }
