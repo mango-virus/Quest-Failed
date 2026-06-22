@@ -1734,7 +1734,20 @@ export class NightPhase extends Phaser.Scene {
       // Guard here (not in pointermove) so the preview always tracks the
       // cursor — a pointermove guard was causing the preview tile to never
       // be set on day 2+ if uiSf differed between scene launches.
-      if (p.x < PANEL_W * (this.uiSf ?? 1)) return
+      // A click in the build panel's screen-x strip is normally a HUD
+      // interaction, not a dungeon action. BUT the dungeon can render INTO this
+      // strip when the view is panned/zoomed to the left edge, so a valid room/
+      // item/trap placement (or an armed build tool) whose cursor lands here
+      // must still go through — otherwise far-left placements silently do
+      // nothing (the user sees a green ghost but the click is eaten). Only bail
+      // when the click actually hit an interactive panel widget (a tab / card /
+      // BEGIN DAY button — each owns its own handler, so item selection keeps
+      // working) or when there's no dungeon action to perform.
+      if (p.x < PANEL_W * (this.uiSf ?? 1)) {
+        const hitPanelWidget = !!(gameObjects && gameObjects.length)
+        const dungeonAction  = (this._selected && this._previewValid) || !!this._toolMode
+        if (hitPanelWidget || !dungeonAction) return
+      }
 
       // ── LEGENDARY · The Undying Court ──────────────────────────────────
       // Left-click a glowing fallen hero (present only at night while the pact
