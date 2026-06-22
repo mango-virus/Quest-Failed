@@ -207,12 +207,17 @@ export function snapshotTrap(spriteKey, size = 64, frameIdx = 0) {
 // is self-cleaning: once the canvas has been mounted and later removed (panels
 // re-render), or if it's created but never mounted, it stops itself — so
 // callers can treat the returned `.el` like a plain element.
-function _animateFrames(frames, size, { className, cacheKey, fps = 6 } = {}) {
+function _animateFrames(frames, size, { className, cacheKey, fps = 6, noCrop = false, pad = 0.06 } = {}) {
   if (!frames || frames.length === 0) return null
   const { canvas, ctx } = _makeCanvas(size, size)
   canvas.className = className || 'qf-snap'
-  const crop = _idleUnionCrop(cacheKey || 'anim', frames)
-  const pad    = 0.06
+  // noCrop: draw the FULL frame at a uniform scale (don't tight-crop the content
+  // bounding box) — needed for the weapon (_atk) frames so the BODY renders at the
+  // same scale as the base walk sprite (cropping would blow the body up to fill
+  // the box alongside the oversize weapon). See animatedAdventurerAtk.
+  const crop = noCrop
+    ? { x: 0, y: 0, w: frames[0].sw, h: frames[0].sh }
+    : _idleUnionCrop(cacheKey || 'anim', frames)
   const usable = size * (1 - pad * 2)
   const scale  = Math.min(usable / crop.w, usable / crop.h)
   const drawW  = crop.w * scale
@@ -248,6 +253,12 @@ function _animatedFromAnim(animKey, size, opts = {}) {
     frames.push({ src: fr.source.image, sx: fr.cutX || 0, sy: fr.cutY || 0, sw: fr.cutWidth || fr.width, sh: fr.cutHeight || fr.height })
   }
   return _animateFrames(frames, size, { cacheKey: animKey, fps: anim.frameRate || 6, ...opts })
+}
+
+// Render ANY registered Phaser anim by key (e.g. 'torch-burn'). { el, stop } or null.
+export function animatedFromAnimKey(key, size = 64, opts = {}) {
+  if (!key) return null
+  return _animatedFromAnim(key, size, { className: 'qf-snap', cacheKey: key, ...opts })
 }
 
 // Looping idle boss sprite (`<archId>-idle-down`). { el, stop } or null.
@@ -302,7 +313,7 @@ export function animatedAdventurerAnim(cls, anim = 'walk', dir = 'down', size = 
 export function animatedAdventurerAtk(cls, anim = 'slash', dir = 'right', box = 432, vId = 'v01') {
   if (!cls) return null
   return _animatedFromAnim(`adv-${cls}-${vId}-atk-${anim}-${dir}`, box,
-    { className: 'qf-snap qf-snap-adv-atk', cacheKey: `atk:${cls}:${vId}:${anim}:${dir}` })
+    { className: 'qf-snap qf-snap-adv-atk', cacheKey: `atk:${cls}:${vId}:${anim}:${dir}`, noCrop: true, pad: 0 })
 }
 
 // Tight crop rect for a boss's idle loop — the union of the alpha

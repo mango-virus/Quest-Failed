@@ -17,8 +17,9 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { buildCryptBackdrop } from './menuBackdrop.js'
-import { animatedBossSprite, animatedAdventurer, animatedAdventurerAnim, animatedMinion } from './inGameSnapshot.js'
+import { animatedBossSprite, animatedAdventurer, animatedAdventurerAnim, animatedAdventurerAtk, animatedMinion, animatedFromAnimKey } from './inGameSnapshot.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
+import { requestAdvAtkSheet } from '../scenes/AdventurerAtkLoader.js'
 
 // party: class, attack anim, and whether it's melee (lunges in) or ranged (fires)
 const PARTY = [
@@ -55,15 +56,11 @@ function _injectCss() {
   .qf-fc-pillar::before { content:''; position:absolute; top:0; bottom:0; left:32%; width:48%;
     background: linear-gradient(90deg, rgba(22,15,28,.92), rgba(8,5,14,.96)); box-shadow: 2px 0 0 rgba(0,0,0,.6), inset -3px 0 9px rgba(0,0,0,.6); }
   .qf-fc-dec { position:absolute; image-rendering:pixelated; pointer-events:none; }
-  /* CSS torch: stone sconce + animated flame + warm glow halo */
-  .qf-fc-torch { position:absolute; width:15px; height:34px; z-index:2; border-radius:3px;
-    background: linear-gradient(180deg, rgba(64,46,32,1), rgba(28,19,13,1)); box-shadow: 0 2px 3px rgba(0,0,0,.6); }
-  .qf-fc-torch::before { content:''; position:absolute; left:50%; top:-26px; width:20px; height:34px;
-    background: radial-gradient(circle at 50% 72%, rgba(255,236,150,1), rgba(255,150,46,.92) 48%, rgba(200,60,20,.25) 82%, transparent);
-    border-radius:50% 50% 50% 50%/62% 62% 40% 40%; transform-origin:50% 100%; animation: qf-fc-flame .42s ease-in-out infinite alternate; }
-  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:-44px; width:150px; height:150px; transform:translateX(-50%); border-radius:50%;
-    background: radial-gradient(circle, rgba(255,165,65,.42), rgba(255,140,40,.12) 45%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
-  @keyframes qf-fc-flame { from{ opacity:.82; transform:translateX(-50%) scaleY(.92) } to{ opacity:1; transform:translateX(-50%) scaleY(1.2) } }
+  /* real torch sprite + a warm glow halo behind it */
+  .qf-fc-torch { position:absolute; width:50px; height:56px; z-index:2; }
+  .qf-fc-torch canvas { image-rendering:pixelated; width:100%; height:100%; }
+  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:-22px; width:140px; height:140px; transform:translateX(-50%); border-radius:50%; z-index:-1;
+    background: radial-gradient(circle, rgba(255,165,65,.4), rgba(255,140,40,.12) 45%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
   @keyframes qf-fc-glow { from{ opacity:.7 } to{ opacity:1 } }
   /* floor */
   .qf-fc-ground { position:absolute; left:0; right:0; bottom:0; height:33%; z-index:1; pointer-events:none;
@@ -78,11 +75,6 @@ function _injectCss() {
   .qf-fc-carpet::before { content:''; position:absolute; inset:0; clip-path: polygon(40% 0, 60% 0, 92% 100%, 8% 100%);
     border-left:2px solid rgba(212,166,72,.25); border-right:2px solid rgba(212,166,72,.25); }
   /* ritual pentacle under the throne */
-  .qf-fc-pent { position:absolute; z-index:2; pointer-events:none; opacity:.6;
-    filter: drop-shadow(0 0 16px rgba(200,51,74,.7)) brightness(1.3); transition: opacity .8s, filter .8s;
-    transform-origin:50% 100%; animation: qf-fc-spin 24s linear infinite; }
-  .qf-fc.flipped .qf-fc-pent { opacity:1; filter: drop-shadow(0 0 26px rgba(200,51,74,1)) brightness(1.5); }
-  @keyframes qf-fc-spin { from { transform:translateX(-50%) rotateX(58deg) rotate(0deg); } to { transform:translateX(-50%) rotateX(58deg) rotate(360deg); } }
   /* throne */
   .qf-fc-throne { position:absolute; left:50%; bottom:27%; transform:translateX(-50%); z-index:1; pointer-events:none; width:300px; height:370px; }
   /* gothic pointed-arch back (clip-path silhouette) + gold inlay */
@@ -116,6 +108,11 @@ function _injectCss() {
     transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
   .qf-fc-hero.lunge { transform: translateX(60px) translateY(-6px); }
   .qf-fc-hero canvas, .qf-fc-hero img { image-rendering:pixelated; width:100%; height:100%; object-fit:contain; }
+  /* weapon-attack mode: the 192px _atk sprite (456 box) overflows the slot; the
+     translateY lands its foot (origin 0.617) on the same ground line as the
+     152px walk body. */
+  .qf-fc-hero.atk-mode { overflow: visible; }
+  .qf-fc-hero.atk-mode canvas { width:456px; height:456px; transform: translateY(152px); image-rendering:pixelated; }
   .qf-fc-boss { position:absolute; left:50%; bottom:26%; transform:translateX(-50%) translateY(26px) scale(.94); z-index:4;
     width:300px; height:300px; display:flex; align-items:flex-end; justify-content:center; opacity:0;
     transition: opacity .6s ease, transform .7s ease, filter .7s ease; }
@@ -220,7 +217,6 @@ export class FlipCinematic {
       h('div', { className: 'dais' }),
       h('div', { className: 'back' }),
       h('div', { className: 'recess' }),
-      h('img', { className: 'crest', src: DEC('doom-skull.png'), on: { error: e => e.currentTarget.remove() } }),
       h('div', { className: 'arm l' }), h('div', { className: 'arm r' }),
       h('div', { className: 'seat' }),
     ])
@@ -237,9 +233,9 @@ export class FlipCinematic {
       dec('decor-skel-wall-2.png', { right: '13%', top: '16%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { left: '29%', top: '23%', width: '60px', opacity: .36 }),
       dec('decor-skel-wall-1.png', { right: '30%', top: '24%', width: '60px', opacity: .36 }),
-      // torches flanking the throne (CSS sconce + flame + glow — reliable, visible)
-      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '40%' } }),
-      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '40%' } }),
+      // torches flanking the throne — the REAL animated torch sprite + a glow halo
+      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '38%' } }, [this._torchSprite(50)].filter(Boolean)),
+      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '38%' } }, [this._torchSprite(50)].filter(Boolean)),
       dec('decor-chain-draped.png', { left: '6%', top: '0', width: '70px', opacity: .4 }),
       dec('decor-chain-draped.png', { right: '6%', top: '0', width: '70px', opacity: .4, transform: 'scaleX(-1)' }),
       dec('decor-chain-single-m.png', { left: '46%', top: '0', width: '30px', opacity: .35 }),
@@ -272,7 +268,6 @@ export class FlipCinematic {
       ...buildCryptBackdrop(), setDressing,
       h('div', { className: 'qf-fc-shaft a' }), h('div', { className: 'qf-fc-shaft b' }), h('div', { className: 'qf-fc-shaft c' }), h('div', { className: 'qf-fc-shaft d' }),
       h('div', { className: 'qf-fc-spot' }), h('div', { className: 'qf-fc-ground' }), h('div', { className: 'qf-fc-carpet' }),
-      dec('decor-ritual-pentacle.png', { left: '50%', bottom: '13%', width: '320px' }, 'qf-fc-pent'),
       throne, embers, dust, partyEl, horde, bossSlot, fxLayer, burst,
       h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
@@ -288,6 +283,10 @@ export class FlipCinematic {
 
     this._fillBoss(bossSlot, archId)
     this._heroSlots.forEach(s => this._setHero(s, 'walk', 'right'))
+    // Pre-load the 192px weapon (_atk) sheets for the melee classes so the swing
+    // shows the blade by the assault beat. Uses the active scene's loader.
+    const atkScene = window.__game?.scene?.getScenes?.(true)?.[0] || window.__game?.scene?.getScene?.('Game')
+    if (atkScene) this._heroSlots.forEach(s => { if (s.dataset.melee === '1') { try { requestAdvAtkSheet(atkScene, `adv-${s.dataset.cls}-v01`) } catch {} } })
 
     const at = (ms, fn) => this._timers.push(setTimeout(fn, ms))
     const setLine = (t) => { capLine.textContent = t; capLine.classList.remove('on'); void capLine.offsetWidth; capLine.classList.add('on') }
@@ -318,12 +317,17 @@ export class FlipCinematic {
     const DASH = { knight: '33vw', cleric: '27vw' }
     this._heroSlots.forEach((s, i) => {
       const melee = s.dataset.melee === '1'
-      this._setHero(s, s.dataset.atk, 'right')
-      if (melee) this._timers.push(setTimeout(() => {
-        s.style.transform = `translateX(${DASH[s.dataset.cls] || '29vw'}) translateY(-4px)`
-        this._slashAt(s)
-      }, 120 + i * 120))
-      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), 240 + i * 140))
+      if (melee) {
+        this._timers.push(setTimeout(() => {
+          if (!this._el) return
+          s.style.transform = `translateX(${DASH[s.dataset.cls] || '29vw'}) translateY(-4px)`
+          this._setHeroAtk(s, s.dataset.atk === 'thrust' ? 'thrust' : 'slash', 'right')
+          this._slashAt(s)
+        }, 120 + i * 120))
+      } else {
+        this._setHero(s, s.dataset.atk, 'right')
+        this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), 240 + i * 140))
+      }
     })
     // second flurry — more slashes / shots so it reads as a sustained assault
     this._timers.push(setTimeout(() => { if (!this._el) return; this._heroSlots.forEach((s, i) => {
@@ -362,6 +366,19 @@ export class FlipCinematic {
     this._fxLayer.appendChild(el); void el.offsetWidth; el.classList.add('go'); setTimeout(() => el.remove(), 380)
   }
 
+  // The real animated torch sprite (the 'torch' 43×48 sheet, 6-frame burn loop —
+  // same anim TorchRenderer uses in-game; created here if not yet registered).
+  _torchSprite(size) {
+    const g = window.__game
+    if (!g?.textures?.exists?.('torch')) return null
+    if (!g.anims.exists('torch-burn')) {
+      try { g.anims.create({ key: 'torch-burn', frames: g.anims.generateFrameNumbers('torch', { start: 0, end: 5 }), frameRate: 10, repeat: -1 }) } catch {}
+    }
+    const a = animatedFromAnimKey('torch-burn', size, { fps: 10, noCrop: true, pad: 0.04 })
+    if (a?.stop) this._stopFns.push(a.stop)
+    return a?.el || null
+  }
+
   _fillBoss(slot, archId) {
     if (!archId) return
     const a = animatedBossSprite(archId, 300)
@@ -381,6 +398,23 @@ export class FlipCinematic {
     if (ensureAdventurerBaseSheet(scene, cls, 'v01')) { put(); return }
     scene.load.once(`filecomplete-spritesheet-adv-${cls}-v01`, () => setTimeout(put, 50))
     let tries = 0; const poll = () => { if (!this._el || put() || tries++ > 25) return; setTimeout(poll, 200) }; setTimeout(poll, 300)
+  }
+
+  // Swap a melee hero to the WEAPON-bearing 192px _atk attack sprite (blade
+  // visible). atk-mode CSS sizes (456) + foot-aligns it. Falls back to the base
+  // attack anim if the atk sheet isn't ready / this variant has no oversize weapon.
+  _setHeroAtk(slot, anim, dir) {
+    const cls = slot.dataset.cls
+    const a = animatedAdventurerAtk(cls, anim, dir, 456)
+    if (a?.el) {
+      if (slot._stop) { try { slot._stop() } catch {} }
+      slot._stop = a.stop || null; if (a.stop) this._stopFns.push(a.stop)
+      slot.classList.add('atk-mode')
+      slot.replaceChildren(a.el)
+      return true
+    }
+    this._setHero(slot, anim, dir)
+    return false
   }
 
   _spawnHorde(horde) {
