@@ -392,6 +392,50 @@ level/ascension/pact scaling applies on top. **Caveat:** base *ratios* compress 
 the shared `(base + 15·lvl)·1.20^lvl` curve — a follow-up could add per-archetype scaling
 multipliers (needs `sim:balance`) if sharper high-level identity is wanted.
 
+## Endless meta-game — PROPOSED / FUTURE (explored 2026-06-21, NOT built)
+
+Design exploration the user liked but deliberately parked ("not something I want to implement
+now, but something we will do later"). Three interlocking systems that convert Endless from a
+numeric treadmill into a press-your-luck roguelite meta-game. Addresses STATUS.md's two biggest
+acknowledged gaps (no win/exit in endless; spectator day phase). **Endless-only** (`isActsEnabled
+(gs)===false`); campaign keeps its own act structure. Build from THIS spec when picked up.
+
+**1. Cash-out / "press your luck" loop (the spine).** New persistent run-currency **Infamy**
+(accrues from days survived + kills + difficulty). At milestones (boss tier-ups at Lv 4/7/10, or
+a named "Siege" wave every ~5 days) a **Crossroads** choice fires:
+- *Seal the Dungeon* → run ends VOLUNTARILY, bank 100% Infamy + clean-exit bonus, leaderboard
+  score flagged "sealed".
+- *Delve Deeper* → continue; adventurers take a stacking difficulty step AND Infamy/gold gain a
+  multiplier (this is what dynamically raises Wrath, see #3).
+- Death (boss 3× down) instead of sealing → keep only ~40% Infamy. That gap IS the tension.
+- Infamy spends on a persistent meta-track (a "Dark Throne" tree / boons / cosmetics) in
+  `PlayerProfile` — answers "what did this run earn me?". Touches: PlayerProfile, a Crossroads
+  overlay in the EndOfDay popup queue, Leaderboard (sealed vs died). Effort L; Phase A = the
+  decision + Infamy banking + death penalty, Phase B = the meta-spend tree.
+
+**2. Day-phase "react" layer (fixes spectator day).** A small pool of REACTIVE interventions
+(NOT unit control — keep watch-the-sim identity) on a **Command** resource that refills over the
+day: *Rally* (one-shot send a roaming minion to a tile), *Fear Pulse* (panic a cluster → easy
+kills; rides NerveSystem, cashes out as a player win), *Collapse* (drop a floor tile: dmg+slow),
+*Re-arm/re-aim a trap*. The boss's unique day-active stays its signature; this is the shared
+baseline. Touches: a Command HUD bar (day only), MinionAISystem, NerveSystem, TrapSystem,
+AbilityVfx. Effort M–L. ⚠ Keep it to a few impactful casts (intervention, not RTS micro) — that
+line protects the genre feel.
+
+**3. Hades-style "Wrath" meter (player-authored difficulty).** A summed, toggleable difficulty
+ladder reusing the damned/curse-pact infrastructure as the conditions (e.g. `+1` advs +15% HP,
+`+2` parties a day early, `+3` champion raids 2×, `+1` one fewer minion slot…). Sum = **Wrath
+Level**; higher Wrath → tougher invaders BUT → reward multiplier (gold, Infamy, better pact offers,
+leaderboard prestige). Per-boss Wrath high-score (like Hades per-weapon Heat). Replaces invisible
+auto-scaling with a legible self-set dial. Touches: DungeonMechanicSystem + existing curse effects,
+a Wrath-config UI, Leaderboard. Effort M. ⚠ Keep DISTINCT from the random end-of-day pact draws
+(those stay the build-diversity RNG layer; Wrath = standing player-chosen difficulty).
+
+**They interlock:** Wrath sets stakes → react layer lets you survive them → cash-out banks the run
+(Infamy scaled by Wrath) and Delve-Deeper raises Wrath mid-run. Endless becomes "set your stakes,
+actively defend, choose when to bank." **Suggested build order if picked up: #1 (spine+currency) →
+#3 (cheap once Infamy exists) → #2 (meatiest, most genre-risky).**
+
 ## Older-class ability redesign (2026-06-14)
 
 The 9 "older" adventurer classes (Knight, Bard, Monk, Cleric, Mage, Necromancer, Ranger,
