@@ -438,6 +438,12 @@ drip + companion-as-mentor, (5) day-phase telegraphing (bigger; maybe a general 
 **Hard rules:** ≤8 words/caption; never teach >3 things at once; never teach what isn't usable yet;
 everything skippable; failure never punished while teaching.
 
+**(Removed 2026-06-22):** the old ~42 text-popup tutorials (TutorialSystem → TutorialOverlay) are
+RETIRED at the user's request ("get rid of those completely — the new onboarding is better"). Disabled
+via `TUTORIAL_POPUPS_RETIRED` in `src/systems/TutorialSystem.js` (no popup ever fires). The hint CONTENT
+is left in place, not deleted, so it can be repurposed into contextual coach-marks (Beat 3). The
+coach-mark onboarding (FLIP cinematic + GuidedRun + future Beat-3 coach-marks) is now the only teaching surface.
+
 ## Endless meta-game — PROPOSED / FUTURE (explored 2026-06-21, NOT built)
 
 Design exploration the user liked but deliberately parked ("not something I want to implement

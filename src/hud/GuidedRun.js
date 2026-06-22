@@ -8,8 +8,8 @@
 //                   taught via arm → target → fire. (Beat 2 lands in a follow-up.)
 //
 // Starts only on a genuine first run when the player kept "Show me how to play"
-// checked in the intro. While it runs, meta.guidedRunActive suppresses the old
-// text-popup TutorialSystem so we don't double-teach.
+// checked in the intro. (The old text-popup TutorialSystem is fully retired — see
+// TUTORIAL_POPUPS_RETIRED — so the coach-marks are the only teaching surface.)
 
 import { EventBus }  from '../systems/EventBus.js'
 import { CoachMark } from './CoachMark.js'
@@ -21,9 +21,6 @@ export class GuidedRun {
     this._gameState = gameState
     this._active = false
     this._listeners = []
-    // guidedRunActive is a RUNTIME flag (it gets serialized into meta, so reset it
-    // on every fresh load — a save taken mid-run must not suppress popups forever).
-    if (gameState?.meta) gameState.meta.guidedRunActive = false
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
     sub('INTRO_DISMISSED', (p) => this._maybeStart(p))
   }
@@ -41,7 +38,6 @@ export class GuidedRun {
     this._active = true
     const meta = this._gameState.meta
     meta.guidedRunDone = true          // never nag again (persisted)
-    meta.guidedRunActive = true        // suppress the old text popups while we teach
     await wait(420)                    // let the intro cinematic finish tearing down
     try {
       await this._runBeat1()
@@ -50,7 +46,6 @@ export class GuidedRun {
   }
 
   _end() {
-    if (this._gameState?.meta) this._gameState.meta.guidedRunActive = false
     this._active = false
     CoachMark.hide()
   }

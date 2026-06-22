@@ -13,6 +13,14 @@
 
 import { EventBus } from './EventBus.js'
 
+// ⛔ The old text-popup tutorials are RETIRED (user, 2026-06-22: "get rid of those
+// completely — the new onboarding is better"). The coach-mark onboarding (the FLIP
+// cinematic + GuidedRun + future contextual coach-marks) replaces them. The hint
+// CONTENT below is kept (not deleted) so it can be repurposed into coach-marks
+// later (DESIGN.md Beat 3); this flag just stops every popup from firing. Flip to
+// false only if the text-popup delivery is ever wanted again. See DESIGN.md.
+const TUTORIAL_POPUPS_RETIRED = true
+
 // Phase 1 tutorial set (A + B from the design discussion). Boss-archetype
 // hooks (C) and resource-warning hints (D) layer on later — this keeps
 // the v1 surface focused on what every player needs.
@@ -643,14 +651,12 @@ export class TutorialSystem {
   }
 
   _enqueue(t) {
+    if (TUTORIAL_POPUPS_RETIRED) return   // retired in favour of the coach-mark onboarding
     const meta = this._gameState?.meta
     if (!meta) return
     // Dev TEST STAGE — hints off, so they don't pop while testing.
     if (globalThis.__qfDevTestStage) return
     if (!meta.tutorialEnabled) return
-    // The guided first run (coach-marks, Beat 1/2) teaches these visually — don't
-    // also fire the old text popups underneath it. They resume once it ends.
-    if (meta.guidedRunActive) return
     // NOTE: we deliberately do NOT gate on the global
     // `qf.gameplay.tutorials` localStorage key here. That key can be stale
     // 'false' from a previous run's opt-out at the moment the boot's
