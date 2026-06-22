@@ -131,7 +131,7 @@ export class HudRoot {
     // The radar minimap (old LeftPanels) was removed — its map info now lives
     // in the MAP action-bar popout (KnowledgeMapOverlay) with entity pips.
     this._rightPanels = new RightPanels(this._gameState)
-    this._toastQueue  = new ToastQueue()
+    this._toastQueue  = new ToastQueue(this._gameState)
     // Companion NPC (Lilith or Malakor — per gameState.meta.companionId)
     // peeks into the lower-left of the dungeon view. Pure renderer;
     // NpcDirector (a Game-scene system) drives it.

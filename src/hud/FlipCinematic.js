@@ -135,7 +135,7 @@ function _injectCss() {
     width:300px; height:300px; display:flex; align-items:flex-end; justify-content:center; opacity:0;
     transition: opacity .6s ease, transform .7s ease, filter .7s ease; }
   .qf-fc-boss canvas, .qf-fc-boss img { image-rendering:pixelated; width:100%; height:100%; object-fit:contain; }
-  .qf-fc.bossShown .qf-fc-boss { opacity:1; transform:translateX(-50%) translateY(0) scale(1); filter: drop-shadow(0 8px 10px rgba(0,0,0,.6)); }
+  .qf-fc.bossShown .qf-fc-boss { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
   .qf-fc.bossFell .qf-fc-boss { opacity:.5; transform:translateX(-50%) translateY(40px) scale(.86) rotate(-10deg); filter: grayscale(.7) brightness(.45); transition: all .55s ease .12s; }
   .qf-fc.flipped .qf-fc-boss { opacity:1; bottom:30%; transform:translateX(-50%) translateY(0) scale(1.55);
     filter: drop-shadow(0 0 36px rgba(212,166,72,.85)) drop-shadow(0 0 64px rgba(200,51,74,.5)) brightness(1.14);

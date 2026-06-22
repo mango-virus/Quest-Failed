@@ -92,15 +92,28 @@ const LEGENDARY_TTL = 10000
 const WRAP_STYLE = { 'white-space': 'normal', 'overflow': 'visible', 'text-overflow': 'clip', 'overflow-wrap': 'break-word' }
 
 export class ToastQueue {
-  constructor() {
+  constructor(gameState = null) {
+    this._gameState = gameState
     this._listeners = []
     this._toasts = []  // [{ el, timer }]
+    // Hold toasts while the intro cinematic is up (first run only) so dungeon-view
+    // notifications don't pop over it — buffered, then flushed on INTRO_DISMISSED.
+    this._hold = !gameState?.meta?.introSeen
+    this._pending = []
 
     this.el = h('div', { className: 'qf-toasts' })
     this._wireEvents()
+    const onIntro = () => {
+      this._hold = false
+      const p = this._pending; this._pending = []
+      p.forEach(e => this[e.fn](...e.args))
+    }
+    EventBus.on('INTRO_DISMISSED', onIntro)
+    this._listeners.push(['INTRO_DISMISSED', onIntro])
   }
 
   _push(kind, title, subtitle, opts = {}) {
+    if (this._hold) { this._pending.push({ fn: '_push', args: [kind, title, subtitle, opts] }); return }
     const meta = KIND_STYLE[kind] || KIND_STYLE.info
     const flavor = opts.flavor || null
     // Eyebrow only when a caller supplies one (e.g. legendary's "✦ GOLD ✦").
@@ -195,6 +208,7 @@ export class ToastQueue {
   //                      screen (not just within COALESCE_WINDOW_MS). Used for
   //                      sells, so a later sale merges into the visible card.
   _pushCoalesced(kind, key, baseTitle, baseSubtitle, contextItem, opts = {}) {
+    if (this._hold) { this._pending.push({ fn: '_pushCoalesced', args: [kind, key, baseTitle, baseSubtitle, contextItem, opts] }); return }
     this._coalesce ??= {}
     const now = performance.now()
     const c = this._coalesce[key]
