@@ -1120,6 +1120,10 @@ export class MainMenuOverlay {
   // entrance animations settle first.
   _maybeAutoOpenWhatsNew() {
     if (MainMenuOverlay._whatsNewAutoShown) return
+    // Brand-new player: baseline them to the latest patch so the back-catalogue
+    // of changelog notes never auto-pops — they go straight to the menu →
+    // New Game → Welcome Intro instead of a wall of out-of-context patch notes.
+    WhatsNewOverlay.primeIfFirstRun()
     if (!WhatsNewOverlay.hasUnseen()) return
     if ((PlayerProfile.getPendingUnlocks?.() || []).length > 0) return
     MainMenuOverlay._whatsNewAutoShown = true

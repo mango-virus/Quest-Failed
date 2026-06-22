@@ -40,6 +40,20 @@ export class WhatsNewOverlay {
 
   static hasUnseen() { return WhatsNewOverlay.unseenEntries().length > 0 }
 
+  // A brand-new install has NO SEEN_KEY at all (vs a returning player who has a
+  // number). A first-timer has no prior version to "catch up" from, so
+  // auto-popping the whole back-catalogue of patch notes is confusing noise —
+  // references to systems they've never seen. Silently baseline them to the
+  // latest patch so WHAT'S NEW only ever auto-shows GENUINELY new patches from
+  // here on. Returns true if this was a first run. Idempotent.
+  static primeIfFirstRun() {
+    let raw = null
+    try { raw = localStorage.getItem(SEEN_KEY) } catch {}
+    if (raw != null) return false
+    _setLastSeenId(_latestId())
+    return true
+  }
+
   constructor(opts = {}) {
     this._onClose = opts.onClose ?? null
     // `full` mode (version chip) defaults the selection to the latest patch;
