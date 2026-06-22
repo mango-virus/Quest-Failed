@@ -23,10 +23,10 @@ import { requestAdvAtkSheet } from '../scenes/AdventurerAtkLoader.js'
 
 // party: class, attack anim, and whether it's melee (lunges in) or ranged (fires)
 const PARTY = [
-  { cls: 'knight', glyph: '⚔', atk: 'slash',     melee: true },
-  { cls: 'cleric', glyph: '✚', atk: 'thrust',    melee: true },
-  { cls: 'mage',   glyph: '✦', atk: 'spellcast', melee: false, bolt: 'arcane' },
-  { cls: 'ranger', glyph: '➶', atk: 'shoot',     melee: false, bolt: 'arrow' },
+  { cls: 'knight', glyph: '⚔', atk: 'slash',     melee: true },                    // ONLY melee — charges + swings
+  { cls: 'cleric', glyph: '✚', atk: 'spellcast', melee: false, bolt: 'holy' },     // holds back, CASTS
+  { cls: 'mage',   glyph: '✦', atk: 'thrust',    melee: false, bolt: 'arcane' },   // holds back, staff THRUST
+  { cls: 'ranger', glyph: '➶', atk: 'shoot',     melee: false, bolt: 'arrow' },    // holds back, shoots
 ]
 // random horde pool — diverse swarmy minions across families/tiers
 const HORDE_POOL = ['imp1', 'imp2', 'goblin1', 'goblin2', 'skeleton1', 'skeleton2', 'slime1', 'slime2',
@@ -57,10 +57,10 @@ function _injectCss() {
     background: linear-gradient(90deg, rgba(22,15,28,.92), rgba(8,5,14,.96)); box-shadow: 2px 0 0 rgba(0,0,0,.6), inset -3px 0 9px rgba(0,0,0,.6); }
   .qf-fc-dec { position:absolute; image-rendering:pixelated; pointer-events:none; }
   /* real torch sprite + a warm glow halo behind it */
-  .qf-fc-torch { position:absolute; width:50px; height:56px; z-index:2; }
-  .qf-fc-torch canvas { image-rendering:pixelated; width:100%; height:100%; }
-  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:-22px; width:140px; height:140px; transform:translateX(-50%); border-radius:50%; z-index:-1;
-    background: radial-gradient(circle, rgba(255,165,65,.4), rgba(255,140,40,.12) 45%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
+  .qf-fc-torch { position:absolute; width:60px; height:76px; z-index:2; }
+  .qf-fc-torch canvas { image-rendering:pixelated; width:100%; height:100%; display:block; }
+  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:22px; width:130px; height:130px; transform:translate(-50%,-50%); border-radius:50%; z-index:-1;
+    background: radial-gradient(circle, rgba(255,170,70,.45), rgba(255,140,40,.14) 46%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
   @keyframes qf-fc-glow { from{ opacity:.7 } to{ opacity:1 } }
   /* floor */
   .qf-fc-ground { position:absolute; left:0; right:0; bottom:0; height:33%; z-index:1; pointer-events:none;
@@ -132,6 +132,7 @@ function _injectCss() {
   .qf-fc-proj { position:absolute; z-index:4; pointer-events:none; }
   .qf-fc-proj.arrow { width:26px; height:3px; background: linear-gradient(90deg, transparent, rgba(230,210,170,1)); box-shadow:0 0 5px rgba(230,210,170,.8); }
   .qf-fc-proj.arcane { width:14px; height:14px; border-radius:50%; background: radial-gradient(circle, rgba(190,140,255,1), rgba(120,60,220,.3)); box-shadow:0 0 12px rgba(170,110,255,.9); }
+  .qf-fc-proj.holy { width:15px; height:15px; border-radius:50%; background: radial-gradient(circle, rgba(255,244,200,1), rgba(235,190,90,.35)); box-shadow:0 0 14px rgba(255,210,120,.95); }
   .qf-fc-slash { position:absolute; z-index:5; width:90px; height:90px; pointer-events:none; opacity:0;
     border-top:5px solid rgba(255,255,255,.9); border-right:5px solid rgba(255,255,255,.5); border-radius:50%; transform:rotate(35deg) scale(.5); }
   .qf-fc-slash.go { animation: qf-fc-slash .32s ease-out forwards; }
@@ -226,16 +227,16 @@ export class FlipCinematic {
       dec('decor-banner-sigil.png', { left: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1 }),
       dec('decor-banner-sigil.png', { right: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1, transform: 'scaleX(-1)' }),
       // statues framing
-      dec('decor-statue-l.png', { left: '22%', bottom: '28%', width: '90px', opacity: .55, zIndex: 1 }),
-      dec('decor-statue-l.png', { right: '22%', bottom: '28%', width: '90px', opacity: .55, zIndex: 1, transform: 'scaleX(-1)' }),
+      dec('decor-statue-l.png', { left: '22%', bottom: '31%', width: '90px', opacity: .6, zIndex: 2 }),
+      dec('decor-statue-l.png', { right: '22%', bottom: '31%', width: '90px', opacity: .6, zIndex: 2, transform: 'scaleX(-1)' }),
       // CHAINED WALL SKELETONS (varied) — the macabre throne-room read
       dec('decor-skel-wall-1.png', { left: '12%', top: '17%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { right: '13%', top: '16%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { left: '29%', top: '23%', width: '60px', opacity: .36 }),
       dec('decor-skel-wall-1.png', { right: '30%', top: '24%', width: '60px', opacity: .36 }),
       // torches flanking the throne — the REAL animated torch sprite + a glow halo
-      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '38%' } }, [this._torchSprite(50)].filter(Boolean)),
-      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '38%' } }, [this._torchSprite(50)].filter(Boolean)),
+      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '36%' } }, [this._torchSprite(76)].filter(Boolean)),
+      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '36%' } }, [this._torchSprite(76)].filter(Boolean)),
       dec('decor-chain-draped.png', { left: '6%', top: '0', width: '70px', opacity: .4 }),
       dec('decor-chain-draped.png', { right: '6%', top: '0', width: '70px', opacity: .4, transform: 'scaleX(-1)' }),
       dec('decor-chain-single-m.png', { left: '46%', top: '0', width: '30px', opacity: .35 }),
@@ -355,7 +356,7 @@ export class FlipCinematic {
   }
   _fire(s, kind) {
     const from = this._heroCenter(s), to = this._bossCenter(); if (!from || !to || !this._fxLayer) return
-    const el = h('div', { className: 'qf-fc-proj ' + (kind === 'arrow' ? 'arrow' : 'arcane'), style: { left: from.x + 'px', top: from.y + 'px' } })
+    const el = h('div', { className: 'qf-fc-proj ' + (['arrow', 'arcane', 'holy'].includes(kind) ? kind : 'arcane'), style: { left: from.x + 'px', top: from.y + 'px' } })
     this._fxLayer.appendChild(el)
     requestAnimationFrame(() => { el.style.transition = 'left .26s linear, top .26s linear'; el.style.left = to.x + 'px'; el.style.top = to.y + 'px' })
     setTimeout(() => { this._hit(to.x, to.y); el.remove() }, 270)
@@ -374,7 +375,7 @@ export class FlipCinematic {
     if (!g.anims.exists('torch-burn')) {
       try { g.anims.create({ key: 'torch-burn', frames: g.anims.generateFrameNumbers('torch', { start: 0, end: 5 }), frameRate: 10, repeat: -1 }) } catch {}
     }
-    const a = animatedFromAnimKey('torch-burn', size, { fps: 10, noCrop: true, pad: 0.04 })
+    const a = animatedFromAnimKey('torch-burn', size, { fps: 10 })   // crop-fit so the torch fills the box (not tiny in empty frame space)
     if (a?.stop) this._stopFns.push(a.stop)
     return a?.el || null
   }
@@ -387,6 +388,7 @@ export class FlipCinematic {
 
   _setHero(slot, anim, dir) {
     const cls = slot.dataset.cls; slot.dataset.anim = anim; slot.dataset.dir = dir
+    slot.classList.remove('atk-mode')   // drop the 456px weapon sizing (else the flee/walk sprite goes giant)
     const put = () => {
       if (!this._el) return true
       const a = animatedAdventurerAnim(cls, slot.dataset.anim, slot.dataset.dir, 152) || animatedAdventurer(cls, 152)
