@@ -42,6 +42,10 @@ const PATROL_STUCK_DOOR_MS = 12000   // frozen at a doorway → above the 16× d
 // facing description honestly says "never moves" / "rooted" / "haunts a tile".
 const STATIONARY_DEF_IDS = new Set([])
 
+// Min gap between "FALL BACK" floating labels per minion — stops a wounded
+// minion oscillating in/out of its home tile from spamming the cue.
+const FALLBACK_TEXT_COOLDOWN_MS = 5000
+
 // Night ambient wander (build phase) — gentle: a longer rest between short hops
 // than the day patrol so it reads as calm "alive" idling, not frantic pacing.
 const NIGHT_PAUSE_MS = 2600
@@ -1542,7 +1546,15 @@ export class MinionAISystem {
     if (fragile && !garrison && !stationary && hpFrac < FALLBACK_FRAC && !this._atHome(minion)) {
       if (!minion._fallingBack) {
         minion._fallingBack = true
-        if (Number.isFinite(minion.worldX)) AbilityVfx.floatingText(this._scene, minion.worldX, minion.worldY - 20, 'FALL BACK', { color: '#ffcc44' })
+        // Throttle the label: `_fallingBack` clears the moment the minion
+        // reaches home (or heals), but combat / crowd-nudging keeps knocking a
+        // low-HP minion off its home tile and re-triggering the retreat — which
+        // spammed "FALL BACK" every cycle. Show it at most once per few seconds.
+        const now = this._scene?.time?.now ?? 0
+        if (Number.isFinite(minion.worldX) && now - (minion._fallBackTextAt ?? -1e9) >= FALLBACK_TEXT_COOLDOWN_MS) {
+          minion._fallBackTextAt = now
+          AbilityVfx.floatingText(this._scene, minion.worldX, minion.worldY - 20, 'FALL BACK', { color: '#ffcc44' })
+        }
       }
       minion.aiState = 'returning'
       this._walkAlongPath(minion, { x: minion.homeTileX, y: minion.homeTileY }, delta)

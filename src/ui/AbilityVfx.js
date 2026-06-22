@@ -4262,6 +4262,20 @@ export const AbilityVfx = {
 
   floatingText(scene, x, y, str, opts = {}) {
     if (!_validXY(x, y)) return null
+    // Opt-in spam guard. A caller that re-fires the SAME word on the same entity
+    // every hit (status labels: POISON / SLOWED / BLEEDING / …) passes a stable
+    // `throttleKey` + `throttleMs`; repeats inside that window are dropped so the
+    // word doesn't machine-gun into a column. Damage/heal numbers omit it (every
+    // hit should still show its number).
+    if (opts.throttleKey && opts.throttleMs > 0) {
+      const now = scene?.time?.now ?? 0
+      const map = (this._textThrottle ??= new Map())
+      const last = map.get(opts.throttleKey)
+      if (last != null && (now - last) < opts.throttleMs) return null
+      // Bound the map so a long run's dead-entity keys can't grow without limit.
+      if (map.size > 4000) map.clear()
+      map.set(opts.throttleKey, now)
+    }
     const o = { ...DEFAULTS.text, ...opts }
     const txt = scene.add.text(x, y, str, {
       fontSize: o.fontSize,

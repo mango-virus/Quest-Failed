@@ -242,7 +242,7 @@ export class CombatSystem {
     if (attacker.faction !== 'dungeon') {
       const _dazeMiss = MinionAbilities.dazeMissChance(attacker, now)
       if (_dazeMiss > 0 && Math.random() < _dazeMiss) {
-        AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'MISS', { color: '#b98fd0' })
+        AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, 'MISS', { color: '#b98fd0', throttleKey: `${attacker.instanceId}:MISS`, throttleMs: 1500 })
         EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: target.instanceId, damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false })
         return { hit: false, whiffed: true }
       }
@@ -287,7 +287,7 @@ export class CombatSystem {
     // instantly counter-strike the attacker. Read on the DEFENDER (target) via
     // `_focusActiveUntil` (only the monk sets it).
     if (target._focusActiveUntil && now < target._focusActiveUntil && Math.random() < 0.30) {
-      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'MISS', { color: '#eeeeff' })
+      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'MISS', { color: '#eeeeff', throttleKey: `${target.instanceId}:MISS`, throttleMs: 1500 })
       EventBus.emit('COMBAT_HIT', {
         sourceId: attacker.instanceId, targetId: target.instanceId,
         damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,
@@ -309,7 +309,7 @@ export class CombatSystem {
     // hit is fully negated (no damage, no kill). He cannot attack during the
     // window (gated at the top of tryAttack).
     if (target._blockActiveUntil && now < target._blockActiveUntil) {
-      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'BLOCK', { color: '#ffe08a' })
+      AbilityVfx.floatingText(this._scene, target.worldX ?? 0, (target.worldY ?? 0) - 18, 'BLOCK', { color: '#ffe08a', throttleKey: `${target.instanceId}:BLOCK`, throttleMs: 1500 })
       EventBus.emit('COMBAT_HIT', {
         sourceId: attacker.instanceId, targetId: target.instanceId,
         damage: 0, damageType: attacker.damageType ?? 'physical', isCritical: false,

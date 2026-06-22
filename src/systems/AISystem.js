@@ -3340,7 +3340,13 @@ export class AISystem {
     const wasPanicked = adv._panickedUntil != null && now < adv._panickedUntil
     adv._panickedUntil = now + PANIC_HOLD_MS
     if (!wasPanicked) {
-      EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a terrified cry as they freeze
+      // The panic re-triggers each time the hold lapses while the threat lingers
+      // (~once per 1.2s) — throttle the spoken cry so it doesn't chatter "I can't!"
+      // every cycle. The freeze/VFX still refresh; only the bubble is rate-limited.
+      if (now - (adv._panicSayAt ?? -1e9) >= 6000) {
+        adv._panicSayAt = now
+        EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a terrified cry as they freeze
+      }
       adv._panicVfxAt = 0
     }
     if (now - (adv._panicVfxAt ?? 0) >= PANIC_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {

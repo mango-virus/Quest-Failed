@@ -719,7 +719,7 @@ export const MinionAbilities = {
     target._bleedSource   = attacker.instanceId
     if (scene && Number.isFinite(target.worldX)) {
       AbilityVfx.bleedSlashFx?.(scene, target.worldX, target.worldY, { stacks: target._bleedStacks })
-      AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 24, ab.label ?? 'BLEEDING', { color: '#d23a2a' })
+      this._statusPopup(scene, target, ab.label ?? 'BLEEDING', '#d23a2a', 24)
     }
   },
 
@@ -1846,6 +1846,20 @@ export const MinionAbilities = {
     }
   },
 
+  // Per-hit status label with a built-in anti-spam throttle. These statuses
+  // re-apply on EVERY hit, so without this the word (POISON / SLOWED / ROOTED /
+  // BLEEDING / …) machine-guns into a column over the target. Keyed by
+  // target + word so re-applies refresh silently; shows at most once per ~2.5s.
+  _statusPopup(scene, target, label, color, yOff = 22, fontSize = null) {
+    if (!scene || !Number.isFinite(target?.worldX)) return
+    AbilityVfx.floatingText(scene, target.worldX, (target.worldY ?? 0) - yOff, label, {
+      color,
+      ...(fontSize ? { fontSize } : {}),
+      throttleKey: `${target.instanceId ?? `${target.worldX},${target.worldY}`}:${label}`,
+      throttleMs: 2500,
+    })
+  },
+
   _applyHitAbility(scene, attacker, target, damageDealt, gameState, ab) {
     const now = scene?.time?.now ?? 0
     switch (ab.type) {
@@ -1855,20 +1869,20 @@ export const MinionAbilities = {
           intervalMs: ab.intervalMs ?? 1000, ticksLeft: ab.ticks ?? 3,
           source: attacker.instanceId,
         })
-        if (ab.popup !== false) AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? (ab.element === 'burn' ? 'BURN' : 'POISON'), { color: ab.element === 'burn' ? '#ff7733' : '#88dd44' })
+        if (ab.popup !== false) this._statusPopup(scene, target, ab.label ?? (ab.element === 'burn' ? 'BURN' : 'POISON'), ab.element === 'burn' ? '#ff7733' : '#88dd44')
         break
       case 'slow': {
         const next = now + (ab.durationMs ?? 1500)
         // Keep the strongest (lowest) slow + the latest expiry.
         if (!target._slowUntil || target._slowUntil < next) target._slowUntil = next
         target._slowMult = Math.min(target._slowMult ?? 1, ab.mult ?? 0.6)
-        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'SLOWED', { color: '#66ccee' })
+        this._statusPopup(scene, target, ab.label ?? 'SLOWED', '#66ccee')
         if (Number.isFinite(target.worldX)) AbilityVfx.pulseRing(scene, target.worldX, target.worldY, { color: 0x66ccee, fromR: 6, toR: 16, alpha: 0.7, durationMs: 400 })
         break
       }
       case 'root':
         this._applyRoot(target, scene, ab.durationMs ?? 2000)
-        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'ROOTED', { color: '#559944' })
+        this._statusPopup(scene, target, ab.label ?? 'ROOTED', '#559944')
         if (Number.isFinite(target.worldX)) AbilityVfx.pulseRing(scene, target.worldX, target.worldY, { color: 0x559944, fromR: 6, toR: 18, alpha: 0.8, durationMs: 500 })
         break
       // Plant ENTANGLE — vines cinch a HERO in place (root). Minions are never
@@ -1877,7 +1891,7 @@ export const MinionAbilities = {
         if (target.faction !== 'dungeon') {
           this._applyRoot(target, scene, ab.durationMs ?? 1800)
           if (Number.isFinite(target.worldX)) AbilityVfx.entangleFx?.(scene, target.worldX, target.worldY)
-          AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'ROOTED', { color: '#7fb04a' })
+          this._statusPopup(scene, target, ab.label ?? 'ROOTED', '#7fb04a')
         }
         break
       // Mushroom HALLUCINATION — hallucinogenic spores DAZE a HERO so they whiff
@@ -1887,7 +1901,7 @@ export const MinionAbilities = {
         break
       case 'stagger':
         this._applyStagger(target, scene, ab.durationMs ?? 1000)
-        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'STAGGERED', { color: '#aa9988' })
+        this._statusPopup(scene, target, ab.label ?? 'STAGGERED', '#aa9988')
         break
       case 'lifesteal': {
         if (damageDealt <= 0) break
@@ -1913,7 +1927,7 @@ export const MinionAbilities = {
         const next = now + (ab.durationMs ?? 4000)
         target._armorShred = Math.min((target._armorShred ?? 0) + (ab.amount ?? 2), ab.max ?? 8)
         target._armorShredUntil = Math.max(target._armorShredUntil ?? 0, next)
-        AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'ARMOR SHRED', { color: '#cc8844' })
+        this._statusPopup(scene, target, ab.label ?? 'ARMOR SHRED', '#cc8844')
         break
       }
       // Ghost · FEAR — psychic attacks frighten as they wound: drain the struck
@@ -1923,7 +1937,7 @@ export const MinionAbilities = {
         const dropped = this._applyFear(target, -(ab.amount ?? 9), scene)
         if (dropped != null) {
           AbilityVfx.fearStrikeFx?.(scene, attacker.worldX ?? 0, attacker.worldY ?? 0, target.worldX ?? 0, target.worldY ?? 0, {})
-          AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 22, ab.label ?? 'FEAR', { color: '#9fb6e8' })
+          this._statusPopup(scene, target, ab.label ?? 'FEAR', '#9fb6e8')
         }
         break
       }
@@ -1940,7 +1954,7 @@ export const MinionAbilities = {
           target._hauntFumbleMul     = ab.fumbleMul ?? 0.72
           target._hauntSource        = attacker.instanceId
           if (scene && Number.isFinite(target.worldX)) AbilityVfx.hauntCloakFx?.(scene, target.worldX, target.worldY, { durationMs: ab.durationMs ?? 5000 })
-          AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 34, ab.label ?? 'HAUNTED', { color: '#7fa0d8' })
+          this._statusPopup(scene, target, ab.label ?? 'HAUNTED', '#7fa0d8', 34)
         }
         break
       }
@@ -1953,7 +1967,7 @@ export const MinionAbilities = {
           // the beholder's OWN eye blazes (renderer reads these → Glow flash on the sprite)
           attacker._gazeFlashUntil = now + 560; attacker._gazeFlashMs = 560; attacker._gazeFlashStr = 4
           if (scene && Number.isFinite(target.worldX) && Number.isFinite(attacker.worldX)) AbilityVfx.mesmerizeFx?.(scene, attacker.worldX, attacker.worldY, target.worldX, target.worldY, {})
-          AbilityVfx.floatingText(scene, target.worldX ?? 0, (target.worldY ?? 0) - 30, ab.label ?? 'MESMERIZED', { color: '#d28cff' })
+          this._statusPopup(scene, target, ab.label ?? 'MESMERIZED', '#d28cff', 30)
         }
         break
       }
