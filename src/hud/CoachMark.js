@@ -24,41 +24,60 @@ let _active = null   // { layer, finish } for the current mark
 function _injectCss() {
   if (_injected) return
   _injected = true
+  // Crypt-console aesthetic to match the action bar (.hc-*): sharp 2-3px corners,
+  // beveled stone-tablet shadows (inset highlight + dark inset + hard drop), the
+  // bone/gold/blood palette, Press Start 2P, and the action-bar sheen-sweep on
+  // the CTA. No soft rounded "modal" look. No raw hex (palette tokens + rgba).
   const css = `
   .qf-cm-layer { position:absolute; inset:0; z-index:4000; pointer-events:none;
-    font-family: var(--pix,'Press Start 2P',monospace); }
-  .qf-cm-dim { position:absolute; background:rgba(4,2,8,.72); pointer-events:auto; }
-  .qf-cm-ring { position:absolute; border-radius:8px; pointer-events:none;
-    box-shadow: 0 0 0 2px var(--gold), 0 0 18px 4px rgba(221,170,51,.55), inset 0 0 12px rgba(221,170,51,.25);
-    animation: qf-cm-ringpulse 1.4s ease-in-out infinite; }
+    font-family:'Press Start 2P',monospace; }
+  .qf-cm-dim { position:absolute; background:rgba(4,2,8,.74); pointer-events:auto; }
+  .qf-cm-ring { position:absolute; border-radius:3px; pointer-events:none;
+    box-shadow: 0 0 0 2px var(--gold), 0 0 16px 3px rgba(212,166,72,.5), inset 0 0 12px rgba(212,166,72,.22),
+      0 0 0 4px rgba(0,0,0,.55);
+    animation: qf-cm-ringpulse 1.5s ease-in-out infinite; }
   @keyframes qf-cm-ringpulse {
-    0%,100% { box-shadow:0 0 0 2px var(--gold), 0 0 14px 3px rgba(221,170,51,.45), inset 0 0 10px rgba(221,170,51,.2); }
-    50%     { box-shadow:0 0 0 3px var(--gold), 0 0 26px 7px rgba(221,170,51,.7),  inset 0 0 16px rgba(221,170,51,.32); } }
-  .qf-cm-bubble { position:absolute; max-width:300px; pointer-events:auto;
-    background: linear-gradient(180deg, rgba(26,17,28,.98), rgba(11,8,17,.98));
-    border:1px solid color-mix(in srgb, var(--gold) 55%, rgba(46,38,50,1));
-    border-radius:8px; padding:13px 15px; box-shadow:0 8px 0 rgba(0,0,0,.5), 0 0 22px rgba(0,0,0,.6); }
-  .qf-cm-text { font-size:12px; line-height:1.5; color: var(--bone); }
-  .qf-cm-arrow { position:absolute; width:14px; height:14px; transform:rotate(45deg); pointer-events:none;
-    background: rgba(26,17,28,.98); border:1px solid color-mix(in srgb, var(--gold) 55%, rgba(46,38,50,1)); }
-  .qf-cm-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:11px; }
-  .qf-cm-next { font-family: var(--pix,'Press Start 2P',monospace); font-size:11px; cursor:pointer;
-    color:rgba(20,8,2,1); background: var(--gold); border:none; border-radius:5px; padding:8px 14px;
-    box-shadow:0 3px 0 rgba(0,0,0,.5); }
-  .qf-cm-next:hover { filter:brightness(1.12); }
-  .qf-cm-hint { font-family: var(--sil,'Silkscreen',monospace); font-size:9px; letter-spacing:.1em;
-    color: color-mix(in srgb, var(--gold) 60%, white); opacity:.9; }
-  .qf-cm-skip { position:absolute; right:20px; bottom:18px; pointer-events:auto;
-    font-family: var(--sil,'Silkscreen',monospace); font-size:10px; letter-spacing:.14em; cursor:pointer;
-    color: rgba(240,230,212,.6); background:none; border:none; text-transform:uppercase; }
+    0%,100% { box-shadow:0 0 0 2px var(--gold), 0 0 13px 2px rgba(212,166,72,.42), inset 0 0 10px rgba(212,166,72,.2), 0 0 0 4px rgba(0,0,0,.55); }
+    50%     { box-shadow:0 0 0 2px var(--gold), 0 0 24px 6px rgba(212,166,72,.68), inset 0 0 15px rgba(212,166,72,.3), 0 0 0 4px rgba(0,0,0,.55); } }
+  .qf-cm-bubble { position:absolute; max-width:296px; pointer-events:auto; border-radius:3px; padding:13px 15px 12px;
+    background: linear-gradient(180deg, rgba(30,21,32,.99), rgba(12,9,18,.99));
+    border:1px solid color-mix(in srgb, var(--gold) 42%, rgba(46,38,50,1));
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.06), inset -1px -1px 0 rgba(0,0,0,.55),
+      0 5px 0 rgba(0,0,0,.6), 0 0 22px rgba(0,0,0,.5); }
+  /* carved gold top-accent bar — the "engraved tablet" read */
+  .qf-cm-bubble::before { content:''; position:absolute; left:7px; right:7px; top:2px; height:2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity:.85; }
+  .qf-cm-eyebrow { font-family:'Silkscreen',monospace; font-size:8px; letter-spacing:.22em; text-transform:uppercase;
+    color: color-mix(in srgb, var(--gold) 78%, white); margin-bottom:9px; display:flex; align-items:center; gap:6px; }
+  .qf-cm-eyebrow::after { content:''; flex:1; height:1px; background: color-mix(in srgb, var(--gold) 35%, transparent); }
+  .qf-cm-text { font-size:11px; line-height:1.65; color: var(--bone); }
+  .qf-cm-arrow { position:absolute; width:13px; height:13px; transform:rotate(45deg); pointer-events:none;
+    background: rgba(30,21,32,.99); border:1px solid color-mix(in srgb, var(--gold) 42%, rgba(46,38,50,1)); }
+  .qf-cm-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:12px; }
+  /* CTA = a gold action-bar tablet button with the signature sheen-sweep */
+  .qf-cm-next { position:relative; overflow:hidden; cursor:pointer; font-family:'Press Start 2P',monospace;
+    font-size:9px; letter-spacing:.05em; text-transform:uppercase; color: rgba(20,8,2,1);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 70%, white), var(--gold));
+    border:1px solid rgba(0,0,0,.45); border-radius:2px; padding:9px 13px;
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.3), inset -1px -1px 0 rgba(0,0,0,.4), 0 3px 0 rgba(0,0,0,.55); }
+  .qf-cm-next::before { content:''; position:absolute; top:0; bottom:0; left:-60%; width:38%; transform:skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transition:left .5s; }
+  .qf-cm-next:hover::before { left:140%; }
+  .qf-cm-next:active { transform:translateY(2px); filter:brightness(1.1); }
+  .qf-cm-hint { font-family:'Silkscreen',monospace; font-size:9px; letter-spacing:.1em;
+    color: color-mix(in srgb, var(--gold) 62%, white); opacity:.9; }
+  .qf-cm-skip { position:absolute; right:20px; bottom:18px; pointer-events:auto; cursor:pointer;
+    font-family:'Silkscreen',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color: rgba(240,230,212,.55); background:none; border:none; }
   .qf-cm-skip:hover { color: var(--bone); }
   .qf-cm-cursor { position:absolute; width:26px; height:26px; pointer-events:none; z-index:2;
     color: var(--gold); font-size:22px; line-height:26px; text-align:center;
-    text-shadow:0 0 6px rgba(0,0,0,.9); transition: left .7s cubic-bezier(.4,0,.4,1), top .7s cubic-bezier(.4,0,.4,1); }
+    text-shadow:0 0 6px rgba(0,0,0,.9), 0 0 10px rgba(212,166,72,.6);
+    transition: left .7s cubic-bezier(.4,0,.4,1), top .7s cubic-bezier(.4,0,.4,1); }
   .qf-cm-cursor.tap { animation: qf-cm-tap 1.1s ease-in-out infinite; }
-  @keyframes qf-cm-tap { 0%,100%{ transform:scale(1); opacity:.9; } 50%{ transform:scale(.7); opacity:1; } }
-  .qf-cm-layer.intro .qf-cm-bubble, .qf-cm-layer.intro .qf-cm-ring { animation: qf-cm-in .25s ease-out both; }
-  @keyframes qf-cm-in { from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  @keyframes qf-cm-tap { 0%,100%{ transform:scale(1); opacity:.9; } 50%{ transform:scale(.66); opacity:1; } }
+  .qf-cm-layer.intro .qf-cm-bubble, .qf-cm-layer.intro .qf-cm-ring { animation: qf-cm-in .26s ease-out both; }
+  @keyframes qf-cm-in { from{ opacity:0; transform:translateY(7px); } to{ opacity:1; transform:none; } }
   `
   const tag = document.createElement('style')
   tag.id = 'qf-cm-style'
@@ -105,7 +124,8 @@ export class CoachMark {
     const textEl = h('div', { className: 'qf-cm-text', html: String(opts.text || '') })
     const dims   = [0, 1, 2, 3].map(() => h('div', { className: 'qf-cm-dim' }))
     const cursor = opts.gesture ? h('div', { className: 'qf-cm-cursor' + (opts.gesture === 'tap' ? ' tap' : '') }, '➤') : null
-    const bubble = h('div', { className: 'qf-cm-bubble' }, [textEl])
+    const bubble = h('div', { className: 'qf-cm-bubble' },
+      [opts.eyebrow ? h('div', { className: 'qf-cm-eyebrow' }, opts.eyebrow) : null, textEl].filter(Boolean))
     const skipBtn = opts.allowSkip === false ? null
       : h('button', { className: 'qf-cm-skip', on: { click: () => finish(false) } }, 'Skip ✕')
     const layer = h('div', { className: 'qf-cm-layer intro' },
