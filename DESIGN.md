@@ -421,8 +421,15 @@ dungeon, not the hero."* Everything else is taught just-in-time.
   hero party storms a dungeon and triumphs… camera pulls back, the fallen boss REANIMATES → *"This
   time, the dungeon fights back. You are the dungeon."* Ends on one interactive click. Replaces the
   current WelcomeIntroOverlay.
-- **Beat 1 — Guided First Night (build): exactly TWO actions** — coach-mark "place a room" (ghost-
-  cursor demo) → feedback → "place a minion" → feedback. STOP (no traps/pacts/upgrades yet).
+- **Beat 1 — Guided First Night (build).** Teaches the REAL first-night build loop (corrected per user
+  2026-06-22 — it's not "any room + any minion"): (1) place the **Entry Hall** (required — adventurers
+  enter here) next to the boss chamber; (2) place a **Barracks** (houses minions — without one you have no
+  roster slots to place any); (3) learn **CONNECTION** — rooms auto-link with doorways when placed
+  *touching*, and every room must reach the entry hall or the day can't begin (BEGIN DAY is gated on
+  `DUNGEON_READINESS`); (4) place a **minion** in the barracks; (5) **BEGIN DAY**. STOP (no traps/pacts/
+  upgrades yet). Each step is one coach-mark; placement steps use the non-blocking `passThrough` spotlight so
+  the map stays clickable, and advance on the real game event (ROOM_PLACED w/ definitionId / MINION_PLACED /
+  DUNGEON_READINESS ready).
 - **Beat 2 — Guided First Day (watch + 1 intervention):** a deliberately SIMPLE no-ability party
   enters w/ telegraphed path; player WATCHES them die to their minion/trap (the payoff that cements
   the inversion); then ONE boss day-ability via coach-mark (arm→target→fire).
@@ -2461,6 +2468,12 @@ Common achievement unlocks keep the unchanged golden trophy toast — the tier d
 
 ## Solo Leveling — Epic Boss Duel (2026-05-28)
 
+> **⛔ REMOVED 2026-06-22 — IP (Solo Leveling / Sung Jinwoo / "Shadow Monarch").** The entire event,
+> the `shadow_monarch` adventurer class, the cinematic, shadow-extraction, the scripted duel, the
+> `monarch_slayer` achievement, and all references were deleted from the game. The **Necroknight**
+> companion (formerly gated on the "Arise" achievement) now unlocks **by default**. The kept generic
+> term "my Monarch" (Necroknight's address to the player) is unaffected. Section retained for history.
+
 *(Back-documenting: the Solo Leveling event itself — the rare **Shadow Monarch** invader "Sung Jinwoo", his persistent black-flame aura, shadow-extraction minions, stat-matched boss duel, entrance/VS cinematic and legendary achievement — shipped earlier but was never recorded in this file. This section captures the feature and the duel-cinematic overhaul the designer asked for.)*
 
 The standard boss fight treats every invader the same: they orbit the boss and trade abstract damage rounds. For the Shadow Monarch that reads as anticlimactic — a legendary 1-on-1 should feel like a *duel*, not a trash-mob skirmish. The throne-room fight between Jinwoo and the boss is therefore reworked into a bespoke cinematic. **Everything below applies ONLY to the Jinwoo-vs-boss duel** (the sole-combatant Shadow Monarch case); all other boss fights are unchanged. The duel stays strictly **1:1** — his extracted shadows do *not* appear in the throne room (they clear the halls; the duel is just him and the boss). Any **dungeon minions already standing in the boss room are annihilated the instant Jinwoo steps in** (a shadow-blue burst as his aura snuffs them out) — they die outright, *not* raised as shadows, so the throne is cleared for a true 1:1 the moment he arrives.
@@ -2535,6 +2548,13 @@ A Boss Event keeps its own `colorTheme` (its identity colour) but gets a **gold 
 ---
 
 ## Light Party — FFXIV Trinity Raid (2026-05-29)
+
+> **⛔ REMOVED 2026-06-22 — IP (FFXIV "Light Party" + job names).** The entire event, the scripted
+> duel, the LB gauge, the `warrior_of_light` achievement, and all references were deleted. The four
+> member classes were **KEPT** as ordinary adventurers but de-FF'd: **White Mage → Priest**,
+> **Black Mage → Sorcerer** (Paladin and Samurai unchanged); their chat/last-words were rewritten to
+> drop FFXIV ability names. The **Luna** companion (formerly gated on "Warrior of Light") now unlocks
+> **by default**. Section retained for history.
 
 The second Boss Event. Where Solo Leveling is one legendary champion who duels the boss alone, **Light Party** is the opposite challenge: a **coordinated 4-role raid party** — Tank, Healer, two DPS — moves through the dungeon as a single unit. Always exactly 4 members; stat scaling per boss level keeps the encounter threatening at any era without changing the count. Inspired by FFXIV light parties, with the **healer** as the strategic linchpin: she never attacks, she only heals and revives, and her HP fraction when the party reaches the throne **decides the duel**. Cut her down before she gets there and the dungeon wins; let her arrive intact and the boss falls. Held out of the random shuffle bag until the user opts to enable it (so it can be tested + tuned in isolation); the dev TEST EVENT button still force-fires it for QA.
 
