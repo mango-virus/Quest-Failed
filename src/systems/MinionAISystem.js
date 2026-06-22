@@ -699,15 +699,23 @@ export class MinionAISystem {
           // can never reach. Constrain to the inner band, verify the
           // tile is FLOOR/BOSS_FLOOR, and retry a few times if the
           // pick lands on decor or anything else non-floor.
+          // A room a minion may AMBIENT-wander into: active, never the boss
+          // chamber, and never the entry hall — minions don't loiter in the
+          // entryway where adventurers spawn/escape (they only ever enter it
+          // when actively chasing a fleeing adv, handled in _pickTarget). A
+          // minion HOMED in the entry hall is exempt — it stays to defend it.
+          const isWanderableRoom = r =>
+            r.isActive !== false &&
+            r.definitionId !== 'boss_chamber' &&
+            (r.definitionId !== 'entry_hall' || r.instanceId === home?.instanceId)
           let candidateRooms
           if (isRoamer) {
-            // Whole dungeon (any active non-boss room).
-            candidateRooms = this._gameState.dungeon.rooms.filter(r =>
-              r.isActive !== false && r.definitionId !== 'boss_chamber')
+            // Whole dungeon (any active non-boss, non-entry room).
+            candidateRooms = this._gameState.dungeon.rooms.filter(isWanderableRoom)
           } else if (isPatroller && home) {
-            // Home + its door-adjacent active rooms.
+            // Home + its door-adjacent active rooms (entry hall excluded).
             const adj = (this._dungeonGrid?.getNeighborRooms?.(home.instanceId) ?? [])
-              .filter(r => r.isActive !== false && r.definitionId !== 'boss_chamber')
+              .filter(isWanderableRoom)
             candidateRooms = [home, ...adj]
           } else {
             // Home room only.
@@ -1304,7 +1312,15 @@ export class MinionAISystem {
       // it locked on and ignore intruders standing right in its room. (Minions
       // standing IN the boss chamber are handled by the early-return above, so
       // here this only releases a chaser whose quarry fled into it.)
-      const lockReleased = !inMinionRoom && (advRoomDef === 'entry_hall' || advRoomDef === 'boss_chamber')
+      // Releasing into the boss chamber is final (that's the boss's fight).
+      // Releasing into the entry hall happens ONLY if the quarry is NOT
+      // fleeing — a FLEEING adventurer making its escape run is still fair
+      // game, so the minion follows it into the entryway and tries to cut it
+      // down before it reaches the exit edge. This is the single case a minion
+      // is allowed to enter the entry hall (ambient wander excludes it above).
+      const advFleeing = adv.aiState === 'fleeing'
+      const lockReleased = !inMinionRoom &&
+        (advRoomDef === 'boss_chamber' || (advRoomDef === 'entry_hall' && !advFleeing))
       if (canChaseFleeing && wasMyTarget && lockReleased) continue
       const isLockedTarget = canChaseFleeing && wasMyTarget && !lockReleased
 

@@ -80,11 +80,21 @@ const inA = { tileX: 3,  tileY: 3 }   // home room
   check('locked FLEEING adv in a far room is still targeted', pick(m, [adv]) === adv)
 }
 
-// 3. LOCKED, adv reaches the ENTRY HALL → released (escaped the dungeon).
+// 3. LOCKED, NON-fleeing adv reaches the ENTRY HALL → released (it's a fresh
+//    arrival / not an escape run; minions don't loiter in the entryway).
 {
-  const adv = mkAdv({ ...inE })
+  const adv = mkAdv({ ...inE })   // default aiState: 'idle'
   const m = mkMinion({ currentTargetId: 'a1' })
-  check('lock RELEASED when the adv reaches the entry hall', pick(m, [adv]) === null)
+  check('lock RELEASED when a NON-fleeing adv is in the entry hall', pick(m, [adv]) === null)
+}
+
+// 3b. LOCKED, FLEEING adv reaches the ENTRY HALL → STILL chased (2026-06-22):
+//     a minion follows a fleeing adventurer into the entryway to cut off its
+//     escape — the one case a minion is allowed to enter the entry hall.
+{
+  const adv = mkAdv({ ...inE, aiState: 'fleeing' })
+  const m = mkMinion({ currentTargetId: 'a1' })
+  check('locked FLEEING adv in the entry hall is STILL chased', pick(m, [adv]) === adv)
 }
 
 // 4. LOCKED, adv reaches the BOSS CHAMBER → released (boss's fight).
