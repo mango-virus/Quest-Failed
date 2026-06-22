@@ -28,7 +28,7 @@ import { BossOverviewOverlay } from './BossOverviewOverlay.js'
 import { PactDetailPopup }     from './PactDetailPopup.js'
 import { AdvIntelOverlay }      from './AdvIntelOverlay.js'
 import { KnowledgeMapOverlay }  from './KnowledgeMapOverlay.js'
-import { WelcomeIntroOverlay }  from './WelcomeIntroOverlay.js'
+import { FlipCinematic }        from './FlipCinematic.js'
 import { TutorialOverlay }      from './TutorialOverlay.js'
 import { LongGameOverlay }      from './LongGameOverlay.js'
 import { BossLevelUpOverlay }   from './BossLevelUpOverlay.js'
@@ -158,7 +158,7 @@ export class HudRoot {
     this._tutorialOverlay = new TutorialOverlay()
     this._longGameOverlay = new LongGameOverlay()
     this._levelUpOverlay  = new BossLevelUpOverlay(this._gameState)
-    this._welcomeIntro    = new WelcomeIntroOverlay(this._gameState)
+    this._welcomeIntro    = new FlipCinematic(this._gameState)   // Beat 0 — premise-setter cinematic
     // Unified hover inspector for rooms, minions, adventurers, and
     // dropped loot. Supersedes the old RoomTooltip (two-tab, room-only)
     // and the MinionInspectorOverlay full-screen modal (both since removed).
