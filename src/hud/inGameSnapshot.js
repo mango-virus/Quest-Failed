@@ -262,9 +262,16 @@ export function animatedFromAnimKey(key, size = 64, opts = {}) {
 }
 
 // Looping idle boss sprite (`<archId>-idle-down`). { el, stop } or null.
-export function animatedBossSprite(archId, size = 200) {
+export function animatedBossSprite(archId, size = 200, tier = null) {
   if (!archId) return null
-  return _animatedFromAnim(`${archId}-idle-down`, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + archId })
+  // Optional tier form: a boss with an explicit `${id}-t${n}` sheet uses it (e.g.
+  // the humble T1 form); falls back to the canonical sheet when that tier has none.
+  let key = `${archId}-idle-down`
+  if (tier != null) {
+    const tk = `${archId}-t${tier}-idle-down`
+    if (window.__game?.anims?.exists?.(tk)) key = tk
+  }
+  return _animatedFromAnim(key, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + (tier != null ? `t${tier}:` : '') + archId })
 }
 
 // Looping idle sprite for a placed-minion def. Preload registers per-direction

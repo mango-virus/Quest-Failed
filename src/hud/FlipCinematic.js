@@ -291,7 +291,7 @@ export class FlipCinematic {
     window.addEventListener('keydown', this._esc)
     this._fxLayer = fxLayer
 
-    this._fillBoss(bossSlot, archId)
+    this._fillBoss(bossSlot, archId, 1)   // pre-flip = the humble T1 form being slain
     this._heroSlots.forEach(s => this._setHero(s, 'walk', 'right'))
     // Pre-load the 192px weapon (_atk) sheets for any class that swings/thrusts a
     // weapon (knight melee + mage staff) so the blade shows by the assault beat.
@@ -308,6 +308,8 @@ export class FlipCinematic {
     at(9000, () => {                                                                                          // THE FLIP
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); red.classList.add('go'); burst.classList.add('go')
       this._el.classList.remove('bossFell'); this._el.classList.add('flipped', 'shake')
+      this._fillBoss(bossSlot, archId)   // reanimates into the full/canonical form
+
       setTimeout(() => this._el && this._el.classList.remove('shake'), 650)
       this._heroSlots.forEach(s => this._setHero(s, 'walk', 'left'))
       setTimeout(() => this._el && this._el.classList.add('fled'), 220)   // run off-screen
@@ -381,10 +383,15 @@ export class FlipCinematic {
     this._fxLayer.appendChild(el); void el.offsetWidth; el.classList.add('go'); setTimeout(() => el.remove(), 380)
   }
 
-  _fillBoss(slot, archId) {
+  _fillBoss(slot, archId, tier = null) {
     if (!archId) return
-    const a = animatedBossSprite(archId, 300)
-    if (a?.el) { slot.replaceChildren(a.el); if (a.stop) this._stopFns.push(a.stop) }
+    const a = animatedBossSprite(archId, 300, tier)
+    if (a?.el) {
+      if (slot._stop) { try { slot._stop() } catch {} }
+      slot._stop = a.stop || null
+      if (a.stop) this._stopFns.push(a.stop)
+      slot.replaceChildren(a.el)
+    }
   }
 
   _setHero(slot, anim, dir) {
