@@ -170,7 +170,7 @@ function _injectCss() {
   .qf-fc-eyebrow.on { opacity:.92; }
   .qf-fc-line { margin-top:14px; font-size:18px; letter-spacing:.05em; color: var(--bone); text-shadow:0 2px 0 rgba(0,0,0,.8); opacity:0; transform:translateY(8px); transition: opacity .6s ease, transform .6s ease; }
   .qf-fc-line.on { opacity:1; transform:none; }
-  .qf-fc-reveal { position:absolute; left:0; right:0; top:30%; z-index:10; text-align:center; pointer-events:none; opacity:0; transform: scale(.82); transition: opacity .7s ease, transform .9s cubic-bezier(.2,.9,.25,1); }
+  .qf-fc-reveal { position:absolute; left:0; right:0; top:26%; z-index:10; text-align:center; pointer-events:none; opacity:0; transform: scale(.82); transition: opacity .7s ease, transform .9s cubic-bezier(.2,.9,.25,1); }
   .qf-fc-reveal.on { opacity:1; transform:none; }
   .qf-fc-title { font-size:62px; letter-spacing:.07em; line-height:1.15; color: var(--gold); text-shadow: 0 0 26px rgba(212,166,72,.65), 0 5px 0 rgba(0,0,0,.85); }
   .qf-fc-title b { color: var(--blood); text-shadow: 0 0 28px rgba(200,51,74,.7), 0 5px 0 rgba(0,0,0,.85); }
