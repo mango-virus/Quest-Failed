@@ -63,11 +63,6 @@ function _injectCss() {
     background: linear-gradient(180deg, rgba(255,210,130,.5), transparent 72%); filter:blur(7px); }
   .qf-fc-shaft.a{left:9%;transform:rotate(11deg)} .qf-fc-shaft.b{left:33%;transform:rotate(6deg);opacity:.09}
   .qf-fc-shaft.c{right:33%;transform:rotate(-6deg);opacity:.09} .qf-fc-shaft.d{right:9%;transform:rotate(-11deg)}
-  .qf-fc-pillar { position:absolute; top:0; bottom:0; width:13%; z-index:6; pointer-events:none;
-    background: linear-gradient(90deg, rgba(2,1,6,.97), rgba(6,4,12,.5) 60%, transparent); }
-  .qf-fc-pillar.r { right:0; transform:scaleX(-1); }
-  .qf-fc-pillar::before { content:''; position:absolute; top:0; bottom:0; left:32%; width:48%;
-    background: linear-gradient(90deg, rgba(22,15,28,.92), rgba(8,5,14,.96)); box-shadow: 2px 0 0 rgba(0,0,0,.6), inset -3px 0 9px rgba(0,0,0,.6); }
   .qf-fc-dec { position:absolute; image-rendering:pixelated; pointer-events:none; }
   /* real torch sprite + a warm glow halo behind it */
   /* real torch.png — SAME as the main menu: 172×192 frame (6-frame vertical strip)
@@ -286,7 +281,6 @@ export class FlipCinematic {
       throne, embers, dust, partyEl,
       h('div', { className: 'qf-fc-dim' }),   // fades in at the reveal so the boss + text + button pop (sits BELOW the boss z4)
       bossSlot, fxLayer, burst,
-      h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
     const world = h('div', { className: 'qf-fc-world' }, [scene])
     this._el = h('div', { className: 'qf-fc' }, [

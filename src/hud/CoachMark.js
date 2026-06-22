@@ -42,7 +42,7 @@ function _injectCss() {
   /* Matches the action-bar pop-out panels (TrayShell .htr-fill): rounded frame,
      dark sheen gradient, layered inset borders, glowing gold top accent + a faint
      dotted texture, big soft drop shadow. */
-  .qf-cm-bubble { position:absolute; max-width:300px; pointer-events:auto; border-radius:8px; padding:14px 16px 13px;
+  .qf-cm-bubble { position:absolute; max-width:340px; pointer-events:auto; border-radius:8px; padding:16px 18px 15px;
     border:1.5px solid color-mix(in srgb, var(--gold) 70%, transparent);
     background: radial-gradient(120% 80% at 12% 0%, rgba(255,255,255,.04), transparent 60%),
       linear-gradient(180deg, rgba(26,21,36,1), rgba(12,9,18,1));
@@ -55,16 +55,16 @@ function _injectCss() {
   .qf-cm-bubble::after { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; opacity:.5;
     background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px); background-size:4px 4px; mix-blend-mode:overlay; }
   .qf-cm-bubble > * { position:relative; z-index:1; }
-  .qf-cm-eyebrow { font-family:'Silkscreen',monospace; font-size:8px; letter-spacing:.22em; text-transform:uppercase;
-    color: color-mix(in srgb, var(--gold) 78%, white); margin-bottom:9px; display:flex; align-items:center; gap:6px; }
+  .qf-cm-eyebrow { font-family:'Silkscreen',monospace; font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+    color: color-mix(in srgb, var(--gold) 78%, white); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
   .qf-cm-eyebrow::after { content:''; flex:1; height:1px; background: color-mix(in srgb, var(--gold) 35%, transparent); }
-  .qf-cm-text { font-size:11px; line-height:1.65; color: var(--bone); }
+  .qf-cm-text { font-size:13px; line-height:1.7; color: var(--bone); }
   .qf-cm-arrow { position:absolute; width:13px; height:13px; transform:rotate(45deg); pointer-events:none;
     background: rgba(26,21,36,1); border:1.5px solid color-mix(in srgb, var(--gold) 70%, transparent); }
   .qf-cm-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:12px; }
   /* CTA = a gold action-bar tablet button with the signature sheen-sweep */
   .qf-cm-next { position:relative; overflow:hidden; cursor:pointer; font-family:'Press Start 2P',monospace;
-    font-size:9px; letter-spacing:.05em; text-transform:uppercase; color: rgba(20,8,2,1);
+    font-size:10px; letter-spacing:.05em; text-transform:uppercase; color: rgba(20,8,2,1);
     background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 70%, white), var(--gold));
     border:1px solid rgba(0,0,0,.45); border-radius:2px; padding:9px 13px;
     box-shadow: inset 1px 1px 0 rgba(255,255,255,.3), inset -1px -1px 0 rgba(0,0,0,.4), 0 3px 0 rgba(0,0,0,.55); }
@@ -72,7 +72,7 @@ function _injectCss() {
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transition:left .5s; }
   .qf-cm-next:hover::before { left:140%; }
   .qf-cm-next:active { transform:translateY(2px); filter:brightness(1.1); }
-  .qf-cm-hint { font-family:'Silkscreen',monospace; font-size:9px; letter-spacing:.1em;
+  .qf-cm-hint { font-family:'Silkscreen',monospace; font-size:10.5px; letter-spacing:.1em;
     color: color-mix(in srgb, var(--gold) 62%, white); opacity:.9; }
   .qf-cm-skip { position:absolute; right:20px; bottom:18px; pointer-events:auto; cursor:pointer;
     font-family:'Silkscreen',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
