@@ -30,6 +30,15 @@ const PARTY = [
 ]
 const DEC = (f) => `assets/sprites/${f}`
 
+// Per-boss body-centering nudge (% of the sprite box; +x right, +y down) so each
+// boss sits centered on the throne despite asymmetric sprite framing — held
+// weapons push the body off-center (orc), tall sprites sit too high (demon).
+// Tuned on the throne-sit form; bosses not listed need no nudge (e.g. gnoll).
+const BOSS_BODY_OFFSET = {
+  orc: [-7, 4],
+  demon: [0, 10],
+}
+
 let _cssInjected = false
 function _injectCss() {
   if (_cssInjected) return
@@ -353,16 +362,27 @@ export class FlipCinematic {
     this._heroSlots.forEach(s => this._setHero(s, 'idle', 'right'))
   }
 
+  // The fxLayer lives in the UNSCALED scene (1920×1080); the boss/hero rects are
+  // screen px (scaled by --fc-scale). Convert screen px → scene px relative to the
+  // scene rect, dividing by the scale, so projectiles/impacts land on the target.
+  _sceneRef() {
+    const s = this._el?.querySelector('.qf-fc-scene'); if (!s) return null
+    const sr = s.getBoundingClientRect()
+    // k = the TOTAL screen→scene scale (the world's --fc-scale × the #hud-stage's
+    // own transform-to-viewport scale), derived from the rendered width vs the
+    // logical 1920 — so it's correct regardless of stage/viewport size.
+    return { sr, k: (sr.width / 1920) || 1 }
+  }
   _bossCenter() {
-    const b = this._el?.querySelector('.qf-fc-boss'); const w = this._el?.querySelector('.qf-fc-world')
-    if (!b || !w) return null
-    const br = b.getBoundingClientRect(), wr = w.getBoundingClientRect()
-    return { x: br.left - wr.left + br.width / 2, y: br.top - wr.top + br.height * 0.42 }
+    const b = this._el?.querySelector('.qf-fc-boss'), ref = this._sceneRef()
+    if (!b || !ref) return null
+    const br = b.getBoundingClientRect()
+    return { x: (br.left - ref.sr.left + br.width / 2) / ref.k, y: (br.top - ref.sr.top + br.height * 0.42) / ref.k }
   }
   _heroCenter(s) {
-    const w = this._el?.querySelector('.qf-fc-world'); if (!s || !w) return null
-    const sr = s.getBoundingClientRect(), wr = w.getBoundingClientRect()
-    return { x: sr.left - wr.left + sr.width * 0.7, y: sr.top - wr.top + sr.height * 0.45 }
+    const ref = this._sceneRef(); if (!s || !ref) return null
+    const hr = s.getBoundingClientRect()
+    return { x: (hr.left - ref.sr.left + hr.width * 0.7) / ref.k, y: (hr.top - ref.sr.top + hr.height * 0.45) / ref.k }
   }
   _slashAt() {
     const c = this._bossCenter(); if (!c || !this._fxLayer) return
@@ -390,6 +410,8 @@ export class FlipCinematic {
       if (slot._stop) { try { slot._stop() } catch {} }
       slot._stop = a.stop || null
       if (a.stop) this._stopFns.push(a.stop)
+      const off = BOSS_BODY_OFFSET[archId]
+      if (off) a.el.style.transform = `translate(${off[0]}%, ${off[1]}%)`
       slot.replaceChildren(a.el)
     }
   }
