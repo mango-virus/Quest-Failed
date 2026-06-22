@@ -75,8 +75,6 @@ function _injectCss() {
   .qf-fc-ground { position:absolute; left:0; right:0; bottom:0; height:33%; z-index:1; pointer-events:none;
     background: repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(0,0,0,.4) 60px, rgba(0,0,0,.4) 62px),
       linear-gradient(180deg, rgba(20,13,24,.5), rgba(2,1,6,.94)); }
-  .qf-fc-ground::after { content:''; position:absolute; left:0; right:0; top:0; height:2px;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 60%, transparent), transparent); opacity:.6; }
   /* carpet runner to the throne */
   .qf-fc-carpet { position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:120px; height:31%; z-index:1; pointer-events:none;
     background: linear-gradient(180deg, rgba(96,18,30,.5), rgba(58,10,20,.35)); clip-path: polygon(36% 0, 64% 0, 100% 100%, 0% 100%);
@@ -245,9 +243,6 @@ export class FlipCinematic {
       // size as the main menu (172×192 frame, 6-frame burn) + the matching glow.
       h('div', { className: 'qf-fc-torch l', style: { left: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
       h('div', { className: 'qf-fc-torch r', style: { right: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
-      // floor bones
-      dec('decor-skel-floor-1.png', { left: '18%', bottom: '24%', width: '60px', opacity: .4, zIndex: 1 }),
-      dec('decor-skull-pile.png', { right: '20%', bottom: '24%', width: '56px', opacity: .45, zIndex: 1 }),
     ])
 
     const burst = h('div', { className: 'qf-fc-burst' },
