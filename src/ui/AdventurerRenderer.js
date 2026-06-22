@@ -777,6 +777,30 @@ export class AdventurerRenderer {
         }
       }
 
+      // Burn — a pulsing fiery glow on the sprite while a burn DoT ticks, so the
+      // BODY reads "on fire", not just the particle aura around it. postFX layer
+      // (independent of the setTint logic + the hit-flash glow uses its own ref),
+      // change-detected add/remove + a per-frame flicker on the glow strength.
+      {
+        const pImg = s.lpc?.image ?? s.builder?.image
+        const burning = Array.isArray(adv._dot) && adv._dot.some(d => d && d.type === 'burn')
+        if (burning !== (s._burning === true)) {
+          if (pImg?.postFX) {
+            if (burning) {
+              try { s._burnFx = pImg.postFX.addGlow(0xff7a30, 0, 0, false, 0.08, 10) } catch (e) { s._burnFx = true }
+            } else if (s._burnFx) {
+              try { if (s._burnFx !== true) pImg.postFX.remove(s._burnFx) } catch (e) {}
+              s._burnFx = null
+            }
+          }
+          s._burning = burning
+        }
+        if (burning && s._burnFx && s._burnFx !== true) {
+          const nowMs = this._scene.time?.now ?? 0
+          try { s._burnFx.outerStrength = 2.2 + Math.sin(nowMs * 0.012) * 1.3 } catch (e) {}
+        }
+      }
+
       if (s.flightShadow) this._tickValkyrieFlight(s)
 
       // Spawn fade-in / leave fade-out: the smaller of the two alphas
