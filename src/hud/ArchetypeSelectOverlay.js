@@ -141,15 +141,20 @@ export class ArchetypeSelectOverlay {
       h('div', { className: 'qf-bp-embers' }, this._emberPieces()),
       h('div', { className: 'qf-bp-vig' }),
       h('button', { className: 'pix qf-bp-back', on: { click: () => this._back() } }, '◀  KEEPER'),
-      h('div', { className: 'qf-bp-head' }, [
-        h('div', { className: 'sil qf-bp-eyebrow' }, [
-          h('span', { className: 'ln' }), '◆ THE DARK THRONE AWAITS ◆', h('span', { className: 'ln r' }),
+      // Capped/centered content (head + altar + rail + foot) — keeps the authored
+      // layout instead of spreading into gaps on a large logical stage (high-res
+      // fullscreen). The backdrop + decorations above still fill the whole stage.
+      h('div', { className: 'qf-bp-content' }, [
+        h('div', { className: 'qf-bp-head' }, [
+          h('div', { className: 'sil qf-bp-eyebrow' }, [
+            h('span', { className: 'ln' }), '◆ THE DARK THRONE AWAITS ◆', h('span', { className: 'ln r' }),
+          ]),
+          h('div', { className: 'pix qf-bp-title' }, 'CHOOSE YOUR ARCHETYPE'),
         ]),
-        h('div', { className: 'pix qf-bp-title' }, 'CHOOSE YOUR ARCHETYPE'),
+        this._altarEl,
+        this._railEl,
+        this._footEl,
       ]),
-      this._altarEl,
-      this._railEl,
-      this._footEl,
     ])
 
     const stage = document.getElementById('hud-stage') || document.body

@@ -219,22 +219,28 @@ export class CompanionSelectOverlay {
 
     this._el = h('div', { className: 'qf-csl' }, [
       // Crypt backdrop — brick wall + flanking torches + fog (title-screen look).
+      // Fills the whole stage (any resolution); the content below is capped +
+      // centered so it keeps its authored layout instead of spreading into gaps
+      // on a large logical stage (e.g. 1440p fullscreen → 2560×1440 stage).
       ...buildCryptBackdrop(),
       // Cheap ember field — transform/opacity only (GPU composited).
       h('div', { className: 'qf-csl-embers' }, this._emberPieces()),
-      // Header — BACK + centered title block.
-      h('div', { className: 'qf-csl-head' }, [
-        h('button', { className: 'pix qf-csl-back', on: { click: () => this._back() } }, '◀  BACK'),
-        h('div', { className: 'qf-csl-htext' }, [
-          h('div', { className: 'sil qf-csl-eyebrow' }, [
-            h('span', { className: 'ln' }), '◆ THE THRONE NEEDS A KEEPER ◆', h('span', { className: 'ln r' }),
+      // Capped/centered content column (header + stage + rail).
+      h('div', { className: 'qf-csl-content' }, [
+        // Header — BACK + centered title block.
+        h('div', { className: 'qf-csl-head' }, [
+          h('button', { className: 'pix qf-csl-back', on: { click: () => this._back() } }, '◀  BACK'),
+          h('div', { className: 'qf-csl-htext' }, [
+            h('div', { className: 'sil qf-csl-eyebrow' }, [
+              h('span', { className: 'ln' }), '◆ THE THRONE NEEDS A KEEPER ◆', h('span', { className: 'ln r' }),
+            ]),
+            h('div', { className: 'pix qf-csl-title' }, 'CHOOSE YOUR COMPANION'),
           ]),
-          h('div', { className: 'pix qf-csl-title' }, 'CHOOSE YOUR COMPANION'),
+          h('div', { className: 'qf-csl-spacer' }),
         ]),
-        h('div', { className: 'qf-csl-spacer' }),
+        this._stageEl,
+        this._railEl,
       ]),
-      this._stageEl,
-      this._railEl,
     ])
 
     const stage = document.getElementById('hud-stage') || document.body
