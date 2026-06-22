@@ -2822,6 +2822,9 @@ export class NightPhase extends Phaser.Scene {
     this._playMinionPlaceSfx()
     EventBus.emit('MINION_PLACED', { minion })
     this._refreshStats()
+    // Onboarding: teach ONE minion — disarm after the first so the player can't
+    // keep placing (the guided run moves on to BEGIN DAY).
+    if (this._gameState.meta?.guidedPlace === 'minion') this._cancelSelection()
   }
 
   _playMinionPlaceSfx() {

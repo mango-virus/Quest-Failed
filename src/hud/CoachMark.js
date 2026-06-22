@@ -39,20 +39,28 @@ function _injectCss() {
   @keyframes qf-cm-ringpulse {
     0%,100% { box-shadow:0 0 0 2px var(--gold), 0 0 13px 2px rgba(212,166,72,.42), inset 0 0 10px rgba(212,166,72,.2), 0 0 0 4px rgba(0,0,0,.55); }
     50%     { box-shadow:0 0 0 2px var(--gold), 0 0 24px 6px rgba(212,166,72,.68), inset 0 0 15px rgba(212,166,72,.3), 0 0 0 4px rgba(0,0,0,.55); } }
-  .qf-cm-bubble { position:absolute; max-width:296px; pointer-events:auto; border-radius:3px; padding:13px 15px 12px;
-    background: linear-gradient(180deg, rgba(30,21,32,.99), rgba(12,9,18,.99));
-    border:1px solid color-mix(in srgb, var(--gold) 42%, rgba(46,38,50,1));
-    box-shadow: inset 1px 1px 0 rgba(255,255,255,.06), inset -1px -1px 0 rgba(0,0,0,.55),
-      0 5px 0 rgba(0,0,0,.6), 0 0 22px rgba(0,0,0,.5); }
-  /* carved gold top-accent bar — the "engraved tablet" read */
-  .qf-cm-bubble::before { content:''; position:absolute; left:7px; right:7px; top:2px; height:2px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity:.85; }
+  /* Matches the action-bar pop-out panels (TrayShell .htr-fill): rounded frame,
+     dark sheen gradient, layered inset borders, glowing gold top accent + a faint
+     dotted texture, big soft drop shadow. */
+  .qf-cm-bubble { position:absolute; max-width:300px; pointer-events:auto; border-radius:8px; padding:14px 16px 13px;
+    border:1.5px solid color-mix(in srgb, var(--gold) 70%, transparent);
+    background: radial-gradient(120% 80% at 12% 0%, rgba(255,255,255,.04), transparent 60%),
+      linear-gradient(180deg, rgba(26,21,36,1), rgba(12,9,18,1));
+    box-shadow: inset 0 0 0 1px rgba(6,4,9,1), inset 0 0 0 2px var(--line2),
+      inset 0 0 38px rgba(0,0,0,.55), 0 20px 50px rgba(0,0,0,.6); }
+  /* glowing gold top accent line */
+  .qf-cm-bubble::before { content:''; position:absolute; left:0; right:0; top:0; height:2px; border-radius:8px 8px 0 0;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent); box-shadow:0 0 12px var(--gold); }
+  /* faint dotted texture overlay */
+  .qf-cm-bubble::after { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; opacity:.5;
+    background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px); background-size:4px 4px; mix-blend-mode:overlay; }
+  .qf-cm-bubble > * { position:relative; z-index:1; }
   .qf-cm-eyebrow { font-family:'Silkscreen',monospace; font-size:8px; letter-spacing:.22em; text-transform:uppercase;
     color: color-mix(in srgb, var(--gold) 78%, white); margin-bottom:9px; display:flex; align-items:center; gap:6px; }
   .qf-cm-eyebrow::after { content:''; flex:1; height:1px; background: color-mix(in srgb, var(--gold) 35%, transparent); }
   .qf-cm-text { font-size:11px; line-height:1.65; color: var(--bone); }
   .qf-cm-arrow { position:absolute; width:13px; height:13px; transform:rotate(45deg); pointer-events:none;
-    background: rgba(30,21,32,.99); border:1px solid color-mix(in srgb, var(--gold) 42%, rgba(46,38,50,1)); }
+    background: rgba(26,21,36,1); border:1.5px solid color-mix(in srgb, var(--gold) 70%, transparent); }
   .qf-cm-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:12px; }
   /* CTA = a gold action-bar tablet button with the signature sheen-sweep */
   .qf-cm-next { position:relative; overflow:hidden; cursor:pointer; font-family:'Press Start 2P',monospace;
@@ -128,7 +136,7 @@ export class CoachMark {
       [opts.eyebrow ? h('div', { className: 'qf-cm-eyebrow' }, opts.eyebrow) : null, textEl].filter(Boolean))
     const skipBtn = opts.allowSkip === false ? null
       : h('button', { className: 'qf-cm-skip', on: { click: () => finish(false) } }, 'Skip ✕')
-    const layer = h('div', { className: 'qf-cm-layer intro' },
+    const layer = h('div', { className: 'qf-cm-layer intro hc' },
       [...dims, opts.target ? ring : null, cursor, bubble, arrow, skipBtn].filter(Boolean))
     stage.appendChild(layer)
 

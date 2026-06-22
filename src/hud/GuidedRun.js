@@ -168,9 +168,11 @@ export class GuidedRun {
     await wait(240)
     if (await this._coach({ target: () => this._minionsTab(), eyebrow: 'STEP 3 · MINIONS', text: 'Open the minions tab', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return
     await wait(180)
+    this._setPlace('minion')   // rail: place exactly ONE — NightPhase disarms after the first
     if (await this._coach(
       { target: () => this._firstCard(), eyebrow: 'STEP 3 · MINIONS', text: 'Place it inside the barracks', gesture: 'tap', advance: 'hold', hint: 'Click the barracks to place →', passThrough: true, lock: true },
       'MINION_PLACED') === 'skip') return
+    this._setPlace(null)
     await wait(450)
 
     // ── 5. Begin the day (only once everything's connected) ───────────
