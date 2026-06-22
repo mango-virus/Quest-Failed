@@ -452,6 +452,9 @@
     },
     "16x16": {
       "file": "assets/themes/roomskins/16x16.png"
+    },
+    "gemini_generated_image_rw93q5rw93q5rw93": {
+      "file": "assets/themes/roomskins/gemini_generated_image_rw93q5rw93q5rw93.png"
     }
   },
   "doorSkins": {
@@ -465,16 +468,36 @@
       "file": "assets/themes/doorskins/basic_locked.png"
     },
     "beholder_closed": {
-      "file": "assets/themes/doorskins/beholder_closed.png"
+      "file": "assets/themes/doorskins/beholder_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "beholder_opened": {
-      "file": "assets/themes/doorskins/beholder_opened.png"
+      "file": "assets/themes/doorskins/beholder_opened.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "lizardman_closed": {
-      "file": "assets/themes/doorskins/lizardman_closed.png"
+      "file": "assets/themes/doorskins/lizardman_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "lizardman_opened": {
-      "file": "assets/themes/doorskins/lizardman_opened.png"
+      "file": "assets/themes/doorskins/lizardman_opened.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "lizardman_locked": {
       "file": "assets/themes/doorskins/lizardman_locked.png"
@@ -486,22 +509,52 @@
       "file": "assets/themes/doorskins/vampire_open.png"
     },
     "wraith_closed": {
-      "file": "assets/themes/doorskins/wraith_closed.png"
+      "file": "assets/themes/doorskins/wraith_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "wraith_open": {
-      "file": "assets/themes/doorskins/wraith_open.png"
+      "file": "assets/themes/doorskins/wraith_open.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "myconid_closed": {
-      "file": "assets/themes/doorskins/myconid_closed.png"
+      "file": "assets/themes/doorskins/myconid_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.8,
+        "nudge": 0
+      }
     },
     "myconid_open": {
-      "file": "assets/themes/doorskins/myconid_open.png"
+      "file": "assets/themes/doorskins/myconid_open.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.8,
+        "nudge": 0
+      }
     },
     "gnoll_closed_v2": {
-      "file": "assets/themes/doorskins/gnoll_closed_v2.png"
+      "file": "assets/themes/doorskins/gnoll_closed_v2.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "gnoll_open_v2": {
-      "file": "assets/themes/doorskins/gnoll_open_v2.png"
+      "file": "assets/themes/doorskins/gnoll_open_v2.png",
+      "size": {
+        "w": 4.1,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "entry_closed_1": {
       "file": "assets/themes/doorskins/entry_closed_1.png"

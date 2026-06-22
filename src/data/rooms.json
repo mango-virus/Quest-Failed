@@ -501,8 +501,8 @@
         },
         "doorSkinByBoss": {
             "gnoll": {
-                "closed": "gnoll_closed_v2",
-                "open": "gnoll_open_v2"
+                "open": "gnoll_open_v2",
+                "closed": "gnoll_closed_v2"
             },
             "beholder": {
                 "closed": "beholder_closed",
@@ -911,7 +911,7 @@
             "h": 2.1,
             "nudge": 0
         },
-        "backgroundImage": "6x12"
+        "backgroundImage": "gemini_generated_image_rw93q5rw93q5rw93"
     },
     {
         "id": "starter_barracks",
