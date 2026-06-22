@@ -292,6 +292,19 @@ export function animatedAdventurerAnim(cls, anim = 'walk', dir = 'down', size = 
     { className: 'qf-snap qf-snap-adv', cacheKey: `adv:${cls}:${vId}:${anim}:${dir}` })
 }
 
+// The WEAPON-bearing attack anim from the 192×192 `_atk` sheet
+// (`adv-<cls>-<vId>-atk-<slash|thrust>-<dir>`) — this is where melee weapons live
+// (the 64px base slash row is weaponless for oversize weapons). The body sits in
+// a 192 frame (foot ≈ 0.617 down), so render at box = bodySize×3 and bottom-align
+// in the caller. null if the atk sheet/anim isn't loaded → caller falls back to
+// the base attack via animatedAdventurerAnim. Load the sheet first with
+// requestAdvAtkSheet(scene, `adv-<cls>-<vId>`).
+export function animatedAdventurerAtk(cls, anim = 'slash', dir = 'right', box = 432, vId = 'v01') {
+  if (!cls) return null
+  return _animatedFromAnim(`adv-${cls}-${vId}-atk-${anim}-${dir}`, box,
+    { className: 'qf-snap qf-snap-adv-atk', cacheKey: `atk:${cls}:${vId}:${anim}:${dir}` })
+}
+
 // Tight crop rect for a boss's idle loop — the union of the alpha
 // bounds of every idle frame, cached per boss. Coordinates are local
 // to a frame's cut rect (all idle frames share one frame size). Falls

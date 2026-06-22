@@ -55,6 +55,16 @@ function _injectCss() {
   .qf-fc-pillar::before { content:''; position:absolute; top:0; bottom:0; left:32%; width:48%;
     background: linear-gradient(90deg, rgba(22,15,28,.92), rgba(8,5,14,.96)); box-shadow: 2px 0 0 rgba(0,0,0,.6), inset -3px 0 9px rgba(0,0,0,.6); }
   .qf-fc-dec { position:absolute; image-rendering:pixelated; pointer-events:none; }
+  /* CSS torch: stone sconce + animated flame + warm glow halo */
+  .qf-fc-torch { position:absolute; width:15px; height:34px; z-index:2; border-radius:3px;
+    background: linear-gradient(180deg, rgba(64,46,32,1), rgba(28,19,13,1)); box-shadow: 0 2px 3px rgba(0,0,0,.6); }
+  .qf-fc-torch::before { content:''; position:absolute; left:50%; top:-26px; width:20px; height:34px;
+    background: radial-gradient(circle at 50% 72%, rgba(255,236,150,1), rgba(255,150,46,.92) 48%, rgba(200,60,20,.25) 82%, transparent);
+    border-radius:50% 50% 50% 50%/62% 62% 40% 40%; transform-origin:50% 100%; animation: qf-fc-flame .42s ease-in-out infinite alternate; }
+  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:-44px; width:150px; height:150px; transform:translateX(-50%); border-radius:50%;
+    background: radial-gradient(circle, rgba(255,165,65,.42), rgba(255,140,40,.12) 45%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
+  @keyframes qf-fc-flame { from{ opacity:.82; transform:translateX(-50%) scaleY(.92) } to{ opacity:1; transform:translateX(-50%) scaleY(1.2) } }
+  @keyframes qf-fc-glow { from{ opacity:.7 } to{ opacity:1 } }
   /* floor */
   .qf-fc-ground { position:absolute; left:0; right:0; bottom:0; height:33%; z-index:1; pointer-events:none;
     background: repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(0,0,0,.4) 60px, rgba(0,0,0,.4) 62px),
@@ -68,22 +78,35 @@ function _injectCss() {
   .qf-fc-carpet::before { content:''; position:absolute; inset:0; clip-path: polygon(40% 0, 60% 0, 92% 100%, 8% 100%);
     border-left:2px solid rgba(212,166,72,.25); border-right:2px solid rgba(212,166,72,.25); }
   /* ritual pentacle under the throne */
-  .qf-fc-pent { position:absolute; left:50%; bottom:25%; transform:translateX(-50%) rotateX(64deg); width:230px; height:230px; z-index:1; pointer-events:none;
-    opacity:.5; filter: drop-shadow(0 0 12px rgba(200,51,74,.5)); transition: opacity .8s, filter .8s; animation: qf-fc-spin 26s linear infinite; }
-  .qf-fc.flipped .qf-fc-pent { opacity:.95; filter: drop-shadow(0 0 22px rgba(200,51,74,.9)); }
-  @keyframes qf-fc-spin { to { transform:translateX(-50%) rotateX(64deg) rotate(360deg); } }
+  .qf-fc-pent { position:absolute; z-index:2; pointer-events:none; opacity:.6;
+    filter: drop-shadow(0 0 16px rgba(200,51,74,.7)) brightness(1.3); transition: opacity .8s, filter .8s;
+    transform-origin:50% 100%; animation: qf-fc-spin 24s linear infinite; }
+  .qf-fc.flipped .qf-fc-pent { opacity:1; filter: drop-shadow(0 0 26px rgba(200,51,74,1)) brightness(1.5); }
+  @keyframes qf-fc-spin { from { transform:translateX(-50%) rotateX(58deg) rotate(0deg); } to { transform:translateX(-50%) rotateX(58deg) rotate(360deg); } }
   /* throne */
-  .qf-fc-throne { position:absolute; left:50%; bottom:28%; transform:translateX(-50%); z-index:1; pointer-events:none; width:380px; height:340px; }
-  .qf-fc-throne .back { position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:168px; height:320px;
-    background: linear-gradient(180deg, rgba(32,22,38,.97), rgba(9,6,14,.97)); border-radius:84px 84px 6px 6px;
-    box-shadow: inset 0 0 32px rgba(0,0,0,.78), 0 0 38px rgba(0,0,0,.6); border:2px solid rgba(40,28,48,.8); }
-  .qf-fc-throne .arm { position:absolute; bottom:18%; width:26px; height:46%; background: linear-gradient(180deg, rgba(42,30,50,.96), rgba(13,8,18,.96));
-    border-radius:12px 12px 4px 4px; box-shadow: inset 0 0 8px rgba(0,0,0,.6); }
-  .qf-fc-throne .arm.l { left:6px } .qf-fc-throne .arm.r { right:6px }
-  .qf-fc-throne .seat { position:absolute; left:50%; bottom:34%; transform:translateX(-50%); width:130px; height:30px;
-    background: linear-gradient(180deg, rgba(80,16,26,.8), rgba(40,8,16,.85)); border-radius:6px; box-shadow: inset 0 0 10px rgba(0,0,0,.6); }
-  .qf-fc-throne .spike { position:absolute; top:-14px; width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:26px solid rgba(40,28,48,.95); }
-  .qf-fc-throne .spike.l { left:24% } .qf-fc-throne .spike.m { left:50%; transform:translateX(-50%); border-bottom-width:34px } .qf-fc-throne .spike.r { right:24% }
+  .qf-fc-throne { position:absolute; left:50%; bottom:27%; transform:translateX(-50%); z-index:1; pointer-events:none; width:300px; height:370px; }
+  /* gothic pointed-arch back (clip-path silhouette) + gold inlay */
+  .qf-fc-throne .back { position:absolute; left:50%; bottom:40px; transform:translateX(-50%); width:176px; height:330px;
+    background: linear-gradient(180deg, rgba(46,33,54,.98), rgba(15,10,21,.98));
+    clip-path: polygon(50% 0, 66% 11%, 66% 27%, 86% 36%, 80% 100%, 20% 100%, 14% 36%, 34% 27%, 34% 11%);
+    box-shadow: inset 0 0 34px rgba(0,0,0,.82); }
+  .qf-fc-throne .back::before { content:''; position:absolute; inset:13px; clip-path:inherit; border:2px solid rgba(212,166,72,.3); }
+  .qf-fc-throne .recess { position:absolute; left:50%; bottom:66px; transform:translateX(-50%); width:100px; height:180px; z-index:1;
+    background: radial-gradient(ellipse at 50% 32%, rgba(0,0,0,.9), rgba(22,13,28,.35) 75%, transparent); border-radius:50px 50px 8px 8px; }
+  .qf-fc-throne .crest { position:absolute; left:50%; top:-4px; transform:translateX(-50%); width:50px; image-rendering:pixelated;
+    filter: drop-shadow(0 0 9px rgba(212,166,72,.55)); z-index:2; }
+  .qf-fc-throne .arm { position:absolute; bottom:66px; width:30px; height:118px; background: linear-gradient(180deg, rgba(50,35,58,.98), rgba(16,10,22,.98));
+    border-radius:14px 14px 4px 4px; box-shadow: inset 0 0 9px rgba(0,0,0,.7), 0 0 0 1px rgba(212,166,72,.16); }
+  .qf-fc-throne .arm.l { left:24px } .qf-fc-throne .arm.r { right:24px }
+  .qf-fc-throne .arm::after { content:''; position:absolute; top:-13px; left:50%; transform:translateX(-50%); width:20px; height:20px; border-radius:50%;
+    background: radial-gradient(circle at 40% 35%, rgba(255,215,130,.95), rgba(150,95,35,.4)); box-shadow:0 0 12px rgba(212,166,72,.6); }
+  .qf-fc-throne .seat { position:absolute; left:50%; bottom:52px; transform:translateX(-50%); width:122px; height:34px;
+    background: linear-gradient(180deg, rgba(122,22,34,.92), rgba(58,10,18,.94)); border-radius:6px; box-shadow: inset 0 -7px 11px rgba(0,0,0,.55), inset 0 2px 0 rgba(212,166,72,.18); }
+  .qf-fc-throne .dais { position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:284px; height:48px;
+    background: linear-gradient(180deg, rgba(42,29,48,.97), rgba(8,5,12,.98)); clip-path: polygon(9% 0, 91% 0, 100% 100%, 0 100%);
+    box-shadow: 0 0 28px rgba(0,0,0,.7); }
+  .qf-fc-throne .dais::before { content:''; position:absolute; left:13%; right:13%; top:42%; bottom:0;
+    background: linear-gradient(180deg, rgba(56,40,62,.92), rgba(18,11,24,.94)); clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%); }
   /* sprites */
   .qf-fc-party { position:absolute; bottom:29%; left:7%; display:flex; gap:18px; align-items:flex-end; z-index:3; transform:translateX(-66vw); transition: transform 2.9s linear; }
   .qf-fc.marched .qf-fc-party { transform:translateX(0); }
@@ -194,9 +217,12 @@ export class FlipCinematic {
 
     // throne (detailed) + flanking banners/statues + pentacle + carpet
     const throne = h('div', { className: 'qf-fc-throne' }, [
-      h('div', { className: 'spike l' }), h('div', { className: 'spike m' }), h('div', { className: 'spike r' }),
-      h('div', { className: 'back' }), h('div', { className: 'seat' }),
+      h('div', { className: 'dais' }),
+      h('div', { className: 'back' }),
+      h('div', { className: 'recess' }),
+      h('img', { className: 'crest', src: DEC('doom-skull.png'), on: { error: e => e.currentTarget.remove() } }),
       h('div', { className: 'arm l' }), h('div', { className: 'arm r' }),
+      h('div', { className: 'seat' }),
     ])
     const dec = (file, st, extra) => h('img', { className: 'qf-fc-dec' + (extra ? ' ' + extra : ''), src: DEC(file), style: st, on: { error: e => e.currentTarget.remove() } })
     const setDressing = h('div', {}, [
@@ -206,11 +232,14 @@ export class FlipCinematic {
       // statues framing
       dec('decor-statue-l.png', { left: '22%', bottom: '28%', width: '90px', opacity: .55, zIndex: 1 }),
       dec('decor-statue-l.png', { right: '22%', bottom: '28%', width: '90px', opacity: .55, zIndex: 1, transform: 'scaleX(-1)' }),
-      // wall skeletons + skulls + chains (varied)
-      dec('decor-skel-wall-1.png', { left: '12%', top: '20%', width: '64px', opacity: .35 }),
-      dec('decor-skel-wall-2.png', { right: '13%', top: '18%', width: '64px', opacity: .35 }),
-      dec('decor-skull-w.png', { left: '30%', top: '30%', width: '34px', opacity: .4 }),
-      dec('decor-skull-w.png', { right: '31%', top: '33%', width: '34px', opacity: .4 }),
+      // CHAINED WALL SKELETONS (varied) — the macabre throne-room read
+      dec('decor-skel-wall-1.png', { left: '12%', top: '17%', width: '74px', opacity: .45 }),
+      dec('decor-skel-wall-2.png', { right: '13%', top: '16%', width: '74px', opacity: .45 }),
+      dec('decor-skel-wall-2.png', { left: '29%', top: '23%', width: '60px', opacity: .36 }),
+      dec('decor-skel-wall-1.png', { right: '30%', top: '24%', width: '60px', opacity: .36 }),
+      // torches flanking the throne (CSS sconce + flame + glow — reliable, visible)
+      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '40%' } }),
+      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '40%' } }),
       dec('decor-chain-draped.png', { left: '6%', top: '0', width: '70px', opacity: .4 }),
       dec('decor-chain-draped.png', { right: '6%', top: '0', width: '70px', opacity: .4, transform: 'scaleX(-1)' }),
       dec('decor-chain-single-m.png', { left: '46%', top: '0', width: '30px', opacity: .35 }),
@@ -243,7 +272,7 @@ export class FlipCinematic {
       ...buildCryptBackdrop(), setDressing,
       h('div', { className: 'qf-fc-shaft a' }), h('div', { className: 'qf-fc-shaft b' }), h('div', { className: 'qf-fc-shaft c' }), h('div', { className: 'qf-fc-shaft d' }),
       h('div', { className: 'qf-fc-spot' }), h('div', { className: 'qf-fc-ground' }), h('div', { className: 'qf-fc-carpet' }),
-      dec('decor-ritual-pentacle.png', { left: '50%', bottom: '25%', width: '230px', transform: 'translateX(-50%) rotateX(64deg)' }, 'qf-fc-pent'),
+      dec('decor-ritual-pentacle.png', { left: '50%', bottom: '13%', width: '320px' }, 'qf-fc-pent'),
       throne, embers, dust, partyEl, horde, bossSlot, fxLayer, burst,
       h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
@@ -284,17 +313,23 @@ export class FlipCinematic {
   // impacts on the boss. Repeats a couple of beats over ~1.5s.
   _assault() {
     if (!this._el) return
+    // Melee CHARGE the throne (big translateX toward the boss, staggered so they
+    // flank its left and don't overlap); ranged hold the line and fire.
+    const DASH = { knight: '33vw', cleric: '27vw' }
     this._heroSlots.forEach((s, i) => {
       const melee = s.dataset.melee === '1'
       this._setHero(s, s.dataset.atk, 'right')
-      if (melee) this._timers.push(setTimeout(() => { s.classList.add('lunge'); this._slashAt(s) }, 120 + i * 90))
-      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), 200 + i * 120))
+      if (melee) this._timers.push(setTimeout(() => {
+        s.style.transform = `translateX(${DASH[s.dataset.cls] || '29vw'}) translateY(-4px)`
+        this._slashAt(s)
+      }, 120 + i * 120))
+      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), 240 + i * 140))
     })
-    // a second flurry
+    // second flurry — more slashes / shots so it reads as a sustained assault
     this._timers.push(setTimeout(() => { if (!this._el) return; this._heroSlots.forEach((s, i) => {
-      if (s.dataset.melee === '1') this._timers.push(setTimeout(() => this._slashAt(s), i * 80))
-      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), i * 100))
-    }) }, 850))
+      if (s.dataset.melee === '1') this._timers.push(setTimeout(() => this._slashAt(s), i * 90))
+      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), i * 110))
+    }) }, 900))
   }
 
   _bossCenter() {
@@ -349,17 +384,15 @@ export class FlipCinematic {
   }
 
   _spawnHorde(horde) {
-    // random diverse minions, spread across the floor (avoid the throne centre)
-    const ids = []; const pool = [...HORDE_POOL]
-    const count = 7
-    for (let i = 0; i < count && pool.length; i++) ids.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
-    ids.forEach((id, i) => {
-      const size = 70 + Math.round(Math.random() * 28)
+    // FIXED flanking slots so minions never overlap — two clusters either side of
+    // the throne (throne band ~44-56% left clear). Random diverse minion per slot.
+    const POS = [17, 28, 39, 61, 72, 83]
+    const pool = [...HORDE_POOL]
+    POS.forEach((pct, i) => {
+      const id = pool.length ? pool.splice(Math.floor(Math.random() * pool.length), 1)[0] : _rand(HORDE_POOL)
+      const size = 76 + Math.round(Math.random() * 18)
       const a = animatedMinion(id, size)
-      // spread across 6%..94%, skipping the throne band (44%..56%)
-      let pct = 6 + (i / (count - 1)) * 88
-      if (pct > 42 && pct < 58) pct += (pct < 50 ? -14 : 14)
-      const m = h('div', { className: 'm', style: { left: pct + '%', marginLeft: -(size / 2) + 'px', width: size + 'px', height: size + 'px', animationDelay: `${i * 80 + Math.round(Math.random() * 120)}ms` } }, a?.el ? [a.el] : [])
+      const m = h('div', { className: 'm', style: { left: pct + '%', marginLeft: -(size / 2) + 'px', width: size + 'px', height: size + 'px', animationDelay: `${i * 80 + Math.round(Math.random() * 90)}ms` } }, a?.el ? [a.el] : [])
       if (a?.stop) this._stopFns.push(a.stop)
       horde.appendChild(m)
     })
