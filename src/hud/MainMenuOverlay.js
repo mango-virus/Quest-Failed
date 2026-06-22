@@ -18,7 +18,6 @@
 //       LEADERBOARD (cyan)                       → LeaderboardOverlay
 //       ACHIEVEMENTS / COMPANIONS                → respective overlays
 //       DEV TOOLS (mango-only)                   → DevToolsOverlay (editors etc.)
-//       WHAT'S NEW                               → WhatsNewOverlay
 //       OPTIONS (warn)                           → SettingsOverlay
 //       QUIT (mute)                              → tries window.close()
 //     + "› PRESS Z TO CONTINUE" prompt + italic flavor quote
@@ -40,7 +39,6 @@ import { getUnlockedBossIds } from '../data/bossUnlocks.js'
 import { Leaderboard } from '../systems/Leaderboard.js'
 import { GameRequests } from '../systems/GameRequests.js'
 import { NameEntryOverlay } from './NameEntryOverlay.js'
-import { WhatsNewOverlay } from './WhatsNewOverlay.js'
 
 // (2026-06-09 rebuild) Boss-video pool removed — the title-screen backdrop
 // is now an in-engine throne-room render owned by the Phaser MainMenu
@@ -87,7 +85,6 @@ export class MainMenuOverlay {
     this._confirm = null
     this._nameEntry = null
     this._devTools = null
-    this._whatsNew = null
     this._sel = 0          // selected menu index (see MENU_IDS / MENU_ROWS)
     this._btns = []        // menu button els by index — keyboard nav + press fx
     this._walkers = null   // MenuWalkers atmosphere instance (lazy)
@@ -136,7 +133,6 @@ export class MainMenuOverlay {
         // simultaneously climb and fall).
         this._maybeQueueLeaderboardDemotion(rows)
         this._maybeFireUnlockOverlay()
-        this._maybeAutoOpenWhatsNew()
       })
       .catch(() => {
         // Fetch failed (offline / Supabase down) — still fire any
@@ -147,7 +143,6 @@ export class MainMenuOverlay {
         // gate hasn't been burned yet.
         if (this._closed || !this._el) return
         this._maybeFireUnlockOverlay()
-        this._maybeAutoOpenWhatsNew()
       })
     // Same idea for the GAME REQUESTS mail-chip — prefetch counts so
     // the ✉ badge can render on first paint. Caches the result inside
@@ -204,8 +199,6 @@ export class MainMenuOverlay {
     this._nameEntry = null
     this._devTools?.close()
     this._devTools = null
-    this._whatsNew?.close()
-    this._whatsNew = null
     // Close the unlock-notification overlay if it's still up (player
     // hits NEW EVIL / CONTINUE / QUIT during the celebration). Its
     // close handler also calls clearPendingUnlocks(), so they don't
@@ -292,8 +285,7 @@ export class MainMenuOverlay {
         h('div', { className: 'qcm-hints' }, this._buildHints()),
       ]),
 
-      // ── Footer chips: WHAT'S NEW (version, right) + DEV TOOLS (mango, left)
-      h('div', { className: 'qcm-foot' }, [this._buildVersionChip()]),
+      // ── Footer chip: DEV TOOLS (mango, left)
       PlayerProfile.isCheatName() && this._buildDevChip(),
     ]
   }
@@ -522,20 +514,6 @@ export class MainMenuOverlay {
     ]
   }
 
-  _buildVersionChip() {
-    const nu = WhatsNewOverlay.hasUnseen()
-    return h('button', {
-      className: 'qcm-ver',
-      title: "What's new in this version",
-      // Peripheral footer chip — kept out of gamepad spatial nav so it can't
-      // hijack a cardinal move from the primary menu items (it's a tiny
-      // bottom-right corner button). Still mouse-clickable. See GamepadNav.
-      dataset: { navSkip: '1' },
-      ref: el => { (this._refs ||= {}).version = el },
-      on: { click: () => this._activate('whatsnew') },
-    }, ['v ', h('b', null, '0.1.4'), nu && h('span', { className: 'sil qcm-ver-nu' }, 'NEW')])
-  }
-
   _buildDevChip() {
     return h('button', {
       className: 'qcm-dev',
@@ -748,12 +726,6 @@ export class MainMenuOverlay {
             // in case any unlock affected them (e.g. a new companion
             // now counts as "unseen" on the recruit screen).
             if (!this._closed && this._el) this._refreshMenuItems()
-            // Chain the What's New auto-pop AFTER the celebration so a
-            // returning-after-update player who also had unlocks never
-            // misses it. The pending-unlocks queue is now cleared, so
-            // _maybeAutoOpenWhatsNew's "skip if unlocks pending" gate
-            // passes; the once-per-session flag still prevents a repeat.
-            if (!this._closed && this._el) this._maybeAutoOpenWhatsNew()
           },
         })
         this._unlockOverlay.open()
@@ -769,10 +741,6 @@ export class MainMenuOverlay {
   // free). Re-binds this._btns for the grid and re-applies selection.
   _refreshMenuItems() {
     if (this._refs?.grid) mount(this._refs.grid, this._buildGridInner())
-    if (this._refs?.version?.parentNode) {
-      const fresh = this._buildVersionChip()
-      this._refs.version.parentNode.replaceChild(fresh, this._refs.version)
-    }
     this._applySelection()
   }
 
@@ -915,10 +883,6 @@ export class MainMenuOverlay {
         break
       case 'requests':
         this._openGameRequests()
-        break
-      case 'whatsnew':
-        // Menu button shows the FULL changelog history, not just unseen.
-        this._openWhatsNew(true)
         break
       case 'devtools':
         // Mango-only — opens the consolidated dev panel. Each tool in
@@ -1094,46 +1058,6 @@ export class MainMenuOverlay {
       })
       this._devTools.open()
     }).catch(() => {})
-  }
-
-  // Open the recent-updates panel. On close it marks everything seen, so
-  // the NEW badge clears — re-sync the menu items so the badge disappears
-  // without re-running the entrance animations. `full` (menu button) shows
-  // the whole changelog; the auto-pop leaves it false to show only unseen.
-  _openWhatsNew(full = false) {
-    if (this._whatsNew) return
-    this._whatsNew = new WhatsNewOverlay({
-      full,
-      onClose: () => {
-        this._whatsNew = null
-        if (!this._closed && this._el) this._refreshMenuItems()
-      },
-    })
-    this._whatsNew.open()
-  }
-
-  // Auto-pop the WHAT'S NEW panel once per session when there's an update
-  // the player hasn't seen — so a returning player catches up on first
-  // launch. Skipped when an unlock / top-3 celebration is queued (that
-  // takes the spotlight; the NEW badge still flags the update for manual
-  // open) so two popups never stack. The 400ms delay lets the menu's
-  // entrance animations settle first.
-  _maybeAutoOpenWhatsNew() {
-    if (MainMenuOverlay._whatsNewAutoShown) return
-    // Brand-new player: baseline them to the latest patch so the back-catalogue
-    // of changelog notes never auto-pops — they go straight to the menu →
-    // New Game → Welcome Intro instead of a wall of out-of-context patch notes.
-    WhatsNewOverlay.primeIfFirstRun()
-    if (!WhatsNewOverlay.hasUnseen()) return
-    if ((PlayerProfile.getPendingUnlocks?.() || []).length > 0) return
-    MainMenuOverlay._whatsNewAutoShown = true
-    setTimeout(() => {
-      if (this._closed || !this._el || this._whatsNew || this._unlockOverlay) return
-      this._openWhatsNew()
-      // Auto-pop chime — ONLY on this returning-player auto-open. The manual
-      // menu-row open (case 'whatsnew' → _openWhatsNew(true)) stays silent.
-      HudSfx.playUi('whats_new')
-    }, 400)
   }
 
   // Dev-only helper — wired to the mango-gated TEST UNLOCKS menu item.

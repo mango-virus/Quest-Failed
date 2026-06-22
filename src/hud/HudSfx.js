@@ -35,7 +35,6 @@ const UI_VOL = {
   unlock_reward:      1.10,  // boss / companion / title card pops in
   unlock_achievement: 1.10,  // achievement card pops in (gold trophy)
   demote:             1.20,  // leaderboard-demotion card — ominous, weighty
-  whats_new:          1.10,  // WHAT'S NEW panel auto-pops for a returning player
   // ── Cinematic apex stingers (UI_POLISH_PLAN P2-1) ──────────────────────
   // Hero-moment one-shots fired from the full-screen cinematics at their apex
   // beats. DORMANT until their audio files are added + registered in Preload —
@@ -77,7 +76,6 @@ const UI_KEY = {
   unlock_reward:      'sfx-unlock-reward',      // boss / companion / title card
   unlock_achievement: 'sfx-unlock-achievement', // achievement card
   demote:             'sfx-boss-death',          // dethroned — "the mighty have fallen"
-  whats_new:          'sfx-whats-new',           // WHAT'S NEW auto-pop chime
   // Cinematic apex stingers (P2-1) — these audio keys are NOT loaded yet; the
   // game ships no files for them, so each cue no-ops until the file is added to
   // Preload under the matching key. Add e.g. `this.load.audio('sfx-cin-arise',
@@ -111,7 +109,6 @@ const COOLDOWN = {
   unlock_reward:      300,
   unlock_achievement: 300,
   demote:             300,
-  whats_new:          500,  // one-shot per session; long guard so it never layers
   // Cinematic apex stingers (P2-1) — long guards; each fires at most once per
   // beat, and a long cooldown stops a re-fired event from layering the sting.
   cin_arise:      800,

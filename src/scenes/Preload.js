@@ -467,7 +467,6 @@ export class Preload extends Phaser.Scene {
     this.load.audio('sfx-btn-click',          'assets/audio/Press button.wav')
     this.load.audio('sfx-unlock-reward',      'assets/audio/unlocked-reward.mp3')
     this.load.audio('sfx-unlock-achievement', 'assets/audio/achievement-unlocked.mp3')
-    this.load.audio('sfx-whats-new',          'assets/audio/whats-new-open.mp3')
     this.load.audio('sfx-error',              'assets/audio/error.wav')
 
     // Dungeon tile sprites — loaded per named tileset.
