@@ -172,12 +172,19 @@ export class CoachMark {
       }
       const r = _rectInStage(t)
       const hx = r.x - pad, hy = r.y - pad, hw = r.w + pad * 2, hh = r.h + pad * 2
-      const set = (d, x, y, w, ht) => { d.style.display = 'block'; d.style.cssText =
-        `position:absolute;background:rgba(4,2,8,.72);pointer-events:auto;left:${x}px;top:${y}px;width:${Math.max(0, w)}px;height:${Math.max(0, ht)}px` }
-      set(dims[0], 0, 0, sw, hy)
-      set(dims[1], 0, hy + hh, sw, sh - (hy + hh))
-      set(dims[2], 0, hy, hx, hh)
-      set(dims[3], hx + hw, hy, sw - (hx + hw), hh)
+      if (opts.passThrough) {
+        // Non-blocking: drop the dim panels so the player can use the WHOLE screen
+        // — needed for multi-step actions like "pick a room, then click the map to
+        // place it" (the map is outside the spotlight). Just the ring + bubble guide.
+        for (let i = 0; i < 4; i++) dims[i].style.display = 'none'
+      } else {
+        const set = (d, x, y, w, ht) => { d.style.display = 'block'; d.style.cssText =
+          `position:absolute;background:rgba(4,2,8,.72);pointer-events:auto;left:${x}px;top:${y}px;width:${Math.max(0, w)}px;height:${Math.max(0, ht)}px` }
+        set(dims[0], 0, 0, sw, hy)
+        set(dims[1], 0, hy + hh, sw, sh - (hy + hh))
+        set(dims[2], 0, hy, hx, hh)
+        set(dims[3], hx + hw, hy, sw - (hx + hw), hh)
+      }
       ring.style.display = 'block'
       ring.style.left = hx + 'px'; ring.style.top = hy + 'px'
       ring.style.width = hw + 'px'; ring.style.height = hh + 'px'

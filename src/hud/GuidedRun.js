@@ -75,7 +75,7 @@ export class GuidedRun {
     if (await this._coach({ target: '.hc-t-place', eyebrow: 'BUILD', text: 'Open the build menu', gesture: 'tap', advance: 'tap' }) === 'skip') return
     await wait(240)   // drawer slides open (defaults to the ROOMS tab)
     if (await this._coach(
-      { target: () => this._firstCard(), eyebrow: 'PLACE A ROOM', text: 'Pick a room, drop it on the map', gesture: 'tap', advance: 'hold', hint: 'Place it →' },
+      { target: () => this._firstCard(), eyebrow: 'PLACE A ROOM', text: 'Pick a room, drop it on the map', gesture: 'tap', advance: 'hold', hint: 'Place it →', passThrough: true },
       'ROOM_PLACED') === 'skip') return
     await wait(450)   // a beat to admire the new room
 
@@ -86,7 +86,7 @@ export class GuidedRun {
     if (await this._coach({ target: () => this._minionsTab(), eyebrow: 'MINIONS', text: 'Switch to the minions tab', gesture: 'tap', advance: 'tap' }) === 'skip') return
     await wait(180)
     if (await this._coach(
-      { target: () => this._firstCard(), eyebrow: 'PLACE A MINION', text: 'Set a minion in your room', gesture: 'tap', advance: 'hold', hint: 'Place it →' },
+      { target: () => this._firstCard(), eyebrow: 'PLACE A MINION', text: 'Set a minion in your room', gesture: 'tap', advance: 'hold', hint: 'Place it →', passThrough: true },
       'MINION_PLACED') === 'skip') return
     await wait(450)
 
