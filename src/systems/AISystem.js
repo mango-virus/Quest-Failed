@@ -2197,13 +2197,11 @@ export class AISystem {
     // Phase 6e: passive room effects (healing fountain heal-on-stand)
     this._applyRoomEffects(adv, delta)
 
-    // Phase 6c: detect coward seeing enemies — flee before engaging
+    // Phase 6c: a coward seeing enemies. Terror no longer hands the player a
+    // clean escape — it PINS the coward in place (cower: frozen, can't fight,
+    // takes +damage) for an easy kill in your killzone, instead of fleeing.
     const spookMinion = this._cowardShouldFlee(adv)
-    if (spookMinion) {
-      this._setFleeGoal(adv, 'coward_panic', {
-        minionName: this._minionDisplayName(spookMinion),
-      })
-    }
+    if (spookMinion) this._panicInPlace(adv)
 
     // Phase 6e: resource-depletion flee. Mana removed in 5b rework, so this
     // now only fires for rangers running out of arrows. Ranger arrow logic is
@@ -2314,15 +2312,12 @@ export class AISystem {
       }
     }
 
-    // Phase 9 — Pact of the Whisperer: panic-flee on sight of a hostile minion.
+    // Phase 9 — Pact of the Whisperer: terror on sight of a hostile minion. No
+    // longer a clean flee (a denied kill + knowledge leak) — it PINS them in
+    // place (cower: frozen, can't fight, +damage) for an easy kill.
     if (adv.flags?.panicFlee && adv.aiState !== 'fleeing' && this._combatSystem) {
       const enemy = this._findEngageableMinion(adv)
-      if (enemy) {
-        this._setFleeGoal(adv, 'whisperer_panic', {
-          minionName: this._minionDisplayName(enemy),
-        })
-        return
-      }
+      if (enemy) { this._panicInPlace(adv); return }
     }
     // Phase 9 — Sworn Rivals: when both rivals fall below half HP, they
     // break ranks and attack each other on sight (in melee/attack-range).
@@ -2374,10 +2369,14 @@ export class AISystem {
     if (!adv.path || adv.pathIndex >= adv.path.length) {
       const target = this._goalToTile(adv)
       if (!target) {
-        // Goal dissolved (room removed, ally died, etc.).  Switch to FLEE
-        // so they at least try to head home — only an actual entry-hall
-        // arrival or death is allowed to remove them from active.
+        // Goal dissolved (room removed, ally died, chest looted, etc.). Don't
+        // bolt for the exit just because one target vanished — re-plan to a
+        // fresh reachable goal (explore / boss / wander) so they keep raiding.
+        // Only flee if genuinely nothing is reachable (truly boxed in), which
+        // the entry-stuck timeout then despawns so the day can still end.
         if (adv.goal?.type !== 'FLEE') {
+          const alt = this._findReachableAlternateGoal(adv, null, null, null)
+          if (alt) { adv.goal = alt; adv.path = null; return }
           const lostLabel = this._goalRoomLabel(adv)
           adv.goal    = { type: 'FLEE', reason: 'goal_lost', context: lostLabel ? { goalLabel: lostLabel } : null }
           adv.path    = null
@@ -3262,11 +3261,21 @@ export class AISystem {
     // Plunderers (KR P5 response) bail at the first sign of trouble — they're
     // here to rob you and run, not die for the crown. High threshold = flee
     // early (and try to abscond with what they've pocketed).
-    const threshold = adv.flags?.plundererThief
+    const baseThreshold = adv.flags?.plundererThief
       ? 0.85
       : this._personalitySystem
         ? (this._personalitySystem.getWeights(adv).fleeThreshold ?? 0.5)
         : 0.3
+    // Wounded heroes only break off when GENUINELY near death. Personality
+    // fleeThresholds run as high as 0.6–0.95, which had cautious types bailing at
+    // 60–75% HP ("bleeding badly (75% HP)") — a denied kill. Cap the effective
+    // flee point near death so the player gets the kill; braver personalities
+    // (lower thresholds) still flee even later or not at all. Plunderers (KR
+    // rob-and-run) are exempt — fleeing with loot is their whole identity.
+    const NEAR_DEATH_FLEE_CAP = 0.20
+    const threshold = adv.flags?.plundererThief
+      ? baseThreshold
+      : Math.min(baseThreshold, NEAR_DEATH_FLEE_CAP)
     if (hpFrac <= threshold + Balance.FLEE_BUFFER) {
       // Roll once per threshold crossing, not every tick (otherwise repeated
       // rolls converge to ~100% flee). Flag clears when HP recovers above
@@ -3318,6 +3327,26 @@ export class AISystem {
     }
     if (g.type === 'SEEK_BOSS' || g.type === 'AT_BOSS') return 'boss chamber'
     return null
+  }
+
+  // Pin a hero in the cower/panic state (frozen, can't fight back, takes +damage)
+  // — the same nerve-break "panic in place" used by morale collapse. Used for
+  // sight-panic (cowards + Whisperer pact) so terror cashes out as an easy KILL
+  // in your killzone rather than a clean escape. Refreshed each tick the threat
+  // holds (the caller re-detects on sight); lapses when it leaves.
+  _panicInPlace(adv) {
+    if (!adv || adv.aiState === 'dead' || adv.flags?.noFlee) return
+    const now = this._scene?.time?.now ?? 0
+    const wasPanicked = adv._panickedUntil != null && now < adv._panickedUntil
+    adv._panickedUntil = now + PANIC_HOLD_MS
+    if (!wasPanicked) {
+      EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a terrified cry as they freeze
+      adv._panicVfxAt = 0
+    }
+    if (now - (adv._panicVfxAt ?? 0) >= PANIC_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
+      AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+      adv._panicVfxAt = now
+    }
   }
 
   _setFleeGoal(adv, reason = 'low_hp_retreat', context = null) {

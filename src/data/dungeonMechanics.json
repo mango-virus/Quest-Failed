@@ -1170,7 +1170,7 @@
     "id": "pact_of_the_whisperer",
     "name": "Pact of the Whisperer",
     "symbol": "😱",
-    "description": "One adventurer per day is marked — they panic-flee on sight of any of your minions.",
+    "description": "One adventurer per day is marked — the sight of any of your minions freezes them in terror (defenceless, takes extra damage).",
     "tradeoffDescription": "The marked adventurer's party gains +50% damage out of revenge.",
     "rarity": "rare",
     "unlockLevel": 4,
