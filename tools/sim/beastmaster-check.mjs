@@ -55,18 +55,22 @@ const move = (e, tx, ty) => { e.tileX = tx; e.tileY = ty; e.worldX = w(tx); e.wo
   const b = bm(); const c = companion(b.instanceId, 15, 15); const t = hostile(7, 6)
   const gs = { adventurers: { active: [b] }, minions: [c, t], player: { gold: 0 }, _mechanicFlags: {} }
   const cb = new CombatSystem(scene, gs)
+  // _computeDamage carries per-hit RANDOM variance, and on small base damage the
+  // +25% pack-tactics bonus can floor to the same integer on a single roll — so
+  // average many rolls to compare the bonus deterministically (no flaky test).
+  const avg = (fn, n = 200) => { let s = 0; for (let i = 0; i < n; i++) s += fn(); return s / n }
   // BM attacker: companion far → no bonus; companion adjacent to target → bonus.
   move(b, 6, 6)                          // BM borders target (7,6)
-  const bmNoFlank = cb._computeDamage(b, t)
+  const bmNoFlank = avg(() => cb._computeDamage(b, t))
   move(c, 7, 7)                          // beast now borders target too
-  const bmFlank = cb._computeDamage(b, t)
-  check('pack tactics: BM hits harder when the beast flanks', bmFlank > bmNoFlank, `no=${bmNoFlank} flank=${bmFlank}`)
+  const bmFlank = avg(() => cb._computeDamage(b, t))
+  check('pack tactics: BM hits harder when the beast flanks', bmFlank > bmNoFlank, `no=${bmNoFlank.toFixed(1)} flank=${bmFlank.toFixed(1)}`)
   // Companion attacker: BM far → no bonus; BM adjacent → bonus.
   move(b, 15, 15)
-  const cNoFlank = cb._computeDamage(c, t)
+  const cNoFlank = avg(() => cb._computeDamage(c, t))
   move(b, 8, 6)                          // BM borders target
-  const cFlank = cb._computeDamage(c, t)
-  check('pack tactics: beast hits harder when the BM flanks', cFlank > cNoFlank, `no=${cNoFlank} flank=${cFlank}`)
+  const cFlank = avg(() => cb._computeDamage(c, t))
+  check('pack tactics: beast hits harder when the BM flanks', cFlank > cNoFlank, `no=${cNoFlank.toFixed(1)} flank=${cFlank.toFixed(1)}`)
 }
 
 console.log('\nBeast Master (Sic \'Em + Pack Tactics) checks\n')

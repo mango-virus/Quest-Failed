@@ -15,7 +15,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Regression gate — a broken main must NOT deploy. Runs the lints + every
+  # tools/sim/*-check.mjs (npm test). No `npm ci`: the suite is pure Node + repo
+  # files. `deploy` waits on this and is skipped if it fails, so the last good
+  # build stays live.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
+
   deploy:
+    needs: test
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

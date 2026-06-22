@@ -21,7 +21,10 @@ const dist = (a, tx, ty) => Math.hypot(a.tileX - tx, a.tileY - ty)
 check('blinkAbilityOf finds the blink ability', !!MA.blinkAbilityOf(imp('imp1'), scene))
 check('_isFloorTile accepts numeric FLOOR/BOSS_FLOOR + string', MA._isFloorTile(1) && MA._isFloorTile(5) && MA._isFloorTile('floor') && !MA._isFloorTile(0) && !MA._isFloorTile('wall'))
 {
-  const r = MA._pickBlinkTile(grid, room(), (tx, ty) => tx > 8 && ty > 8)
+  // tries:400 — _pickBlinkTile samples RANDOM tiles, so a tight predicate (here
+  // 9 of 144 tiles) needs enough tries to be deterministic in the test (in-game a
+  // miss just retries next tick, so the default 24 is fine there).
+  const r = MA._pickBlinkTile(grid, room(), (tx, ty) => tx > 8 && ty > 8, { tries: 400 })
   check('_pickBlinkTile returns a tile matching the predicate', r && r.x > 8 && r.y > 8, `r=${JSON.stringify(r)}`)
 }
 {

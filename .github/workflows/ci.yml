@@ -1,0 +1,24 @@
+name: CI
+
+# Runs the regression suite — the static linters + every tools/sim/*-check.mjs
+# behaviour test (via `npm test`) — on pushes (non-main branches) and PRs. Pushes
+# to `main` are covered by the test gate in pages.yml (which blocks the deploy on
+# failure), so they're excluded here to avoid a duplicate run.
+#
+# No `npm ci` step: the suite is pure Node + repo files (only `node:` built-ins),
+# so there are no dependencies to install.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
