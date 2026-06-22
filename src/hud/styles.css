@@ -1585,7 +1585,7 @@ html.gamepad-active #qf-cursor { display: none; }
   display: grid;
   grid-template-columns: 1fr 1.1fr 1fr;
   align-items: start;
-  padding: 16px 22px 0;
+  padding: 10px 20px 0;
   gap: 24px;
   z-index: 10;
   pointer-events: none;   /* only the panels are interactive */
@@ -1615,7 +1615,16 @@ html.gamepad-active #qf-cursor { display: none; }
 
 .qf-topbar-left {
   display: flex; align-items: stretch; gap: 11px;
-  padding: 11px 15px 12px 11px;
+  padding: 6px 14px 9px 6px;
+  /* Brought in from the corner for breathing room, then scaled up as a whole so
+     the boss vitals read as a big, prominent corner HUD without re-tuning every
+     child. Scaling from the top-left grows it down/right into empty space and
+     doesn't change the grid footprint, so the centred day stamp stays put.
+     (Vector text + solid bars stay crisp; the pixel portrait keeps
+     nearest-neighbour scaling via image-rendering: pixelated.) */
+  margin: 9px 0 0 6px;
+  transform: scale(1.4);
+  transform-origin: top left;
   width: max-content;        /* panel hugs its content, doesn't span the cell */
 }
 .qf-topbar-right {
@@ -1863,7 +1872,7 @@ html.gamepad-active #qf-cursor { display: none; }
   margin-bottom: 6px;
 }
 
-.qf-day-number { font-size: 28px; letter-spacing: 4px; }
+.qf-day-number { font-size: 40px; letter-spacing: 5px; }
 .qf-day-number.phase-night {
   color: var(--rumor);
   text-shadow: 3px 3px 0 #0a1a2e, 0 0 24px rgba(92, 200, 216, 0.55);
@@ -1958,9 +1967,9 @@ html.gamepad-active #qf-cursor { display: none; }
 
 .qf-treasury-label {
   font-family: var(--pix);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-mute);
-  letter-spacing: 2px;
+  letter-spacing: 2.5px;
 }
 
 .qf-treasury-amount {
@@ -1968,13 +1977,13 @@ html.gamepad-active #qf-cursor { display: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 11px;
   line-height: 0;
 }
 
 .qf-coin {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   background-image: url('../../assets/ui/gold-coins.png');
   background-size: contain;
   background-repeat: no-repeat;
@@ -1987,7 +1996,7 @@ html.gamepad-active #qf-cursor { display: none; }
 .qf-gold-number {
   position: relative;
   display: inline-block;
-  font-size: 30px;
+  font-size: 42px;
   color: var(--gold-bright);
   letter-spacing: 2px;
   /* Gilded glow — a warm halo gently swells and fades so the hoard
