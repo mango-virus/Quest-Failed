@@ -41,6 +41,11 @@ function _injectCss() {
     transform: translate(-50%,-50%) scale(var(--fc-scale,1)); transform-origin:50% 50%; }
   .qf-fc-scene { position:absolute; inset:0; transform-origin:50% 56%; transition: transform 1.1s cubic-bezier(.3,.7,.25,1); }
   .qf-fc.flipped .qf-fc-scene { transform: scale(1.13); }
+  /* darkens the scene (walls/decor/floor) at the reveal so the glowing boss + the
+     title + the button read clearly. Sits at z3 — BELOW the boss (z4) so the boss
+     stays bright. */
+  .qf-fc-dim { position:absolute; inset:0; z-index:3; background:rgba(0,0,0,1); opacity:0; pointer-events:none; transition: opacity 1.1s ease; }
+  .qf-fc.revealing .qf-fc-dim { opacity:.45; }
   .qf-fc-spot { position:absolute; left:50%; top:50%; width:1460px; height:1460px; transform:translate(-50%,-42%); pointer-events:none;
     opacity:.45; transition:opacity .8s ease, background .8s ease;
     background: radial-gradient(circle, rgba(212,166,72,.16) 0%, rgba(212,166,72,.05) 32%, transparent 60%); }
@@ -229,13 +234,13 @@ export class FlipCinematic {
     const dec = (file, st, extra) => h('img', { className: 'qf-fc-dec' + (extra ? ' ' + extra : ''), src: DEC(file), style: st, on: { error: e => e.currentTarget.remove() } })
     const setDressing = h('div', {}, [
       // statues framing
-      dec('decor-statue-l.png', { left: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3 }),
-      dec('decor-statue-l.png', { right: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3, transform: 'scaleX(-1)' }),
+      dec('decor-statue-l.png', { left: '22%', bottom: '31%', width: '94px', opacity: .62, zIndex: 3 }),
+      dec('decor-statue-l.png', { right: '22%', bottom: '31%', width: '94px', opacity: .62, zIndex: 3, transform: 'scaleX(-1)' }),
       // CHAINED WALL SKELETONS (varied) — the macabre throne-room read
       dec('decor-skel-wall-1.png', { left: '12%', top: '17%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { right: '13%', top: '16%', width: '74px', opacity: .45 }),
-      dec('decor-skel-wall-2.png', { left: '29%', top: '23%', width: '60px', opacity: .36 }),
-      dec('decor-skel-wall-1.png', { right: '30%', top: '24%', width: '60px', opacity: .36 }),
+      dec('decor-skel-wall-2.png', { left: '35%', top: '23%', width: '60px', opacity: .36 }),
+      dec('decor-skel-wall-1.png', { right: '35%', top: '24%', width: '60px', opacity: .36 }),
       // torches flanking the throne — the REAL torch.png sprite-strip at the SAME
       // size as the main menu (172×192 frame, 6-frame burn) + the matching glow.
       h('div', { className: 'qf-fc-torch l', style: { left: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
@@ -272,7 +277,9 @@ export class FlipCinematic {
       ...buildCryptBackdrop(), setDressing,
       h('div', { className: 'qf-fc-shaft a' }), h('div', { className: 'qf-fc-shaft b' }), h('div', { className: 'qf-fc-shaft c' }), h('div', { className: 'qf-fc-shaft d' }),
       h('div', { className: 'qf-fc-spot' }), h('div', { className: 'qf-fc-ground' }), h('div', { className: 'qf-fc-carpet' }),
-      throne, embers, dust, partyEl, bossSlot, fxLayer, burst,
+      throne, embers, dust, partyEl,
+      h('div', { className: 'qf-fc-dim' }),   // fades in at the reveal so the boss + text + button pop (sits BELOW the boss z4)
+      bossSlot, fxLayer, burst,
       h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
     const world = h('div', { className: 'qf-fc-world' }, [scene])
@@ -309,7 +316,7 @@ export class FlipCinematic {
       setTimeout(() => this._el && this._el.classList.add('fled'), 220)   // run off-screen
       setLine('Not this time.')
     })
-    at(13400, () => { capLine.classList.remove('on'); reveal.classList.add('on') })
+    at(13400, () => { capLine.classList.remove('on'); reveal.classList.add('on'); this._el.classList.add('revealing') })
     at(15800, () => foot.classList.add('on'))
   }
 

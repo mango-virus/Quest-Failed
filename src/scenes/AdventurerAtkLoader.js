@@ -128,12 +128,13 @@ let   _atkWeaponOf = null             // manifest weapon lookup, cached
 
 function _weaponLookup(scene) {
   if (_atkWeaponOf) return _atkWeaponOf
-  _atkWeaponOf = {}
   const manifest = scene.cache?.json?.get('adventurerManifest')
-  if (manifest?.variants) {
-    for (const [cid, list] of Object.entries(manifest.variants)) {
-      for (const vv of list) _atkWeaponOf[`${cid}/${vv.id}`] = vv.weapon
-    }
+  // Manifest not loaded yet — return an empty lookup but DON'T cache it, or every
+  // later call is permanently stuck with "no weapon" (→ no _atk sheet ever loads).
+  if (!manifest?.variants) return {}
+  _atkWeaponOf = {}
+  for (const [cid, list] of Object.entries(manifest.variants)) {
+    for (const vv of list) _atkWeaponOf[`${cid}/${vv.id}`] = vv.weapon
   }
   return _atkWeaponOf
 }
@@ -187,6 +188,9 @@ export function requestAdvAtkSheet(scene, baseKey) {
   if (!parsed) { _atkDone.add(baseKey); return }
   const { id, v } = parsed
   if (!ADVENTURER_ATK_CLASSES.has(id)) { _atkDone.add(baseKey); return }
+  // Manifest not loaded yet → we can't classify the weapon. Bail WITHOUT marking
+  // the variant done, so a later call (once the manifest lands) resolves it.
+  if (!scene.cache?.json?.get('adventurerManifest')?.variants) return
   const want = _wantSheets(scene, id, v)
   const needAtk   = want.atk   && !scene.textures.exists(`${baseKey}-atk`)
   const needCarry = want.carry && !scene.textures.exists(`${baseKey}-walk128`)
