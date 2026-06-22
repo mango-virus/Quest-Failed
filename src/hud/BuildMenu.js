@@ -280,7 +280,10 @@ export class BuildMenu {
   // player gets hovering that thing in the world — fed a synthetic def-based
   // entity so a not-yet-placed minion/trap/room/item reads identically. The
   // panel floats ABOVE the bottom-anchored tray (placeAbove).
-  _showTip(e, def, cat) {
+  _showTip(e, def, cat, _rar, locked) {
+    // Locked slots reveal nothing — the player hasn't unlocked that thing yet,
+    // so they only see the "NEEDS LV X" badge on the card, not its stats/abilities.
+    if (locked) { this._hideTip(); return }
     const payload = this._inspectPayload(def, cat, e.currentTarget)
     if (payload) EventBus.emit('SHOW_INSPECT', payload)
   }
