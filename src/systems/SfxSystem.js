@@ -104,6 +104,14 @@ const PITCH_VARY = new Set([
 const PITCH_SPREAD_CENTS = 200   // ± per play
 const VOL_JITTER         = 0.10  // ±10% gain per play
 
+// Positional audio: combat cues pan + attenuate by the source's on-screen
+// position, so a fight reads spatially ("clash to my right") and off-screen
+// action recedes instead of being as loud as the boss room you're watching.
+// PAN_STRENGTH caps how hard an edge sound pans (a full ±1 hard-pan is
+// disorienting); DIST_MIN_VOLMUL is the volume floor for far-off-screen sources.
+const PAN_STRENGTH    = 0.7
+const DIST_MIN_VOLMUL = 0.45
+
 // ── Window-focus tracking ───────────────────────────────────────────────────
 // SFX fired while the game window/tab is in the background are dropped, not
 // queued. When the page loses focus the browser suspends the WebAudio clock,
@@ -358,14 +366,17 @@ export class SfxSystem {
 
   _onCombatHit({ sourceId, targetId, damage }) {
     const now = this._now()
+    // Pan/attenuate by where the blow LANDS (target), falling back to the
+    // attacker's position. Shared across the hurt + attack cues for this hit.
+    const sp = this._spatial(this._entityPos(targetId) || this._entityPos(sourceId))
     // Hurt sound. Adventurers get Human_Hit (this replaces the generic
     // take-damage cue for advs); minions and the boss keep take-damage.
     // Trap damage routes here too — traps emit COMBAT_HIT per tick.
     if (targetId && this._findAdv(targetId)) {
-      this._playHumanHit(damage)
+      this._playHumanHit(damage, sp)
     } else if (now - this._lastTakeDamageAt >= 120) {
       this._lastTakeDamageAt = now
-      this._play('sfx-take-damage')
+      this._play('sfx-take-damage', undefined, sp)
     }
 
     // Attack sound based on source class. Boss melee has its own handler.
@@ -375,10 +386,10 @@ export class SfxSystem {
 
     switch (adv.classId) {
       case 'ranger':
-        this._play('sfx-archer-shoot')
+        this._play('sfx-archer-shoot', undefined, sp)
         break
       case 'monk':
-        this._play(this._monkAlt === 0 ? 'sfx-monk-1' : 'sfx-monk-2')
+        this._play(this._monkAlt === 0 ? 'sfx-monk-1' : 'sfx-monk-2', undefined, sp)
         this._monkAlt = 1 - this._monkAlt
         break
       case 'mage':
@@ -386,45 +397,46 @@ export class SfxSystem {
         // double-playing on each AoE hit tick.
         break
       default:
-        this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2')
+        this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2', undefined, sp)
         this._meleeAlt = 1 - this._meleeAlt
     }
   }
 
-  _onBossMeleeHit({ damage } = {}) {
+  _onBossMeleeHit({ damage, targetId } = {}) {
+    const sp = this._spatial(this._entityPos(targetId))
     // Play boss attack sound every other hit to avoid rapid-fire repetition.
-    if (this._bossAttackAlt === 0) this._play('sfx-boss-attack')
+    if (this._bossAttackAlt === 0) this._play('sfx-boss-attack', undefined, sp)
     this._bossAttackAlt = 1 - this._bossAttackAlt
     // Boss melee always targets an adventurer → Human_Hit.
-    this._playHumanHit(damage)
+    this._playHumanHit(damage, sp)
   }
 
   // Adventurer hurt — picks one of the three Human_Hit variants at random.
   // One sound per hit, with a short anti-stack guard so a mass fight or an
   // AoE tick doesn't machine-gun the cue. Zero-damage hits (dodges) silent.
-  _playHumanHit(damage) {
+  _playHumanHit(damage, spatial) {
     if (damage != null && damage <= 0) return
     const now = this._now()
     if (now - this._lastHumanHitAt < 80) return
     this._lastHumanHitAt = now
-    this._play(this._pickVariant('sfx-human-hit-', 3, '_humanHitLast'))
+    this._play(this._pickVariant('sfx-human-hit-', 3, '_humanHitLast'), undefined, spatial)
   }
 
   // Minion death. Adventurer death has its own handler (_onAdventurerDeath).
-  _onDeath() {
+  _onDeath({ minion } = {}) {
     const now = this._now()
     if (now - this._lastDeathAt < 250) return
     this._lastDeathAt = now
-    this._play('sfx-death')
+    this._play('sfx-death', undefined, this._spatial(minion))
   }
 
   // Adventurer death — one of the two Human_Die variants at random, with a
   // short anti-stack guard so simultaneous kills don't stack into noise.
-  _onAdventurerDeath() {
+  _onAdventurerDeath({ adventurer } = {}) {
     const now = this._now()
     if (now - this._lastHumanDieAt < 250) return
     this._lastHumanDieAt = now
-    this._play(this._pickVariant('sfx-human-die-', 2, '_humanDieLast'))
+    this._play(this._pickVariant('sfx-human-die-', 2, '_humanDieLast'), undefined, this._spatial(adventurer))
   }
 
   _onBossFightStarted() {
@@ -580,7 +592,7 @@ export class SfxSystem {
   // volume exceed 1.0 — Phaser's WebAudio GainNode accepts gain > 1, so we
   // rely on it for the "extra loud" pickup sounds (collect-gold) where the
   // standard ceiling makes them disappear in the mix.
-  _play(key, extraBoost) {
+  _play(key, extraBoost, spatial) {
     // Backgrounded — drop the sound entirely so it can't queue up and
     // burst on return (see the _pageHasFocus note above).
     if (!_pageHasFocus) return
@@ -595,6 +607,12 @@ export class SfxSystem {
     if (PITCH_VARY.has(key)) {
       cfg.detune = (Math.random() * 2 - 1) * PITCH_SPREAD_CENTS
       cfg.volume = Math.min(cap, vol * (1 + (Math.random() * 2 - 1) * VOL_JITTER))
+    }
+    // Positional audio — pan + distance attenuation from the source's on-screen
+    // position (combat cues only; UI / stings pass no spatial → centred).
+    if (spatial) {
+      cfg.pan = spatial.pan
+      cfg.volume = Math.min(cap, cfg.volume * spatial.volMul)
     }
     try { this._scene.sound.play(key, cfg) } catch {}
   }
@@ -614,6 +632,35 @@ export class SfxSystem {
 
   _findAdv(instanceId) {
     return this._gameState?.adventurers?.active?.find(a => a.instanceId === instanceId) ?? null
+  }
+
+  // Resolve any combatant (boss / adventurer / minion) by instanceId — used for
+  // positional audio. Returns the entity (with worldX/worldY) or null.
+  _entityPos(id) {
+    const gs = this._gameState
+    if (id == null) return null
+    if (id === 'boss' || gs?.boss?.instanceId === id) return gs?.boss ?? null
+    return (gs?.adventurers?.active ?? []).find(a => a.instanceId === id)
+        ?? (gs?.minions ?? []).find(m => m.instanceId === id) ?? null
+  }
+
+  // { pan, volMul } from a world entity's position vs the camera. pan is the
+  // entity's horizontal offset from the viewport centre (clamped, scaled by
+  // PAN_STRENGTH); volMul fades toward DIST_MIN_VOLMUL as the source leaves the
+  // viewport. Returns null (→ centred, full volume) when unavailable.
+  _spatial(ent) {
+    const cam = this._scene?._cam ?? this._scene?.cameras?.main
+    const x = ent?.worldX
+    if (!cam || !Number.isFinite(x)) return null
+    const z = cam.zoom || 1
+    const halfW = (cam.width  / z) / 2 || 1
+    const halfH = (cam.height / z) / 2 || 1
+    const nx = (x - (cam.scrollX + halfW)) / halfW                 // −1..1 across view
+    const ny = Number.isFinite(ent?.worldY) ? (ent.worldY - (cam.scrollY + halfH)) / halfH : 0
+    const pan = Math.max(-1, Math.min(1, nx)) * PAN_STRENGTH
+    const over = Math.max(0, Math.max(Math.abs(nx), Math.abs(ny)) - 1)   // distance outside view
+    const volMul = Math.max(DIST_MIN_VOLMUL, 1 - over * 0.55)
+    return { pan, volMul }
   }
 
   destroy() {
