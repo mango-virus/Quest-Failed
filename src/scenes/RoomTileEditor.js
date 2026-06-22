@@ -1023,12 +1023,17 @@ export class RoomTileEditor extends Phaser.Scene {
   // The active wall = `_doorWall`, chosen from the room's CONNECTING cps
   // (entrance cps excluded — those use the entrance role). Defaults to the first.
   _connectingDoorWalls() {
-    const out = []
+    // The editor edits a room TEMPLATE whose connecting doors are carved at
+    // placement (definitions usually have NO connectionPoints), so offer all
+    // four walls to author a per-wall size for each. If a room authored its own
+    // non-entrance cps, prefer just those walls. Runtime doors match by
+    // cp.direction → doorSkinSizeByDir[direction].
+    const authored = []
     for (const cp of (this._activeRoom()?.connectionPoints || [])) {
       if (cp.external === true || cp.style === 'entrance') continue
-      if (cp.direction && !out.includes(cp.direction)) out.push(cp.direction)
+      if (cp.direction && !authored.includes(cp.direction)) authored.push(cp.direction)
     }
-    return out
+    return authored.length ? authored : ['N', 'S', 'E', 'W']
   }
   uiDoorWalls() { return this._connectingDoorWalls() }
   uiDoorWall() {
