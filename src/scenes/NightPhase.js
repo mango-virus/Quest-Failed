@@ -1691,7 +1691,7 @@ export class NightPhase extends Phaser.Scene {
       }
     })
 
-    this.input.on('pointerdown', (p, gameObjects) => {
+    this.input.on('pointerdown', (p) => {
       if (p.middleButtonDown()) return
 
       // Skip room-pickup when the click is over a minion. The minion sprite
@@ -1730,24 +1730,12 @@ export class NightPhase extends Phaser.Scene {
         return
       }
 
-      // Left-clicks inside the HUD panel should not trigger dungeon actions.
-      // Guard here (not in pointermove) so the preview always tracks the
-      // cursor — a pointermove guard was causing the preview tile to never
-      // be set on day 2+ if uiSf differed between scene launches.
-      // A click in the build panel's screen-x strip is normally a HUD
-      // interaction, not a dungeon action. BUT the dungeon can render INTO this
-      // strip when the view is panned/zoomed to the left edge, so a valid room/
-      // item/trap placement (or an armed build tool) whose cursor lands here
-      // must still go through — otherwise far-left placements silently do
-      // nothing (the user sees a green ghost but the click is eaten). Only bail
-      // when the click actually hit an interactive panel widget (a tab / card /
-      // BEGIN DAY button — each owns its own handler, so item selection keeps
-      // working) or when there's no dungeon action to perform.
-      if (p.x < PANEL_W * (this.uiSf ?? 1)) {
-        const hitPanelWidget = !!(gameObjects && gameObjects.length)
-        const dungeonAction  = (this._selected && this._previewValid) || !!this._toolMode
-        if (hitPanelWidget || !dungeonAction) return
-      }
+      // (The old left build panel is gone — chrome moved to the DOM HudScene in
+      // Phase 31C, and the build UI is now the bottom-centre construction dock
+      // which swallows its own clicks via pointer-events. So there is no longer
+      // a left screen strip to reserve; the whole dungeon is interactive. The
+      // former `p.x < PANEL_W` guard here only blocked legitimate far-left
+      // placements and was removed.)
 
       // ── LEGENDARY · The Undying Court ──────────────────────────────────
       // Left-click a glowing fallen hero (present only at night while the pact
@@ -1872,18 +1860,9 @@ export class NightPhase extends Phaser.Scene {
     this.input.keyboard.on('keydown-Z',   (e) => {
       if (e.ctrlKey || e.metaKey) this._undoLastPlacement()
     })
-    // Bug fix — scroll the palette when wheel happens over the left panel.
-    // Without this, the unlocked-rooms list (now 17+) overflows the panel
-    // and the bottom cards get cut off below the screen edge.
-    this.input.on('wheel', (p, _o, _dx, dy) => {
-      if (this.cameras.main.getWorldPoint(p.x, p.y).x > PANEL_W) return
-      const visibleH = this.uiH - this._paletteContentY - BOTTOM_H - 12
-      const maxScroll = Math.max(0, this._paletteContentHeight - visibleH)
-      this._paletteScrollY = Phaser.Math.Clamp(
-        this._paletteScrollY + dy * 0.5, 0, maxScroll
-      )
-      this._renderActivePalette()
-    })
+    // (No wheel handler here — the legacy left palette it scrolled is gone
+    // (Phase 31C); the DOM BuildMenu owns its own scroll and camera zoom is
+    // handled by the Game scene's wheel handler.)
   }
 
   // While a trap or movable item is carried via the MOVE tool, glue it to
@@ -4322,7 +4301,6 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _tryPickupRoom(p, cam) {
-    if (p.x <= PANEL_W) return
     const wp = cam.getWorldPoint(p.x, p.y)
     const tx = Math.floor(wp.x / TS)
     const ty = Math.floor(wp.y / TS)
@@ -4415,7 +4393,6 @@ export class NightPhase extends Phaser.Scene {
   }
 
   _showRoomHover(p, cam) {
-    if (p.x <= PANEL_W) { this._preview?.clear(); return }
     const wp = cam.getWorldPoint(p.x, p.y)
     const tx = Math.floor(wp.x / TS)
     const ty = Math.floor(wp.y / TS)
