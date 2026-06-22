@@ -17,7 +17,7 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 import { buildCryptBackdrop } from './menuBackdrop.js'
-import { animatedBossSprite, animatedAdventurer, animatedAdventurerAnim, animatedAdventurerAtk, animatedMinion, animatedFromAnimKey } from './inGameSnapshot.js'
+import { animatedBossSprite, animatedAdventurer, animatedAdventurerAnim, animatedAdventurerAtk } from './inGameSnapshot.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 import { requestAdvAtkSheet } from '../scenes/AdventurerAtkLoader.js'
 
@@ -25,12 +25,9 @@ import { requestAdvAtkSheet } from '../scenes/AdventurerAtkLoader.js'
 const PARTY = [
   { cls: 'knight', glyph: '⚔', atk: 'slash',     melee: true },                    // ONLY melee — charges + swings
   { cls: 'cleric', glyph: '✚', atk: 'spellcast', melee: false, bolt: 'holy' },     // holds back, CASTS
-  { cls: 'mage',   glyph: '✦', atk: 'thrust',    melee: false, bolt: 'arcane' },   // holds back, staff THRUST
+  { cls: 'mage',   glyph: '✦', atk: 'thrust',    melee: false, bolt: 'arcane', weapon: true },   // holds back, staff THRUST (weapon via _atk)
   { cls: 'ranger', glyph: '➶', atk: 'shoot',     melee: false, bolt: 'arrow' },    // holds back, shoots
 ]
-// random horde pool — diverse swarmy minions across families/tiers
-const HORDE_POOL = ['imp1', 'imp2', 'goblin1', 'goblin2', 'skeleton1', 'skeleton2', 'slime1', 'slime2',
-  'rat1', 'rat2', 'mushroom1', 'zombie1', 'ghost1', 'gnoll1', 'demon1', 'vampire_minion1', 'lizardman1', 'orc1']
 const DEC = (f) => `assets/sprites/${f}`
 
 let _cssInjected = false
@@ -57,11 +54,16 @@ function _injectCss() {
     background: linear-gradient(90deg, rgba(22,15,28,.92), rgba(8,5,14,.96)); box-shadow: 2px 0 0 rgba(0,0,0,.6), inset -3px 0 9px rgba(0,0,0,.6); }
   .qf-fc-dec { position:absolute; image-rendering:pixelated; pointer-events:none; }
   /* real torch sprite + a warm glow halo behind it */
-  .qf-fc-torch { position:absolute; width:60px; height:76px; z-index:2; }
-  .qf-fc-torch canvas { image-rendering:pixelated; width:100%; height:100%; display:block; }
-  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:22px; width:130px; height:130px; transform:translate(-50%,-50%); border-radius:50%; z-index:-1;
-    background: radial-gradient(circle, rgba(255,170,70,.45), rgba(255,140,40,.14) 46%, transparent 68%); animation: qf-fc-glow 1.1s ease-in-out infinite alternate; pointer-events:none; }
-  @keyframes qf-fc-glow { from{ opacity:.7 } to{ opacity:1 } }
+  /* real torch.png — SAME as the main menu: 172×192 frame (6-frame vertical strip)
+     + 432 glow halo, reusing the global qcm-torchburn / qcm-flicker keyframes. */
+  .qf-fc-torch { position:absolute; width:172px; height:192px; z-index:2; }
+  .qf-fc-torchsprite { width:172px; height:192px; image-rendering:pixelated;
+    background: url('assets/sprites/torch.png') 0 0 / 172px 1152px no-repeat;
+    animation: qcm-torchburn .75s steps(6) infinite; filter: drop-shadow(0 0 20px rgba(255,150,60,.6)); }
+  .qf-fc-torch.r .qf-fc-torchsprite { animation-delay: -.37s; }
+  .qf-fc-torch::after { content:''; position:absolute; left:50%; top:96px; width:432px; height:432px; transform:translate(-50%,-50%); z-index:-1; pointer-events:none;
+    background: radial-gradient(circle at 50% 50%, rgba(255,160,70,.42), rgba(255,120,45,.16) 42%, transparent 70%);
+    mix-blend-mode:screen; animation: qcm-flicker 2.6s ease-in-out infinite; }
   /* floor */
   .qf-fc-ground { position:absolute; left:0; right:0; bottom:0; height:33%; z-index:1; pointer-events:none;
     background: repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(0,0,0,.4) 60px, rgba(0,0,0,.4) 62px),
@@ -102,7 +104,7 @@ function _injectCss() {
   /* sprites */
   .qf-fc-party { position:absolute; bottom:29%; left:7%; display:flex; gap:18px; align-items:flex-end; z-index:3; transform:translateX(-66vw); transition: transform 2.9s linear; }
   .qf-fc.marched .qf-fc-party { transform:translateX(0); }
-  .qf-fc.fled .qf-fc-party { transform: translateX(-115vw); transition: transform 1.2s cubic-bezier(.5,0,.7,.5); }
+  .qf-fc.fled .qf-fc-party { transform: translateX(-115vw); transition: transform 2.6s cubic-bezier(.45,.05,.6,.6); }
   .qf-fc-hero { width:150px; height:150px; display:flex; align-items:flex-end; justify-content:center;
     color: color-mix(in srgb, var(--gold) 60%, white); font-size:56px; filter: drop-shadow(0 6px 7px rgba(0,0,0,.7));
     transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
@@ -122,12 +124,6 @@ function _injectCss() {
   .qf-fc.flipped .qf-fc-boss { opacity:1; bottom:30%; transform:translateX(-50%) translateY(0) scale(1.55);
     filter: drop-shadow(0 0 36px rgba(212,166,72,.85)) drop-shadow(0 0 64px rgba(200,51,74,.5)) brightness(1.14);
     transition: opacity .5s, transform .9s cubic-bezier(.2,.85,.2,1), filter .9s; }
-  /* horde — spread across the whole floor */
-  .qf-fc-horde { position:absolute; left:0; right:0; bottom:28%; height:120px; z-index:3; pointer-events:none; }
-  .qf-fc-horde .m { position:absolute; bottom:0; opacity:0; transform:translateY(16px) scale(.3); }
-  .qf-fc-horde .m canvas, .qf-fc-horde .m img { image-rendering:pixelated; width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 4px 5px rgba(0,0,0,.7)); }
-  .qf-fc-horde.go .m { animation: qf-fc-pop .55s cubic-bezier(.2,1.4,.4,1) forwards; }
-  @keyframes qf-fc-pop { to { opacity:1; transform:translateY(0) scale(1); } }
   /* combat VFX */
   .qf-fc-proj { position:absolute; z-index:4; pointer-events:none; }
   .qf-fc-proj.arrow { width:26px; height:3px; background: linear-gradient(90deg, transparent, rgba(230,210,170,1)); box-shadow:0 0 5px rgba(230,210,170,.8); }
@@ -189,8 +185,6 @@ function _injectCss() {
   document.head.appendChild(tag)
 }
 
-const _rand = (a) => a[Math.floor(Math.random() * a.length)]
-
 export class FlipCinematic {
   constructor(gameState) {
     this._gameState = gameState
@@ -207,10 +201,9 @@ export class FlipCinematic {
     const archId = this._gameState?.player?.bossArchetypeId
 
     const partyEl = h('div', { className: 'qf-fc-party' },
-      PARTY.map(p => h('div', { className: 'qf-fc-hero', dataset: { cls: p.cls, atk: p.atk, melee: p.melee ? '1' : '', bolt: p.bolt || '' } }, p.glyph)))
+      PARTY.map(p => h('div', { className: 'qf-fc-hero', dataset: { cls: p.cls, atk: p.atk, melee: p.melee ? '1' : '', weapon: p.weapon ? '1' : '', bolt: p.bolt || '' } }, p.glyph)))
     this._heroSlots = [...partyEl.querySelectorAll('.qf-fc-hero')]
     const bossSlot = h('div', { className: 'qf-fc-boss' })
-    const horde = h('div', { className: 'qf-fc-horde' })
     const fxLayer = h('div', { className: 'qf-fc-fx' })
 
     // throne (detailed) + flanking banners/statues + pentacle + carpet
@@ -227,16 +220,17 @@ export class FlipCinematic {
       dec('decor-banner-sigil.png', { left: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1 }),
       dec('decor-banner-sigil.png', { right: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1, transform: 'scaleX(-1)' }),
       // statues framing
-      dec('decor-statue-l.png', { left: '22%', bottom: '31%', width: '90px', opacity: .6, zIndex: 2 }),
-      dec('decor-statue-l.png', { right: '22%', bottom: '31%', width: '90px', opacity: .6, zIndex: 2, transform: 'scaleX(-1)' }),
+      dec('decor-statue-l.png', { left: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3 }),
+      dec('decor-statue-l.png', { right: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3, transform: 'scaleX(-1)' }),
       // CHAINED WALL SKELETONS (varied) — the macabre throne-room read
       dec('decor-skel-wall-1.png', { left: '12%', top: '17%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { right: '13%', top: '16%', width: '74px', opacity: .45 }),
       dec('decor-skel-wall-2.png', { left: '29%', top: '23%', width: '60px', opacity: .36 }),
       dec('decor-skel-wall-1.png', { right: '30%', top: '24%', width: '60px', opacity: .36 }),
-      // torches flanking the throne — the REAL animated torch sprite + a glow halo
-      h('div', { className: 'qf-fc-torch', style: { left: '31%', top: '36%' } }, [this._torchSprite(76)].filter(Boolean)),
-      h('div', { className: 'qf-fc-torch', style: { right: '31%', top: '36%' } }, [this._torchSprite(76)].filter(Boolean)),
+      // torches flanking the throne — the REAL torch.png sprite-strip at the SAME
+      // size as the main menu (172×192 frame, 6-frame burn) + the matching glow.
+      h('div', { className: 'qf-fc-torch l', style: { left: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
+      h('div', { className: 'qf-fc-torch r', style: { right: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
       dec('decor-chain-draped.png', { left: '6%', top: '0', width: '70px', opacity: .4 }),
       dec('decor-chain-draped.png', { right: '6%', top: '0', width: '70px', opacity: .4, transform: 'scaleX(-1)' }),
       dec('decor-chain-single-m.png', { left: '46%', top: '0', width: '30px', opacity: .35 }),
@@ -269,7 +263,7 @@ export class FlipCinematic {
       ...buildCryptBackdrop(), setDressing,
       h('div', { className: 'qf-fc-shaft a' }), h('div', { className: 'qf-fc-shaft b' }), h('div', { className: 'qf-fc-shaft c' }), h('div', { className: 'qf-fc-shaft d' }),
       h('div', { className: 'qf-fc-spot' }), h('div', { className: 'qf-fc-ground' }), h('div', { className: 'qf-fc-carpet' }),
-      throne, embers, dust, partyEl, horde, bossSlot, fxLayer, burst,
+      throne, embers, dust, partyEl, bossSlot, fxLayer, burst,
       h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
     this._el = h('div', { className: 'qf-fc' }, [
@@ -284,25 +278,24 @@ export class FlipCinematic {
 
     this._fillBoss(bossSlot, archId)
     this._heroSlots.forEach(s => this._setHero(s, 'walk', 'right'))
-    // Pre-load the 192px weapon (_atk) sheets for the melee classes so the swing
-    // shows the blade by the assault beat. Uses the active scene's loader.
+    // Pre-load the 192px weapon (_atk) sheets for any class that swings/thrusts a
+    // weapon (knight melee + mage staff) so the blade shows by the assault beat.
     const atkScene = window.__game?.scene?.getScenes?.(true)?.[0] || window.__game?.scene?.getScene?.('Game')
-    if (atkScene) this._heroSlots.forEach(s => { if (s.dataset.melee === '1') { try { requestAdvAtkSheet(atkScene, `adv-${s.dataset.cls}-v01`) } catch {} } })
+    if (atkScene) this._heroSlots.forEach(s => { if (s.dataset.melee === '1' || s.dataset.weapon === '1') { try { requestAdvAtkSheet(atkScene, `adv-${s.dataset.cls}-v01`) } catch {} } })
 
     const at = (ms, fn) => this._timers.push(setTimeout(fn, ms))
     const setLine = (t) => { capLine.textContent = t; capLine.classList.remove('on'); void capLine.offsetWidth; capLine.classList.add('on') }
 
     at(60,   () => this._el.classList.add('framed'))
     at(260,  () => { this._el.classList.add('marched', 'bossShown'); eyebrow.classList.add('on') })
-    at(3300, () => this._assault())                                                                          // arrive → cinematic assault
-    at(4900, () => { flash.classList.add('go'); this._el.classList.add('bossFell'); eyebrow.classList.remove('on'); setLine('…and the monster always fell.'); this._heroSlots.forEach(s => s.classList.remove('lunge')) })
+    at(3300, () => this._assault())                                                                          // arrive → measured assault
+    at(5600, () => { flash.classList.add('go'); this._el.classList.add('bossFell'); eyebrow.classList.remove('on'); setLine('…and the monster always fell.'); this._ceaseAssault() })  // boss falls → everyone STOPS + stands at ease
     at(9000, () => {                                                                                          // THE FLIP
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); red.classList.add('go'); burst.classList.add('go')
       this._el.classList.remove('bossFell'); this._el.classList.add('flipped', 'shake')
       setTimeout(() => this._el && this._el.classList.remove('shake'), 650)
       this._heroSlots.forEach(s => this._setHero(s, 'walk', 'left'))
       setTimeout(() => this._el && this._el.classList.add('fled'), 220)   // run off-screen
-      this._spawnHorde(horde)
       setLine('Not this time.')
     })
     at(13400, () => { capLine.classList.remove('on'); reveal.classList.add('on') })
@@ -311,30 +304,36 @@ export class FlipCinematic {
 
   // Cinematic assault: melee lunge in + slash arcs; ranged fire projectiles;
   // impacts on the boss. Repeats a couple of beats over ~1.5s.
+  // Measured assault (no spam): the KNIGHT charges in SLOWLY then swings on a
+  // beat — swing → idle → swing. Ranged hold the line and fire spaced bolts (mage
+  // shows its staff via the _atk thrust sheet). All timers are tracked so the boss
+  // fall can cancel them mid-assault.
   _assault() {
     if (!this._el) return
-    // Melee CHARGE the throne (big translateX toward the boss, staggered so they
-    // flank its left and don't overlap); ranged hold the line and fire.
-    const DASH = { knight: '33vw', cleric: '27vw' }
-    this._heroSlots.forEach((s, i) => {
-      const melee = s.dataset.melee === '1'
-      if (melee) {
-        this._timers.push(setTimeout(() => {
-          if (!this._el) return
-          s.style.transform = `translateX(${DASH[s.dataset.cls] || '29vw'}) translateY(-4px)`
-          this._setHeroAtk(s, s.dataset.atk === 'thrust' ? 'thrust' : 'slash', 'right')
-          this._slashAt(s)
-        }, 120 + i * 120))
-      } else {
-        this._setHero(s, s.dataset.atk, 'right')
-        this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), 240 + i * 140))
-      }
+    this._assaultTimers = []
+    const T = (t, fn) => { const id = setTimeout(() => { if (this._el) fn() }, t); this._assaultTimers.push(id) }
+    const knight = this._heroSlots.find(s => s.dataset.melee === '1')
+    if (knight) {
+      knight.style.transition = 'transform 1s ease-out'   // weighty charge, not a zoom
+      knight.style.transform = 'translateX(33vw)'
+      ;[1000, 2000].forEach(t => {                          // two measured swings, idle between (full arc then rest)
+        T(t,       () => { this._setHeroAtk(knight, 'slash', 'right'); this._slashAt(knight) })
+        T(t + 620, () => this._setHero(knight, 'idle', 'right'))
+      })
+    }
+    // ranged hold the line; mage shows its staff (weapon via _atk), all fire spaced bolts
+    this._heroSlots.filter(s => s.dataset.melee !== '1').forEach((s, i) => {
+      if (s.dataset.weapon === '1') this._setHeroAtk(s, s.dataset.atk, 'right')
+      else this._setHero(s, s.dataset.atk, 'right')
+      ;[700 + i * 150, 1700 + i * 150].forEach(t => T(t, () => this._fire(s, s.dataset.bolt)))
     })
-    // second flurry — more slashes / shots so it reads as a sustained assault
-    this._timers.push(setTimeout(() => { if (!this._el) return; this._heroSlots.forEach((s, i) => {
-      if (s.dataset.melee === '1') this._timers.push(setTimeout(() => this._slashAt(s), i * 90))
-      else this._timers.push(setTimeout(() => this._fire(s, s.dataset.bolt), i * 110))
-    }) }, 900))
+  }
+
+  // Boss is down — cancel any pending swings/shots and everyone stands at ease
+  // (idle), facing the fallen boss, until the flip.
+  _ceaseAssault() {
+    ;(this._assaultTimers || []).forEach(clearTimeout); this._assaultTimers = []
+    this._heroSlots.forEach(s => this._setHero(s, 'idle', 'right'))
   }
 
   _bossCenter() {
@@ -365,19 +364,6 @@ export class FlipCinematic {
     if (!this._fxLayer) return
     const el = h('div', { className: 'qf-fc-hit', style: { left: (x - 15) + 'px', top: (y - 15) + 'px' } })
     this._fxLayer.appendChild(el); void el.offsetWidth; el.classList.add('go'); setTimeout(() => el.remove(), 380)
-  }
-
-  // The real animated torch sprite (the 'torch' 43×48 sheet, 6-frame burn loop —
-  // same anim TorchRenderer uses in-game; created here if not yet registered).
-  _torchSprite(size) {
-    const g = window.__game
-    if (!g?.textures?.exists?.('torch')) return null
-    if (!g.anims.exists('torch-burn')) {
-      try { g.anims.create({ key: 'torch-burn', frames: g.anims.generateFrameNumbers('torch', { start: 0, end: 5 }), frameRate: 10, repeat: -1 }) } catch {}
-    }
-    const a = animatedFromAnimKey('torch-burn', size, { fps: 10 })   // crop-fit so the torch fills the box (not tiny in empty frame space)
-    if (a?.stop) this._stopFns.push(a.stop)
-    return a?.el || null
   }
 
   _fillBoss(slot, archId) {
@@ -417,22 +403,6 @@ export class FlipCinematic {
     }
     this._setHero(slot, anim, dir)
     return false
-  }
-
-  _spawnHorde(horde) {
-    // FIXED flanking slots so minions never overlap — two clusters either side of
-    // the throne (throne band ~44-56% left clear). Random diverse minion per slot.
-    const POS = [17, 28, 39, 61, 72, 83]
-    const pool = [...HORDE_POOL]
-    POS.forEach((pct, i) => {
-      const id = pool.length ? pool.splice(Math.floor(Math.random() * pool.length), 1)[0] : _rand(HORDE_POOL)
-      const size = 76 + Math.round(Math.random() * 18)
-      const a = animatedMinion(id, size)
-      const m = h('div', { className: 'm', style: { left: pct + '%', marginLeft: -(size / 2) + 'px', width: size + 'px', height: size + 'px', animationDelay: `${i * 80 + Math.round(Math.random() * 90)}ms` } }, a?.el ? [a.el] : [])
-      if (a?.stop) this._stopFns.push(a.stop)
-      horde.appendChild(m)
-    })
-    void horde.offsetWidth; horde.classList.add('go')
   }
 
   _finish(skipped) {
