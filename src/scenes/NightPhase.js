@@ -1937,6 +1937,11 @@ export class NightPhase extends Phaser.Scene {
       if (!check.valid && check.reason) check.violations = [check.reason]
     } else {
       check = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
+      // Onboarding: the ghost reads red until the room would actually connect, so
+      // the player can SEE the only valid (connecting) spots.
+      if (check.valid && !this._onboardingConnectOk(def, rotDef, placeTx, placeTy)) {
+        check = { valid: false, violations: [this._onboardingConnectHint()] }
+      }
     }
     // DAMNED · The Insomniac — a locked night seals the dungeon: force the
     // preview invalid so the cursor reads red, EXCEPT for the allowed
@@ -2560,6 +2565,30 @@ export class NightPhase extends Phaser.Scene {
     return false
   }
 
+  // Onboarding hard-rail: while meta.guidedPlace is set, a ROOM may only be placed
+  // where it AUTO-CONNECTS as the guided first night requires — 'boss' = must form a
+  // door to the boss chamber (which the engine only allows at the boss wall's MIDDLE);
+  // 'connected' = must form a door to any existing room. Stops the new player from
+  // stranding a room. No-op in normal play (guidedPlace null/unset).
+  _onboardingConnectOk(def, rotDef, placeTx, placeTy) {
+    const gp = this._gameState.meta?.guidedPlace
+    if (!gp || this._selectedKind !== 'room') return true
+    const candidate = {
+      definitionId: def.id, gridX: placeTx, gridY: placeTy,
+      width: rotDef.width, height: rotDef.height,
+      connectionPoints: rotDef.connectionPoints ?? [],
+    }
+    const pairs = this._dungeonGrid.computeAutoConnectPairs?.(candidate) ?? []
+    return gp === 'boss'
+      ? pairs.some(p => p.otherRoom?.definitionId === 'boss_chamber')
+      : pairs.length > 0
+  }
+  _onboardingConnectHint() {
+    return this._gameState.meta?.guidedPlace === 'boss'
+      ? 'Touch the boss chamber to connect'
+      : 'Touch another room to connect'
+  }
+
   _confirmPlacement(tx, ty) {
     if (!this._selected) return
 
@@ -2596,6 +2625,11 @@ export class NightPhase extends Phaser.Scene {
     const result  = this._dungeonGrid.validatePlacement(rotDef, placeTx, placeTy, { dungeonLevel: this._gameState.boss?.level ?? 1 })
     if (!result.valid) {
       this._showPlacementError(result.violations[0] ?? 'Invalid placement')
+      return
+    }
+    if (!this._onboardingConnectOk(def, rotDef, placeTx, placeTy)) {
+      this._showPlacementError(this._onboardingConnectHint())
+      EventBus.emit('PLACEMENT_BLOCKED', { reason: 'onboarding_connect' })
       return
     }
 

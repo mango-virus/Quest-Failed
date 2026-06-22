@@ -27,6 +27,9 @@ export class GuidedRun {
     this._active = false
     this._ready = false   // latest DUNGEON_READINESS.ready (entry hall + all rooms connected)
     this._listeners = []
+    // guidedPlace gates NightPhase's onboarding placement rail — a RUNTIME flag, so
+    // reset it on every load (a save taken mid-run must not constrain normal play).
+    if (gameState?.meta) gameState.meta.guidedPlace = null
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
     sub('INTRO_DISMISSED', (p) => this._maybeStart(p))
     sub('DUNGEON_READINESS', (p) => { this._ready = !!p?.ready })
@@ -53,8 +56,14 @@ export class GuidedRun {
 
   _end() {
     this._active = false
+    if (this._gameState?.meta) this._gameState.meta.guidedPlace = null
     CoachMark.hide()
   }
+
+  _setPlace(v) { if (this._gameState?.meta) this._gameState.meta.guidedPlace = v }
+  // A centered "what / why" info beat (dismiss with Got it) — explains the purpose
+  // of the thing they're about to place so they understand WHAT and WHY.
+  _explain(eyebrow, text) { return this._coach({ eyebrow, text, advance: 'next', nextLabel: 'Got it ›' }) }
 
   // Show one coach-mark that resolves on whichever comes first:
   //   'skip'    — the player dismissed it (Skip ✕)
@@ -119,25 +128,34 @@ export class GuidedRun {
   _isReady() { return (p) => !!p?.ready }
 
   async _runBeat1() {
+    // Welcome — frame the whole night.
+    if (await this._explain('YOUR DUNGEON', 'You are the dungeon. Build it tonight, then watch them die at dawn.') === 'skip') return
+
     // ── 1. Entry Hall — required; adventurers enter here ──────────────
+    if (await this._explain('WHY · ENTRY HALL', 'Adventurers invade through the Entry Hall — every dungeon needs one.') === 'skip') return
     if (await this._openBuild('Open the build menu') === 'skip') return
     await wait(240)   // drawer slides open (defaults to the ROOMS tab)
+    this._setPlace('boss')   // rail: can only place where it connects to the boss chamber
     if (await this._coach(
-      { target: () => this._roomCard('Entry Hall'), eyebrow: 'STEP 1 · ENTRY HALL', text: 'Place it beside the boss chamber', gesture: 'tap', advance: 'hold', hint: 'Click the map to place →', passThrough: true, lock: true },
+      { target: () => this._roomCard('Entry Hall'), eyebrow: 'STEP 1 · ENTRY HALL', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = connects to the boss →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('entry_hall')) === 'skip') return
+    this._setPlace(null)
     await wait(450)
 
     // ── 2. Barracks — houses your minions ─────────────────────────────
+    if (await this._explain('WHY · BARRACKS', 'Barracks house your minions — without one you cannot deploy any.') === 'skip') return
     if (await this._openBuild('Open the build menu again') === 'skip') return
     await wait(240)
+    this._setPlace('connected')   // rail: can only place touching an existing room
     if (await this._coach(
-      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Place it touching the entry hall', gesture: 'tap', advance: 'hold', hint: 'Click the map to place →', passThrough: true, lock: true },
+      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = touching the entry hall →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('starter_barracks')) === 'skip') return
+    this._setPlace(null)
     await wait(450)
 
-    // ── 3. Connection — every room must link to the entry hall ────────
+    // ── 3. Connection — rooms auto-link with doorways where they touch ─
     if (this._ready) {
-      if (await this._coach({ eyebrow: 'CONNECTED', text: 'Rooms that touch link with doorways', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
+      if (await this._coach({ eyebrow: 'CONNECTED', text: 'See? Touching rooms link with doorways', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
     } else {
       if (await this._coach(
         { eyebrow: 'CONNECT THE ROOMS', text: 'Place rooms touching so doorways link them', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
@@ -145,6 +163,7 @@ export class GuidedRun {
     }
 
     // ── 4. Place a minion in the barracks ─────────────────────────────
+    if (await this._explain('WHY · MINIONS', 'Minions defend your halls — they kill the invaders for you.') === 'skip') return
     if (await this._openBuild('Open the build menu') === 'skip') return
     await wait(240)
     if (await this._coach({ target: () => this._minionsTab(), eyebrow: 'STEP 3 · MINIONS', text: 'Open the minions tab', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return

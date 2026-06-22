@@ -429,7 +429,13 @@ dungeon, not the hero."* Everything else is taught just-in-time.
   `DUNGEON_READINESS`); (4) place a **minion** in the barracks; (5) **BEGIN DAY**. STOP (no traps/pacts/
   upgrades yet). Each step is one coach-mark; placement steps use the non-blocking `passThrough` spotlight so
   the map stays clickable, and advance on the real game event (ROOM_PLACED w/ definitionId / MINION_PLACED /
-  DUNGEON_READINESS ready).
+  DUNGEON_READINESS ready). **Max hand-holding (user 2026-06-22):** (a) a "WHY ·" info beat explains the
+  PURPOSE of the entry hall / barracks / minion before each placement; (b) the player is locked to ONLY the
+  spotlighted card/button + the map (other cards/tabs/tools are click-blocked); (c) a NightPhase onboarding
+  PLACEMENT RAIL (gated on `meta.guidedPlace`) forces a *connected* placement — the entry hall only goes
+  where it forms a door to the boss chamber (engine-locked to the boss wall's MIDDLE), the barracks only where
+  it touches an existing room; the ghost reads red everywhere else (green = it will connect), and a bad commit
+  is rejected with a hint. No-op in normal play.
 - **Beat 2 — Guided First Day (watch + 1 intervention):** a deliberately SIMPLE no-ability party
   enters w/ telegraphed path; player WATCHES them die to their minion/trap (the payoff that cements
   the inversion); then ONE boss day-ability via coach-mark (arm→target→fire).
