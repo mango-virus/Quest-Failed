@@ -207,7 +207,24 @@ export function snapshotTrap(spriteKey, size = 64, frameIdx = 0) {
 // is self-cleaning: once the canvas has been mounted and later removed (panels
 // re-render), or if it's created but never mounted, it stops itself — so
 // callers can treat the returned `.el` like a plain element.
-function _animateFrames(frames, size, { className, cacheKey, fps = 6, noCrop = false, pad = 0.06 } = {}) {
+// The baked ground-shadow shared by every boss frame is a flat semi-transparent
+// blue-grey (~rgba(40,40,63,.35)) at the bottom; bodies are fully opaque. Clear
+// exactly those pixels in the bottom region so the cinematic boss casts no shadow.
+function _stripShadow(ctx, dx, dy, drawW, drawH, size) {
+  const x0 = Math.max(0, Math.floor(dx))
+  const y0 = Math.max(0, Math.round(dy + drawH * 0.45))
+  const w = Math.min(size - x0, Math.ceil(drawW))
+  const hh = Math.min(size - y0, Math.ceil(dy + drawH - y0))
+  if (w <= 0 || hh <= 0) return
+  const img = ctx.getImageData(x0, y0, w, hh), p = img.data
+  for (let k = 0; k < p.length; k += 4) {
+    const a = p[k + 3]; if (a < 45 || a > 155) continue
+    if (Math.abs(p[k] - 41) <= 28 && Math.abs(p[k + 1] - 41) <= 28 && Math.abs(p[k + 2] - 63) <= 30) p[k + 3] = 0
+  }
+  ctx.putImageData(img, x0, y0)
+}
+
+function _animateFrames(frames, size, { className, cacheKey, fps = 6, noCrop = false, pad = 0.06, clearShadow = false } = {}) {
   if (!frames || frames.length === 0) return null
   const { canvas, ctx } = _makeCanvas(size, size)
   canvas.className = className || 'qf-snap'
@@ -229,6 +246,7 @@ function _animateFrames(frames, size, { className, cacheKey, fps = 6, noCrop = f
     const f = frames[i]
     ctx.clearRect(0, 0, size, size)
     ctx.drawImage(f.src, f.sx + crop.x, f.sy + crop.y, crop.w, crop.h, dx, dy, drawW, drawH)
+    if (clearShadow) _stripShadow(ctx, dx, dy, drawW, drawH, size)
   }
   draw()
   if (frames.length < 2) return { el: canvas, stop: () => {} }   // single frame → static
@@ -262,7 +280,7 @@ export function animatedFromAnimKey(key, size = 64, opts = {}) {
 }
 
 // Looping idle boss sprite (`<archId>-idle-down`). { el, stop } or null.
-export function animatedBossSprite(archId, size = 200, tier = null) {
+export function animatedBossSprite(archId, size = 200, tier = null, clearShadow = false) {
   if (!archId) return null
   // Optional tier form: a boss with an explicit `${id}-t${n}` sheet uses it (e.g.
   // the humble T1 form); falls back to the canonical sheet when that tier has none.
@@ -271,7 +289,7 @@ export function animatedBossSprite(archId, size = 200, tier = null) {
     const tk = `${archId}-t${tier}-idle-down`
     if (window.__game?.anims?.exists?.(tk)) key = tk
   }
-  return _animatedFromAnim(key, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + (tier != null ? `t${tier}:` : '') + archId })
+  return _animatedFromAnim(key, size, { className: 'qf-snap qf-snap-boss', cacheKey: 'boss:' + (tier != null ? `t${tier}:` : '') + archId, clearShadow })
 }
 
 // Looping idle sprite for a placed-minion def. Preload registers per-direction

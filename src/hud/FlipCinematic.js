@@ -405,7 +405,7 @@ export class FlipCinematic {
 
   _fillBoss(slot, archId, tier = null) {
     if (!archId) return
-    const a = animatedBossSprite(archId, 300, tier)
+    const a = animatedBossSprite(archId, 300, tier, true)   // strip the baked ground-shadow for the cinematic
     if (a?.el) {
       if (slot._stop) { try { slot._stop() } catch {} }
       slot._stop = a.stop || null
