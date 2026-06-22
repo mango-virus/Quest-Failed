@@ -2173,12 +2173,16 @@ export class ClassAbilitySystem {
         if (t >= 1) {
           // Land.
           const e = barb._chargeEndTile
+          // Capture the dash origin BEFORE _endCharge() nulls it — the landing
+          // VFX below reads it. (Reading it after the reset is a null-deref that
+          // threw on EVERY charge-land, silently killing the impact VFX.)
+          const from = barb._chargeDashFrom
           barb.tileX = e.x; barb.tileY = e.y
           barb.worldX = barb._chargeDashTo.x; barb.worldY = barb._chargeDashTo.y
           this._endCharge(barb, now)
           // Bull-rush dash streaks rake the path + a forward cracked-earth fan,
           // flung rock shards, and a low dust pall detonate on arrival.
-          AbilityVfx.recklessChargeFx?.(this._scene, barb._chargeDashFrom.x, barb._chargeDashFrom.y, barb.worldX, barb.worldY, { depth: 13 })
+          AbilityVfx.recklessChargeFx?.(this._scene, from?.x ?? barb.worldX, from?.y ?? barb.worldY, barb.worldX, barb.worldY, { depth: 13 })
           return
         }
         t = t < 0 ? 0 : t
