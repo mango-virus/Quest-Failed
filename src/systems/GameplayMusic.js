@@ -19,6 +19,7 @@
 
 import { TitleMusic } from './TitleMusic.js'
 import { ensureAudioLoaded } from '../scenes/DeferredAudioLoader.js'
+import { EventBus } from './EventBus.js'
 
 // Multiplier applied on top of the user's master music volume (which
 // is shared with TitleMusic via the slider).  The in-dungeon tracks
@@ -60,6 +61,17 @@ let _history      = []     // played tracks, most-recent last (used by previous(
 let _unsubPref    = null   // unsubscribe handle for TitleMusic.onChange
 const _listeners  = new Set()
 
+// Ducking — the music dips under high-tension moments (the boss at low HP) so
+// the combat / boss-ability cues cut through. `_duckMul` (0..1) folds into both
+// _effectiveVolume helpers, tweened by duck() so the dip glides instead of
+// snapping. Driven by BOSS_DAMAGED (wired in start()).
+let _duckMul    = 1
+let _duckTarget = 1
+let _duckTween  = null
+let _unsubDuck  = null
+const DUCK_LOW_HP_FRAC = 0.30   // boss HP fraction that triggers the dip
+const DUCK_LEVEL       = 0.45   // music drops to 45% while ducked
+
 // Boss fight state
 let _bossInstance = null   // currently-playing boss track sound instance
 let _inBossFight  = false  // true while a boss fight is active
@@ -98,8 +110,8 @@ function _refillBag() {
   _bag = next
 }
 
-function _effectiveVolume()     { return TitleMusic.isMuted() ? 0 : TitleMusic.getVolume() * VOLUME_MUL }
-function _effectiveBossVolume() { return TitleMusic.isMuted() ? 0 : TitleMusic.getVolume() * BOSS_VOLUME_MUL }
+function _effectiveVolume()     { return TitleMusic.isMuted() ? 0 : TitleMusic.getVolume() * VOLUME_MUL * _duckMul }
+function _effectiveBossVolume() { return TitleMusic.isMuted() ? 0 : TitleMusic.getVolume() * BOSS_VOLUME_MUL * _duckMul }
 
 function _emitChange() {
   for (const fn of _listeners) {
@@ -195,6 +207,25 @@ export const GameplayMusic = {
         if (_bossInstance) _bossInstance.setVolume(_effectiveBossVolume())
       })
     }
+    // Tension ducking — dip the music while the boss is at low HP, restore when
+    // the fight ends or night falls. BOSS_DAMAGED carries no fraction, so read
+    // the boss straight off gameState.
+    if (!_unsubDuck) {
+      const onDmg = () => {
+        const b = _scene?.gameState?.boss
+        if (!b || !(b.maxHp > 0)) return
+        GameplayMusic.duck((b.hp / b.maxHp) <= DUCK_LOW_HP_FRAC ? DUCK_LEVEL : 1)
+      }
+      const restore = () => GameplayMusic.duck(1)
+      EventBus.on('BOSS_DAMAGED', onDmg)
+      EventBus.on('BOSS_FIGHT_RESOLVED', restore)
+      EventBus.on('NIGHT_PHASE_BEGAN', restore)
+      _unsubDuck = () => {
+        EventBus.off('BOSS_DAMAGED', onDmg)
+        EventBus.off('BOSS_FIGHT_RESOLVED', restore)
+        EventBus.off('NIGHT_PHASE_BEGAN', restore)
+      }
+    }
     if (_instance && _instance.isPlaying) return _instance
     if (_currentKey) {
       // Restart the same track from frame 0 — happens when the player
@@ -219,7 +250,30 @@ export const GameplayMusic = {
     _bag = []
     _history = []
     if (_unsubPref) { _unsubPref(); _unsubPref = null }
+    if (_unsubDuck) { _unsubDuck(); _unsubDuck = null }
+    if (_duckTween) { try { _duckTween.stop() } catch {} _duckTween = null }
+    _duckMul = 1; _duckTarget = 1
     _emitChange()
+  },
+
+  // Duck the music toward `target` (0..1) over `fadeMs`, gliding via a tween so
+  // the dip/rise is smooth. Idempotent when already heading to that target.
+  // Folds through _effectiveVolume so the user's slider + mute still win.
+  duck(target, fadeMs = 600) {
+    target = Math.max(0, Math.min(1, target))
+    if (Math.abs(target - _duckTarget) < 0.01) return
+    _duckTarget = target
+    const apply = () => {
+      if (_instance) _instance.setVolume(_effectiveVolume())
+      if (_bossInstance) _bossInstance.setVolume(_effectiveBossVolume())
+    }
+    if (_duckTween) { try { _duckTween.stop() } catch {} _duckTween = null }
+    if (!_scene?.tweens) { _duckMul = target; apply(); return }
+    _duckTween = _scene.tweens.add({
+      targets: { v: _duckMul }, v: target, duration: fadeMs, ease: 'Sine.easeInOut',
+      onUpdate: (_tw, t) => { _duckMul = t.v; apply() },
+      onComplete: () => { _duckMul = target; apply(); _duckTween = null },
+    })
   },
 
   // True while a track is actually playing.  Used by AudioControls

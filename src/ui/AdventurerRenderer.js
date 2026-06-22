@@ -752,6 +752,31 @@ export class AdventurerRenderer {
         }
       }
 
+      // Petrify — turn the adventurer to STONE: a desaturating ColorMatrix
+      // postFX on the sprite, change-detected on adv._petrified. Kept as a
+      // postFX layer (like the hit-flash glow above) so it's INDEPENDENT of the
+      // setTint status logic below — never fights venom/blight/cheater tints,
+      // and composes with the hit-flash. Removed cleanly when petrify ends.
+      {
+        const petrified = !!adv._petrified
+        if (petrified !== (s._petrified === true)) {
+          const pImg = s.lpc?.image ?? s.builder?.image
+          if (pImg?.postFX) {
+            if (petrified) {
+              // brightness MUST pass multiply=true or it REPLACES the grayscale
+              // matrix instead of compounding (verified on-screen — without it the
+              // sprite stays fully coloured). grayscale(1) → stone, then darken.
+              try { const cm = pImg.postFX.addColorMatrix(); cm.grayscale(1); cm.brightness(0.78, true); s._petrifyFx = cm }
+              catch (e) { s._petrifyFx = true }
+            } else if (s._petrifyFx) {
+              try { if (s._petrifyFx !== true) pImg.postFX.remove(s._petrifyFx) } catch (e) {}
+              s._petrifyFx = null
+            }
+          }
+          s._petrified = petrified
+        }
+      }
+
       if (s.flightShadow) this._tickValkyrieFlight(s)
 
       // Spawn fade-in / leave fade-out: the smaller of the two alphas
