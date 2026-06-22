@@ -65,7 +65,16 @@ export class GuidedRun {
   _coach(opts, until, pred) {
     return new Promise((resolve) => {
       let settled = false, off = null
-      const done = (v) => { if (settled) return; settled = true; if (off) off(); CoachMark.hide(); resolve(v) }
+      // opts.lock: keep the player on rails — only the spotlighted target (+ the map)
+      // is clickable; clicks on any OTHER room/minion card, tab, or tool are swallowed.
+      const lock = opts.lock ? (e) => this._lockClick(e, opts.target) : null
+      if (lock) { document.addEventListener('pointerdown', lock, true); document.addEventListener('click', lock, true) }
+      const done = (v) => {
+        if (settled) return; settled = true
+        if (off) off()
+        if (lock) { document.removeEventListener('pointerdown', lock, true); document.removeEventListener('click', lock, true) }
+        CoachMark.hide(); resolve(v)
+      }
       if (until) {
         const fn = (payload) => { if (!pred || pred(payload)) done('event') }
         EventBus.on(until, fn); off = () => EventBus.off(until, fn)
@@ -74,8 +83,31 @@ export class GuidedRun {
     })
   }
 
+  _resolveEl(t) {
+    if (!t) return null
+    if (typeof t === 'function') { try { return t() } catch { return null } }
+    if (typeof t === 'string') return document.querySelector(t)
+    return t
+  }
+
+  // Capture-phase guard for locked steps: allow the coach-mark controls, the
+  // spotlighted target, and the dungeon canvas (the map — needed to place); block
+  // clicks on any OTHER build card / category tab / action-bar tool so the player
+  // can only do the one thing the onboarding is asking for.
+  _lockClick(e, target) {
+    const t = e.target
+    if (!t || !t.closest) return
+    if (t.closest('.qf-cm-skip, .qf-cm-next, .qf-cm-bubble')) return   // coach-mark controls
+    if (t.tagName === 'CANVAS' || t.closest('canvas')) return          // the dungeon map (placement clicks)
+    const ctrl = t.closest('.bsh-card, .htr-segtab, .hc-btn')
+    if (!ctrl) return                                                  // not a restricted control — leave it
+    const allowed = this._resolveEl(target)
+    if (allowed && (ctrl === allowed || allowed.contains(ctrl) || ctrl.contains(allowed))) return
+    e.preventDefault(); e.stopImmediatePropagation()
+  }
+
   // ── target finders (re-resolved live by the coach-mark each frame) ──
-  _openBuild(text) { return this._coach({ target: '.hc-t-place', eyebrow: 'BUILD', text, gesture: 'tap', advance: 'tap' }) }
+  _openBuild(text) { return this._coach({ target: '.hc-t-place', eyebrow: 'BUILD', text, gesture: 'tap', advance: 'tap', lock: true }) }
   _minionsTab() { return [...document.querySelectorAll('.htr-segtab')].find(t => /MINION/i.test(t.textContent || '')) }
   _firstCard() { return document.querySelector('.bsh-card') }
   _roomCard(name) {
@@ -91,7 +123,7 @@ export class GuidedRun {
     if (await this._openBuild('Open the build menu') === 'skip') return
     await wait(240)   // drawer slides open (defaults to the ROOMS tab)
     if (await this._coach(
-      { target: () => this._roomCard('Entry Hall'), eyebrow: 'ENTRY HALL', text: 'Place it next to the boss chamber', gesture: 'tap', advance: 'hold', hint: 'Place it →', passThrough: true },
+      { target: () => this._roomCard('Entry Hall'), eyebrow: 'STEP 1 · ENTRY HALL', text: 'Place it beside the boss chamber', gesture: 'tap', advance: 'hold', hint: 'Click the map to place →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('entry_hall')) === 'skip') return
     await wait(450)
 
@@ -99,36 +131,36 @@ export class GuidedRun {
     if (await this._openBuild('Open the build menu again') === 'skip') return
     await wait(240)
     if (await this._coach(
-      { target: () => this._roomCard('Barracks'), eyebrow: 'BARRACKS', text: 'Minions live here — place it touching', gesture: 'tap', advance: 'hold', hint: 'Place it →', passThrough: true },
+      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Place it touching the entry hall', gesture: 'tap', advance: 'hold', hint: 'Click the map to place →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('starter_barracks')) === 'skip') return
     await wait(450)
 
     // ── 3. Connection — every room must link to the entry hall ────────
     if (this._ready) {
-      if (await this._coach({ eyebrow: 'CONNECTED', text: 'Touching rooms link with doorways', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
+      if (await this._coach({ eyebrow: 'CONNECTED', text: 'Rooms that touch link with doorways', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
     } else {
       if (await this._coach(
-        { eyebrow: 'CONNECT', text: 'Place rooms touching to link them', advance: 'hold', passThrough: true, hint: 'Connect them →' },
+        { eyebrow: 'CONNECT THE ROOMS', text: 'Place rooms touching so doorways link them', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
         'DUNGEON_READINESS', this._isReady()) === 'skip') return
     }
 
     // ── 4. Place a minion in the barracks ─────────────────────────────
     if (await this._openBuild('Open the build menu') === 'skip') return
     await wait(240)
-    if (await this._coach({ target: () => this._minionsTab(), eyebrow: 'MINIONS', text: 'Switch to the minions tab', gesture: 'tap', advance: 'tap' }) === 'skip') return
+    if (await this._coach({ target: () => this._minionsTab(), eyebrow: 'STEP 3 · MINIONS', text: 'Open the minions tab', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return
     await wait(180)
     if (await this._coach(
-      { target: () => this._firstCard(), eyebrow: 'MINION', text: 'Place a minion in your barracks', gesture: 'tap', advance: 'hold', hint: 'Place it →', passThrough: true },
+      { target: () => this._firstCard(), eyebrow: 'STEP 3 · MINIONS', text: 'Place it inside the barracks', gesture: 'tap', advance: 'hold', hint: 'Click the barracks to place →', passThrough: true, lock: true },
       'MINION_PLACED') === 'skip') return
     await wait(450)
 
     // ── 5. Begin the day (only once everything's connected) ───────────
     if (!this._ready) {
       if (await this._coach(
-        { eyebrow: 'CONNECT', text: 'Link every room to the entry hall', advance: 'hold', passThrough: true, hint: 'Connect them →' },
+        { eyebrow: 'CONNECT THE ROOMS', text: 'Link every room to begin the day', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
         'DUNGEON_READINESS', this._isReady()) === 'skip') return
     }
-    await this._coach({ target: '.hc-begin', eyebrow: 'READY', text: 'Begin the day — fight back', gesture: 'tap', advance: 'tap' })
+    await this._coach({ target: '.hc-begin', eyebrow: 'STEP 4 · BEGIN DAY', text: 'Begin the day — they are coming', gesture: 'tap', advance: 'tap', lock: true })
   }
 
   destroy() {
