@@ -49,7 +49,8 @@ export class GuidedRun {
     this._gameState.meta.guidedRunDone = true   // never nag again (persisted)
     await wait(420)                              // let the intro cinematic finish tearing down
     try {
-      await this._runBeat1()
+      const ok = await this._runBeat1()
+      if (ok) await this._runBeat2()
     } catch { /* swallow — never let the tutorial break the game */ }
     this._end()
   }
@@ -181,7 +182,46 @@ export class GuidedRun {
         { eyebrow: 'CONNECT THE ROOMS', text: 'Link every room to begin the day', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
         'DUNGEON_READINESS', this._isReady()) === 'skip') return
     }
-    await this._coach({ target: '.hc-begin', eyebrow: 'STEP 4 · BEGIN DAY', text: 'Begin the day — they are coming', gesture: 'tap', advance: 'tap', lock: true })
+    if (await this._coach({ target: '.hc-begin', eyebrow: 'STEP 4 · BEGIN DAY', text: 'Begin the day — they are coming', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return false
+    return true
+  }
+
+  // Beat 2 — the guided first DAY: a single weak invader walks in and dies to the
+  // dungeon (the payoff that cements the inversion). (The boss-ability lesson —
+  // grant a charge + arm→target→fire while the party is alive — lands in 2b.)
+  async _runBeat2() {
+    // Force a trivial first day: one weak rogue. Reuse the engine's pre-rolled
+    // preview so the day/count already line up (day-1 base count is 1); just swap
+    // the class to the weakest invader and strip any event/vendetta.
+    const wp = this._gameState.run?.nextWavePreview
+    if (wp) { wp.classIds = ['rogue']; wp.spriteVariants = ['rogue/v01']; wp.eventType = null; wp.vendettaHunter = null }
+    await this._waitEvent('ADVENTURERS_SPAWNED')
+    await wait(700)   // let them walk in
+    // Watch the dungeon do the work — resolves when the wave is wiped.
+    if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, hint: 'Watch them fall →' }) === 'skip') return
+    await wait(500)
+    await this._explain('YOU ARE THE DUNGEON', 'They came to kill you — your dungeon killed them. That is your power.')
+  }
+
+  // Resolve on the next EventBus `ev` (one-shot).
+  _waitEvent(ev) {
+    return new Promise((res) => {
+      const fn = () => { EventBus.off(ev, fn); res() }
+      EventBus.on(ev, fn)
+    })
+  }
+
+  // Show a (passive) coach-mark while the player WATCHES; resolve when every
+  // adventurer is gone (dead or fled) or the player skips.
+  _coachUntilCleared(opts) {
+    return new Promise((resolve) => {
+      let settled = false, poll = 0
+      const done = (v) => { if (settled) return; settled = true; if (poll) clearInterval(poll); CoachMark.hide(); resolve(v) }
+      poll = setInterval(() => {
+        if ((this._gameState.adventurers?.active?.length ?? 0) === 0) done('cleared')
+      }, 400)
+      CoachMark.show(opts).then((ok) => { if (!ok) done('skip') })
+    })
   }
 
   destroy() {
