@@ -281,6 +281,17 @@ export function animatedAdventurer(cls, size = 64, vId = 'v01') {
   return _animatedFromAnim(`adv-${cls}-${vId}-idle-down`, size, { className: 'qf-snap qf-snap-adv', cacheKey: 'adv:' + cls + ':' + vId })
 }
 
+// Animated sprite for a specific adventurer ACTION + direction
+// (`adv-<cls>-<vId>-<anim>-<dir>`) — e.g. walk-right, slash-right, spellcast-right,
+// shoot-right, run-left, hurt-down. For cinematics that need movement/combat, not
+// just the idle loop. Requires the base sheet loaded (AdventurerBaseLoader). null
+// if that anim isn't registered (caller falls back to idle / a glyph).
+export function animatedAdventurerAnim(cls, anim = 'walk', dir = 'down', size = 64, vId = 'v01') {
+  if (!cls) return null
+  return _animatedFromAnim(`adv-${cls}-${vId}-${anim}-${dir}`, size,
+    { className: 'qf-snap qf-snap-adv', cacheKey: `adv:${cls}:${vId}:${anim}:${dir}` })
+}
+
 // Tight crop rect for a boss's idle loop — the union of the alpha
 // bounds of every idle frame, cached per boss. Coordinates are local
 // to a frame's cut rect (all idle frames share one frame size). Falls
