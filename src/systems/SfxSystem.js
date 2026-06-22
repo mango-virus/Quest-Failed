@@ -112,6 +112,21 @@ const VOL_JITTER         = 0.10  // ±10% gain per play
 const PAN_STRENGTH    = 0.7
 const DIST_MIN_VOLMUL = 0.45
 
+// Trap-type → attack timbre. Reuses loaded combat samples so each trap kind
+// reads distinct by ear (arrows whistle, bombs/cannons boom, blades slash, the
+// dragon trap breathes) instead of every trap firing the generic take-damage
+// thud. All of these keys are in PITCH_VARY → each fire auto-varies in pitch.
+const TRAP_SFX = {
+  shooting_arrows: 'sfx-archer-shoot',   // arrow volley
+  bomb:            'sfx-boss-attack',    // explosion boom
+  cannon:          'sfx-boss-attack',    // cannon boom
+  spike_pillar:    'sfx-take-damage',    // heavy slam impact
+  dragon_trap:     'sfx-beholder-beam',  // fiery energy breath
+  spike_pit:       'sfx-take-damage',    // impalement
+  rotating_blades: 'sfx-melee-2',        // whirling blades
+  saw_blade:       'sfx-melee-1',        // saw slash
+}
+
 // ── Window-focus tracking ───────────────────────────────────────────────────
 // SFX fired while the game window/tab is in the background are dropped, not
 // queued. When the page loses focus the browser suspends the WebAudio clock,
@@ -382,7 +397,22 @@ export class SfxSystem {
     // Attack sound based on source class. Boss melee has its own handler.
     if (!sourceId || sourceId === 'boss') return
     const adv = this._findAdv(sourceId)
-    if (!adv) return
+    if (!adv) {
+      // Source is a MINION — the dungeon's defenders were silent attackers.
+      // Give them a swing, hard-rate-limited (separate from the adv-attack
+      // guard) so a 100-minion wave reads as a varied battle din, not a
+      // machine-gun. Positional + pitch-varied (melee is in PITCH_VARY).
+      // Generic melee for now — minion data carries no per-family attack type;
+      // refine per-family when it does.
+      if ((this._gameState?.minions ?? []).some(m => m.instanceId === sourceId)) {
+        if (now - (this._lastMinionSwingAt ?? 0) >= 110) {
+          this._lastMinionSwingAt = now
+          this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2', undefined, sp)
+          this._meleeAlt = 1 - this._meleeAlt
+        }
+      }
+      return
+    }
 
     switch (adv.classId) {
       case 'ranger':
@@ -451,11 +481,11 @@ export class SfxSystem {
     this._play('sfx-door-unlock')
   }
 
-  _onTrapTriggered() {
+  _onTrapTriggered({ def, adventurer } = {}) {
     const now = this._now()
     if (now - this._lastTrapAt < 300) return
     this._lastTrapAt = now
-    this._play('sfx-take-damage')
+    this._play(TRAP_SFX[def?.id] || 'sfx-take-damage', undefined, this._spatial(adventurer))
   }
 
   // Fires for both MINION_LEVELED_UP and MINION_EVOLVED. Shared 500ms guard
