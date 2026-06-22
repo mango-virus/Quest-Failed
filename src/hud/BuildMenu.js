@@ -67,17 +67,17 @@ export class BuildMenu {
       detachedSize:      { width: '560px', height: '470px' },
       detachedSizeSmall: { width: '440px', height: '400px' },
       onDetach: () => this._rerender(),   // re-render as a grid for the square shape
-      onClose: () => { this._teardownGhost(); this._tray = null },
+      onClose: () => { this._teardownGhost(); this._hideTip(); this._tray = null },
     })
     this._tray.setContent(this._render())
     this._tray.open()
   }
 
-  close() { this._tray?.close(); this._tray = null; this._teardownGhost() }
+  close() { this._tray?.close(); this._tray = null; this._teardownGhost(); this._hideTip() }
   toggle() { this._tray ? this.close() : this.open() }
   isOpen() { return !!this._tray }
 
-  _rerender() { if (this._tray) { this._tray.setAccent(this._catInfo().color); this._tray.setContent(this._render()) } }
+  _rerender() { if (this._tray) { this._hideTip(); this._tray.setAccent(this._catInfo().color); this._tray.setContent(this._render()) } }
 
   _wireEvents() {
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
@@ -275,37 +275,37 @@ export class BuildMenu {
     this._ghost = null
   }
 
-  // ── Hover tooltip ───────────────────────────────────────────────
-  _showTip(e, def, cat, rar, locked, cost) {
-    const layer = this._tray?.layerEl
-    if (!layer) return
-    const lr = layer.getBoundingClientRect()
-    const cr = e.currentTarget.getBoundingClientRect()
-    const s = (layer.offsetWidth && lr.width) ? (lr.width / layer.offsetWidth) : 1
-    const x = (cr.left + cr.width / 2 - lr.left) / s
-    const y = (cr.top - lr.top) / s
-    const lv = def.unlockLevel ?? 1
-    const size = def.width && def.height ? `${def.width}×${def.height}` : (def.size || '1×1')
-    const desc = def.description || def.flavorText || ''
-    const tip = h('div', {
-      className: 'bsh-tip',
-      style: { left: Math.max(132, x) + 'px', top: y + 'px', '--rar': rar.c },
-    }, [
-      h('div', { className: 'bsh-tip-rar' }, (locked ? 'LOCKED · ' : '') + rar.name),
-      h('div', { className: 'bsh-tip-name' }, def.name || def.id),
-      h('div', { className: 'bsh-tip-chips' }, [
-        h('span', { className: 'bsh-tip-chip' }, [ h('span', { className: 'l' }, 'LV'), ' ', h('span', { className: 'v' }, String(lv)) ]),
-        h('span', { className: 'bsh-tip-chip' }, [ h('span', { className: 'bsh-tip-coin' }), h('span', { className: 'v' }, cost <= 0 ? 'FREE' : String(cost)) ]),
-        cat.kind === 'room' ? h('span', { className: 'bsh-tip-chip' }, [ h('span', { className: 'l' }, 'SIZE'), ' ', h('span', { className: 'v' }, size) ]) : null,
-      ].filter(Boolean)),
-      desc ? h('div', { className: 'bsh-tip-desc' }, desc) : null,
-    ].filter(Boolean))
-    this._hideTip()
-    this._tipEl = tip
-    layer.appendChild(tip)
+  // ── Hover panel ─────────────────────────────────────────────────
+  // Hovering a build slot shows the SAME unified inspector (InspectPopup) the
+  // player gets hovering that thing in the world — fed a synthetic def-based
+  // entity so a not-yet-placed minion/trap/room/item reads identically. The
+  // panel floats ABOVE the bottom-anchored tray (placeAbove).
+  _showTip(e, def, cat) {
+    const payload = this._inspectPayload(def, cat, e.currentTarget)
+    if (payload) EventBus.emit('SHOW_INSPECT', payload)
   }
 
-  _hideTip() { this._tipEl?.remove(); this._tipEl = null }
+  _hideTip() { EventBus.emit('HIDE_INSPECT') }
+
+  _inspectPayload(def, cat, cardEl) {
+    const cr = cardEl?.getBoundingClientRect?.()
+    if (!cr) return null
+    // Centre above the card (client px — the popup is body-mounted, position:fixed).
+    const base = { defId: def.id, x: cr.left + cr.width / 2, y: cr.top, placeAbove: true }
+    if (cat.kind === 'minion') {
+      const bs = def.baseStats ?? {}
+      return { ...base, kind: 'minion', entity: {
+        _buildPreview: true, id: def.id, definitionId: def.id, name: def.name,
+        resources: { hp: bs.hp, maxHp: bs.hp },
+        stats: { attack: bs.attack, defense: bs.defense },
+      } }
+    }
+    if (cat.kind === 'trap') return { ...base, kind: 'trap', entity: { id: def.id, definitionId: def.id } }
+    if (cat.kind === 'room') return { ...base, kind: 'room', entity: { id: def.id, definitionId: def.id, width: def.width, height: def.height, isActive: true } }
+    // Build "items" are placeable construction features → the in-world `placed` kind.
+    if (cat.kind === 'item') return { ...base, kind: 'placed', entity: { id: def.id, definitionId: def.id } }
+    return null
+  }
 
   // ════════════════════════════════════════════════════════════════
   // Build-data layer — moved verbatim from the old LeftPanels dock so

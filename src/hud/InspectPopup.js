@@ -94,8 +94,12 @@ export class InspectPopup {
   }
 
   // ── Hover panel ───────────────────────────────────────────────────
-  _show({ kind, entity, defId = null, x = 0, y = 0 } = {}) {
+  _show({ kind, entity, defId = null, x = 0, y = 0, placeAbove = false } = {}) {
     if (!kind || !entity) return
+    // placeAbove = anchor the panel ABOVE (x, y), centred on x — used by the
+    // build-menu hover so the panel floats over the bottom-anchored tray rather
+    // than down-right of the cursor (which would clamp into the tray).
+    this._placeAbove = placeAbove
     // Bail if the hovered entity died (or HP hit 0) since the popup
     // opened. Without this, the DOM keeps rendering the original
     // hover-start HP/ATK/DEF — the panel never re-renders mid-hover
@@ -147,14 +151,24 @@ export class InspectPopup {
     // pre-transform layout size).
     const w  = (el.offsetWidth  || 230) * s
     const ht = (el.offsetHeight || 130) * s
-    // Default down-right of the cursor; flip / clamp to stay on-screen.
-    // y+44 clears the 42-px custom cursor sprite's bottom edge so the
-    // tooltip header isn't covered. x+16 keeps it anchored close to
-    // the cursor hotspot horizontally.
-    let left = x + 16
-    let top  = y + 44
-    if (left + w  > window.innerWidth  - 8) left = x - w - 16
-    if (top  + ht > window.innerHeight - 8) top  = window.innerHeight - ht - 8
+    let left, top
+    if (this._placeAbove) {
+      // Centred above the anchor (build-menu card). Fall back to below it if
+      // there isn't room overhead; clamp horizontally on-screen.
+      left = x - w / 2
+      top  = y - ht - 12
+      if (top < 8) top = y + 12
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8
+    } else {
+      // Default down-right of the cursor; flip / clamp to stay on-screen.
+      // y+44 clears the 42-px custom cursor sprite's bottom edge so the
+      // tooltip header isn't covered. x+16 keeps it anchored close to
+      // the cursor hotspot horizontally.
+      left = x + 16
+      top  = y + 44
+      if (left + w  > window.innerWidth  - 8) left = x - w - 16
+      if (top  + ht > window.innerHeight - 8) top  = window.innerHeight - ht - 8
+    }
     el.style.left = `${Math.max(8, left)}px`
     el.style.top  = `${Math.max(8, top)}px`
   }
