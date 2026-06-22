@@ -698,19 +698,19 @@ export class DungeonRenderer {
   // `cp` optional — entrance cps read the entrance size (→ fall back to the
   // connecting size → default); omitting cp uses the connecting size.
   _doorSkinSizeTiles(room, cp = null) {
-    // PER-DOOR size: the entrance cp reads its own size; every connecting door
-    // reads the size for ITS WALL (`doorSkinSizeByDir[direction]`) so each wall's
-    // door is sized independently. The legacy single `doorSkinSize` is the
-    // fallback, so rooms authored before per-wall sizing keep their look.
-    const perWall = (cp && cp.direction) ? room?.doorSkinSizeByDir?.[cp.direction] : null
-    const s = (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null) ?? perWall ?? room?.doorSkinSize
+    // PER-SKIN size: the size lives ON the door skin, so every door using a skin
+    // shares one size (across all walls + rooms). Resolve the door's skin id for
+    // its state, then use that skin's size. Legacy fallbacks keep older content
+    // looking right: per-room entrance/`doorSkinSize`, then the default skin's
+    // own size when the door is rendering the global default.
+    const state = cp ? this._doorStateFor(cp) : 'closed'
+    const ownId = this._roomOwnDoorSkinId(room, state, cp)
+    const skinId = ownId || ThemeManager.defaultDoorSkinId?.(state) || null
+    const s = (skinId ? ThemeManager.doorSkinSize?.(skinId) : null)
+      ?? (this._cpIsEntrance(cp) ? room?.doorSkinSizeEntrance : null)
+      ?? room?.doorSkinSize
+      ?? (!ownId ? ThemeManager.defaultDoorSkinSize?.() : null)
     if (s) return { w: s.w ?? 4, h: s.h ?? 3, nudge: s.nudge ?? 0 }
-    // No per-room override: a door rendering the GLOBAL DEFAULT skin (room has no
-    // skin of its own for this state) uses the default skin's size.
-    if (cp && !this._roomOwnDoorSkinId(room, this._doorStateFor(cp), cp)) {
-      const d = ThemeManager.defaultDoorSkinSize?.()
-      if (d) return { w: d.w ?? 4, h: d.h ?? 3, nudge: d.nudge ?? 0 }
-    }
     return { w: 4, h: 3, nudge: 0 }
   }
   // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =

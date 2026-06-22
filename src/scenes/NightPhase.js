@@ -2102,7 +2102,7 @@ export class NightPhase extends Phaser.Scene {
         connectionPoints: rotDef.connectionPoints ?? [],
         doorSkin: def.doorSkin, doorSkinByBoss: def.doorSkinByBoss,
         doorSkinEntrance: def.doorSkinEntrance,
-        doorSkinSize: def.doorSkinSize, doorSkinSizeByDir: def.doorSkinSizeByDir, doorSkinSizeEntrance: def.doorSkinSizeEntrance,
+        doorSkinSize: def.doorSkinSize, doorSkinSizeEntrance: def.doorSkinSizeEntrance,
       }
       const dr = this.scene.get('Game')?._dungeonRenderer
       // Ghost treatment, same as the room ghost — translucent + a validity tint.

@@ -328,6 +328,9 @@ export const ThemeManager = {
       for (const [id, s] of Object.entries(manifest.doorSkins)) {
         if (!s || typeof s !== 'object') continue
         state.doorSkins[id] = { file: typeof s.file === 'string' ? s.file : doorSkinPath(id) }
+        if (s.size && typeof s.size === 'object') {
+          state.doorSkins[id].size = { w: +s.size.w || 4, h: +s.size.h || 3, nudge: +s.size.nudge || 0 }
+        }
       }
     }
     if (manifest.defaultDoorSkin && typeof manifest.defaultDoorSkin === 'object') {
@@ -451,7 +454,7 @@ export const ThemeManager = {
   listDoorSkins() { return Object.entries(state.doorSkins).map(([id, s]) => ({ id, ...s })) },
   getDoorSkin(id) { return state.doorSkins[id] || null },
   hasDoorSkin(id) { return id in state.doorSkins },
-  addDoorSkin(id, file) { state.doorSkins[id] = { file: file || doorSkinPath(id) } },
+  addDoorSkin(id, file) { state.doorSkins[id] = { ...(state.doorSkins[id] || {}), file: file || doorSkinPath(id) } },
   removeDoorSkin(id) {
     delete state.doorSkins[id]
     // Drop it from the global default too, so a deleted skin can't linger as a fallback.
@@ -483,6 +486,17 @@ export const ThemeManager = {
     state.defaultDoorSkin.size = { w: +size.w || 4, h: +size.h || 3, nudge: +size.nudge || 0 }
   },
   clearDefaultDoorSkin() { state.defaultDoorSkin = null },
+
+  // ── Per-SKIN door size {w,h,nudge} — stored ON the skin in the manifest, so
+  // EVERY door using that skin shares one size (across all walls + all rooms).
+  // The render reads this for a door's resolved skin id; a different skin keeps
+  // its own size. serialize() already round-trips it via structuredClone.
+  doorSkinSize(id) { return (id && state.doorSkins[id]?.size) || null },
+  setDoorSkinSize(id, size) {
+    if (!id || !state.doorSkins[id]) return
+    if (!size) { delete state.doorSkins[id].size; return }
+    state.doorSkins[id].size = { w: +size.w || 4, h: +size.h || 3, nudge: +size.nudge || 0 }
+  },
 
   // ── Slot variant edits (mutate the named theme) ──
   setSlotVariants(themeName, slot, ids) {

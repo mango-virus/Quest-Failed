@@ -1030,10 +1030,6 @@ export class RoomEditorOverlay {
     // an external/entrance cp (e.g. the Entry Hall).
     const roles = this.scene.uiDoorRoles?.()
     const curRole = this.scene.uiDoorRole?.() || 'interior'
-    // Per-wall door SIZE — connecting doors are sized per wall (each independent).
-    const doorWalls = curRole === 'entrance' ? [] : (this.scene.uiDoorWalls?.() || [])
-    const curDoorWall = this.scene.uiDoorWall?.()
-    const WALL_LABEL = { N: 'North', S: 'South', E: 'East', W: 'West' }
 
     const dropzone = (() => {
       const zone = h('div', {
@@ -1068,12 +1064,6 @@ export class RoomEditorOverlay {
             className: 'qf-themes__theme-sel',
             on: { change: (e) => { this.scene.uiSetDoorState?.(e.target.value); this._renderDoorSkins() } },
           }, DOOR_STATES.map((d) => h('option', { value: d.key, selected: d.key === doorState }, d.label))),
-          doorWalls.length > 1 ? h('span', { className: 'qf-skins__roomnote' }, '·  Wall:') : null,
-          doorWalls.length > 1 ? h('select', {
-            className: 'qf-themes__theme-sel',
-            title: 'Which connecting wall’s door the SIZE sliders apply to — each wall is sized independently.',
-            on: { change: (e) => { this.scene.uiSetDoorWall?.(e.target.value); this._renderDoorSkins() } },
-          }, doorWalls.map((w) => h('option', { value: w, selected: w === curDoorWall }, WALL_LABEL[w] || w))) : null,
           targets ? h('span', { className: 'qf-skins__roomnote' }, '·  Boss:') : null,
           targets ? h('select', {
             className: 'qf-themes__theme-sel',
@@ -1141,15 +1131,9 @@ export class RoomEditorOverlay {
     // 0.1-step values, displayed to one decimal (dropping a trailing .0) so the
     // readout stays clean (3.5, 3.4) instead of float noise (3.4000000001).
     const fmt = (n) => { const r = Math.round(n * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1) }
-    // Scope label so it's clear WHICH door these sliders size (each connecting
-    // wall is independent; the entrance has its own size).
-    const _wall = this.scene.uiDoorWall?.()
-    const _role = this.scene.uiDoorRole?.() || 'interior'
-    const _scope = _role === 'entrance' ? 'ENTRANCE'
-      : (_wall ? `${({ N: 'NORTH', S: 'SOUTH', E: 'EAST', W: 'WEST' }[_wall] || _wall)} WALL` : 'DOOR')
     return h('div', { className: 'qf-redit__color-group' }, [
       h('div', { className: 'qf-redit__color-head' }, [
-        h('span', { className: 'qf-redit__color-name' }, `DOOR SIZE · ${_scope}`),
+        h('span', { className: 'qf-redit__color-name' }, 'DOOR SKIN SIZE'),
         h('button', {
           className: 'qf-redit__link-btn',
           on: { click: () => { this.scene.uiResetDoorSkinSize?.(); this._renderDoorSkins() } },
@@ -1177,7 +1161,7 @@ export class RoomEditorOverlay {
         ])
       }),
       h('div', { className: 'qf-skins__hint' },
-        'Preview shows the gate over this room’s floor art, on the top wall. Width = tiles along the wall; Depth = tiles into the room (how far the base reaches the floor); Nudge shifts the whole gate deeper. Auto-rotates per door direction in-game.'),
+        'This size belongs to the door SKIN — every door using it (all walls, all rooms) shares it. Width = tiles along the wall; Depth = tiles into the room (how far the base reaches the floor); Nudge shifts the whole gate deeper. Auto-rotates per door direction in-game.'),
     ])
   }
 

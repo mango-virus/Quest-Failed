@@ -787,7 +787,6 @@ export class Game extends Phaser.Scene {
     room.doorSkin        = (def.doorSkin && typeof def.doorSkin === 'object') ? def.doorSkin : null
     room.doorSkinByBoss  = (def.doorSkinByBoss && typeof def.doorSkinByBoss === 'object') ? def.doorSkinByBoss : null
     room.doorSkinSize    = (def.doorSkinSize && typeof def.doorSkinSize === 'object') ? def.doorSkinSize : null
-    room.doorSkinSizeByDir = (def.doorSkinSizeByDir && typeof def.doorSkinSizeByDir === 'object') ? def.doorSkinSizeByDir : null
     room.doorSkinEntrance     = (def.doorSkinEntrance && typeof def.doorSkinEntrance === 'object') ? def.doorSkinEntrance : null
     room.doorSkinSizeEntrance = (def.doorSkinSizeEntrance && typeof def.doorSkinSizeEntrance === 'object') ? def.doorSkinSizeEntrance : null
     // These fields are STRIPPED from the saved def when empty (decorations,
