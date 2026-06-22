@@ -3466,6 +3466,13 @@ export class NightPhase extends Phaser.Scene {
       c.tileX === tx && c.tileY === ty
     )
     if (treasureHit) {
+      // Room-bound auto-spawn chests (Treasury batch + Mimic Vault cursed chest)
+      // can't be sold individually — they belong to their host room and only
+      // clear when the room itself is sold.
+      if (treasureHit._treasurySpawn || treasureHit._mimicCursed) {
+        this._showPlacementError('These chests clear only when their room is sold.')
+        return
+      }
       // Treasure Hunters event — chests are locked from selling the night
       // it's announced so the player can't dodge the raid by cashing out.
       // The `treasureHuntersActive` flag isn't set until day-begin, so on
@@ -4131,6 +4138,13 @@ export class NightPhase extends Phaser.Scene {
       c.tileX === tx && c.tileY === ty
     )
     if (treasureHit) {
+      // Room-bound auto-spawn chests (Treasury batch + Mimic Vault cursed chest)
+      // can't be picked up — they belong to their host room. Moving the ROOM
+      // carries them (forceRoomMove path); selling the room clears them.
+      if (treasureHit._treasurySpawn || treasureHit._mimicCursed) {
+        this._showPlacementError("These chests can't be moved — they belong to the room.")
+        return
+      }
       const chestDef = items.find(it => it.id === `treasure_chest_${treasureHit.tier}`)
       if (!chestDef) { this._showPlacementError('Chest def missing'); return }
       // Keep the chest in the array so its sprite stays drawn and follows the
