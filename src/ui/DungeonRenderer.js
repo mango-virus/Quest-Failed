@@ -16,7 +16,7 @@ import { TILE }         from '../systems/DungeonGrid.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
-import { carveDoorOpening, fillDoorTopOccluder, buildDoorSkyMask } from '../util/doorSkinCarve.js'
+import { carveDoorOpening, fillDoorTopOccluder, buildDoorSkyMask, shadePassageInterior } from '../util/doorSkinCarve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -808,7 +808,11 @@ export class DungeonRenderer {
         this._applyColorAdj(img, colorRoom?.colorAdjust?.walls, true)
         container.add(img)
       }
-      make(this._cDoorSkins, key)  // low — full image, under entities (passage + black opening)
+      // low — full image, under entities. For an OPEN door, use a copy whose
+      // black passage opening is repainted as a softly-lit recessed threshold
+      // (gradient + bevel + warm sill) so it's not a jarring flat-black cutout.
+      const lowKey = (state === 'open') ? this._ensureDoorPassageTexture(key, forRoom, forCp) : key
+      make(this._cDoorSkins, lowKey)
       // High (over-entity) copy. For an OPEN door, use a black-keyed copy whose
       // dark opening is transparent, so a character walking out always shows
       // OVER the dark passage (from the low copy) and UNDER only the lit frame —
@@ -827,6 +831,7 @@ export class DungeonRenderer {
       this._addDoorSkinWallTexture(forRoom, forCp, rect, wTiles, hTiles, key)
     }
     const hasDefaultDoorSkin = !!ThemeManager.getDefaultDoorSkin?.()
+    let sunPos = null
     for (const room of rooms) {
       if (!hasDefaultDoorSkin && !room.doorSkin && !room.doorSkinByBoss && !room.doorSkinEntrance) continue
       for (const cp of (room.connectionPoints || [])) {
@@ -836,7 +841,34 @@ export class DungeonRenderer {
         // Per-room doors: a room's skin shows ONLY on its own wall. The paired
         // room renders its own door (skin / theme / default) on its side.
         drawOne(room, cp, key, room, state)
+        // The OPEN grand entrance opens to daylight — spill a warm light pool into
+        // the room. Anchor it to the door skin's ACTUAL centre (rect.cx/cy) and
+        // push it toward the ROOM centre (geometry-derived → correct for any wall
+        // / rotation, and centred on the door rather than guessed from cp.x).
+        if (this._cpIsEntrance(cp) && state === 'open') {
+          // Light comes FROM the doorway, spilling inward. Anchor X to the door
+          // skin's DRAWN centre (rect.cx — the cp cell-centre is half a tile off, so
+          // it read too far to one side). Anchor Y at the door cell on the wall and
+          // push just slightly toward the room centre, so the pool sits at the
+          // threshold and flows in — not a lamp mid-room.
+          const rect = this._doorSkinRect(room, cp)
+          const dcx = rect ? rect.cx : (room.gridX + cp.x + 0.5) * TS
+          const dcy = (room.gridY + cp.y + 0.5) * TS
+          const rcx = (room.gridX + room.width / 2) * TS, rcy = (room.gridY + room.height / 2) * TS
+          let dx = rcx - dcx, dy = rcy - dcy
+          const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len
+          sunPos = { x: dcx + dx * 1.3 * TS, y: dcy + dy * 1.3 * TS }
+        }
       }
+    }
+    // Persistent warm "daylight" pool just inside the open grand entrance, via the
+    // LightingSystem (respects the lighting toggle, pools on the floor). Removed
+    // when the entrance isn't open/present. follow() returns the fixed pos so the
+    // lighting update() keeps it placed with a gentle breath.
+    const ls = this._scene.lightingSystem
+    if (ls) {
+      if (sunPos) { const p = sunPos; ls.setLight('entry_sun', { radius: TS * 3.2, color: 0xffe2a8, intensity: 0.5, pulse: 0.05, soft: true, follow: () => p }) }
+      else ls.removeLight('entry_sun')
     }
   }
 
@@ -877,6 +909,127 @@ export class DungeonRenderer {
       if (tex.exists(frameKey)) tex.remove(frameKey)
       return key
     }
+  }
+
+  // Bake-once: the LOW (under-entity) copy of an OPEN door skin with its flat
+  // black passage opening repainted as a recessed, softly-lit threshold —
+  // gradient + soft inner bevel + warm sill (see shadePassageInterior). The hard
+  // pure-black opening read as a jarring cutout; this gives it depth/light while
+  // staying top-down-flat. Cached `<key>__pass`; falls back to the raw skin on
+  // any canvas failure or when no passage region is found (e.g. a closed skin).
+  _ensureDoorPassageTexture(key, room, cp = null) {
+    const tex = this._scene.textures
+    if (!key || !tex.exists(key)) return key
+    const src = tex.get(key).getSourceImage()
+    const w = src?.width | 0, h = src?.height | 0
+    if (!w || !h) return key
+    // ENTRANCE ONLY: it opens to the outside, so show warm DAYLIGHT through it
+    // instead of dark interior shadow. Scoped to the entrance cp → no other door
+    // changes.
+    const sunlight = this._cpIsEntrance(cp)
+    // One floor tile = w / (door's displayed width in tiles). Normal doors are 4
+    // wide → w/4 (the approved scale, unchanged). The entrance is drawn OVERSIZED
+    // (doorSkinSizeEntrance, e.g. 5 wide), so w/4 would make its floor slabs ~25%
+    // too big and not line up with the room tiles — size it to the real width.
+    const wTiles = sunlight ? (this._doorSkinSizeTiles(room, cp)?.w || 4) : 4
+    const px = Math.max(6, Math.round(w / wTiles))
+    // The entrance shows a lot of floor in bright light, so sample the CLEANEST
+    // interior tile (fewest crack/moss pixels) → the skin's tile look, not a
+    // crack-heavy patch. Other doors keep the centre sample (unchanged).
+    const floor = this._roomFloorSwatch(room, px, { cleanest: sunlight })
+    // Phase-align the entrance floor tiling to the WORLD tile grid so its slab
+    // seams continue into the room floor below (the door's left/top edge usually
+    // lands on a half-tile, which threw the seams off). Drawn rot=0 (the entrance
+    // faces straight out), so image axes map directly to world; skip if rotated.
+    let floorPhaseX, floorPhaseY
+    if (sunlight) {
+      const rect = this._doorSkinRect(room, cp)
+      const hTiles = this._doorSkinSizeTiles(room, cp)?.h || 3
+      if (rect && !rect.rot) {
+        const fr = (v) => ((v % 1) + 1) % 1
+        // Round to whole PIXELS — a fractional offset would land the tile lookup
+        // on a half-pixel and read the RGBA bytes shifted (garbage colour).
+        floorPhaseX = Math.round(fr(rect.cx / TS - wTiles / 2) * px)
+        floorPhaseY = Math.round(fr(rect.cy / TS - hTiles / 2) * px)
+      }
+    }
+    const passKey = `${key}__pass_${floor?.tag || 'none'}${sunlight ? '_sun' : ''}`
+    if (tex.exists(passKey)) return passKey
+    try {
+      const ct = tex.createCanvas(passKey, w, h)
+      if (!ct) return key
+      const ctx = ct.getContext()
+      ctx.drawImage(src, 0, 0)
+      const img = ctx.getImageData(0, 0, w, h)
+      const n = shadePassageInterior(img.data, w, h, { threshold: Balance.DOOR_SKIN_BLACK_THRESHOLD ?? 24, floor, sunlight, floorPhaseX, floorPhaseY })
+      if (!n) { tex.remove(passKey); return key }   // no passage → keep the raw skin
+      ctx.putImageData(img, 0, 0)
+      ct.refresh()
+      // Match the source skin's NEAREST filter (fresh canvas defaults to LINEAR).
+      if (ct.setFilter) ct.setFilter(Phaser.Textures.FilterMode.NEAREST)
+      return passKey
+    } catch (e) {
+      if (tex.exists(passKey)) tex.remove(passKey)
+      return key
+    }
+  }
+
+  // Sample a single FLOOR tile from a room so the doorway passage can continue
+  // it (see shadePassageInterior's floor option). Skinned rooms → a 1-tile box at
+  // the skin's CENTRE (reliably interior floor, rotation-agnostic), OR — with
+  // `opts.cleanest` — the interior tile whose FACE has the fewest dark crack/moss
+  // pixels, so the doorway shows the skin's clean tile look (used by the bright
+  // entrance, where cracks would read as dots). Unskinned rooms → a synthesised
+  // palette swatch. Returns { data, w, h, tag } scaled to `px`, or null.
+  _roomFloorSwatch(room, px, opts = {}) {
+    px = Math.max(4, px | 0)
+    const tex = this._scene.textures
+    const skinKey = room ? this._roomSkinKeyFor(room) : null
+    if (skinKey && tex.exists(skinKey)) {
+      try {
+        const src = tex.get(skinKey).getSourceImage()
+        const sw = src?.width | 0, sh = src?.height | 0
+        if (sw && sh && room.width > 0 && room.height > 0) {
+          const boxW = Math.max(4, Math.round(sw / room.width))     // one room tile
+          const boxH = Math.max(4, Math.round(sh / room.height))
+          let bx = Math.max(0, ((sw - boxW) / 2) | 0), by = Math.max(0, ((sh - boxH) / 2) | 0)  // default: centre tile
+          if (opts.cleanest && room.width >= 5 && room.height >= 5) {
+            // Scan interior tiles; pick the one whose FACE (inner region) has the
+            // fewest very-dark pixels (cracks/moss). The seam grid lives at the
+            // tile EDGES, so the chosen tile still reads as a tile — just a clean
+            // one. One full-skin read, sampled sparsely → cheap (one-time bake).
+            const cv0 = document.createElement('canvas'); cv0.width = sw; cv0.height = sh
+            const c0 = cv0.getContext('2d'); c0.drawImage(src, 0, 0)
+            const all = c0.getImageData(0, 0, sw, sh).data
+            const m = Math.max(2, Math.round(Math.min(boxW, boxH) * 0.22))
+            let bestFrac = Infinity
+            for (let ry = 2; ry < room.height - 2; ry++) for (let cx = 2; cx < room.width - 2; cx++) {
+              const x0 = cx * boxW + m, y0 = ry * boxH + m, x1 = (cx + 1) * boxW - m, y1 = (ry + 1) * boxH - m
+              if (x1 <= x0 || y1 <= y0 || x1 > sw || y1 > sh) continue
+              let dark = 0, n = 0
+              for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) {
+                const i = (y * sw + x) * 4; n++
+                if (0.299 * all[i] + 0.587 * all[i + 1] + 0.114 * all[i + 2] < 42) dark++
+              }
+              if (n) { const frac = dark / n; if (frac < bestFrac) { bestFrac = frac; bx = cx * boxW; by = ry * boxH } }
+            }
+          }
+          const cv = document.createElement('canvas'); cv.width = px; cv.height = px
+          const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false
+          ctx.drawImage(src, bx, by, boxW, boxH, 0, 0, px, px)      // chosen tile → one door tile
+          return { data: ctx.getImageData(0, 0, px, px).data, w: px, h: px, tag: skinKey + (opts.cleanest ? '_cl' : '') }
+        }
+      } catch (e) { /* fall through to procedural */ }
+    }
+    // Procedural floor → flat swatch in the floor palette with a few light specks.
+    try {
+      const data = new Uint8ClampedArray(px * px * 4)
+      const b = [(FLOOR_BASE >> 16) & 0xff, (FLOOR_BASE >> 8) & 0xff, FLOOR_BASE & 0xff]
+      const l = [(FLOOR_LIGHT >> 16) & 0xff, (FLOOR_LIGHT >> 8) & 0xff, FLOOR_LIGHT & 0xff]
+      for (let i = 0; i < px * px; i++) { const j = i * 4; data[j] = b[0]; data[j + 1] = b[1]; data[j + 2] = b[2]; data[j + 3] = 255 }
+      for (let s = 0; s < px; s++) { const j = (((s * 7) % px) + ((s * 13) % px) * px) * 4; data[j] = l[0]; data[j + 1] = l[1]; data[j + 2] = l[2] }   // deterministic specks
+      return { data, w: px, h: px, tag: 'proc' }
+    } catch (e) { return null }
   }
 
   // The room's actual WALL COLOUR at a door, for the over-entity occluder to fill
