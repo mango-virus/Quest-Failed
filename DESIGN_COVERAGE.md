@@ -1384,3 +1384,16 @@ but deferred ("not something I want to implement now, but something we will do l
 
 Build order if picked up: endless-cashout → endless-wrath → endless-react. They interlock (Wrath
 sets stakes, react layer survives them, cash-out banks Infamy scaled by Wrath).
+
+## Onboarding overhaul (LOCKED 2026-06-22, building) — visual-first, research-backed
+
+Full spec in `DESIGN.md` → "Onboarding overhaul — LOCKED". Replaces old Welcome Intro + 42 text
+popups (WHAT'S NEW changelog already removed, 970e3352). Phased; each phase shippable + verified.
+
+| id | item | status | notes |
+|---|---|---|---|
+| onb-toolkit | Coach-mark toolkit (dim+spotlight cutout, ghost-cursor demo, ≤8-word caption, one-at-a-time) | ⏳ IN PROGRESS | FOUNDATION — build first; everything else uses it. pointer-events:auto. |
+| onb-beat0 | Premise-setter "flip" cinematic (hero wins → boss reanimates → "you are the dungeon"), real sprites, skippable | ⏳ PENDING | Replaces WelcomeIntroOverlay. |
+| onb-beat1-2 | Guided first run: night = place-room + place-minion (ghost-cursor); day = simple telegraphed party dies + 1 boss ability | ⏳ PENDING | Scripted, once, skippable. |
+| onb-beat3 | Contextual drip: 42 popups → one-at-a-time adaptive coach-marks + companion-as-mentor on boss death + Codex recall | ⏳ PENDING | Repurpose, don't delete, the popups. |
+| onb-telegraph | Day-phase telegraphing (adventurer ghost path + room/trap intent on hover) | ⏳ PENDING | Into the Breach legibility; bigger, maybe general feature. |

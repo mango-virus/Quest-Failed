@@ -392,6 +392,52 @@ level/ascension/pact scaling applies on top. **Caveat:** base *ratios* compress 
 the shared `(base + 15·lvl)·1.20^lvl` curve — a follow-up could add per-archetype scaling
 multipliers (needs `sim:balance`) if sharper high-level identity is wanted.
 
+## Onboarding overhaul — LOCKED (2026-06-22, building) — research-backed, visual-first
+
+Complete replacement of the old onboarding (the text-y Welcome Intro + ~42 text popups; the
+WHAT'S NEW changelog was removed, commit 970e3352). User directive: a brand-new onboarding that
+**uses sprites, animated sprites, and images** to look great and teach VISUALLY (show-don't-tell),
+not via text walls. Backed by a research pass (PvZ "one action teaches" / ≤8 words; Legend of
+Keepers planning+execution split; Into the Breach telegraphed legibility; Hades failure-as-coaching;
+Celia Hodent ~3-item working-memory cap; coach-marks over modal spam).
+
+**Core insight:** the ONE thing that must land in the first ~60s is the INVERSION — *"you ARE the
+dungeon, not the hero."* Everything else is taught just-in-time.
+
+**Visual-language toolkit (reused throughout, not text):**
+- **Coach-marks** — dim screen + spotlight ONE live element (CSS box-shadow cutout ring around the
+  REAL control), ≤8-word caption. One at a time, never chained. ⚠ overlay needs pointer-events:auto
+  (see [[project_quest_failed_overlay_pointerevents]]).
+- **Ghost-cursor demos** — an animated cursor/hand sprite PERFORMS the action (drag a minion onto a
+  tile) on a loop before the player does it.
+- **Staged sprite vignettes** — real animated boss/adventurer/minion sheets ACT OUT concepts
+  (adventurer walks in → trap fires → dies).
+- **Telegraphing** (Into the Breach) — day phase shows adventurer ghost path trail + what each
+  room/trap WILL do on hover (cause→effect visible).
+- **Icon + colour language** — red=danger, gold=economy, purple=dark-pact.
+
+**Four beats:**
+- **Beat 0 — Premise-setter (~40s, skippable): the FLIP.** Animated cinematic w/ real sprites: a
+  hero party storms a dungeon and triumphs… camera pulls back, the fallen boss REANIMATES → *"This
+  time, the dungeon fights back. You are the dungeon."* Ends on one interactive click. Replaces the
+  current WelcomeIntroOverlay.
+- **Beat 1 — Guided First Night (build): exactly TWO actions** — coach-mark "place a room" (ghost-
+  cursor demo) → feedback → "place a minion" → feedback. STOP (no traps/pacts/upgrades yet).
+- **Beat 2 — Guided First Day (watch + 1 intervention):** a deliberately SIMPLE no-ability party
+  enters w/ telegraphed path; player WATCHES them die to their minion/trap (the payoff that cements
+  the inversion); then ONE boss day-ability via coach-mark (arm→target→fire).
+- **Beat 3 — Contextual drip (ongoing):** REPURPOSE the ~42 popups into one-at-a-time,
+  event-triggered, ADAPTIVE coach-marks (fire only when a system is first usable + only if unused).
+  Mentor = the existing **companion NPC** (NpcDirector) coaches on boss death (Hades pattern);
+  **Codex** = recall reference.
+
+**Phased build (each shippable + visually verified in preview/Electron):** (1) coach-mark toolkit
+[FOUNDATION, build first], (2) Beat-0 flip cinematic, (3) Beats 1–2 guided first run, (4) Beat-3
+drip + companion-as-mentor, (5) day-phase telegraphing (bigger; maybe a general feature).
+
+**Hard rules:** ≤8 words/caption; never teach >3 things at once; never teach what isn't usable yet;
+everything skippable; failure never punished while teaching.
+
 ## Endless meta-game — PROPOSED / FUTURE (explored 2026-06-21, NOT built)
 
 Design exploration the user liked but deliberately parked ("not something I want to implement
