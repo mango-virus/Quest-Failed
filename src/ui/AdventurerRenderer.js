@@ -26,14 +26,6 @@ const RADIUS = 11
 const HURT_ANIM_MS     = 300
 const HIT_FLASH_MIN_MS = 90
 const HIT_FLASH_MAX_MS = 220
-// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used for
-// Jinwoo's RGB-style blue↔black flame cycle.
-function _lerpHex(a, b, k) {
-  const r = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
-  const g = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
-  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
-  return (r << 16) | (g << 8) | bl
-}
 
 // Nerve mood-pip colour by band (AI overhaul). Confident green → dread red.
 function _moodPipColor(mood) {
@@ -86,15 +78,6 @@ const LPC_ATK_ORIGIN_Y  = 0.617
 // 128×128 carry frame: body centered at top=32, foot at 32 + 54.4 = 86.4px →
 // origin y = 86.4 / 128 = 0.675. Keeps the foot at the same world position.
 const LPC_CARRY_ORIGIN_Y = 0.675
-// Light Party travel formation — render-only sub-tile offsets (px) so the four
-// members walk side-by-side / front-and-back instead of stacking on one tile.
-// tank leads, melee on the left flank, ranged on the right, healer trails.
-const LP_TRAVEL_FORMATION = { tank: [0, -20], meleeDps: [-28, 10], rangedDps: [28, 10], healer: [0, 32] }
-// Light Party classes use a single hand-authored ULPC costume (v01) for EVERY
-// spawn — the FFXIV "Warriors of Light" look — instead of rolling a random
-// v01–v50 generic variant. Pinning here (not deleting the other variants) keeps
-// the atk-sheet + manifest plumbing intact while guaranteeing the iconic look.
-const LP_FIXED_VARIANT_CLASSES = new Set(['paladin', 'white_mage', 'black_mage', 'samurai'])
 // Weapons that should always render combat as `thrust`, regardless of the
 // class's default animation. Spear/Cane only have thrust frames; staves and
 // the Crossbow have a thrust_oversize that looks more dynamic than the static
@@ -161,8 +144,6 @@ export class AdventurerRenderer {
     EventBus.on('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.on('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.on('NIGHT_PHASE_STARTED', this._clearAll,   this)
-    // Solo Leveling — fade Jinwoo out as he steps into his portal (win outro).
-    EventBus.on('SHADOW_MONARCH_FADE', this._onMonarchFade, this)
     // Myconid Corpse Bloom — when a fungal corpse sprouts a Vinekin, take
     // down the dead-adv body sprite that's been parked on the death tile
     // since ADVENTURER_DIED. The Vinekin replaces it as the room occupant.
@@ -347,14 +328,6 @@ export class AdventurerRenderer {
     return 1 - t
   }
 
-  // Solo Leveling — Jinwoo's portal fade-out (win outro). 1 → 0 over ~700ms
-  // from the stamp set by _onMonarchFade.
-  _monarchFadeAlpha(s) {
-    if (!s || s._fadeOutAt == null) return 1
-    const now = this._scene?.time?.now ?? 0
-    return Math.max(0, 1 - (now - s._fadeOutAt) / 700)
-  }
-
   _onCombatHit({ sourceId, targetId }) {
     const adv = this._gameState.adventurers?.active?.find(a => a.instanceId === sourceId)
     if (!adv) return
@@ -454,10 +427,9 @@ export class AdventurerRenderer {
     // Lazily upgrade to the `_atk` texture once it streams in. The atk load is
     // 3s-delayed + throttled (see AdventurerAtkLoader), so a sprite created
     // before its sheet lands gets atkTextureKey=null at creation. Without this
-    // re-check it would stay stuck on the shrunk 64px slash/thrust forever —
-    // most visible on Jinwoo, who spawns mid-run via the event (after the title
-    // screen) and whose 64px slash row is weaponless (Scimitar swing is
-    // oversize-only). Resolving here means the next swing uses the atk sheet.
+    // re-check it would stay stuck on the shrunk 64px slash/thrust forever for a
+    // variant whose 64px slash row is weaponless (oversize-only swing).
+    // Resolving here means the next swing uses the atk sheet.
     if (!s.lpc.atkTextureKey && ATK_ANIMS.has(anim)) {
       const atkKey = `${s.lpc.textureKey}-atk`
       if (this._scene.textures.exists(atkKey)) s.lpc.atkTextureKey = atkKey
@@ -576,8 +548,6 @@ export class AdventurerRenderer {
         continue
       }
       if (s.container && !s.container.visible) s.container.setVisible(true)
-      // Solo Leveling — pulse Jinwoo's violet flame-aura glow while on-screen.
-      if (s.shadowGlow) s.shadowGlow.setAlpha(0.16 + 0.20 * Math.sin(this._scene.time.now / 320))
       // Marked-threat aura (Aldric / a Kingdom-Response champion) — pulse the
       // body glow alpha + the ground ring (alpha + a slight scale breathe). Strong
       // values so it's clearly visible, not a faint shimmer.
@@ -585,19 +555,6 @@ export class AdventurerRenderer {
         const p = 0.5 + 0.5 * Math.sin(this._scene.time.now / 360)   // 0..1
         if (s.threatGlow) s.threatGlow.setAlpha(0.32 + 0.46 * p)      // 0.32–0.78
         if (s.threatRing) { s.threatRing.setAlpha(0.55 + 0.4 * p); s.threatRing.setScale(1 + 0.07 * p) }
-      }
-      // Jinwoo's OWN flame cycles a blue↔black vertical gradient (RGB-style
-      // colour shift via a 4-corner tint that lerps over time). His shadow
-      // minions keep their plain flame — that's rendered by MinionRenderer and
-      // untouched here.
-      if (s.shadowFlame) {
-        const k   = (Math.sin(this._scene.time.now / 650) + 1) / 2   // 0..1 cycle
-        // Jinwoo runs a UNIQUELY bluer variant than his shadow minions: even
-        // the darkest corner stays a clear deep-blue (no near-black), and the
-        // top sweeps up to a bright sky-blue so the colour reads strongly.
-        const top = _lerpHex(0x2a72e6, 0x86d0ff, k)   // bright-blue → sky-blue
-        const bot = _lerpHex(0x0a2a6b, 0x2e7bff, k)   // deep-blue → bright-blue
-        s.shadowFlame.setTint(top, top, bot, bot)
       }
       // Phase D — keep the gold-coins icon glued above the adv carrying
       // stolen treasure. Sits just above the HP bar (y - 42) — chat
@@ -645,13 +602,6 @@ export class AdventurerRenderer {
           Math.abs(dx) <= 0.05 && Math.abs(dy) <= 0.05) {
         adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
       }
-      // Light Party cinematic duel — the whole party squares up on the throne to
-      // the north. Force boss-facing EVERY frame (overriding the lunge/recoil
-      // velocity above) so no member ever turns their back mid-fight. The boss
-      // sits at smaller worldY, so this resolves to 'up' for all four slots.
-      if (adv._lpInDuel && boss && boss.worldX !== undefined) {
-        adv._lpcDir = _dirFromVelocity(boss.worldX - adv.worldX, boss.worldY - adv.worldY)
-      }
       // Aldric — the climax duel. Always face his opponent (the boss) so the
       // swordsman reads as engaged through every dash, clash, and knockback
       // (boss-facing while shoved back = backpedaling, which reads correctly).
@@ -663,16 +613,7 @@ export class AdventurerRenderer {
       // skipping setPosition + setDepth when world coords haven't
       // changed cuts the display-list churn that's part of the
       // ~30ms/frame untracked Phaser overhead.
-      // Light Party travel formation — fan the four out by a small render-only
-      // offset so they never stack on one tile while walking the dungeon (tank
-      // front, melee left, ranged right, healer back). Purely visual: the AI
-      // tile/world position is untouched. Skipped at the throne, where they're
-      // no longer 'walking' (BossSystem owns their positions during the duel).
       let drawX = adv.worldX, drawY = adv.worldY
-      if (adv._lightParty && adv.aiState === 'walking' && adv.goal?.type !== 'AT_BOSS') {
-        const o = LP_TRAVEL_FORMATION[adv._lightPartyRole]
-        if (o) { drawX += o[0]; drawY += o[1] }
-      }
       if (s._lastSetX !== drawX || s._lastSetY !== drawY) {
         s.container.setPosition(drawX, drawY)
         // Y-sort against the boss + minions: larger worldY draws on top.
@@ -699,7 +640,7 @@ export class AdventurerRenderer {
         // Spawn-fade alpha STILL applies in LOD so entries don't pop.
         const _spawnA_lod = this._spawnAlpha(adv)
         const _leaveA_lod = this._leaveAlpha(adv)
-        if (s.container) s.container.setAlpha(Math.min(_spawnA_lod, _leaveA_lod) * this._monarchFadeAlpha(s))
+        if (s.container) s.container.setAlpha(Math.min(_spawnA_lod, _leaveA_lod))
         continue
       }
       const hpFrac = adv.resources.maxHp > 0
@@ -811,7 +752,7 @@ export class AdventurerRenderer {
       // sprite below.
       const spawnA = this._spawnAlpha(adv)
       const leaveA = this._leaveAlpha(adv)
-      const fadeA  = Math.min(spawnA, leaveA) * this._monarchFadeAlpha(s)
+      const fadeA  = Math.min(spawnA, leaveA)
       if (s.container) s.container.setAlpha(fadeA)
 
       // Phase 1b.8 — Wraith Fear Meter bar. 0..100. Hidden at 0; full purple
@@ -1232,52 +1173,6 @@ export class AdventurerRenderer {
       }
       return
     }
-    // Light Party cinematic duel — alive members hold a WEAPON-OUT combat pose
-    // and re-swing at the boss on a steady cadence. The ULPC *idle* pose draws
-    // no weapon/shield (only walk/slash/thrust/spellcast composite the equipped
-    // gear), so a stationary duel member would otherwise look unarmed. The swing
-    // anims are repeat:0 (they hold their final frame), so we replay every
-    // LP_DUEL_SWING_MS for a lively, readable "the party is attacking" loop.
-    if (adv._lpInDuel && (adv.resources?.hp ?? 0) > 0) {
-      let dAnim = 'slash'
-      if (tags.has('spellcaster') || tags.has('healer'))            dAnim = 'spellcast'
-      else if (cls?.id === 'ranger' || cls?.id === 'bard')          dAnim = 'shoot'
-      else if (cls?.id === 'monk' || cls?.id === 'beast_master')    dAnim = 'thrust'
-      const wpn = this._lpcWeaponByVariant[adv.spriteVariant]
-      if      (THRUST_ANIM_WEAPONS.has(wpn)) dAnim = 'thrust'
-      else if (SLASH_ANIM_WEAPONS.has(wpn))  dAnim = 'slash'
-      const { animKey, originY } = this._resolveLpcAnimKey(s, dAnim, dir)
-      if (!this._scene.anims.exists(animKey)) return
-      const img = s.lpc.image
-      const now = this._scene.time?.now ?? 0
-      const LP_DUEL_SWING_MS = 900
-      const startSwing = () => {
-        if (!s.lpc.isMinionSheet && !s.lpc.bossSheet && img.originY !== originY) img.setOrigin(0.5, originY)
-        img.anims.play(animKey)         // restart — atk anims are repeat:0
-        s.lpc.lastAnim = animKey
-        s._lpSwingAt   = now
-        s._lpSwinging  = true
-        // One attack SFX per visible swing — SfxSystem rate-limits + picks the
-        // class sound. Keeps the duel's combat audio in sync with the anim.
-        EventBus.emit('LIGHT_PARTY_DUEL_ATTACK', { classId: adv.classId, role: adv._lightPartyRole })
-      }
-      if (s.lpc.lastAnim !== animKey) {
-        // Entering the duel (or a facing change) — swing now, then stagger the
-        // NEXT swing by a random phase so the four don't strike in lockstep.
-        startSwing()
-        s._lpSwingAt = now - Math.random() * LP_DUEL_SWING_MS
-      } else if (now - (s._lpSwingAt ?? 0) >= LP_DUEL_SWING_MS) {
-        startSwing()
-      } else if (s._lpSwinging && !img.anims.isPlaying) {
-        // Swing finished — rest on the WIND-UP (frame 0) guard pose, NOT the
-        // extended final frame, so the gap between strikes reads as a combat
-        // stance instead of a freeze.
-        s._lpSwinging = false
-        const a = this._scene.anims.get(animKey)
-        if (a?.frames?.length) img.anims.setCurrentFrame(a.frames[0])
-      }
-      return
-    }
     if (adv._vfxLabAnim) {
       // VFX Lab override — pin a specific LPC state for animation review.
       anim = adv._vfxLabAnim
@@ -1418,7 +1313,6 @@ export class AdventurerRenderer {
     EventBus.off('ADVENTURER_DIED',     this._onAdvDied,  this)
     EventBus.off('ADVENTURER_FLED',     this._onRemove,   this)
     EventBus.off('NIGHT_PHASE_STARTED', this._clearAll,   this)
-    EventBus.off('SHADOW_MONARCH_FADE', this._onMonarchFade, this)
     EventBus.off('ADVENTURER_ENTERED_DUNGEON', this._onAdvEntered, this)
     EventBus.off('COMBAT_HIT',          this._onCombatHit, this)
     EventBus.off('MYCONID_CORPSE_SPROUTED', this._onMyconidSprouted, this)
@@ -1615,15 +1509,6 @@ export class AdventurerRenderer {
       }
     }
 
-    // Solo Leveling — Sung Jinwoo is wreathed in a persistent black-flame aura.
-    // A pulsing violet glow + the looping black-flame sheet are inserted BEHIND
-    // the LPC sprite so he always renders in front of his own flames.
-    if (lpc && (adv.classId === 'shadow_monarch' ||
-                adv._shadowMonarch ||
-                adv.spriteVariant?.startsWith('shadow_monarch/'))) {
-      this._attachShadowMonarchAura(sprite)
-    }
-
     // The Nemesis (Aldric, all acts) — a gold threat aura so the player can pick
     // him out at a glance in a crowded wave. Pulsed per-frame in update().
     if (lpc && (adv._nemesis || adv._nemesisDuel)) {
@@ -1687,50 +1572,6 @@ export class AdventurerRenderer {
     }).setOrigin(0.5, 1)
     s.container.add(crown)
     s.championLabel = crown
-  }
-
-  // Build the Shadow Monarch's always-on black-flame aura and slot it behind
-  // his sprite. Order (back→front): violet glow → black flame → LPC sprite.
-  // sendToBack pushes each to index 0, so adding the flame first then the glow
-  // leaves glow(0) < flame(1) < lpc — i.e. Jinwoo overlaid in front of both.
-  _attachShadowMonarchAura(s) {
-    const c = s.container
-    if (this._scene.textures.exists('vfx-shadow-flame')) {
-      if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
-        const tex = this._scene.textures.get('vfx-shadow-flame')
-        if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-        this._scene.anims.create({
-          key: 'vfx-shadow-flame-loop',
-          frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
-          frameRate: 10,
-          repeat: -1,
-        })
-      }
-      // Centre-anchored (origin 0.5,0.5) and positioned so the flame's measured
-      // content BASE sits at Jinwoo's feet (~container y+6.5) and rises up
-      // around his body. The flame art leans up-and-left in its frame, so x=+7
-      // re-centres it horizontally; y=-30 drops the base to his feet; 2.3×
-      // engulfs his ~0.75-scale body.
-      const flame = this._scene.add.sprite(7, -30, 'vfx-shadow-flame', 0)
-        .setOrigin(0.5, 0.5)
-        .setScale(2.3)
-      flame.anims.play('vfx-shadow-flame-loop', true)
-      c.add(flame)
-      c.sendToBack(flame)
-      s.shadowFlame = flame
-    }
-    // Pulsing violet aura around his body — a soft radial glow tinted violet
-    // (same colour language as his extracted shadows) so the near-black flame
-    // reads against dark floors. Pulse alpha is driven per-frame in update().
-    if (this._scene.textures.exists('vfx-soft-glow')) {
-      const glow = this._scene.add.image(0, -13, 'vfx-soft-glow')
-        .setScale(0.95)
-        .setTint(0x9b2fe0)
-        .setBlendMode(Phaser.BlendModes.SCREEN)
-      c.add(glow)
-      c.sendToBack(glow)
-      s.shadowGlow = glow
-    }
   }
 
   // Pick (or fetch the previously-picked) LPC variant for this adventurer
@@ -1876,11 +1717,7 @@ export class AdventurerRenderer {
     if (!variants || variants.length === 0) return null
     // Save-stable: assign once, persist on adv for save/load identity.
     if (!adv.spriteVariant) {
-      // Light Party classes are pinned to their single definitive costume (v01)
-      // so the paladin/healer/samurai/mage always look like THE Warriors of Light.
-      const picked = LP_FIXED_VARIANT_CLASSES.has(sourceClassId) && variants.includes('v01')
-        ? 'v01'
-        : variants[Math.floor(Math.random() * variants.length)]
+      const picked = variants[Math.floor(Math.random() * variants.length)]
       adv.spriteVariant = `${sourceClassId}/${picked}`
     }
     const [cls, vId] = adv.spriteVariant.split('/')
@@ -1979,13 +1816,6 @@ export class AdventurerRenderer {
 
   _onRemove({ adventurer }) {
     if (adventurer?.instanceId) this._destroySprite(adventurer.instanceId)
-  }
-
-  // Solo Leveling — start Jinwoo's fade-out (win outro). Stamps the sprite
-  // record; update() multiplies a 1→0 alpha over ~0.7s into the container.
-  _onMonarchFade({ adventurer } = {}) {
-    const s = this._sprites[adventurer?.instanceId]
-    if (s) s._fadeOutAt = this._scene.time.now
   }
 
   // Myconid Corpse Bloom — sprout consumed the corpse, so take the body

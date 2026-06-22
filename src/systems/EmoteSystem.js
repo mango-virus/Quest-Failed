@@ -281,10 +281,6 @@ export class EmoteSystem {
     // Event-spawned monsters (zombie horde, rival-dungeon invaders) don't
     // emote — they're monsters, not adventurers.
     if (adv._monster) return
-    // Solo Leveling — the Shadow Monarch (Sung Jinwoo) never uses the cutesy
-    // emoji emotes the ordinary adventurers do; he speaks only in his own
-    // shadow chat bubbles. Suppress every emote trigger for him.
-    if (adv._shadowMonarch || adv.classId === 'shadow_monarch') return
     // Don't stack an emotion bubble on top of a chat bubble — they render
     // in the same spot above the head, so the text chat line wins. The
     // emote is skipped (not queued); a later trigger can fire once the

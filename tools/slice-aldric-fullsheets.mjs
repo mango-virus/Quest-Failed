@@ -4,9 +4,9 @@
 //   aldric/v0<N>_atk.png  — 1536×1536 oversize attack sheet (192px frames)
 //
 // Standalone (does NOT touch the shared bake-lpc-variants / bake-weapons tools).
-// Modelled on slice-lightparty-fullsheets.mjs. An occupancy scan of all four
-// sheets confirmed they share the SAME top body band layout as the Light Party
-// sheets, so BODY_ROWS is identical:
+// An occupancy scan of all four
+// sheets confirmed they share the SAME top body band layout as the other
+// full-sheet adventurers, so BODY_ROWS is identical:
 //   spellcast b0(7) · thrust b4(8) · walk b8(9) · slash b12(6) · shoot b16(13)
 //   hurt b20(6,1row) · idle b22(2) · run b38(8)
 //

@@ -152,7 +152,7 @@ export class NewThreatsReveal {
     const revealed = Array.isArray(meta.revealedClassTiers) ? meta.revealedClassTiers : []
     if (revealed.includes(day)) return                   // already shown this run
     const newClasses = allClasses.filter(c =>
-      c && (c.unlockLevel ?? 1) < 99 && (c.unlockDay ?? 1) === day && c.id !== 'shadow_monarch')
+      c && (c.unlockLevel ?? 1) < 99 && (c.unlockDay ?? 1) === day)
     if (!newClasses.length) return
 
     // Mark shown (persisted on meta) before any async wait so a fast save can't

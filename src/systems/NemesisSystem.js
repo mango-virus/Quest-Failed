@@ -3,7 +3,7 @@
 // Aldric is born in Act I (the surviving star apprentice), returns escalated in
 // Acts II & III, and ascends to the crowned "Hero King" final boss in Act IV.
 // He's plot-armored across Acts I–III (can only die in the Act IV duel — the
-// spawn integration mirrors the Shadow Monarch / Light Party HP-floor pattern).
+// spawn integration uses the duel-bound HP-floor pattern).
 //
 // This system is the spine: it tracks his escalation state, hands a spawn config
 // to DayPhase (KR P2 spawn step), and fires NEMESIS_* events that the right-side

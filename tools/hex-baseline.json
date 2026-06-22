@@ -22,7 +22,6 @@
     "src/hud/KnowledgeMapOverlay.js": 4,
     "src/hud/LeaderboardOverlay.js": 5,
     "src/hud/LeftPanels.js": 2,
-    "src/hud/LightPartyCinematic.js": 4,
     "src/hud/MainMenuOverlay.js": 5,
     "src/hud/NewThreatsReveal.js": 13,
     "src/hud/NpcCompanion.js": 1,

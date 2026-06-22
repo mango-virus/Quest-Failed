@@ -446,14 +446,9 @@ export class AISystem {
   // NIGHT_PHASE_STARTED resets it back to 'chest' for the next day.
   _tryTriggerMimic(adv) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
-    // Sung Jinwoo ignores chests entirely — he never opens a real one
-    // (_tryOpenTreasureChest) and never springs a mimic disguised as one.
-    // He marches past, eyes on the boss. Aldric the Nemesis disdains loot too.
-    if (adv._shadowMonarch || adv._nemesis || adv._nemesisDuel) return
-    // Light Party — a coordinated raid is here for the boss, not loot.
-    // Skip mimic-bait disguised chests the same way as Jinwoo: walking
-    // through one shouldn't spring it.
-    if (adv._lightParty) return
+    // Aldric the Nemesis disdains loot — he marches past, eyes on the boss,
+    // never opening a real chest (_tryOpenTreasureChest) nor springing a mimic.
+    if (adv._nemesis || adv._nemesisDuel) return
     for (const m of (this._gameState.minions ?? [])) {
       if (!m.isMimic) continue
       if (m.mimicState !== 'chest') continue
@@ -543,13 +538,10 @@ export class AISystem {
   // adv switches to ESCAPE_WITH_LOOT (entry-hall beeline). Otherwise
   // they continue with their original goal carrying the prize.
   _tryOpenTreasureChest(adv) {
-    // Sung Jinwoo has no interest in the dungeon's gold — he's here for the
-    // boss alone. Skip the proximity loot entirely so he never pops a chest
-    // he happens to beeline past on his way to the throne. Aldric ignores loot too.
-    if (adv._shadowMonarch || adv._nemesis || adv._nemesisDuel) return
-    // Light Party — same deal: a coordinated raid is here for the boss, not
-    // loot. Walking past a chest doesn't rob it.
-    if (adv._lightParty) return
+    // Aldric the Nemesis has no interest in the dungeon's gold — he's here for
+    // the boss alone. Skip the proximity loot so he never pops a chest he
+    // happens to beeline past on his way to the throne.
+    if (adv._nemesis || adv._nemesisDuel) return
     if (adv.stolenGold > 0 || adv._raiderLooted) return   // already carrying — don't rob another
     for (const chest of this._gameState.dungeon?.treasureChests ?? []) {
       if (chest.opened) continue
@@ -1114,13 +1106,6 @@ export class AISystem {
     for (const adv of this._gameState.adventurers.active) {
       if (adv.aiState === 'dead' || adv.aiState === 'fleeing' ||
           adv.aiState === 'fled' || adv.aiState === 'leaving') continue
-      // Cinematic-duel survivors own their OWN scripted exit — don't generic-
-      // flee them. Light Party fires BOSS_FIGHT_RESOLVED the instant the boss
-      // falls (start of its win outro), so without this skip the members would
-      // walk out of the throne room mid-cutscene instead of staying for their
-      // victory lines + Recall. (Shadow Monarch normally fires this only after
-      // his outro, but skip him too for safety/symmetry.)
-      if (adv._lightParty || adv._shadowMonarch) continue
       adv.goal    = { type: 'FLEE', reason }
       adv.aiState = 'fleeing'
       adv.path    = null
@@ -1130,37 +1115,6 @@ export class AISystem {
   // Called every Game.update() frame. delta is in ms, already scaled by time scale.
   update(delta) {
     const active = this._gameState.adventurers.active
-
-    // Solo Leveling — throttled HP feed (~10/s) for the persistent corner HP
-    // bar (SoloLevelingCinematic) shown while Jinwoo roams the dungeon. Only
-    // emits when a live Shadow Monarch is present; the bar hides itself once
-    // the boss duel begins (the duel has its own two-bar header).
-    this._smHpAccum = (this._smHpAccum ?? 0) + delta
-    if (this._smHpAccum >= 100) {
-      this._smHpAccum = 0
-      const jin = active.find(a => a._shadowMonarch && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
-      if (jin) {
-        const mx = jin.resources?.maxHp ?? jin.resources?.hp ?? 1
-        EventBus.emit('SHADOW_MONARCH_HP', {
-          instanceId: jin.instanceId,
-          hp:    Math.max(0, Math.round(jin.resources?.hp ?? 0)),
-          maxHp: Math.max(1, Math.round(mx)),
-          frac:  mx > 0 ? Math.max(0, Math.min(1, (jin.resources?.hp ?? 0) / mx)) : 0,
-          name:  jin.name ?? 'THE SHADOW MONARCH',
-        })
-      }
-      // Light Party — same shape, batched into a single LIGHT_PARTY_HP event
-      // per member (no per-event chatter on the bus). The cinematic corner
-      // panel listens and updates each row. Cheap no-op on every other day.
-      for (const a of active) {
-        if (!a?._lightParty) continue
-        EventBus.emit('LIGHT_PARTY_HP', {
-          instanceId: a.instanceId,
-          hp:    Math.max(0, Math.round(a.resources?.hp ?? 0)),
-          maxHp: Math.max(1, Math.round(a.resources?.maxHp ?? a.resources?.hp ?? 1)),
-        })
-      }
-    }
 
     // Tile occupancy map for this tick — used to keep adventurers from
     // physically overlapping each other while walking. Built once per
@@ -1395,22 +1349,6 @@ export class AISystem {
       adv.goal    = (next && next.type !== 'FLEE') ? next : { type: 'SEEK_BOSS' }
       adv.path    = null
       adv.aiState = 'walking'
-    }
-    // Solo Leveling — Sung Jinwoo NEVER flees the dungeon. Any flee goal
-    // (panic, low HP, fear, day-end "all out", or the post-duel boss_defeated
-    // handoff) is turned straight back into SEEK_BOSS — he marches back at the
-    // throne. The ONLY exception is when the player's boss is truly dead (no
-    // lives left): his work is done and he may leave. This catches every flee
-    // path, including the duel's _handOffToAIFlee, so he fights to the death.
-    if (adv._shadowMonarch && adv.goal?.type === 'FLEE') {
-      const boss = this._gameState.boss
-      const bossDead = !!boss && (boss.deathsRemaining ?? 1) <= 0
-      if (!bossDead) {
-        const next = this._pickNextGoal(adv)
-        adv.goal    = (next && next.type !== 'FLEE') ? next : { type: 'SEEK_BOSS' }
-        adv.path    = null
-        adv.aiState = 'walking'
-      }
     }
     // Succubus charm — adv hunts down a former ally and attacks them.
     // Self-destructs after killing 1 ally, or after 5s of finding nothing.
@@ -2134,19 +2072,16 @@ export class AISystem {
             // Dedicated event roles beeline / pile at the throne by design
             // and must not be starved out while queued (single source of
             // truth: _beelinesBoss — Boss Royale gauntlet, the whole Rival
-            // Dungeon pack, Shadow Monarch, …). Culling them mid-queue made
-            // the gauntlet self-destruct.
+            // Dungeon pack, …). Culling them mid-queue made the gauntlet
+            // self-destruct.
             !adv._saboteur && !adv._speedrunner &&
             !this._beelinesBoss(adv)) {
-          // Light Party + Shadow Monarch NEVER die to the starvation failsafe
-          // (immune to all instakill / failsafe deaths by design — they die
-          // only to normal combat or the boss duel). If one somehow loops this
-          // long, redirect it straight to the throne — bypass the knowledge
-          // gate via _forceBossBeeline — so it can't freeze the day, instead
-          // of culling it. (2026-05-30)
-          if (adv._lightParty || adv._shadowMonarch || adv._nemesis) {
+          // Aldric (the Nemesis) NEVER dies to the starvation failsafe — he dies
+          // only to normal combat or the boss duel. If he somehow loops this
+          // long, route him instead of culling him.
+          if (adv._nemesis) {
             // Aldric who's already recoiled is withdrawing — push him to the exit.
-            if (adv._nemesis && adv._nemReeled) {
+            if (adv._nemReeled) {
               adv.goal = { type: 'FLEE' }
               adv.path = null
               return
@@ -2154,7 +2089,7 @@ export class AISystem {
             // Aldric still STALKING while other adventurers live must NOT be forced
             // to the throne (he holds back until he's the last one). Just clear the
             // loop counters and hand him a fresh prowl room.
-            if (adv._nemesis && !this._nemesisIsLastAlive(adv)) {
+            if (!this._nemesisIsLastAlive(adv)) {
               adv._roomRevisits = 0
               adv._roomsEntered = {}
               adv.goal = this._nemesisProwlGoal(adv)
@@ -2163,15 +2098,7 @@ export class AISystem {
             }
             // Aldric is never force-marched to the throne — if he's looped this
             // long as the last one alive, withdraw him to the entry instead.
-            if (adv._nemesis) {
-              adv.goal = this._nemesisWithdraw(adv)
-              adv.path = null
-              return
-            }
-            adv._forceBossBeeline    = true
-            adv._seekExploreTargetId = null
-            adv._roomRevisits        = 0
-            adv.goal = { type: 'SEEK_BOSS' }
+            adv.goal = this._nemesisWithdraw(adv)
             adv.path = null
             return
           }
@@ -3666,7 +3593,7 @@ export class AISystem {
     if (adv.mood !== 'breaking') { adv._breakingMs = 0; return }
     // Scripted / no-flee roles never morale-break (they own their flee behaviour).
     if (adv.classId === 'barbarian' || adv.flags?.noFlee || adv._charmed ||
-        adv._shadowMonarch || adv._lightParty || adv._nemesis || adv._nemesisDuel ||
+        adv._nemesis || adv._nemesisDuel ||
         adv._speedrunner || adv._saboteur || this._beelinesBoss(adv) ||
         adv.flags?.zombieShambler) {
       adv._breakingMs = 0
@@ -3709,7 +3636,7 @@ export class AISystem {
   // True for the hard-coded event/scripted roles that own their own movement
   // logic — they don't pause to "read" a room or back off.
   _isScriptedRole(adv) {
-    return !!(adv._shadowMonarch || adv._lightParty || adv._nemesis || adv._nemesisDuel ||
+    return !!(adv._nemesis || adv._nemesisDuel ||
               adv._speedrunner || adv._saboteur || adv._cartographer || adv._treasureHunter ||
               adv._monsterInvader || adv._rivalBoss || adv._bossRoyaleInvader ||
               adv.flags?.zombieShambler || adv.flags?.plundererThief || this._beelinesBoss(adv))
@@ -4119,25 +4046,6 @@ export class AISystem {
     // SaveSystem clears the orphaned sequence goal.
     if (!adv.goal) return null
     const dungeon = this._gameState.dungeon
-    // Light Party leashing — non-tank members stick within LEASH tiles of the
-    // tank. When they drift outside the leash, their next pathing pick targets
-    // the TANK's tile instead of whatever the underlying goal points at (which
-    // is SEEK_BOSS for the whole party). The tank itself routes normally, so
-    // the party moves as one unit: tank picks the destination, everyone else
-    // catches up. Fixes the splitting-off symptom (most visibly the healer,
-    // who never engages combat so nothing else slowed her down).
-    // Per-role leash so ranged DPS can stand farther back without being
-    // dragged onto the tank's tile every tick.
-    if (adv._lightParty && adv._lightPartyRole && adv._lightPartyRole !== 'tank') {
-      const tank = (this._gameState.adventurers?.active ?? [])
-        .find(a => a?._lightParty && a._lightPartyRole === 'tank'
-                && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
-      if (tank) {
-        const LEASH = adv._lightPartyRole === 'rangedDps' ? 3 : 2
-        const d = Math.hypot(adv.tileX - tank.tileX, adv.tileY - tank.tileY)
-        if (d > LEASH) return { x: tank.tileX, y: tank.tileY }
-      }
-    }
     // Peasant — Strength in Numbers. A peasant squad spawns together and prefers
     // to STICK TOGETHER as it explores: a follower that drifts more than LEASH
     // tiles from its squad leader re-targets the leader's tile, so the squad
@@ -4258,11 +4166,7 @@ export class AISystem {
       // the throne) — and even gated roles can no longer freeze here:
       // _exploreFallbackForSeekBoss now walks them OUTWARD through
       // unentered rooms toward the boss instead of stranding them.
-      // `_forceBossBeeline` (set by the starvation-loop redirect for the
-      // instakill-immune roles — Light Party / Jinwoo) bypasses the explore
-      // phase so a looping member heads straight to the throne instead of
-      // being culled.
-      if (!this._beelinesBoss(adv) && !adv._forceBossBeeline && !this._knowsBossLocation(adv)) {
+      if (!this._beelinesBoss(adv) && !this._knowsBossLocation(adv)) {
         const explore = this._exploreFallbackForSeekBoss(adv)
         if (explore) return explore
         // Nothing left to explore — fall through to boss tile so the
@@ -4808,10 +4712,6 @@ export class AISystem {
       adv?._monsterInvader   ||   // Rival Dungeon pack (monsters)
       adv?._rivalBoss        ||   // Rival Dungeon champion
       adv?._speedrunner           // Legendary Speed Runner — has the route memorized; always knows where the throne is
-      // NOTE: Sung Jinwoo (_shadowMonarch) is deliberately EXCLUDED — he
-      // keeps a SEEK_BOSS goal but must DISCOVER the throne by exploring
-      // (the knowledge-gated SEEK_BOSS + _exploreFallbackForSeekBoss path).
-      // He doesn't magically know where the boss is.
     )
   }
 
@@ -4920,7 +4820,7 @@ export class AISystem {
     // throne — the "visits every room first" complaint. Walking INTO the boss
     // chamber triggers the normal SEEK_BOSS→AT_BOSS handoff; walking into a
     // boss-adjacent room flips _knowsBossLocation and the caller then paths
-    // straight in. Fix covers Light Party + Jinwoo, which discover via here.)
+    // straight in.)
     const candidates = rooms.filter(room =>
       room.instanceId !== hereId &&
       !entered[room.instanceId] &&
@@ -4965,28 +4865,15 @@ export class AISystem {
     }
     // The Nemesis, Act IV form — the crowned Hero King (spawned with
     // _nemesisDuel, NOT _nemesis, so he's killable and never flees) storms the
-    // throne for the duel. Same knowledge-gated SEEK_BOSS march as the Shadow
-    // Monarch: he explores until he finds the boss room, then commits. Putting
-    // him down at the throne wins the run.
+    // throne for the duel. A knowledge-gated SEEK_BOSS march: he explores until
+    // he finds the boss room, then commits. Putting him down at the throne wins
+    // the run.
     if (adv._nemesisDuel) return { type: 'SEEK_BOSS' }
     // Dungeon event: Legendary Speed Runner — pure beeline to the boss.
     // Skips the entire goal-picking flow (no scout, no regroup, no
     // treasure, no chest detours, no personality variants) so they march
     // straight at the boss room every replan.
     if (adv._speedrunner) return { type: 'SEEK_BOSS' }
-    // Dungeon event: Solo Leveling — the Shadow Monarch hunts the throne, but
-    // he does NOT start out knowing where it is (excluded from _beelinesBoss).
-    // This SEEK_BOSS goal is therefore knowledge-gated: he EXPLORES room to
-    // room (via the SEEK_BOSS explore-fallback), cutting through + raising the
-    // minions he meets, until he discovers the boss room — then marches on it.
-    if (adv._shadowMonarch) return { type: 'SEEK_BOSS' }
-    // Dungeon event: Light Party — every party member uses the same
-    // knowledge-gated SEEK_BOSS goal so the whole raid moves toward the
-    // throne together. LightPartyAi.js layers the per-role behaviors (tank
-    // provoke aura, healer never-attack + raise cast, DPS positioning) and
-    // formation on top; the underlying pathing is the standard SEEK_BOSS
-    // explore-then-march flow.
-    if (adv._lightParty) return { type: 'SEEK_BOSS' }
     // Dungeon event: Boss Royale — every invading boss cooperates and
     // beelines the throne (no exploration, no friendly fire). Same pure
     // SEEK_BOSS flow as the speedrunner so all 11 converge on the boss.
@@ -5004,7 +4891,7 @@ export class AISystem {
     // mauling any minion in their path — until they stumble onto the boss room,
     // then converge on it. No chest detours, no aimless room-touring like a
     // normal wave; never flee (noFlee). Matches the spawn intent ("maul anything
-    // in their path, then push for the boss"). Mirrors the Shadow Monarch.
+    // in their path, then push for the boss").
     if (adv.flags?.zombieShambler) return { type: 'SEEK_BOSS' }
     // Dungeon event: Treasure Hunters — here for the LOOT only; they ignore
     // the boss entirely. As of 2026-05-29 they respect the knowledge system
@@ -5231,8 +5118,8 @@ export class AISystem {
     }
     // (the_fan personality removed in the 2026-06-10 roster pass — idol-pick logic deleted.)
     // Coward rework (2026-06-10): they AVOID fights — never auto-attack a minion
-    // (same hook the Light Party healer uses). They slip around combat and shadow
-    // the party instead; they only break and bolt when isolated (see _cowardShouldFlee).
+    // (the generic _neverAttacks hook). They slip around combat and shadow the
+    // party instead; they only break and bolt when isolated (see _cowardShouldFlee).
     if (adv.personalityIds?.includes('coward')) adv._neverAttacks = true
     adv.goal = this._pickNextGoal(adv)
     return adv.goal
@@ -5241,27 +5128,11 @@ export class AISystem {
   // ── Death / despawn ────────────────────────────────────────────────────────
 
   _kill(adv, idx, killerHint) {
-    // Solo Leveling + Light Party — these duel-bound adventurers can ONLY be
-    // slain by the boss duel itself. BossSystem._killAdv stamps _lastHitBy='boss'
-    // for the duel; that's the sole killer allowed through. Every OTHER lethal
-    // source routed to this chokepoint (minions, traps incl. instakill, charm,
-    // starvation, pestilence, DoT, stuck-failsafe, …) is refused — they're
-    // clamped to 10% max HP and survive. This is the single guarantee that
-    // "nothing can kill them until the boss fight"; the per-source HP floors
-    // elsewhere are belt-and-suspenders, but THIS is the one that always holds.
-    // (Boss ABILITIES like the demon sacrifice never reach _kill; they're
-    // floored in BossArchetypeSystem.)
     // The Nemesis (Aldric, acts I–III) is UNCONDITIONALLY plot-armored — he never
     // fights the boss (he recoils + withdraws), and the killable Act IV form is
     // _nemesisDuel, NOT _nemesis. So NO source may finish him here, not even a
     // 'boss'-stamped one (e.g. a Sundered-Floor collapse). Floor to 10% + survive.
     if (adv?._nemesis) {
-      adv.resources = adv.resources ?? {}
-      const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))
-      adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
-      return
-    }
-    if ((adv?._shadowMonarch || adv?._lightParty) && (adv._lastHitBy ?? killerHint) !== 'boss') {
       adv.resources = adv.resources ?? {}
       const floor = Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10))
       adv.resources.hp = Math.max(floor, adv.resources.hp ?? floor)
@@ -5448,10 +5319,6 @@ export class AISystem {
     // (no other bonus, per design). Hard override so pacts / events /
     // veteran mults can't inflate the gauntlet payout beyond the set bounty.
     if (adv._bossRoyaleInvader) goldGained = Balance.BOSS_ROYALE_KILL_GOLD ?? 200
-    // Solo Leveling — slaying Sung Jinwoo (only the boss can, in the duel) pays
-    // a flat 1000-gold bounty. Hard override so it's exactly 1000 (no pact /
-    // event / veteran inflation, and no double with the normal kill gold).
-    if (adv._shadowMonarch) goldGained = 1000
     // Wishing Well boon bounty — an adventurer blessed by a Wishing Well
     // (the rare good-for-them flip) drops bonus gold when killed, so the
     // room pays off even on its boon outcome. Added after the hard

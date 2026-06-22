@@ -9,3 +9,10 @@ node_modules/
 dist/
 build/
 tools/.cache/
+
+# Secrets / local API tokens (PixelLab REST, etc.) — never commit
+.env
+.env.local
+**/.env.local
+tools/pixellab/.env.local
+tools/pixellab/secrets/

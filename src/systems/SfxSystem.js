@@ -71,7 +71,7 @@ const SFX_VOLUMES = {
   // ── Notifications / progression ───────────────────────────────────────
   'sfx-boss-levelup':   0.85,   // boss level-up screen — WAV estimate
   'sfx-event-notif':    0.80,   // event notification pop-in — MP3 estimate
-  'sfx-event-boss':     0.80,   // Boss-tier event notification (Solo Leveling) — MP3
+  'sfx-event-boss':     0.80,   // Boss-tier event notification — MP3
   'sfx-scrub-intel':    0.78,   // intel scrubbed via Knowledge Map — WAV estimate
   'sfx-minion-levelup': 0.82,   // minion level-up / evolution — WAV estimate
 }
@@ -303,20 +303,6 @@ export class SfxSystem {
     on('GAMBLER_DOUBLE_REQUEST',  this._onCoinFlip)
     on('GAMBLER_COIN_REVEALED',   this._onCoinRevealed)
 
-    // ── Solo Leveling — Shadow Monarch duel cues ────────────────────────
-    on('SHADOW_MONARCH_DUEL_CLASH', this._onDuelClash)   // melee swing per clash
-    on('SHADOW_MONARCH_BLINK',      this._onTeleport)    // shadow-dash blink
-    on('SHADOW_MONARCH_DUEL_BEAT',  this._onDuelBeat)    // enrage / power surge
-
-    // ── Light Party — scripted-duel combat cues ─────────────────────────
-    // The FFXIV duel is tween-driven and emits no COMBAT_HIT, so the whole
-    // fight is silent without wiring its bespoke beats to the combat SFX here.
-    on('LIGHT_PARTY_DUEL_ATTACK',      this._onLpDuelAttack)     // a member swings
-    on('LIGHT_PARTY_DUEL_BOSS_ATTACK', this._onLpDuelBossAttack) // boss slam swing/impact
-    on('LIGHT_PARTY_DUEL_BEAT',        this._onLpDuelBeat)       // mechanic landing
-    on('LIGHT_PARTY_DUEL_CAST',        this._onLpDuelCast)       // boss cast telegraph
-    on('LIGHT_PARTY_RAISED',           this._onRevive)           // healer Raise lands
-
     // ── Aldric — Act IV climax-duel cues ────────────────────────────────
     // The duel is fully scripted (emits no COMBAT_HIT), so it's silent without
     // wiring its bespoke beats here. `cue` comes from BossSystem._nemSfx.
@@ -341,8 +327,7 @@ export class SfxSystem {
   }
 
   // Aldric climax duel — map each scripted beat to a sound. Rapid clash/slash
-  // cues are rate-limited so a flurry can't stack into noise (same guard the
-  // Shadow Monarch duel uses).
+  // cues are rate-limited so a flurry can't stack into noise.
   _onNemesisDuelSfx({ cue } = {}) {
     const now = this._now()
     const swing = (vol) => {
@@ -369,58 +354,6 @@ export class SfxSystem {
       // would double the sound.
     }
   }
-
-  // Solo Leveling duel — one melee swing per clash collision (rate-limited so
-  // back-to-back clashes can't stack into noise).
-  _onDuelClash() {
-    const now = this._now()
-    if (now - (this._lastDuelClashAt ?? 0) < 140) return
-    this._lastDuelClashAt = now
-    this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2')
-    this._meleeAlt = this._meleeAlt === 0 ? 1 : 0
-  }
-
-  _onDuelBeat({ kind } = {}) {
-    if (kind === 'enrage')     this._play('sfx-boss-attack')
-    else if (kind === 'surge') this._play('sfx-revive')
-  }
-
-  // ── Light Party scripted-duel cues ──────────────────────────────────────
-  // A party member swings at the boss (one event per visible swing, emitted by
-  // AdventurerRenderer). Picks the sound by class/role; light anti-stack guard
-  // so four members hacking in parallel don't machine-gun the cue. The healer
-  // only pokes a staff — kept silent so heals/raises read clearly.
-  _onLpDuelAttack({ classId, role } = {}) {
-    if (role === 'healer') return
-    const now = this._now()
-    if (now - (this._lastLpAtkAt ?? 0) < 70) return
-    this._lastLpAtkAt = now
-    if (classId === 'mage' || classId === 'black_mage' || classId === 'white_mage' || role === 'rangedDps') {
-      this._play('sfx-mage-attack')
-    } else if (classId === 'ranger' || classId === 'bard') {
-      this._play('sfx-archer-shoot')
-    } else {
-      this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2')
-      this._meleeAlt = 1 - this._meleeAlt
-    }
-  }
-
-  // Boss slam — 'windup' plays the boss swing, 'hit' plays the impact on the
-  // struck member (Human_Hit, rate-limited inside _playHumanHit).
-  _onLpDuelBossAttack({ phase, damage } = {}) {
-    if (phase === 'hit') { this._playHumanHit(damage ?? 1); return }
-    this._play('sfx-boss-attack')
-  }
-
-  // Telegraphed mechanic landed (tank-buster / AoE / stack / LB3) — a heavier
-  // boss impact. 'pull' and other beats are covered by the swing/slam cues.
-  _onLpDuelBeat({ kind } = {}) {
-    if (kind === 'lb3')                                                   this._play('sfx-boss-attack', 1.5)
-    else if (kind === 'tankbuster' || kind === 'aoe' || kind === 'stack') this._play('sfx-boss-attack')
-  }
-
-  // Boss winding up a telegraphed cast — a low charge cue under the cast bar.
-  _onLpDuelCast() { this._play('sfx-necro-summon', 0.7) }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -584,7 +517,7 @@ export class SfxSystem {
 
   // First dungeon-event notification of the day. EventSystem can announce
   // more than one event in a day; only the first gets the cue.
-  // Boss-tier events (eventTier:'boss', e.g. Solo Leveling) play a distinct
+  // Boss-tier events (eventTier:'boss') play a distinct
   // sting (sfx-event-boss) so they sound as different as they look. Falls
   // back to the standard cue if the boss-tier asset hasn't loaded (e.g. on
   // an older save / partial preload).

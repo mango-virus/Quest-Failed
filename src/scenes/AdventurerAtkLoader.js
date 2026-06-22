@@ -17,13 +17,8 @@ const ADVENTURER_CLASS_IDS = [
   'knight', 'rogue', 'mage', 'cleric', 'necromancer', 'ranger',
   'beast_master', 'barbarian', 'monk', 'bard',
   'cartographer_scholar', 'cosplay_adventurer', 'templar', 'pirate', 'miner', 'valkyrie', 'peasant', 'gladiator', 'gambler',
-  // Sung Jinwoo (Solo Leveling) — single canonical variant; see the count
-  // override below so we don't request v02..v50.
-  'shadow_monarch',
-  // Light Party event classes — must mirror Preload.js's ADVENTURER_CLASS_IDS
-  // or the atk-sheet streamer skips them and the slash/thrust anims fall back
-  // to the compressed 64x64 base sheet permanently.
-  'paladin', 'white_mage', 'samurai', 'black_mage',
+  // Tank / blade-DPS / healer / caster-DPS support classes (1 variant each).
+  'paladin', 'samurai', 'priest', 'sorcerer',
   // Aldric (KR Nemesis) — 4 per-act forms; longsword slash_oversize atk sheets.
   'aldric',
   // KR Kingdom-Response champions — named one-offs (1 variant each), pinned via
@@ -52,12 +47,8 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Gambler — Rapier (slash_oversize) + Cane (contained thrust in the atk thrust
   // row); Dagger is normal-attack (no atk sheet).
   'gambler',
-  // Jinwoo's Saber swing only exists as 192×192 slash_oversize art — the atk
-  // sheet is what makes his blade visible mid-attack.
-  'shadow_monarch',
-  // Light Party event classes — paladin/samurai slash_oversize blades,
-  // white_mage/black_mage thrust_oversize staves. Same loader contract.
-  'paladin', 'white_mage', 'samurai', 'black_mage',
+  // Paladin/Samurai — slash_oversize blades; Priest/Sorcerer — thrust_oversize staves.
+  'paladin', 'samurai', 'priest', 'sorcerer',
   // Aldric — longsword swordsman; his swing is slash_oversize (the 64px base row
   // clips the blade away, so without this his sword is invisible mid-attack).
   'aldric',
@@ -76,13 +67,12 @@ const ADVENTURER_ATK_CLASSES = new Set([
 const NORMAL_ATTACK_WEAPONS = new Set(['Dagger', 'Club'])
 const ADVENTURER_VARIANTS_PER_CLASS = 100
 // Per-class override for classes that ship fewer than the default 100 baked
-// variants — named one-offs (shadow_monarch) + the Light Party classes trimmed
-// to their single canonical v01. Keeps the loader from firing missing-file
-// requests (which would 404). MUST match the actual bake counts (and Preload).
+// variants — named one-offs trimmed to their canonical variant count. Keeps the
+// loader from firing missing-file requests (which would 404). MUST match the
+// actual bake counts (and Preload).
 const ADVENTURER_VARIANT_COUNT = {
-  shadow_monarch: 1,
-  paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
   aldric: 4,
+  paladin: 1, samurai: 1, priest: 1, sorcerer: 1,
   champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1, champion_velloran: 1, champion_aurelia: 1, champion_halric: 1,
   champion_auberon: 1, champion_mortessa: 1,
 }
@@ -140,7 +130,7 @@ function _weaponLookup(scene) {
 }
 
 // 'adv-<classId>-<vNN>' → { id, v }. classId uses underscores (beast_master,
-// shadow_monarch, champion_garreth); the variant is always the trailing 'vNN',
+// champion_garreth); the variant is always the trailing 'vNN',
 // so split on the LAST hyphen.
 function _parseBaseKey(baseKey) {
   if (typeof baseKey !== 'string' || !baseKey.startsWith('adv-')) return null

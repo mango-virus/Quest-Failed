@@ -435,7 +435,7 @@ function sampleVariant(rng, className, classPool, forced = {}) {
   }
   // Hair: every adventurer can roll any of the 26 palettes (incl. fantasy),
   // unless the class locks it via hairColorPool (named characters do — e.g.
-  // shadow_monarch = always black).
+  // champion_aurelia = always blonde).
   v.hairColor = pick(rng, (classPool.hairColorPool?.length) ? classPool.hairColorPool : HAIR_ALL);
   // Body: natural skin tones for most classes. Cheater leans into desync
   // (30%) so the modded-client silhouette can include obviously-not-human
@@ -452,8 +452,8 @@ function sampleVariant(rng, className, classPool, forced = {}) {
     ? classPool.clothColorPool
     : CLOTH_ALL;
   v.clothColor = pick(rng, clothPool);
-  // Optional per-class FEET color override (e.g. shadow_monarch wants black
-  // shoes; the bard wants NORMAL shoe colours, not its vibrant outfit colour).
+  // Optional per-class FEET color override (e.g. the bard wants NORMAL shoe
+  // colours, not its vibrant outfit colour).
   // Array → pick one; else fixed/null. Falls back to clothColor.
   v.feetColor = Array.isArray(classPool.feetColor)
     ? pick(rng, classPool.feetColor)

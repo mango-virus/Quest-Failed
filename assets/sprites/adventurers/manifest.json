@@ -44666,28 +44666,6 @@
         "shield": null
       }
     ],
-    "shadow_monarch": [
-      {
-        "id": "v01",
-        "bodyType": "male",
-        "bodyColor": "light",
-        "hairColor": "black",
-        "clothColor": "charcoal",
-        "metalColor": "steel",
-        "head": "Human Male",
-        "hair": "Spiked2",
-        "beard": null,
-        "torso": "Frock coat",
-        "legs": "Long Pants",
-        "feet": "Basic Shoes",
-        "arms": null,
-        "headwear": null,
-        "accessories": [],
-        "weapon": "Saber",
-        "crystal": null,
-        "shield": null
-      }
-    ],
     "paladin": [
       {
         "id": "v01",
@@ -44710,7 +44688,7 @@
         "shield": "Heater Shield Base"
       }
     ],
-    "white_mage": [
+    "priest": [
       {
         "id": "v01",
         "bodyType": "muscular",
@@ -44756,7 +44734,7 @@
         "shield": null
       }
     ],
-    "black_mage": [
+    "sorcerer": [
       {
         "id": "v01",
         "bodyType": "muscular",

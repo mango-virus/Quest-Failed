@@ -959,32 +959,6 @@
     "titleColor": "#b6e84a"
   },
   {
-    "id": "monarch_slayer",
-    "name": "Arise",
-    "description": "Defeat Sung Jinwoo, the Shadow Monarch.",
-    "category": "mastery",
-    "tier": "gold",
-    "metric": "shadowMonarchDefeated",
-    "target": 1,
-    "icon": "👑",
-    "reward": { "type": "companion", "id": "necroknight" },
-    "title": "King of the Dead",
-    "titleFx": "shadowmonarch"
-  },
-  {
-    "id": "warrior_of_light",
-    "name": "Warrior of Light",
-    "description": "Defeat the Light Party in the throne-room duel.",
-    "category": "mastery",
-    "tier": "gold",
-    "metric": "lightPartyDefeated",
-    "target": 1,
-    "icon": "✨",
-    "reward": { "type": "companion", "id": "luna" },
-    "title": "Warrior of Light",
-    "titleFx": "lightparty"
-  },
-  {
     "id": "umbral_ascendant",
     "name": "Umbral Ascendant",
     "description": "Reach boss level 21.",

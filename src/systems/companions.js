@@ -296,7 +296,7 @@ export const COMPANIONS = {
     name:      'Luna',
     tagline:   'A quiet keeper of the moon.',
     traits:    [],
-    locked:    true,
+    locked:    false,
     // Tuned to match Nocturna's apparent height on the recruit screen.
     // Bottom-anchored origin so any extra height grows UP rather than
     // centred — keeps feet just above the name plate. Re-tune if Luna's
@@ -438,7 +438,7 @@ export const COMPANIONS = {
     tagline:   'Sworn to no king, served by every restless dead.',
     // Player-facing "what this keeper is like to play with" descriptors.
     traits:    ['unflinching counsel', 'honor in slaughter', 'grim steadiness'],
-    locked:    true,
+    locked:    false,
     // Tuned to match the other humanoid keepers. Re-tune if his armored
     // silhouette reads visually larger or smaller than the others.
     portraitScale: 1.15,

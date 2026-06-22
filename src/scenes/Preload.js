@@ -94,6 +94,7 @@ const MINION_FRAMES_128 = new Set([
   'demon1', 'demon2',
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
+  'gargoyle1',
   'golem1', 'golem2',
   'rat1', 'rat2', 'rat3',
 ])
@@ -102,6 +103,7 @@ const MINION_IDS = [
   'demon1', 'demon2',
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
+  'gargoyle1',
   'ghost1', 'ghost2',
   'gnoll1', 'gnoll2',
   'goblin1', 'goblin2', 'goblin3',
@@ -140,6 +142,8 @@ const ADVENTURER_CLASS_IDS = [
   // Gambler — dapper riverboat sharp (normal roster, 100 baked variants). Frock
   // coat / open waistcoat, tophat, cravat/jabot, cane / rapier / dagger.
   'gambler',
+  // Tank / blade-DPS / healer / caster-DPS support classes (1 baked variant each).
+  'paladin', 'samurai', 'priest', 'sorcerer',
   // Event-only classes — no normal spawn (unlockLevel: 99 in
   // adventurerClasses.json) but baked + preloaded so the corresponding
   // dungeon events render their dedicated LPC art rather than falling
@@ -152,14 +156,6 @@ const ADVENTURER_CLASS_IDS = [
   // with dedicated max-chaos LPC variants (helmets + tophats + monster
   // tails + every weapon LPC ships). 50 variants per the bake.
   'cheater',
-  // Sung Jinwoo (Solo Leveling event) — a NAMED character with exactly one
-  // canonical baked variant (shadow_monarch/v01). See the count override
-  // below so we don't request v02..v50.
-  'shadow_monarch',
-  // Light Party event classes — the FFXIV trinity (Tank/Healer/DPS/DPS).
-  // Each has 50 baked LPC variants. No normal spawn (unlockLevel: 99 in
-  // adventurerClasses.json); event spawn only.
-  'paladin', 'white_mage', 'samurai', 'black_mage',
   // Aldric (KR Nemesis) — a NAMED character with exactly FOUR canonical sliced
   // forms, one per act (v01 apprentice … v04 crowned Hero-King). DayPhase assigns
   // `aldric/v0<act>` per spawn. Ships a slash_oversize `_atk` sheet per form (his
@@ -179,13 +175,12 @@ const ADVENTURER_CLASS_IDS = [
 ]
 const ADVENTURER_VARIANTS_PER_CLASS = 100
 // Per-class override for classes that ship fewer than the default 100 baked
-// variants. Named one-off characters (shadow_monarch, aldric) + the Light Party
-// event classes (trimmed to their single canonical v01 — see the LP-fixed-sprite
-// pinning in AdventurerRenderer). Keeps preload from firing missing-file
-// requests for variants that don't exist. MUST match the actual bake counts.
+// variants. Named one-off characters (aldric + the KR champions). Keeps preload
+// from firing missing-file requests for variants that don't exist. MUST match
+// the actual bake counts.
 const ADVENTURER_VARIANT_COUNT = {
-  shadow_monarch: 1, aldric: 4,
-  paladin: 1, white_mage: 1, samurai: 1, black_mage: 1,
+  aldric: 4,
+  paladin: 1, samurai: 1, priest: 1, sorcerer: 1,
   champion_garreth: 1, champion_necrarch: 1, champion_vane: 1, champion_mordrake: 1, champion_velloran: 1, champion_aurelia: 1, champion_halric: 1, champion_turncoat: 1,
   champion_auberon: 1, champion_mortessa: 1, champion_kael: 1, champion_rourke: 1,
 }
@@ -221,19 +216,14 @@ const ADVENTURER_ATK_CLASSES = new Set([
   // Gambler — Rapier (slash_oversize) + Cane (contained thrust composited into
   // the atk thrust row); Dagger is normal-attack (no atk sheet).
   'gambler',
+  // Paladin/Samurai — slash_oversize blades; Priest/Sorcerer — thrust_oversize staves.
+  'paladin', 'samurai', 'priest', 'sorcerer',
   // Bounty hunters carry crossbows — crossbow combat is thrust-oversize,
   // which lives in the _atk.png sheet.
   'bounty_hunter',
   // Cheaters carry every weapon type — needs the oversize attack sheet
   // so halberds, longswords, scythes, and staves render at native 192×192.
   'cheater',
-  // Sung Jinwoo (Solo Leveling) — Saber whose swing only exists as 192×192
-  // slash_oversize art; needs the atk sheet to show the blade mid-attack.
-  'shadow_monarch',
-  // Light Party event classes — paladin / samurai swing slash_oversize
-  // blades, white_mage / black_mage cast via thrust_oversize staff. All
-  // four need the 192×192 atk sheet so weapons render at native scale.
-  'paladin', 'white_mage', 'samurai', 'black_mage',
   // Aldric (KR Nemesis) — longsword slash_oversize; needs the atk sheet so his
   // blade shows mid-attack (4 per-act forms, v01–v04).
   'aldric',
@@ -667,11 +657,6 @@ export class Preload extends Phaser.Scene {
     // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
     this.load.spritesheet('demon-portal', 'assets/sprites/demon_portal.png', { frameWidth: 32, frameHeight: 32 })
 
-    // ── Shadow portal (Solo Leveling — Jinwoo's win-outro exit) ────────────
-    // Blue hue-shift of the demon portal (tools/bake-shadow-portal.cjs). Same
-    // 96×64 / 6-frame layout. Jinwoo walks into this and fades away on a win.
-    this.load.spritesheet('shadow-portal', 'assets/sprites/shadow_portal.png', { frameWidth: 32, frameHeight: 32 })
-
     // ── Game-jam portal (MainMenu hyperlink to the jam lobby) ────────────
     // 96×64 sheet, 3 cols × 2 rows, each frame 32×32. 6-frame looping portal.
     this.load.spritesheet('jam-portal', 'assets/sprites/jam_portal.png', { frameWidth: 32, frameHeight: 32 })
@@ -710,11 +695,8 @@ export class Preload extends Phaser.Scene {
     // picks the row based on damage type (pacts) or archetype identity
     // (basic attacks); column counts vary per file and are encoded in
     // _registerBossAttackAnimations below.
-    // Solo Leveling — Sung Jinwoo's persistent black-flame aura (6 frames,
-    // 64×64 vertical strip) + a soft radial glow (tinted violet at runtime)
-    // so the near-black flame reads as an aura against dark floors. Both are
-    // rendered behind his sprite by AdventurerRenderer.
-    this.load.spritesheet('vfx-shadow-flame',     'assets/sprites/vfx/shadow-monarch-flame.png', { frameWidth: 64, frameHeight: 64 })
+    // Soft radial glow (tinted at runtime) — used behind threat-aura units
+    // (the Nemesis Aldric, KR champions) by AdventurerRenderer.
     this.load.image('vfx-soft-glow',              'assets/sprites/vfx/soft-glow.png')
     this.load.spritesheet('vfx-boss-flame',       'assets/sprites/vfx/boss-flame.png',       { frameWidth: 64, frameHeight: 64 })
     this.load.spritesheet('vfx-boss-puff',        'assets/sprites/vfx/boss-puff.png',        { frameWidth: 64, frameHeight: 64 })
@@ -809,7 +791,6 @@ export class Preload extends Phaser.Scene {
     this._registerAdventurerAttackAnimations()
     this._registerEmoteAnimations()
     this._registerDemonPortalAnimation()
-    this._registerShadowPortalAnimation()
     this._registerJamPortalAnimation()
     this._registerHitSparkAnimations()
     this._registerCheaterAttackAnimations()
@@ -1071,19 +1052,6 @@ export class Preload extends Phaser.Scene {
     this.anims.create({
       key:       'demon-portal-spin',
       frames:    this.anims.generateFrameNumbers('demon-portal', { start: 0, end: 5 }),
-      frameRate: 8,
-      repeat:    -1,
-    })
-  }
-
-  _registerShadowPortalAnimation() {
-    if (!this.textures.exists('shadow-portal')) return
-    if (this.anims.exists('shadow-portal-spin')) return
-    const tex = this.textures.get('shadow-portal')
-    if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-    this.anims.create({
-      key:       'shadow-portal-spin',
-      frames:    this.anims.generateFrameNumbers('shadow-portal', { start: 0, end: 5 }),
       frameRate: 8,
       repeat:    -1,
     })

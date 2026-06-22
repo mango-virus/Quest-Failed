@@ -364,9 +364,7 @@ export const MinionAbilities = {
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const d = Math.hypot((adv.tileX ?? 0) - (minion.tileX ?? 0), (adv.tileY ?? 0) - (minion.tileY ?? 0))
       if (d > radiusTiles + 0.01) continue
-      const floor = (adv._lightParty || adv._shadowMonarch)
-        ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
-      adv.resources.hp = Math.max(floor, adv.resources.hp - dmg)
+      adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
       adv._lastHitBy = minion.instanceId; adv._lastHitType = 'physical'
       EventBus.emit('COMBAT_HIT', { sourceId: minion.instanceId, targetId: adv.instanceId, damage: dmg, damageType: 'physical', isCritical: false })
       if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${dmg}`, { color: '#e8e2cc' })
@@ -652,7 +650,7 @@ export const MinionAbilities = {
   // unstoppable; scripted/already-charmed roles are off-limits.)
   _canControl(adv) {
     return !!adv && adv.classId !== undefined && adv.aiState !== 'dead' &&
-      adv.classId !== 'barbarian' && !adv._shadowMonarch && !adv._lightParty && !adv._nemesis && !adv._charmed
+      adv.classId !== 'barbarian' && !adv._nemesis && !adv._charmed
   },
 
   // Mass Hypnosis (T2, onTick) — an eyestalk volley charms the N nearest room heroes
@@ -856,7 +854,7 @@ export const MinionAbilities = {
     const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
-      const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
+      const fl = a._nemesis ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._lastHitBy = oak.instanceId; a._lastHitType = 'thorns'
     }
@@ -960,7 +958,7 @@ export const MinionAbilities = {
     const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
-      const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
+      const fl = a._nemesis ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._lastHitBy = lich.instanceId; a._lastHitType = 'necrotic'
     }
@@ -1169,7 +1167,7 @@ export const MinionAbilities = {
     const victims = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     for (const a of victims) {
       if (!a.resources) continue
-      const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
+      const fl = a._nemesis ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._lastHitBy = imp.instanceId; a._lastHitType = 'fire'
     }
@@ -1210,7 +1208,7 @@ export const MinionAbilities = {
     for (const a of victims) {
       if (!a.resources) continue
       this._applyRoot(a, scene, ab.rootMs ?? 3000)
-      const fl = (a._lightParty || a._shadowMonarch || a._nemesis) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
+      const fl = a._nemesis ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.1)) : 0
       const before = a.resources.hp
       a.resources.hp = Math.max(fl, a.resources.hp - drain)
       a._lastHitBy = briar.instanceId; a._lastHitType = 'physical'
@@ -1320,7 +1318,7 @@ export const MinionAbilities = {
       a._hellfireMax = maxStacks   // AdventurerRenderer reads this for the heat-ratio tell
       a._hellfireAt = now
       const dmg = Math.max(1, Math.round((ab.dmg ?? 3) * (1 + (a._hellfireStacks - 1) * (ab.per ?? 0.4))))
-      const fl = (a._lightParty || a._shadowMonarch) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._lastHitBy = demon.instanceId; a._lastHitType = 'fire'
       if (scene && Number.isFinite(a.worldX)) {
@@ -1340,7 +1338,7 @@ export const MinionAbilities = {
     const r = ab.combustRadiusTiles ?? 1.5, dmg = ab.combustDmg ?? 8
     for (const a of advs) {
       if (Math.hypot(a.tileX - hero.tileX, a.tileY - hero.tileY) > r + 0.01) continue
-      const fl = (a._lightParty || a._shadowMonarch) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._lastHitBy = demon?.instanceId; a._lastHitType = 'fire'
       a._hellfireStacks = Math.max(a._hellfireStacks ?? 0, Math.ceil((ab.maxStacks ?? 5) * 0.4))   // splash heat onto neighbours
@@ -1371,7 +1369,7 @@ export const MinionAbilities = {
     const advs = this._liveAdvs(gameState).filter(a => this._onFloorInRoom(scene, a.tileX, a.tileY, home))
     const dmg = ab.dmg ?? 6
     for (const a of advs) {
-      const fl = (a._lightParty || a._shadowMonarch) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       a.resources.hp = Math.max(fl, a.resources.hp - dmg)
       a._hellfireStacks = ab.maxStacks ?? 6; a._hellfireAt = now
       a._lastHitBy = demon.instanceId; a._lastHitType = 'fire'
@@ -1631,7 +1629,7 @@ export const MinionAbilities = {
     const drain = ab.drainPerAdv ?? 6, maxHp = vampire.resources?.maxHp ?? 0
     let total = 0; const pts = []
     for (const a of advs) {
-      const fl = (a._lightParty || a._shadowMonarch) ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       const dealt = Math.min((a.resources.hp ?? 0) - fl, drain); if (dealt <= 0) continue
       a.resources.hp = Math.max(fl, a.resources.hp - drain)
       a._lastHitBy = vampire.instanceId; a._lastHitType = 'blood'
@@ -2383,12 +2381,7 @@ export const MinionAbilities = {
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const d = Math.hypot(adv.tileX - imp.tileX, adv.tileY - imp.tileY)
       if (d > IMP_BLAST_RADIUS_TILES + 0.01) continue
-      // Light Party / Shadow Monarch floor — defense-in-depth so an imp blast
-      // can't drop them to 0 before the boss room (AISystem._kill catches it
-      // anyway since we never stamp 'boss' here, but flooring keeps the bar honest).
-      const _impFl = (adv._lightParty || adv._shadowMonarch)
-        ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
-      adv.resources.hp = Math.max(_impFl, adv.resources.hp - IMP_BLAST_DAMAGE)
+      adv.resources.hp = Math.max(0, adv.resources.hp - IMP_BLAST_DAMAGE)
       hits += 1
       if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${IMP_BLAST_DAMAGE}`, { color: '#ff6633' })
     }
@@ -2570,7 +2563,7 @@ export const MinionAbilities = {
     for (const adv of this._liveAdvs(gameState)) {
       if (home && !this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       if (Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
-      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
       hits += 1
       if (scene) AbilityVfx.floatingText(scene, adv.worldX ?? 0, (adv.worldY ?? 0) - 14, `-${dmg}`, { color: '#ff6633' })
@@ -2688,7 +2681,7 @@ export const MinionAbilities = {
       if (!this._onFloorInRoom(scene, adv.tileX, adv.tileY, home)) continue
       if (radius < 99 && Math.hypot(adv.tileX - minion.tileX, adv.tileY - minion.tileY) > radius + 0.01) continue
       const dmg = ab.dmgPerTick ?? 2
-      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
       adv._lastHitBy = minion.instanceId
       adv._lastHitType = ab.element ?? 'poison'
@@ -2722,7 +2715,7 @@ export const MinionAbilities = {
     const dmg = ab.dmg ?? 8
     let total = 0
     for (const adv of targets) {
-      const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+      const fl = 0
       const before = adv.resources.hp
       adv.resources.hp = Math.max(fl, adv.resources.hp - dmg)
       total += before - adv.resources.hp
@@ -2899,7 +2892,7 @@ export const MinionAbilities = {
         h._lastTick = now
         for (const adv of advs) {
           if (Math.hypot(adv.tileX - h.tileX, adv.tileY - h.tileY) > (h.radius ?? 0.7) + 0.01) continue
-          const fl = (adv._lightParty || adv._shadowMonarch) ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
+          const fl = 0
           adv.resources.hp = Math.max(fl, adv.resources.hp - (h.dmg ?? 2))
           adv._lastHitBy = h.sourceId; adv._lastHitType = h.element ?? 'fire'
           // Corrosive Ooze — acid that melts armor / slows while you stand in it.

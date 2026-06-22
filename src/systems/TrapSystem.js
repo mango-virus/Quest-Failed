@@ -467,7 +467,7 @@ export class TrapSystem {
       if (!p) continue
       if (adv.aiState === 'dead' || adv.resources?.hp <= 0) { adv.flags.trapPoison = null; continue }
       while (now >= p.nextTickAt && p.nextTickAt <= p.endsAt) {
-        const _smFloor = (adv._shadowMonarch || adv._lightParty || adv._nemesis)
+        const _smFloor = adv._nemesis
           ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
         adv.resources.hp = Math.max(_smFloor, adv.resources.hp - p.dps)
         EventBus.emit('COMBAT_HIT', {
@@ -539,9 +539,9 @@ export class TrapSystem {
     }
     let damage = dmg
     let instakill = false
-    // Light Party + Shadow Monarch take trap DAMAGE but are immune to the
+    // Plot-armored scouts (Aldric) take trap DAMAGE but are immune to the
     // instant-kill roll — they die only to normal combat / the boss duel.
-    const _instakillImmune = !!(entity?._lightParty || entity?._shadowMonarch || entity?._nemesis)
+    const _instakillImmune = !!(entity?._nemesis)
     if (!_instakillImmune && def.instakillChance && this._isAdventurer(entity) && Math.random() < def.instakillChance) {
       damage = entity.resources.hp
       instakill = true
@@ -567,15 +567,11 @@ export class TrapSystem {
         damage = Math.max(floor, Math.min(damage, cap))
       }
     }
-    // Solo Leveling — the Shadow Monarch takes 50% less trap damage
-    // (mirrors his -50% minion-damage passive in CombatSystem). Applied
-    // after the cap so it stacks on top of the squishy-protection clamp.
-    if (entity._shadowMonarch) damage = Math.floor(damage * 0.5)
     if (damage <= 0) return false
 
-    // Jinwoo + Light Party floor at 10% max HP — traps can't kill them; only
-    // the boss duel can.
-    const _smFloor = (entity._shadowMonarch || entity._lightParty || entity._nemesis)
+    // Plot-armored scouts (Aldric) floor at 10% max HP — traps can't kill them;
+    // only the boss duel can.
+    const _smFloor = entity._nemesis
       ? Math.max(1, Math.ceil((entity.resources.maxHp ?? 1) * 0.10)) : 0
     entity.resources.hp = Math.max(_smFloor, entity.resources.hp - damage)
     entity._lastHitBy   = trap.instanceId

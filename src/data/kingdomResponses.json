@@ -43,11 +43,11 @@
     "gimmick": "Holy zones heal heroes and sear your minions; the fallen are resurrected mid-fight by divine grace.",
     "clearCondition": "Slay the descended Seraph before judgment is complete.",
     "champion": "Aurelia, the Descended Seraph",
-    "championChassis": "white_mage",
+    "championChassis": "priest",
     "championFlags": ["pantheonHero"],
     "retinue": [
       { "classId": "paladin",    "count": 3, "name": "Radiant Guardian", "hpMul": 1.3, "flags": ["pantheonHero"] },
-      { "classId": "white_mage", "count": 2, "name": "Seraph Acolyte", "flags": ["pantheonHero"] }
+      { "classId": "priest", "count": 2, "name": "Seraph Acolyte", "flags": ["pantheonHero"] }
     ],
     "accent": "#ffe9a8",
     "emblem": "☼",

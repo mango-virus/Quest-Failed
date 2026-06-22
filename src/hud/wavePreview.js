@@ -20,9 +20,9 @@ export function hasActiveLibrary(gs) {
 // stats, personality, abilities — is revealed only when BOTH are true:
 //   1. an active Library of Whispers is placed, AND
 //   2. the dungeon has KILLED one of that class THIS run.
-// Event-tier invaders (unlockLevel >= 99: Sung Jinwoo, Aldric, the FF/Solo
-// set-pieces) are exempt from the kill requirement — they're one-off
-// narrative foes you may never get to kill — but still need a Library.
+// Event-tier invaders (unlockLevel >= 99, e.g. Aldric) are exempt from the
+// kill requirement — they're one-off narrative foes you may never get to
+// kill — but still need a Library.
 // `classDef` is the adventurerClasses.json entry ({ id, unlockLevel }).
 export function hasClassIntel(gs, classDef) {
   if (!hasActiveLibrary(gs)) return false

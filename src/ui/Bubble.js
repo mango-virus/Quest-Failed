@@ -48,19 +48,6 @@ const KIND_STYLE = {
     popInMs:     220,
     fadeOutMs:   500,
   },
-  // Solo Leveling — Sung Jinwoo's bubbles. Inky dark bubble + a white→blue
-  // vertical gradient on the text with a soft blue glow, echoing the
-  // "ARISE" shadow-monarch typography.
-  shadow: {
-    borderColor: 0x000000,
-    bgColor:     0x070b16,
-    textColor:   '#bfe0ff',    // flat fallback if gradient unsupported
-    gradient:    [[0, '#ffffff'], [0.4, '#cfe9ff'], [0.75, '#5fa8ff'], [1, '#1e63ff']],
-    glow:        { color: '#3a8bff', blur: 6 },
-    stroke:      { color: '#0a224f', thickness: 1 },
-    popInMs:     170,
-    fadeOutMs:   280,
-  },
 }
 
 /**
@@ -215,8 +202,8 @@ function _buildWrappedText(scene, content, style) {
     align:       'center',
   }
   const t = scene.add.text(0, 0, _fitTextToCap(scene, content, opts), opts)
-  // Optional glow + stroke (Jinwoo's 'shadow' kind). Set before the gradient
-  // so the final fill re-render carries them.
+  // Optional glow + stroke (for any kind that defines them). Set before the
+  // gradient so the final fill re-render carries them.
   if (style.stroke) t.setStroke(style.stroke.color, style.stroke.thickness)
   if (style.glow)   t.setShadow(0, 0, style.glow.color, style.glow.blur, false, true)
   // Optional vertical gradient fill — a CanvasGradient spanning the text's

@@ -35,7 +35,7 @@ export const TROPHY_BY_ID = Object.fromEntries(TROPHY_TYPES.map(t => [t.id, t]))
 // the non-combatants, the cheater. They never grant a trophy.
 const EXCLUDE_TAGS = new Set([
   'non_combatant', 'monster_invader', 'rival_boss', 'nemesis', 'hero',
-  'shadow_monarch', 'exploit', 'chaos',
+  'exploit', 'chaos',
 ])
 
 // Map a killed adventurer's class definition → trophy type id (or null if the

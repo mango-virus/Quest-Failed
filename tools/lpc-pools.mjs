@@ -271,8 +271,8 @@ export const POOLS = {
   },
 
   // Cleric — holy priest-healer in clean white-and-gold vestments. A bright,
-  // devout foil to the necromancer, and deliberately NOT the off-limits
-  // white_mage (no wizard hat, no pastels). A floor-length robe under a
+  // devout foil to the necromancer, and deliberately distinct from the
+  // priest (no wizard hat, no pastels). A floor-length robe under a
   // tone-matched Tabard surcoat, a gold/silver Cross amulet on some, a veil or
   // circlet, and a holy Mace or staff (50/50).
   cleric: {
@@ -309,7 +309,7 @@ export const POOLS = {
       chance: 0.6,
     },
     // Robe + veil stay LIGHT (white-dominant) so the contrasting tabard + gold
-    // cross carry the detail. Avoids white_mage's pink/rose/lavender.
+    // cross carry the detail. Avoids the priest's pink/rose/lavender.
     clothColorPool: ['white', 'white', 'white', 'sky', 'tan', 'gray', 'bluegray'],
     metalColorPool: ['gold', 'gold', 'silver', 'brass'],
     // 50/50 holy mace (overhead oversize swing) : holy staff (thrust). Mace is
@@ -321,7 +321,7 @@ export const POOLS = {
   },
 
   // Necromancer — hooded reaper / death-cultist. Deliberately NOTHING like the
-  // off-limits black_mage (no wizard hats, no clean robes). Two silhouettes mix:
+  // sorcerer (no wizard hats, no clean robes). Two silhouettes mix:
   // ~40% wear the same modular kimono as the mage but in DARK two-tone (a death
   // priestess), the other ~60% wear a ragged floor-length reaper robe. Half are
   // faceless under a Sack Cloth Hood, half wear a bone-white skull bandana.
@@ -369,7 +369,7 @@ export const POOLS = {
     // Tattered reaper cloak ~50%, in the robe colour.
     cape: { items: ['Tattered', 'Tattered', 'Solid'], chance: 0.5 },
     // ~60% hooded (faceless under a Sack Cloth Hood / Hood), the rest bare-headed
-    // (hair showing). NO wizard hats (separates from black_mage).
+    // (hair showing). NO wizard hats (separates from sorcerer).
     headwear: {
       items: ['Sack Cloth Hood', 'Sack Cloth Hood', 'Hood'],
       chance: 0.6,
@@ -884,14 +884,14 @@ export const POOLS = {
   },
 
   // ─────────────────────────────────────────────────────────────────────
-  // Light Party event classes (FFXIV trinity: T / H / D / D)
+  // Holy / arcane caster + crusader event classes
   // ─────────────────────────────────────────────────────────────────────
 
-  // Paladin — Light Party tank. Heavy plate + always-shield silhouette
-  // (knight foundation), but with a tighter "noble holy knight" palette:
-  // always-armored arms + always-helm + always-shield + gold/silver metal
-  // trim + blue-tone cloth. Reads instantly as a tank when standing beside
-  // the white_mage / samurai / black_mage in the diamond formation.
+  // Paladin — heavy plate + always-shield silhouette (knight foundation),
+  // but with a tighter "noble holy knight" palette: always-armored arms +
+  // always-helm + always-shield + gold/silver metal trim + blue-tone cloth.
+  // Reads instantly as a tank when standing beside the priest / samurai /
+  // sorcerer.
   paladin: {
     bodyTypes: COMMON.bodyTypes,
     heads: 'auto_human',
@@ -924,11 +924,11 @@ export const POOLS = {
     alwaysShield: true,
   },
 
-  // White Mage — Light Party healer. Robed silhouette with a tall headpiece
-  // and a staff that pairs with a crystal (Diamond / Loop staff trigger the
-  // CRYSTAL_RULE auto-pair). White / pink / lilac cloth so they read as
-  // holy / healing rather than arcane / damage (vs black_mage).
-  white_mage: {
+  // Priest — robed healer silhouette with a tall headpiece and a staff that
+  // pairs with a crystal (Diamond / Loop staff trigger the CRYSTAL_RULE
+  // auto-pair). White / pink / lilac cloth so they read as holy / healing
+  // rather than arcane / damage (vs sorcerer).
+  priest: {
     bodyTypes: COMMON.bodyTypes,
     heads: 'auto_human',
     hair: 'all_human_hair',
@@ -948,7 +948,7 @@ export const POOLS = {
       chance: 1.0,
     },
     // Holy / soft palette — whites, pinks, pale blues, lavender. NO darks
-    // (those go to black_mage / necromancer). Palette names must match keys
+    // (those go to sorcerer / necromancer). Palette names must match keys
     // in the LPC cloth_ulpc.json — see CLOTH list at top of bake script.
     clothColorPool: ['white', 'pink', 'rose', 'sky', 'lavender'],
     // Crystal-pair staves only — Diamond / Loop staff trigger the
@@ -959,11 +959,10 @@ export const POOLS = {
     },
   },
 
-  // Samurai — Light Party melee DPS. Light lamellar / robed silhouette
-  // (no plate, no closed helm), tabi socks, headband, single curved blade.
-  // Saber is the LPC katana proxy — actual Katana / Scimitar ship only as
-  // 128px oversize art that renders invisible in the 64px base sheet
-  // (same gotcha that shadow_monarch's comment documents below).
+  // Samurai — light lamellar / robed melee silhouette (no plate, no closed
+  // helm), tabi socks, headband, single curved blade. Saber is the LPC katana
+  // proxy — actual Katana / Scimitar ship only as 128px oversize art that
+  // renders invisible in the 64px base sheet.
   samurai: {
     bodyTypes: COMMON.bodyTypes,
     heads: 'auto_human',
@@ -984,22 +983,20 @@ export const POOLS = {
       chance: 0.6,
     },
     // Sober samurai palette — dark reds, blacks, deep blues. No bright
-    // / pastel tones (those belong to white_mage / paladin).
+    // / pastel tones (those belong to priest / paladin).
     clothColorPool: ['maroon', 'navy', 'black', 'forest', 'charcoal', 'walnut'],
     metalColorPool: ['steel', 'iron', 'silver'],
-    // Saber is the working katana proxy — see header comment + the
-    // shadow_monarch entry's weapon comment for the LPC gotcha.
+    // Saber is the working katana proxy — see header comment for the LPC gotcha.
     weapon: {
       items: ['Saber'],
       chance: 1.0,
     },
   },
 
-  // Black Mage — Light Party ranged DPS. The iconic tall pointed wizard
-  // hat is mandatory — that hat IS the silhouette. Dark robes, staff with
-  // crystal. Foil to white_mage (light/holy) — same robed shape, opposite
-  // palette, opposite role.
-  black_mage: {
+  // Sorcerer — the iconic tall pointed wizard hat is mandatory — that hat IS
+  // the silhouette. Dark robes, staff with crystal. Foil to priest (light/holy)
+  // — same robed shape, opposite palette, opposite role.
+  sorcerer: {
     bodyTypes: COMMON.bodyTypes,
     heads: 'auto_human',
     hair: 'all_human_hair',
@@ -1008,8 +1005,8 @@ export const POOLS = {
     legs: ['Long Pants', 'Hose'],
     feet: ['Slippers', 'Sandals'],
     arms: { items: ['Cuffs', 'Stud Ring'], chance: 0.4 },
-    // Mandatory tall wizard hat — the black mage silhouette. No tiaras
-    // or hoods; those go to white_mage / necromancer.
+    // Mandatory tall wizard hat — the sorcerer silhouette. No tiaras
+    // or hoods; those go to priest / necromancer.
     headwear: {
       items: [
         'Wizard Hat Base', 'Wizard Hat Belt', 'Wizard Hat Buckle',
@@ -1018,7 +1015,7 @@ export const POOLS = {
       ],
       chance: 1.0,
     },
-    // Dark mage palette — black / purple / midnight. Foil to white_mage.
+    // Dark mage palette — black / purple / midnight. Foil to priest.
     clothColorPool: ['black', 'charcoal', 'navy', 'purple', 'maroon', 'slate'],
     weapon: {
       items: ['S staff', 'Diamond staff', 'Gnarled staff', 'Loop staff'],
@@ -1179,7 +1176,7 @@ POOLS.cheater = {
 }
 
 // ============================================================
-// Templar — holy DEFENDER (normal-roster class, NOT the Light Party event
+// Templar — holy DEFENDER (normal-roster class, distinct from the support
 // `paladin`). A FULLY-ARMOURED crusader: every plate slot (cuirass / greaves /
 // sabatons / shoulders / helm + visor) shares ONE blessed-metal finish so the
 // whole suit MATCHES, drawn from the icy/holy LPC-Revised metals (white, revised
@@ -1761,41 +1758,6 @@ POOLS.gambler = {
 }
 
 // ============================================================
-// Shadow Monarch — Sung Jinwoo (Solo Leveling event). A NAMED character,
-// so every slot is locked to one option + every palette is pinned: the
-// bake is deterministic (one variant = the canonical Jinwoo look).
-//   • black spiky hair, light skin
-//   • black trench coat + black long pants + black shoes (clothColorPool black)
-//   • a single steel scimitar (dual-wield isn't an LPC layer)
-// Bake with: node tools/bake-lpc-variants.mjs "<lpc-root>" assets/sprites/adventurers 1 shadow_monarch
-// (Hair swap candidates if "Spiked2" reads wrong: Messy2, Messy3, Cowlick,
-//  Bedhead, Unkempt, Halfmessy.)
-POOLS.shadow_monarch = {
-  bodyTypes:     ['male'],
-  heads:         ['Human Male'],
-  hair:          ['Spiked2'],
-  hairColorPool: ['black'],
-  bodyColorPool: ['light'],
-  clothColorPool:['charcoal'],
-  feetColor:     'black',     // black shoes (rest of outfit is charcoal)
-  metalColorPool:['steel'],
-  beardChance:   0,
-  noses:         null,        // no nose overlay
-  torso:         ['Frock coat'],
-  legs:          ['Long Pants'],
-  feet:          ['Basic Shoes'],
-  // Saber, not Scimitar: the scimitar (and katana) ship ONLY oversize 128px
-  // art that can't composite into the 64px base sheet, so it rendered
-  // invisible. The saber is a curved single-edged blade (visually ~a
-  // scimitar) that DOES ship standard 64px walk/slash art, so it actually
-  // shows in-hand.
-  weapon: {
-    items: ['Saber'],
-    chance: 1.0,
-  },
-}
-
-// ============================================================
 // KR CHAMPION: Sir Garreth the Gilded — the All-Stars dream-team CAPTAIN.
 // A resplendent GOLD-plated hero-knight in radiant WHITE heraldry. A FIXED single
 // look (baked at count 1, pinned to the All-Stars champion at spawn), built on the
@@ -2040,9 +2002,9 @@ POOLS.champion_velloran = {
   capeColor: ['navy'],
 };
 
-// ── Aurelia, the Descended Seraph (KR "Pantheon" champion, white_mage chassis) ──
+// ── Aurelia, the Descended Seraph (KR "Pantheon" champion, priest chassis) ──
 // A radiant WINGED angel of divine judgment — far grander than the soft pastel
-// white_mage. Big white feathered wings, a flowing white + gold robe, a gold
+// priest. Big white feathered wings, a flowing white + gold robe, a gold
 // diadem, long golden hair, and a glowing holy staff. White + gold to match the
 // Pantheon response's #ffe9a8 radiant-gold accent + ☼ sun emblem.
 POOLS.champion_aurelia = {
@@ -2076,7 +2038,7 @@ POOLS.champion_aurelia = {
   ],
   // Gold finery — diadem + staff.
   metalColorPool: ['gold'],
-  // A glowing holy staff (white_mage's Loop staff triggers the bake CRYSTAL_RULE
+  // A glowing holy staff (the priest's Loop staff triggers the bake CRYSTAL_RULE
   // = an auto-added glowing crystal; thrust_oversize cast → needs the _atk sheet).
   weapon: { items: ['Loop staff'], chance: 1.0 },
   weaponColor: 'metal',
@@ -2331,7 +2293,7 @@ POOLS.champion_rourke = {
 
 // Per-class variant count for the bake (default when no count arg is passed).
 // 100 is the shipped count for the 15 redesigned adventurer classes. The
-// named/event classes are always baked with an EXPLICIT count (shadow_monarch
-// 1; Light Party paladin/white_mage/samurai/black_mage 50), so this default
+// named/event classes are always baked with an EXPLICIT count (e.g. the
+// paladin/priest/samurai/sorcerer event classes at 50), so this default
 // only applies to a no-arg full bake.
 export const VARIANT_COUNT = 100;

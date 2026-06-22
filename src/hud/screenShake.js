@@ -1,8 +1,8 @@
 // screenShake.js — brief DOM screen-shake for full-screen cinematics
 // (UI_POLISH_PLAN P2-2).
 //
-// The pure-DOM set-pieces (Solo Leveling ARISE, Dark Ascension, The Kingdom
-// Responds, the Coin Flip) dim the canvas, so a Phaser CAMERA shake
+// The pure-DOM set-pieces (Dark Ascension, The Kingdom Responds, the Coin
+// Flip) dim the canvas, so a Phaser CAMERA shake
 // (ScreenShakeSystem / BossSystem) wouldn't be visible behind them — they lean
 // on a white flash alone. This jolts the cinematic's own DOM root with a brief,
 // decaying transform jitter, the same DOM-transform approach BossFightOverlay
@@ -14,9 +14,9 @@
 // reduced-motion: JS-driven motion isn't caught by the global html.reduce-motion
 // CSS reset (P1-4), so it must check isReducedMotion() explicitly.
 //
-// NOTE: the duels (Aldric / Rival / Light Party / Solo duel) are deliberately
-// NOT shaken through here — they already get camera-shake + hitstop from
-// BossSystem (the dungeon view is visible during those fights).
+// NOTE: the duels (Aldric / Rival) are deliberately NOT shaken through here —
+// they already get camera-shake + hitstop from BossSystem (the dungeon view is
+// visible during those fights).
 
 import { userSettings } from './userSettings.js'
 import { isReducedMotion } from './motion.js'

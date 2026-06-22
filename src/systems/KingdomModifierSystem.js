@@ -390,10 +390,10 @@ export class KingdomModifierSystem {
       const dx = (a.worldX ?? 0) - (boss.worldX ?? 0)
       const dy = (a.worldY ?? 0) - (boss.worldY ?? 0)
       if (dx * dx + dy * dy <= R2) {
-        // Plot-armored scouts (Aldric, and the duel-bound event raiders) floor at
-        // 10% — the aura sears Aldric while he recoils at the throne, but can't
-        // finish him (he only dies in the Act IV duel).
-        const fl = (a._nemesis || a._shadowMonarch || a._lightParty)
+        // Plot-armored scouts (Aldric) floor at 10% — the aura sears Aldric while
+        // he recoils at the throne, but can't finish him (he only dies in the
+        // Act IV duel).
+        const fl = a._nemesis
           ? Math.max(1, Math.ceil((a.resources.maxHp ?? 1) * 0.10)) : 0
         a.resources.hp = Math.max(fl, a.resources.hp - dmg); seared++
       }

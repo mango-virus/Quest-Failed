@@ -18,76 +18,6 @@
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
 
-// Solo Leveling — the 'shadowmonarch' banner theme: a black↔blue SWEEPING
-// gradient instead of the static violet palette. Injected once at runtime so
-// it lives alongside the other themes without editing styles.css.
-function _ensureShadowMonarchBannerCss() {
-  if (typeof document === 'undefined') return
-  if (document.getElementById('qf-sl-eventbanner-css')) return
-  const style = document.createElement('style')
-  style.id = 'qf-sl-eventbanner-css'
-  style.textContent = `
-.qf-eventbanner.qf-eventbanner-shadowmonarch,
-.qf-eventpill.qf-eventpill-shadowmonarch,
-.qf-eventpill-tip.qf-eventpill-tip-shadowmonarch {
-  --ev-accent:#3a8bff; --ev-bg:#08121f; --ev-deep:#02060e;
-  --ev-text:#bfe0ff; --ev-sub:#dcecff;
-}
-.qf-eventbanner-shadowmonarch .qf-eventbanner-inner {
-  background: linear-gradient(110deg,
-    #02060e 0%, #061226 15%, #1f5fd0 37%, #5aa8ff 50%, #1f5fd0 63%, #061226 85%, #02060e 100%);
-  background-size: 300% 100%;
-  animation: qf-sl-banner-sweep 3.2s linear infinite;
-}
-.qf-eventpill.qf-eventpill-shadowmonarch {
-  background: linear-gradient(110deg, #02060e, #0a1b38 45%, #1f5fd0 50%, #0a1b38 55%, #02060e);
-  background-size: 280% 100%;
-  animation: qf-sl-banner-sweep 3.2s linear infinite;
-}
-@keyframes qf-sl-banner-sweep {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}`
-  document.head.appendChild(style)
-}
-
-// Light Party — the 'lightparty' banner theme: a sweeping DARK-gold gradient
-// with a bright gold highlight band (FFXIV's heroic "Warriors of Light" accent).
-// Mirrors shadowmonarch's dark-blue sweep so both boss events share the same
-// animated treatment — and, crucially, the same DARK background register as
-// every other event slate (the old bright white/cream fill made this one stand
-// out as the only light-coloured notification). Injected once at runtime so it
-// lives alongside the other themes without editing styles.css.
-function _ensureLightPartyBannerCss() {
-  if (typeof document === 'undefined') return
-  if (document.getElementById('qf-lp-eventbanner-css')) return
-  const style = document.createElement('style')
-  style.id = 'qf-lp-eventbanner-css'
-  style.textContent = `
-.qf-eventbanner.qf-eventbanner-lightparty,
-.qf-eventpill.qf-eventpill-lightparty,
-.qf-eventpill-tip.qf-eventpill-tip-lightparty {
-  --ev-accent:#ffd66b; --ev-bg:#221903; --ev-deep:#0f0b01;
-  --ev-text:#ffe27a; --ev-sub:#f2e2b0;
-}
-.qf-eventbanner-lightparty .qf-eventbanner-inner {
-  background: linear-gradient(110deg,
-    #0e0a01 0%, #1d1503 15%, #7a5e16 37%, #e8c14a 50%, #7a5e16 63%, #1d1503 85%, #0e0a01 100%);
-  background-size: 300% 100%;
-  animation: qf-lp-banner-sweep 3.2s linear infinite;
-}
-.qf-eventpill.qf-eventpill-lightparty {
-  background: linear-gradient(110deg, #0e0a01, #2a2006 45%, #e8c14a 50%, #2a2006 55%, #0e0a01);
-  background-size: 280% 100%;
-  animation: qf-lp-banner-sweep 3.2s linear infinite;
-}
-@keyframes qf-lp-banner-sweep {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}`
-  document.head.appendChild(style)
-}
-
 // Damned-grimoire curse banner theme: pure black slate with blood-red accents,
 // distinct from the dark-red 'crimson' event theme. Used by the damned-pact
 // curse notifications (e.g. The Insomniac's no-build night). Injected once at
@@ -119,7 +49,7 @@ function _ensureDamnedBannerCss() {
 // additional gold layer on top of whatever colorTheme they use — heavier
 // corner brackets + a kicker bump (`◆ BOSS EVENT ◆`), a soft inner-panel
 // shake on slam-in, and a "BOSS" chip + ambient pulse on the persistent pill.
-// Pure CSS overlay so it stacks cleanly on shadowmonarch (or any future theme).
+// Pure CSS overlay so it stacks cleanly on any theme.
 function _ensureBossTierBannerCss() {
   if (typeof document === 'undefined') return
   if (document.getElementById('qf-boss-eventbanner-css')) return
@@ -212,8 +142,6 @@ export class EventBanner {
 
     this._stage = document.getElementById('hud-stage')
     if (!this._stage) return
-    _ensureShadowMonarchBannerCss()
-    _ensureLightPartyBannerCss()
     _ensureBossTierBannerCss()
     _ensureDamnedBannerCss()
     this._build()
@@ -271,11 +199,6 @@ export class EventBanner {
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
     sub('DUNGEON_EVENT_ANNOUNCED', (p) => { this._onAnnounced(p); this._showPill(p?.def) })
     sub('DUNGEON_EVENT_ENDED',     ()  => this._hidePill())
-    // Hide the whole persistent-pill row for the duration of the Light Party
-    // boss duel (+ its outro) so the event chip doesn't sit over the cinematic,
-    // then restore it when the duel resolves.
-    sub('LIGHT_PARTY_DUEL_BEGAN',  ()  => { if (this._pillRow) this._pillRow.style.display = 'none' })
-    sub('LIGHT_PARTY_DUEL_END',    ()  => { if (this._pillRow) this._pillRow.style.display = '' })
     // DAMNED · The Insomniac — persistent no-build pill, up for the whole
     // locked night so it can sit beside an active-event pill. Shown on the
     // lock (night start), cleared when the build phase ends (day begins).
@@ -298,8 +221,8 @@ export class EventBanner {
     // A cinematic boss-vs-boss duel takes over the top-centre zone with its own
     // HUD — force-close any lingering slam-in banner (e.g. the champion-arrival
     // slate) AND hide the persistent event-pill row (an active dungeon event's
-    // chip otherwise sits under the duel's dominance bar). Mirrors the Light Party
-    // takeover above; restored when the duel resolves.
+    // chip otherwise sits under the duel's dominance bar). Restored when the
+    // duel resolves.
     const duelTakeover = () => { this._forceClose(); if (this._pillRow) this._pillRow.style.display = 'none' }
     const duelRestore  = () => { if (this._pillRow) this._pillRow.style.display = '' }
     sub('RIVAL_DUEL_BEGAN',        ()  => duelTakeover())

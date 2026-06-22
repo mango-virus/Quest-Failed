@@ -2957,10 +2957,7 @@ export class BossArchetypeSystem {
       const charmCount = Balance.VAMPIRE_CHARM_USES_PER_DAY_BASE
         + Math.floor(bossLv * Balance.VAMPIRE_CHARM_USES_PER_BOSS_LV)
         + (currentAct(this._gameState) - 1) * (Balance.VAMPIRE_COURT_CHARM_PER_ACT ?? 1)
-      // Sung Jinwoo can't be charmed — the vampire can't turn the Shadow
-      // Monarch into a thrall (that would "kill"/remove him; only the boss
-      // duel can take him down).
-      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0 && !a._shadowMonarch && !a._lightParty)
+      const eligible = advs.filter(a => a && (a.resources?.hp ?? 0) > 0)
       if (eligible.length > 0) {
         const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
         if (bossRoom) {
@@ -4186,7 +4183,7 @@ export class BossArchetypeSystem {
   // party knifes itself.
   _infatuate(adv, now) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
-    if (adv._shadowMonarch || adv._lightParty || adv.aiState === 'charmed') return
+    if (adv.aiState === 'charmed') return
     adv.aiState = 'charmed'; adv._charmedAt = now; adv._charmedKills = 0; adv._charmedAloneTimer = 0
     adv._charmerId = 'succubus'; adv._charmedFormerPartyId = adv.partyId ?? null; adv.partyId = null
     adv.path = null; adv.pathIndex = 0; adv.goal = { type: 'CHARMED' }; adv.goalStack = []
@@ -4201,7 +4198,6 @@ export class BossArchetypeSystem {
   // via gazeHexMul). `_raptureUntil` drives the PINK bliss tint (not grey petrify).
   _enrapture(adv, now) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
-    if (adv._shadowMonarch || adv._lightParty) return
     const dur = this._mesmerDur()
     adv._petrifiedUntil = Math.max(adv._petrifiedUntil ?? 0, now + dur)
     adv._raptureUntil   = Math.max(adv._raptureUntil ?? 0, now + dur)
@@ -4215,7 +4211,7 @@ export class BossArchetypeSystem {
   // Lured — walks helplessly toward a chosen room (into your traps/minions).
   _lure(adv, now, roomId) {
     if (!adv || adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) return
-    if (adv._shadowMonarch || adv._lightParty || adv.aiState === 'charmed') return
+    if (adv.aiState === 'charmed') return
     const rooms = this._gameState?.dungeon?.rooms ?? []
     const dest = rooms.find(r => r.instanceId === roomId) ||
       rooms.filter(r => r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber')[0]
@@ -4441,9 +4437,9 @@ export class BossArchetypeSystem {
   }
 
   // Mark a hero as charmed (joins the Court → walks to the boss → converts in
-  // _tickCharmConversion). No-op for the duel-bound / Light Party specials.
+  // _tickCharmConversion).
   _charmHero(adv) {
-    if (!adv || adv._charmed || adv._shadowMonarch || adv._lightParty) return
+    if (!adv || adv._charmed) return
     if ((adv.resources?.hp ?? 0) <= 0) return
     const bossRoom = this._gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!bossRoom) return
@@ -4701,10 +4697,6 @@ export class BossArchetypeSystem {
     for (let i = advs.length - 1; i >= 0; i--) {
       const adv = advs[i]
       if (!adv?._charmed) continue
-      // Never convert Jinwoo OR a Light Party member. This path splices the adv
-      // from active directly (bypassing AISystem._kill), so the duel-bound death
-      // guard never runs — they must be skipped explicitly here.
-      if (adv._shadowMonarch || adv._lightParty) continue
       if (adv.aiState === 'dead' || (adv.resources?.hp ?? 0) <= 0) continue
       const boss = this._gameState.boss
       if (!boss) continue
@@ -4836,13 +4828,11 @@ export class BossArchetypeSystem {
     return (imps.length ? imps : alive)[Math.floor(Math.random() * (imps.length ? imps.length : alive.length))]
   }
 
-  // Solo Leveling — Sung Jinwoo can't be killed by boss ABILITIES (only the
-  // boss duel itself). Returns the minimum HP a damage tick may leave him at
-  // (10% of max); 0 for everyone else.
-  _shadowFloor(adv) {
-    return (adv?._shadowMonarch || adv?._lightParty)
-      ? Math.max(1, Math.ceil((adv.resources?.maxHp ?? 1) * 0.10))
-      : 0
+  // Minimum HP a boss-ability damage tick may leave an adventurer at. No
+  // adventurer is currently floored, so this is always 0 (kept as the shared
+  // chokepoint every boss-ability damage application routes through).
+  _shadowFloor(_adv) {
+    return 0
   }
 
   // ── Brimstone economy helpers ──────────────────────────────────────────
@@ -4892,7 +4882,7 @@ export class BossArchetypeSystem {
     boss.brimstone = Math.max(0, (boss.brimstone ?? 0) - spend)
 
     const advsIn = (this._gameState.adventurers?.active ?? [])
-      .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room) && !a._shadowMonarch && !a._lightParty)
+      .filter(a => (a.resources?.hp ?? 0) > 0 && _advInsideRoom(a, room))
     let refund = 0
     for (const a of advsIn) {
       const frac = (Balance.DEMON_PACT_BASE_DMG_PCT ?? 0.10) + spend * (Balance.DEMON_PACT_DMG_PER_BRIMSTONE ?? 0.0015)
@@ -4937,7 +4927,7 @@ export class BossArchetypeSystem {
     const TS = Balance.TILE_SIZE, R = (Balance.DEMON_IMP_EXPLODE_RADIUS_TS ?? 1.6) * TS
     const ex = m.worldX ?? killer.worldX, ey = m.worldY ?? killer.worldY
     for (const a of (this._gameState?.adventurers?.active ?? [])) {
-      if ((a.resources?.hp ?? 0) <= 0 || a._shadowMonarch || a._lightParty) continue
+      if ((a.resources?.hp ?? 0) <= 0) continue
       if (Math.hypot((a.worldX ?? 0) - ex, (a.worldY ?? 0) - ey) > R) continue
       const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.DEMON_IMP_EXPLODE_DMG_PCT ?? 0.10)))
       a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
@@ -4995,7 +4985,7 @@ export class BossArchetypeSystem {
       if (now - (z._tickAt ?? 0) >= (Balance.DEMON_PACT_BURN_TICK_MS ?? 1000)) {
         z._tickAt = now
         for (const a of (this._gameState?.adventurers?.active ?? [])) {
-          if ((a.resources?.hp ?? 0) <= 0 || a._shadowMonarch || a._lightParty || !_advInsideRoom(a, room)) continue
+          if ((a.resources?.hp ?? 0) <= 0 || !_advInsideRoom(a, room)) continue
           const dmg = Math.max(1, Math.floor((a.resources?.maxHp ?? 0) * (Balance.DEMON_PACT_BURN_PCT_PER_TICK ?? 0.02)))
           a.resources.hp = Math.max(this._shadowFloor(a), a.resources.hp - dmg)
           if (tier >= 3) a._noHealUntil = Math.max(a._noHealUntil ?? 0, now + (Balance.DEMON_PACT_HEALBLOCK_MS ?? 2000))
@@ -5341,9 +5331,7 @@ export class BossArchetypeSystem {
         }
       }
       // 100% — instant panic death. Drop gold like a normal kill, no XP.
-      // Sung Jinwoo is immune — fear (a boss ability) can't kill the Shadow
-      // Monarch; only the boss duel can.
-      if (fear >= pdThresh && !adv._fearPanicDeathTriggered && !adv._shadowMonarch && !adv._lightParty) {
+      if (fear >= pdThresh && !adv._fearPanicDeathTriggered) {
         adv._fearPanicDeathTriggered = true
         adv.resources.hp = 0
         this._gameState.player ??= {}
@@ -5414,7 +5402,7 @@ export class BossArchetypeSystem {
     if (tier >= 4) {
       const pd = Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD ?? 100
       for (const a of advsIn) {
-        if ((a._fear ?? 0) >= pd - 1 && !a._shadowMonarch && !a._lightParty && !a._fearPanicDeathTriggered) {
+        if ((a._fear ?? 0) >= pd - 1 && !a._fearPanicDeathTriggered) {
           this._addFear(a, pd)   // _tickWraith will resolve the heart-stop next frame
         }
       }
@@ -5457,7 +5445,7 @@ export class BossArchetypeSystem {
       const pd = Balance.WRAITH_FEAR_PANIC_DEATH_THRESHOLD ?? 100
       for (const a of fighters) {
         this._addFear(a, Balance.WRAITH_TERROR_FEAR ?? 35)
-        if ((a._fear ?? 0) >= pd - 1 && !a._shadowMonarch && !a._lightParty) {
+        if ((a._fear ?? 0) >= pd - 1) {
           if (this._scene && Number.isFinite(a.worldX)) AbilityVfx?.frightDeathFx?.(this._scene, a.worldX, (a.worldY ?? 0) - 16, {})
           dreadDmg(a, 9.99, 'fear')   // overkill → instant heart-stop for the truly terrified
         } else {

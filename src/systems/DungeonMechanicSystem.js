@@ -172,11 +172,11 @@ export class DungeonMechanicSystem {
       for (const adv of (this._gameState.adventurers?.active ?? [])) {
         if (adv.tileX === pit.tileX && adv.tileY === pit.tileY) {
           const dmg = Math.max(1, Math.floor((adv.resources.maxHp ?? 0) * dmgFrac))
-          // Light Party / Shadow Monarch can't die before the boss room: floor
-          // at 10% maxHp AND skip the _lastHitBy='boss' stamp — that stamp would
+          // The Nemesis (Aldric) can't die before the boss room: floor at 10%
+          // maxHp AND skip the _lastHitBy='boss' stamp — that stamp would
           // otherwise disarm the AISystem._kill duel-bound guard (which lets a
-          // 'boss' killer through), so a collapse could kill them pre-duel.
-          const _prot = !!(adv._lightParty || adv._shadowMonarch || adv._nemesis)
+          // 'boss' killer through), so a collapse could kill him pre-duel.
+          const _prot = !!adv._nemesis
           const _fl = _prot ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
           adv.resources.hp = Math.max(_fl, adv.resources.hp - dmg)
           if (!_prot) {
@@ -223,18 +223,11 @@ export class DungeonMechanicSystem {
     for (const adv of (this._gameState.adventurers?.active ?? [])) {
       if (adv.aiState === 'dead' || adv.aiState === 'leaving') continue
       if (!onEmptyFloor(adv.tileX, adv.tileY)) continue
-      // Light Party / Shadow Monarch: floor at 10% maxHp + skip the 'boss'
-      // stamp so corridor curse damage can't kill them (or disarm their _kill
-      // guard) before the boss room. (See Sundered Floor for the rationale.)
-      const _prot = !!(adv._lightParty || adv._shadowMonarch)
-      const _fl = _prot ? Math.max(1, Math.ceil((adv.resources.maxHp ?? 1) * 0.10)) : 0
-      adv.resources.hp = Math.max(_fl, adv.resources.hp - dmg)
-      if (!_prot) {
-        // Death attribution — credit a corridor-curse kill to the boss so it
-        // doesn't read as "Unknown" in the graveyard.
-        adv._lastHitBy   = 'boss'
-        adv._lastHitType = 'curse'
-      }
+      adv.resources.hp = Math.max(0, adv.resources.hp - dmg)
+      // Death attribution — credit a corridor-curse kill to the boss so it
+      // doesn't read as "Unknown" in the graveyard.
+      adv._lastHitBy   = 'boss'
+      adv._lastHitType = 'curse'
     }
     for (const m of (this._gameState.minions ?? [])) {
       if (m.aiState === 'dead') continue

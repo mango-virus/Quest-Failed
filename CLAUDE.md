@@ -190,8 +190,10 @@ abilities / companions / events / large mazes), so its survival numbers are a
 
 The numbered-phase plan (1–10b in `DESIGN_COVERAGE.md` §29) is **all shipped**. The game is
 mature: 12 bosses, 21 rooms, 64 minions, 8 traps, 96 pacts, 36 events, 25 classes, 9
-companions, 92 achievements, a full DOM HUD (`src/hud/`, default on), audio, VFX, leaderboard,
-and scripted set-piece events (Solo Leveling, Light Party). Current work is **bug-fixing,
+companions, a full DOM HUD (`src/hud/`, default on), audio, VFX, leaderboard, and scripted
+set-piece events. (Counts drift — see `STATUS.md` for live numbers.) Current work is **bug-fixing,
 balance, content additions, and polish** — plus the bigger open questions for a commercial
-release (a win condition / run structure, active day-phase boss agency, and filing off the
-Solo Leveling / FFXIV IP references). See `STATUS.md` for the live snapshot.
+release (a win condition / run structure, active day-phase boss agency). The Solo Leveling /
+FFXIV "Light Party" IP set-pieces were **removed entirely 2026-06-22** (the two FF-named member
+classes were kept but renamed: White Mage→Priest, Black Mage→Sorcerer). See `STATUS.md` for the
+live snapshot.

@@ -59,7 +59,7 @@ const RAW_VFX_GROUPS = [
   { label: 'Adv·Rogue',     fx: ['vanishSmokeFx'] },
   { label: 'Adv·Gladiator', fx: ['gladiatorBlockFx', 'crowdRoarFx'] },
   { label: 'Adv·Gambler',   fx: ['diceRoll', 'coinFlip'] },
-  { label: 'Champion/Event', fx: ['lastVowFx', 'holyAegisFx', 'shadowAriseFx', 'consecrateFx'] },
+  { label: 'Champion/Event', fx: ['lastVowFx', 'holyAegisFx'] },
   // ── Boss ability VFX (bespoke per archetype) ──
   { label: 'Boss·Orc (Trophy)', fx: ['trophyClaimFx', 'orcCleaveFx', 'shieldBashFx', 'hexboltFx', 'volleyFx', 'reaverSmiteFx', 'veteransArmoryFx', 'trophyThrowFx'] },
   { label: 'Boss·Lich (Withering)', fx: ['soulAuraFx', 'soulHarvestWispFx', 'soulChannelFx', 'deathCoilFx', 'soulSiphonFx', 'soulNovaFx', 'soulCageFx'] },

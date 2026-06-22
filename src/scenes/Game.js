@@ -85,8 +85,6 @@ import { kickOffDeferredAudioLoad } from './DeferredAudioLoader.js'
 import { PauseManager }       from '../systems/PauseManager.js'
 import { SfxSystem }          from '../systems/SfxSystem.js'
 import { EventSystem }        from '../systems/EventSystem.js'
-import { LightPartyAi }       from '../systems/LightPartyAi.js'
-import { LightPartyRenderer } from '../ui/LightPartyRenderer.js'
 import { PlayerProfile }      from '../systems/PlayerProfile.js'
 import { CombatFeedback }     from '../systems/CombatFeedback.js'
 import { CompanionWorldFx }   from '../systems/CompanionWorldFx.js'
@@ -138,7 +136,7 @@ export class Game extends Phaser.Scene {
     this._dragOrigin         = null
     this._keys               = null
     this._followId           = null
-    this._duelCamLock        = false   // Solo Leveling — lock camera during the duel
+    this._duelCamLock        = false   // lock camera during a boss duel (Aldric)
     this.bossRenderer        = null
   }
 
@@ -297,13 +295,6 @@ export class Game extends Phaser.Scene {
     this.bossSystem          = track(new BossSystem(this, this.gameState))
     this.sfxSystem           = track(new SfxSystem(this, this.gameState))
     this.eventSystem         = track(new EventSystem(this, this.gameState))
-    // Per-role driver for the Light Party event (FFXIV trinity). No-ops on
-    // any day where the event isn't active (cheap early-return).
-    this.lightPartyAi        = track(new LightPartyAi(this, this.gameState))
-    // World-space VFX for the Light Party event (job icons, heal beam,
-    // raise cast bar). Renderer side of the same feature. Cheap no-op when
-    // the event isn't live.
-    this.lightPartyRenderer  = track(new LightPartyRenderer(this, this.gameState))
     this.combatFeedback      = track(new CombatFeedback(this, this.gameState))
     // Per-companion world-space VFX layered onto combat/death — pink
     // hearts on adv death for Lilith, purple sparks on every hit for
@@ -492,9 +483,6 @@ export class Game extends Phaser.Scene {
     EventBus.on('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.on('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.on('ADVENTURER_FLED',      this._onAdvRemoved,   this)
-    // Solo Leveling — clicking Jinwoo's exploration HP bar re-locks the camera
-    // onto him (same follow used when he enters).
-    EventBus.on('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
     // The Nemesis (Aldric) — zoom in + follow him by default the moment he enters
     // the dungeon (released the instant the player scrolls; see WASD/drag handlers).
     EventBus.on('NEMESIS_ARRIVED',       this._onNemesisArrived,      this)
@@ -526,18 +514,11 @@ export class Game extends Phaser.Scene {
     // Boss-fight music — starts when adventurer enters boss room, fades out on resolve.
     EventBus.on('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
-    // Solo Leveling — cinematic camera push-in onto the throne for the Shadow
-    // Monarch duel ONLY (regular fights keep their normal framing). Reuses the
-    // midpoint-aware, follow-suspending fight-cam tween. Zoom-out on resolve is
-    // a no-op unless a duel push-in actually snapshotted the pre-fight view.
-    EventBus.on('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
+    // Cinematic camera push-in onto the throne for a boss duel (Aldric, below).
+    // Reuses the midpoint-aware, follow-suspending fight-cam tween. Zoom-out on
+    // resolve is a no-op unless a duel push-in actually snapshotted the pre-fight
+    // view.
     EventBus.on('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
-    // Light Party — same cinematic push-in + camera lock as the Shadow Monarch
-    // duel. Zoom-OUT is driven by LIGHT_PARTY_DUEL_END (the true end, after the
-    // win/loss outro) instead of BOSS_FIGHT_RESOLVED — the win path fires that
-    // the instant the boss falls, mid-outro (_onBossFightZoomOut guards it).
-    EventBus.on('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
-    EventBus.on('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
     // Aldric — the Act IV climax duel uses the same cinematic push-in + camera
     // lock as the other duels. Release is driven by BOSS_FIGHT_RESOLVED (above),
     // which the duel emits ~2.6s AFTER its finale card — so the finale plays
@@ -630,7 +611,6 @@ export class Game extends Phaser.Scene {
     EventBus.off('ADVENTURER_CLICKED',   this._onAdvClicked,   this)
     EventBus.off('ADVENTURER_DIED',      this._onAdvRemoved,   this)
     EventBus.off('ADVENTURER_FLED',      this._onAdvRemoved,   this)
-    EventBus.off('SHADOW_MONARCH_FOLLOW', this._onShadowMonarchFollow, this)
     EventBus.off('NEMESIS_ARRIVED',       this._onNemesisArrived,      this)
     EventBus.off('ADVENTURERS_SPAWNED',  this._onAdvsSpawned,  this)
     EventBus.off('LOOT_GOBLIN_ESCAPED',  this._onLootGoblinEscaped, this)
@@ -644,10 +624,7 @@ export class Game extends Phaser.Scene {
     EventBus.off('DAY_PHASE_ENDED',      this._onPhaseFadeOut, this)
     EventBus.off('BOSS_FIGHT_INCOMING',  this._onBossFightMusicStart, this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightMusicEnd,   this)
-    EventBus.off('SHADOW_MONARCH_DUEL',  this._onBossFightZoomIn,  this)
     EventBus.off('BOSS_FIGHT_RESOLVED',  this._onBossFightZoomOut, this)
-    EventBus.off('LIGHT_PARTY_DUEL_BEGAN', this._onBossFightZoomIn,  this)
-    EventBus.off('LIGHT_PARTY_DUEL_END',   this._onBossFightZoomOut, this)
     EventBus.off('ALDRIC_DUEL_BEGAN',      this._onBossFightZoomIn,  this)
     EventBus.off('INTRO_DISMISSED',      this._onIntroDismissed, this)
     GameplayMusic.bossFightEnd(true)   // immediate stop if scene tears down mid-fight
@@ -1133,12 +1110,6 @@ export class Game extends Phaser.Scene {
     this._setFollow(adventurer.instanceId)
   }
 
-  // Solo Leveling — clicking Jinwoo's exploration HP bar re-locks the camera
-  // onto him (same follow path as clicking his sprite / the auto-lock on entry).
-  _onShadowMonarchFollow({ id } = {}) {
-    if (id) this._setFollow(id)
-  }
-
   // The Nemesis (Aldric) enters — zoom in + follow him by default so the player
   // sees his arrival. The smooth follow lerp tracks him; WASD/drag releases the
   // follow (see the scroll handlers). Only acts during the day phase.
@@ -1464,9 +1435,9 @@ export class Game extends Phaser.Scene {
     if (!this._cam) return
     const boss = this.gameState?.dungeon?.rooms?.find(r => r.definitionId === 'boss_chamber')
     if (!boss) return
-    // Solo Leveling — lock the camera on the throne for the whole duel: the
-    // zoom-in plays, then the player can't pan/zoom until the fight resolves
-    // (released in _onBossFightZoomOut). Wired ONLY to SHADOW_MONARCH_DUEL.
+    // Lock the camera on the throne for the whole duel: the zoom-in plays, then
+    // the player can't pan/zoom until the fight resolves (released in
+    // _onBossFightZoomOut). Wired to the Aldric climax duel.
     this._duelCamLock = true
     this._dragOrigin = null
     const bx = (boss.gridX + boss.width  / 2) * TS
@@ -1490,11 +1461,6 @@ export class Game extends Phaser.Scene {
   }
 
   _onBossFightZoomOut() {
-    // The Light Party WIN emits BOSS_FIGHT_RESOLVED the instant the boss falls,
-    // but its outro (victory lines → Recall → teleport) keeps playing on the
-    // throne afterward. Hold the lock; the real release is driven by
-    // LIGHT_PARTY_DUEL_END once _finishLightPartyOutro runs (_lpOutro cleared).
-    if (this.bossSystem?._lpOutro) return
     // Release the duel camera lock the moment the fight resolves (before the
     // early-return, so it always clears even if the snapshot is missing).
     this._duelCamLock = false
@@ -1898,7 +1864,7 @@ export class Game extends Phaser.Scene {
   _setupInput() {
     // (Browser context menu suppressed game-wide in main.js.)
     this.input.on('pointerdown', (p) => {
-      if (this._duelCamLock) return   // Solo Leveling duel — world input frozen
+      if (this._duelCamLock) return   // boss duel — world input frozen
       if (p.middleButtonDown() || (p.rightButtonDown() && !this._isCorridorMode())) {
         this._dragOrigin = { x: p.x + this._cam.scrollX, y: p.y + this._cam.scrollY }
         if (this._followId) this._setFollow(null)
@@ -1931,7 +1897,7 @@ export class Game extends Phaser.Scene {
     this.input.on('pointerup', () => { this._dragOrigin = null })
 
     this.input.on('wheel', (pointer, _o, _dx, dy) => {
-      if (this._duelCamLock) return   // Solo Leveling duel — zoom locked
+      if (this._duelCamLock) return   // boss duel — zoom locked
       // Let HudScene's BuildMenu eat wheels that happen over the slot
       // grid — without this guard, the wheel both scrolls the menu AND
       // zooms the dungeon view at the same time. Bounds-check is
@@ -2194,7 +2160,6 @@ export class Game extends Phaser.Scene {
             tick('aiSystem',            () => this.aiSystem?.update(stepDt * 3))
             tick('nerveSystem',         () => this.nerveSystem?.update(stepDt * 3))
             tick('minionAiSystem',      () => this.minionAiSystem?.update(stepDt * 3))
-            tick('lightPartyAi',        () => this.lightPartyAi?.update(stepDt * 3))
             window.__perfCounts.aiTicks = (window.__perfCounts.aiTicks ?? 0) + 1
           }
           tick('trapSystem',            () => this.trapSystem?.update(stepDt))
@@ -2217,7 +2182,6 @@ export class Game extends Phaser.Scene {
       }
       rtick('adventurerRenderer',  () => this.adventurerRenderer?.update())
       rtick('statusVfxSystem',     () => this.statusVfxSystem?.update())
-      rtick('lightPartyRenderer',  () => this.lightPartyRenderer?.update())
       rtick('emoteSystem',         () => this.emoteSystem?.update())
       rtick('minionRenderer',      () => this.minionRenderer?.update())
       rtick('bossRenderer',        () => this.bossRenderer?.update())

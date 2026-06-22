@@ -67,24 +67,11 @@ export class ChatBubbles {
     EventBus.on('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.on('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.on('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
-    // Solo Leveling — Jinwoo barks a battle-cry on his duel power-surge beat.
-    EventBus.on('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
-    // Solo Leveling — speak a SPECIFIC scripted line (duel outro / "Arise.")
-    // in Jinwoo's shadow bubble, bypassing the random-line swap.
-    EventBus.on('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
-    // Generic scripted line for ANY adventurer (e.g. Light Party outro
-    // victory/death lines). Same path as the Monarch's scripted say, but with
-    // the normal chat-bubble styling — so cinematic dialogue reads exactly like
-    // ordinary adventurer chatter instead of floating combat text.
+    // Generic scripted line for ANY adventurer — exact text in a normal chat
+    // bubble (used by event cinematics / boss dialogue), so cinematic dialogue
+    // reads exactly like ordinary adventurer chatter instead of floating
+    // combat text.
     EventBus.on('ADVENTURER_SAY',           this._onAdventurerSay,     this)
-    // Solo Leveling — gate Jinwoo's generic exploring chatter OFF for the
-    // whole duel + win/loss outro window. Only the scripted SHADOW_MONARCH_SAY
-    // lines (battle cries, closing lines) speak once the duel begins; his
-    // wandering "exploring" pool would otherwise leak through contextual /
-    // ambient triggers during the fight and after it resolves.
-    this._duelActive = false
-    EventBus.on('SHADOW_MONARCH_DUEL',      this._onDuelBegan,         this)
-    EventBus.on('BOSS_FIGHT_RESOLVED',      this._onDuelEnded,         this)
     // Boss-ability sightings — wired as a single shared "felt that"
     // reaction across every signature ability. Lines live in the
     // bossAbilityFelt bucket. Each event throttled per-day so a
@@ -146,11 +133,7 @@ export class ChatBubbles {
     EventBus.off('STATUS_APPLIED',           this._onStatusApplied,     this)
     EventBus.off('NECROMANCY_RAISED',        this._onNecromancyRaised,  this)
     EventBus.off('DAY_PHASE_BEGAN',          this._onDayBeganLate,      this)
-    EventBus.off('SHADOW_MONARCH_DUEL_BEAT', this._onDuelBeat,          this)
-    EventBus.off('SHADOW_MONARCH_SAY',       this._onShadowMonarchSay,  this)
     EventBus.off('ADVENTURER_SAY',           this._onAdventurerSay,     this)
-    EventBus.off('SHADOW_MONARCH_DUEL',      this._onDuelBegan,         this)
-    EventBus.off('BOSS_FIGHT_RESOLVED',      this._onDuelEnded,         this)
     for (const [evt, handler] of Object.entries(this._bossAbilityHandlers ?? {})) {
       EventBus.off(evt, handler)
     }
@@ -592,51 +575,13 @@ export class ChatBubbles {
   }
 
   _showBubbleFor(adv) {
-    // Jinwoo goes silent (except scripted lines) once the duel begins.
-    if (this._monarchSuppressed(adv)) return
     const line = this._pickLine(adv)
     if (!line) return
     this._createBubble(adv, line, BUBBLE_LIFE_MS)
   }
 
-  // Solo Leveling — the duel just started (camera push-in). Gate Jinwoo's
-  // generic exploring chatter OFF until the fight + outro resolves.
-  _onDuelBegan() { this._duelActive = true }
-  // Boss fight resolved (covers the Monarch outro's _endFight). Re-open the
-  // gate — by now Jinwoo has either fled (win) or died (loss), so it's moot,
-  // but this keeps the flag honest for any future re-entry.
-  _onDuelEnded()  { this._duelActive = false }
-
-  // True while Jinwoo's generic exploring lines must stay suppressed — the
-  // whole duel + win/loss outro window. Only scripted SHADOW_MONARCH_SAY
-  // lines speak during this stretch.
-  _monarchSuppressed(adv) {
-    return this._duelActive && this._isShadowMonarch(adv)
-  }
-
-  // Shows a contextual bubble, bypassing the walking-only restriction.
-  // Per-adventurer cooldown prevents rapid stacking.
-  // Solo Leveling duel beat — only the Monarch's power-surge fires a line (the
-  // enrage beat belongs to the boss, which doesn't speak). Routed straight to
-  // _createBubble (a fight-flavoured line) so it bypasses the duel suppression
-  // gate that mutes his contextual/ambient chatter mid-fight.
-  _onDuelBeat({ kind, adventurer } = {}) {
-    if (kind !== 'surge' || !adventurer || adventurer.aiState === 'dead') return
-    this._destroyBubble(adventurer.instanceId)
-    this._createBubble(adventurer, this._shadowMonarchFightLine(), CONTEXTUAL_LIFE_MS, { scripted: true })
-  }
-
-  // Show a SPECIFIC scripted line (duel-outro closing lines, "Arise.") in
-  // Jinwoo's shadow bubble. Goes straight to _createBubble so the exact text
-  // is used (no random-line swap, no contextual cooldown).
-  _onShadowMonarchSay({ adventurer, text, lifeMs } = {}) {
-    if (!adventurer || !text) return
-    this._destroyBubble(adventurer.instanceId)
-    this._createBubble(adventurer, text, lifeMs ?? 2600, { scripted: true })
-  }
-
   // Generic scripted line — exact text, normal chat bubble, any adventurer.
-  // Used by the Light Party outro so victory/death dialogue uses the SAME
+  // Used by event cinematics / boss dialogue so scripted lines use the SAME
   // bubble format as ordinary adventurer chat (not floating combat text).
   // Skips the dead (their bubble would be culled the next frame), so callers
   // must speak BEFORE killing a member off.
@@ -647,13 +592,6 @@ export class ChatBubbles {
   }
 
   _showContextualBubble(adv, line) {
-    // During the duel + outro, Jinwoo's generic contextual reactions (combat
-    // start, low HP, boss room, …) stay muted — only scripted lines speak.
-    if (this._monarchSuppressed(adv)) return
-    // Jinwoo never uses the generic event lines — swap in one of his own for
-    // any contextual reaction (combat start, low HP, boss room, …). This is
-    // the single chokepoint every contextual bubble routes through.
-    if (this._isShadowMonarch(adv)) line = this._shadowMonarchLine()
     if (!adv || !line || adv.aiState === 'dead') return
     const now  = this._scene.time.now
     const last = this._lastContextualAt[adv.instanceId] ?? 0
@@ -671,8 +609,8 @@ export class ChatBubbles {
     // Only a single adventurer may be speaking at any moment — exploring,
     // fighting, or in a cinematic outro. This is the single chokepoint every
     // bubble path funnels through (ambient _showBubbleFor, contextual
-    // _showContextualBubble, scripted _onAdventurerSay/_onShadowMonarchSay).
-    //   • scripted lines (outro dialogue, Jinwoo) ALWAYS win — they clear any
+    // _showContextualBubble, scripted _onAdventurerSay).
+    //   • scripted lines (outro dialogue) ALWAYS win — they clear any
     //     other live bubble and show alone, so a sequenced cutscene advances.
     //   • ambient/contextual lines are pure flavour — if anyone ELSE is already
     //     speaking, drop this one (don't queue).
@@ -697,8 +635,7 @@ export class ChatBubbles {
       x:     adv.worldX,
       y:     adv.worldY - 30,
       text:  line,
-      // Jinwoo's bubbles use the white→blue gradient 'shadow' treatment.
-      kind:  this._isShadowMonarch(adv) ? 'shadow' : 'chat',
+      kind:  'chat',
       depth: 11,
       // No auto-lifeMs — this module manages its own expiry timer
       // via expiresAt + the per-frame update() sweep below.
@@ -732,37 +669,7 @@ export class ChatBubbles {
 
   // ── Line selection ────────────────────────────────────────────────────────
 
-  // Sung Jinwoo speaks ONLY in his own voice — never the generic class /
-  // personality / fourth-wall chatter. True for the Solo Leveling event's
-  // named adventurer (classId/spriteVariant `shadow_monarch`, flag set in
-  // DayPhase).
-  _isShadowMonarch(adv) {
-    return !!adv && (
-      adv._shadowMonarch ||
-      adv.classId === 'shadow_monarch' ||
-      (typeof adv.spriteVariant === 'string' && adv.spriteVariant.startsWith('shadow_monarch'))
-    )
-  }
-
-  _shadowMonarchLine() {
-    const pool = this._lines?.shadowMonarch ?? []
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null
-  }
-
-  // Combat-flavoured barks Jinwoo throws mid-duel (power-surge beat + the
-  // occasional BossSystem-driven line). Falls back to his exploring pool if
-  // the fight pool is somehow missing.
-  _shadowMonarchFightLine() {
-    const pool = this._lines?.shadowMonarchFight ?? []
-    return pool.length
-      ? pool[Math.floor(Math.random() * pool.length)]
-      : this._shadowMonarchLine()
-  }
-
   _pickLine(adv) {
-    // Jinwoo overrides everything with his own iconic lines.
-    if (this._isShadowMonarch(adv)) return this._shadowMonarchLine()
-
     const byClass       = this._lines.byClass       ?? {}
     const byPersonality = this._lines.byPersonality ?? {}
     const fourthWall    = this._lines.fourthWall    ?? []

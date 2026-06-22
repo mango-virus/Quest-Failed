@@ -82,14 +82,6 @@ export class BossFightOverlay {
 
   // ─── Bar build + intro banner ──────────────────────────────────
   _onIncoming(payload) {
-    // Cinematic-duel events run their OWN bespoke HUD and suppress the
-    // standard boss-fight chrome (vignette + bottom HP bar + "BOSS FIGHT"
-    // banner + result slate) so the two don't double up:
-    //   • Solo Leveling → SoloLevelingCinematic (_shadowMonarch)
-    //   • Light Party    → LightPartyCinematic   (_lightParty)
-    // `_isDuel` is honoured in _onResolved to skip the result slate too.
-    if (payload?.triggeringAdventurer?._shadowMonarch ||
-        payload?.triggeringAdventurer?._lightParty) { this._isDuel = true; return }
     this._isDuel = false
     this._buildVignette()
     // The intro "BOSS FIGHT" announcement now rides the shared
@@ -340,9 +332,8 @@ export class BossFightOverlay {
       this._vignette?.classList.remove('open', 'fading')
     }, 600)
     // Cinematic duels show their OWN win/loss finale card — skip the standard
-    // result slate so they don't double up. Solo Leveling / Light Party set
-    // `_isDuel` at incoming; the Aldric + Rival duels never emit BOSS_FIGHT_STARTED
-    // (so `_isDuel` is stale) and instead stamp `duel:true` on their RESOLVED event.
+    // result slate so they don't double up. The Aldric + Rival duels never emit
+    // BOSS_FIGHT_STARTED and instead stamp `duel:true` on their RESOLVED event.
     if (this._isDuel || duel) { this._isDuel = false; return }
     this._announceResult(winner, deathsRemaining, bossHpRemaining)
   }

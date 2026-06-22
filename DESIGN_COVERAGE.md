@@ -1135,6 +1135,9 @@ Locked specs: 1 Trap-Factory slot each; never in boss room / entry hall. Trap Fa
 
 ## Solo Leveling event — Shadow Monarch (back-documented 2026-05-28)
 
+> **⛔ REMOVED 2026-06-22 — IP.** The entire Solo Leveling event + `shadow_monarch` class were deleted
+> (all rows below are historical). Necroknight now unlocks by default. See DESIGN.md's removal note.
+
 The rare Shadow Monarch invader ("Sung Jinwoo") and his bespoke duel. The base feature shipped earlier without coverage rows; recorded here alongside the epic-duel cinematic overhaul.
 
 | id | item | phase | status | notes |
@@ -1165,6 +1168,10 @@ The rare Shadow Monarch invader ("Sung Jinwoo") and his bespoke duel. The base f
 ---
 
 ## Light Party event — FFXIV Trinity Raid (added 2026-05-29)
+
+> **⛔ REMOVED 2026-06-22 — IP.** The entire Light Party event was deleted (all rows below are
+> historical). The 4 member classes were kept but de-FF'd: White Mage→Priest, Black Mage→Sorcerer
+> (Paladin/Samurai unchanged). Luna now unlocks by default. See DESIGN.md's removal note.
 
 A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light party gameplay. Always exactly 4 members — stat scaling per boss level keeps the encounter threatening at any era without changing the count. **Held out of the random shuffle bag** until the user opts to enable it (`_eventPrecondMet` exclusion); dev TEST EVENT button still force-fires it for QA.
 

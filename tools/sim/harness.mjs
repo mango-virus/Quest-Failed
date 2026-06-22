@@ -229,7 +229,7 @@ export function spawnWave(scene, gs, systems) {
   const bossLv = gs.boss?.level ?? 1
   const day    = gs.meta?.dayNumber ?? 1
   const classes = all.filter(c =>
-    c.id !== 'shadow_monarch' && (c.unlockLevel ?? 1) <= bossLv && (c.unlockDay ?? 1) <= day)
+    (c.unlockLevel ?? 1) <= bossLv && (c.unlockDay ?? 1) <= day)
   if (!classes.length) return []
 
   let count = Balance.ADVENTURERS_PER_DAY_BASE + Math.floor((day - 1) / 2)

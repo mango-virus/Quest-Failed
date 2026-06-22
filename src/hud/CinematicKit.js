@@ -1,8 +1,8 @@
 // CinematicKit — shared base for the full-screen duel/event cinematics
-// (UI_POLISH_PLAN P2-6). The Solo Leveling / Aldric / Rival / Light Party
-// cinematics each reimplemented the same tracked-timer plumbing and the same
-// "punch in a centred beat label" lifecycle, with drift in the timings; the
-// finale cards used raw untracked setTimeout to outlive their own teardown.
+// (UI_POLISH_PLAN P2-6). The Aldric / Rival cinematics each reimplemented the
+// same tracked-timer plumbing and the same "punch in a centred beat label"
+// lifecycle, with drift in the timings; the finale cards used raw untracked
+// setTimeout to outlive their own teardown.
 //
 // CinematicBase consolidates that:
 //   * tracked timers (_after / _clearTimers) — cleared on phase-end / re-arm
@@ -12,7 +12,7 @@
 //   * _destroyTimers() — clears both lists (call from destroy()).
 //   * _beatLabel(host, text, className, holdMs) — build → reflow → show →
 //     auto-remove the centred beat flash. The caller supplies the per-cinematic
-//     CSS class (qf-sl-beatlabel / qf-ald-beat / …); only the lifecycle is shared.
+//     CSS class (qf-ald-beat / …); only the lifecycle is shared.
 //
 // CDUR centralises the previously-hardcoded beat/finale/card hold durations.
 

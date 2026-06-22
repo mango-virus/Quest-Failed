@@ -3,8 +3,8 @@
 
 // getEligibleClasses — the day-gated normal-wave class pool. Classes unlock in
 // 10-day TIERS via each class's `unlockDay` (1 / 11 / 21 / 31); a new cohort
-// joins the threat pool every 10 days. Event-only classes (Shadow Monarch, the
-// Light Party, Loot Goblin, the Rival pack, Aldric, etc.) carry the
+// joins the threat pool every 10 days. Event-only classes (Loot Goblin, the
+// Rival pack, Aldric, etc.) carry the
 // `unlockLevel: 99` sentinel and are NEVER part of the normal pool. In
 // Reckoning NG+ the full roster is unlocked from day 1 (`opts.ngPlus`).
 //
@@ -16,7 +16,6 @@ export function getEligibleClasses(allClasses, dayNum, opts = {}) {
   const day = Number.isFinite(dayNum) ? dayNum : 1
   return (Array.isArray(allClasses) ? allClasses : []).filter(c =>
     c &&
-    c.id !== 'shadow_monarch' &&        // never in the normal pool (also 99 below)
     (c.unlockLevel ?? 1) < 99 &&        // event-only sentinel → excluded
     (ngPlus || (c.unlockDay ?? 1) <= day)
   )

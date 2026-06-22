@@ -23,8 +23,8 @@ const EXPECT = {
   cleric: 'faith', necromancer: 'arcane', ranger: 'hunter', beast_master: 'hunter',
   barbarian: 'blade', monk: 'blade', bard: 'hunter', monster_invader: null,
   rival_boss_invader: null, cartographer_scholar: null, cosplay_adventurer: 'blade',
-  loot_goblin: null, cheater: null, shadow_monarch: null, paladin: 'heavy',
-  white_mage: 'faith', samurai: 'blade', black_mage: 'arcane', aldric: null,
+  loot_goblin: null, cheater: null, paladin: 'heavy',
+  priest: 'faith', samurai: 'blade', sorcerer: 'arcane', aldric: null,
   gladiator: 'heavy', peasant: 'blade', valkyrie: 'faith', gambler: 'blade', miner: 'blade',
 }
 

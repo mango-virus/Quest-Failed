@@ -492,30 +492,6 @@
     ]
   },
   {
-    "id": "shadow_monarch",
-    "name": "Sung Jinwoo",
-    "color": "0x6a3fb0",
-    "spriteSourceClassId": "rogue",
-    "baseStats": {
-      "hp": 90,
-      "attack": 16,
-      "defense": 9,
-      "speed": 1.4,
-      "attackRange": 1
-    },
-    "startingResources": {},
-    "tags": [
-      "melee",
-      "shadow_monarch",
-      "boss_slayer"
-    ],
-    "unlockLevel": 99,
-    "rarity": "legendary",
-    "description": "The Shadow Monarch. Enters alone, raises your fallen minions as his shadow army, and marches on the throne to duel the boss as an equal. Moves twice as fast, shrugs off your defenses, and grows stronger with every shadow he claims.",
-    "flavorText": "Arise.",
-    "revivable": false
-  },
-  {
     "id": "paladin",
     "name": "Paladin",
     "color": "0xd4b366",
@@ -530,18 +506,17 @@
     "tags": [
       "melee",
       "tank",
-      "light_party",
       "holy"
     ],
     "unlockLevel": 99,
     "rarity": "legendary",
-    "description": "Light Party tank. Soaks every hit aimed at the party — minions within his Provoke aura ignore his fragile teammates and swing at his shield instead. Hits like a wet noodle on his own, but his teammates do plenty for him.",
-    "flavorText": "Hallowed Ground. I yield to none.",
+    "description": "A holy defender who soaks punishment for those around him — minions near him swing at his shield instead of his fragile allies. Hits softly on his own, but endures almost anything.",
+    "flavorText": "I yield to none.",
     "revivable": false
   },
   {
-    "id": "white_mage",
-    "name": "White Mage",
+    "id": "priest",
+    "name": "Priest",
     "color": "0xfff3c2",
     "baseStats": {
       "hp": 60,
@@ -555,13 +530,12 @@
       "ranged",
       "healer",
       "support",
-      "light_party",
       "holy",
       "never_attacks"
     ],
     "unlockLevel": 99,
     "rarity": "legendary",
-    "description": "Light Party healer. Never attacks — only heals and revives the party. On any ally death, channels a 3-second Raise that brings them back at half HP. Interrupt her and the resurrection fizzles. Kill her and the party crumbles.",
+    "description": "A devout healer who never attacks — only mends and revives. On an ally's death she channels a slow revival that brings them back at half health; interrupt the channel and it fizzles. Cut her down and the group's staying power collapses.",
     "flavorText": "Stay alive, all of you. I've got you.",
     "revivable": false
   },
@@ -579,18 +553,17 @@
     "startingResources": {},
     "tags": [
       "melee",
-      "dps",
-      "light_party"
+      "dps"
     ],
     "unlockLevel": 99,
     "rarity": "legendary",
-    "description": "Light Party melee DPS. Wind-up iaijutsu strikes that hit twice as hard as a normal blade. Stays at the tank's shoulder, peels for the healer when she's threatened.",
+    "description": "A swift duelist whose wind-up strikes land twice as hard as a normal blade. Holds the front line and peels for fragile allies when they're threatened.",
     "flavorText": "One cut. One breath.",
     "revivable": false
   },
   {
-    "id": "black_mage",
-    "name": "Black Mage",
+    "id": "sorcerer",
+    "name": "Sorcerer",
     "color": "0x6240a8",
     "baseStats": {
       "hp": 28,
@@ -603,13 +576,12 @@
     "tags": [
       "ranged",
       "spellcaster",
-      "dps",
-      "light_party"
+      "dps"
     ],
     "unlockLevel": 99,
     "rarity": "legendary",
-    "description": "Light Party ranged DPS. Lobs spells over the tank's shoulder to hit your back-row minions. Glass cannon — squishy, but every cast lands like a comet. Cast bars are visible; interrupt windows exist.",
-    "flavorText": "Fire. Blizzard. Thunder. Repeat.",
+    "description": "A glass-cannon spellcaster who lobs destructive magic over the front line to strike your back-row minions. Squishy, but every cast lands like a comet — and its visible cast bar leaves an interrupt window.",
+    "flavorText": "Burn. Freeze. Strike. Repeat.",
     "revivable": false
   },
   {

@@ -408,12 +408,12 @@
     },
     "paladin": {
       "minion": [
-        "I... should have used Hallowed Ground.",
-        "The party... protect the party.",
+        "I... should have raised my shield sooner.",
+        "The others... protect the others.",
         "Shield held. Pity the rest of me didn't.",
         "Heal me — oh. Right.",
-        "Wipe! Wipe!",
-        "Tank busted. Reset and re-pull.",
+        "We're overrun!",
+        "Tank's down. Fall back.",
         "The healer... watch the healer..."
       ],
       "boss": [
@@ -421,11 +421,11 @@
         "The light shall return.",
         "Body block — break formation!",
         "Tell the healer I bought her... a few seconds.",
-        "A clean death. A clean wipe.",
-        "I had one stack of Divine Veil left."
+        "A clean death.",
+        "I had one guard left."
       ],
       "trap": [
-        "Provoke doesn't work on traps. Noted.",
+        "You can't taunt a trap. Noted.",
         "Even a paladin steps wrong.",
         "My boots... lit up.",
         "I am the tank. I am also the trap-tester."
@@ -433,46 +433,46 @@
       "default": [
         "For the light!",
         "Hold the line!",
-        "Take the white... mage...",
-        "Reset! Reset!",
-        "Aaagh — wipe!"
+        "Cover the healer...",
+        "Fall back! Fall back!",
+        "Aaagh — we're done!"
       ]
     },
-    "white_mage": {
+    "priest": {
       "minion": [
-        "I... I can still... raise...",
+        "I... I can still... mend...",
         "No more revives... I'm sorry...",
         "Tell the tank... it wasn't his fault...",
         "Run! All of you, run!",
-        "I should have used Benediction.",
-        "MP gone... Hands gone...",
-        "Cure cast... interrupted..."
+        "I should have saved my last blessing.",
+        "Strength gone... hands gone...",
+        "My heal... interrupted..."
       ],
       "boss": [
-        "The party fought well.",
+        "They fought well.",
         "I held them as long as I could.",
-        "Raise... the rest of them...",
-        "It was a wipe worth telling stories about.",
-        "Use my body as a checkpoint."
+        "Bring back... the rest of them...",
+        "It was a defeat worth telling stories about.",
+        "Use my body as a marker."
       ],
       "trap": [
-        "The fog of war... covered the floor too.",
-        "I was watching HP bars, not the ground.",
+        "I was watching their wounds, not the ground.",
         "A healer's blind spot.",
-        "I felt the tile click."
+        "I felt the tile click.",
+        "The floor took me before I saw it."
       ],
       "default": [
         "For the light!",
         "Stay alive!",
         "I have you!",
-        "Cure! Cur—!",
-        "Aaagh, Raise!"
+        "Heal— heal—!",
+        "Aaagh, hold on!"
       ]
     },
     "samurai": {
       "minion": [
         "A fine blade. A finer death.",
-        "Iaijutsu... incomplete.",
+        "My draw... incomplete.",
         "I draw — and I am drawn.",
         "The cut was true. So was theirs.",
         "Steel before honour. Honour before all.",
@@ -489,47 +489,47 @@
       "trap": [
         "The floor... cut faster.",
         "Dishonourable, this.",
-        "Even Mifune stepped on a board.",
+        "Even a master steps on a loose board.",
         "The dungeon strikes first.",
         "I had no draw for that."
       ],
       "default": [
-        "Iaijutsu!",
+        "One cut!",
         "Steel awakens!",
         "Cut clean!",
         "A fine death—",
         "Honour!"
       ]
     },
-    "black_mage": {
+    "sorcerer": {
       "minion": [
         "My cast... interrupted.",
-        "MP... was so close...",
-        "Foul. That was a foul.",
+        "So close to the spell...",
+        "A misfire. That was a misfire.",
         "Hands not done casting. Body very done.",
-        "Fire... Blizz... Thun— ugh.",
-        "I felt the cast bar fill. And then... nothing.",
-        "Sleep was on cooldown. Damn it."
+        "Flame... frost... spark— ugh.",
+        "I felt the spell build. And then... nothing.",
+        "My ward was spent. Damn it."
       ],
       "boss": [
-        "Meteor was almost done charging.",
+        "The big one was almost charged.",
         "A spell unfinished.",
         "The arcane will remember.",
-        "I... had Triplecast ready.",
+        "I... had a quick-cast ready.",
         "Tell the void I'll be along shortly."
       ],
       "trap": [
-        "No mana cost on traps?! Unfair.",
-        "Should've cast Levitate.",
+        "Traps cost no mana to dodge?! Unfair.",
+        "Should've warded my feet.",
         "I read the wrong scroll.",
         "The arcane could not save me from a hole."
       ],
       "default": [
-        "Fire!",
-        "Blizzard!",
-        "Thunder!",
+        "Burn!",
+        "Freeze!",
+        "Strike!",
         "Aaagh — gimme a sec to cast—",
-        "Meteo—"
+        "Almos—"
       ]
     },
     "default": {

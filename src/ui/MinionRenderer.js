@@ -22,16 +22,6 @@ import { Balance }          from '../config/balance.js'
 import { upgradeCost }      from '../util/minionRevive.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
 
-// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to
-// give the shadow minions the same RGB-style blue↔black flame cycle Jinwoo
-// wears (matched to his "previous" palette — his own flame is now bluer).
-function _lerpHex(a, b, k) {
-  const r  = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
-  const g  = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
-  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
-  return (r << 16) | (g << 8) | bl
-}
-
 const MINION_SCALE     = 1.0    // native — 64 → 64 px, 128 → 128 px (NEAREST keeps it crisp)
 // Lich-raised undead are re-skinned to LPC adventurer sheets (frameSize 64),
 // which AdventurerRenderer renders at 0.75. Match that here so a raised dead
@@ -551,21 +541,11 @@ export class MinionRenderer {
         // creation as `_raisedDeadTint`. Faction-flag green still wins for
         // anything aligned with the adventurers (shouldn't happen for raised
         // dead, but covers the edge case cleanly).
-        // Solo Leveling — Jinwoo's extracted shadows wear a blue→black vertical
-        // gradient (Shadow Monarch palette) via a 4-corner tint: blue top
-        // corners, near-black bottom corners.
-        if (m._shadowExtracted) {
-          if (s._lastTint !== 'shadowGrad') {
-            s.sprite.setTint(0x4a8bff, 0x4a8bff, 0x0a0a16, 0x0a0a16)
-            s._lastTint = 'shadowGrad'
-          }
-        } else {
-          const baseTint     = s._raisedDeadTint ?? 0xffffff
-          const expectedTint = factionFlagged ? 0x88ff99 : baseTint
-          if (s._lastTint !== expectedTint) {
-            s.sprite.setTint(expectedTint)
-            s._lastTint = expectedTint
-          }
+        const baseTint     = s._raisedDeadTint ?? 0xffffff
+        const expectedTint = factionFlagged ? 0x88ff99 : baseTint
+        if (s._lastTint !== expectedTint) {
+          s.sprite.setTint(expectedTint)
+          s._lastTint = expectedTint
         }
       }
 
@@ -1004,51 +984,6 @@ export class MinionRenderer {
       } else if (s._seetheRats && s._seetheRats.length) {
         for (const r of s._seetheRats) { try { r.img.destroy() } catch (e) {} }
         s._seetheRats = []
-      }
-
-      // Solo Leveling — the same looping black-flame aura Jinwoo wears, behind
-      // each shadow minion. Created once as a container child (inherits the
-      // minion's position / visibility / teardown). Scaled to the sprite's
-      // rendered height so it engulfs the minion like an aura regardless of
-      // minion size; sent to back so the minion always renders in front.
-      // A dead shadow minion loses its flame — the aura is extinguished the
-      // moment it falls, leaving just the corpse. Destroyed (not hidden) so it
-      // can't re-spawn while the corpse lingers; the creation guard below also
-      // skips dead minions.
-      if (isDead && s.shadowFlame) {
-        s.shadowFlame.destroy()
-        s.shadowFlame = null
-      }
-      if (m._shadowExtracted && !isDead && !s.shadowFlame && this._scene.textures.exists('vfx-shadow-flame')) {
-        if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
-          const tex = this._scene.textures.get('vfx-shadow-flame')
-          if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-          this._scene.anims.create({
-            key: 'vfx-shadow-flame-loop',
-            frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
-            frameRate: 10,
-            repeat: -1,
-          })
-        }
-        const dsz = s.sprite?.displayHeight || 48
-        const Sf  = dsz / 49   // ~1.3 for a 64px sprite — engulf + slight rise
-        const flame = this._scene.add.sprite(2 * Sf, -4 * Sf, 'vfx-shadow-flame', 0)
-          .setOrigin(0.5, 0.5)
-          .setScale(Sf)
-        flame.anims.play('vfx-shadow-flame-loop', true)
-        s.container.add(flame)
-        s.container.sendToBack(flame)
-        s.shadowFlame = flame
-      }
-
-      // Cycle the shadow minion's flame tint each frame — the same RGB-style
-      // blue↔black gradient sweep Jinwoo has (matched palette). Jinwoo's own
-      // flame runs a bluer variant so he reads as uniquely "more blue".
-      if (m._shadowExtracted && !isDead && s.shadowFlame) {
-        const k   = (Math.sin(now / 650) + 1) / 2   // 0..1 cycle
-        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)  // deep-blue → bright-blue
-        const bot = _lerpHex(0x02040a, 0x123a8c, k)  // near-black → deep-blue
-        s.shadowFlame.setTint(top, top, bot, bot)
       }
 
       // Status badge — bounty star (★) + evolution TIER (T2/T3…). Tier 1 (base)

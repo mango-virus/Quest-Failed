@@ -213,7 +213,6 @@ export class InspectPopup {
       return { text: `TIER ${tier}`, tier }
     }
     if (kind === 'adventurer') {
-      if (entity._shadowMonarch || entity.classId === 'shadow_monarch') return { text: 'LV ∞' }
       return { text: `LV ${this._int(entity.displayLevel ?? entity.level ?? 1)}` }
     }
     if (kind === 'boss') return { text: `LV ${this._int(entity.level ?? 1)}` }

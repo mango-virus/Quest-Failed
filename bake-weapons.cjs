@@ -97,16 +97,11 @@ const ATK_CLASSES = new Set([
   // gentleman's Cane is a contained thrust (jab composited into the atk thrust
   // row at native scale). Dagger is in NORMAL_ATTACK_WEAPONS → no atk sheet.
   'gambler',
-  // Sung Jinwoo (Solo Leveling event) — melee Saber whose only swing art is
-  // the 192×192 slash_oversize sheet. Without the atk sheet his blade is
-  // invisible mid-attack (the oversize slash can't fit the 64×64 main sheet).
-  'shadow_monarch',
-  // Light Party event classes — paladin (Longsword/Mace), samurai (Saber)
-  // both have slash_oversize art; white_mage (Diamond/Loop staff) +
-  // black_mage (Diamond/S/Gnarled/Loop staff) cast via thrust_oversize.
-  // All four need the 192×192 atk sheet so their weapons render at native
-  // scale during combat instead of being clipped into 64×64.
-  'paladin', 'white_mage', 'samurai', 'black_mage',
+  // paladin (Longsword/Mace), samurai (Saber) both have slash_oversize art;
+  // priest (Diamond/Loop staff) + sorcerer (Diamond/S/Gnarled/Loop staff) cast
+  // via thrust_oversize. All four need the 192×192 atk sheet so their weapons
+  // render at native scale during combat instead of being clipped into 64×64.
+  'paladin', 'priest', 'samurai', 'sorcerer',
   // KR Kingdom-Response champions — Garreth (Longsword) · Necrarch (Scythe) · Vane
   // (Scimitar) · Mordrake (Mace) · Halric (Longsword) swing slash_oversize;
   // Velloran (S staff) + Aurelia (Loop staff) cast thrust_oversize. All need atk.

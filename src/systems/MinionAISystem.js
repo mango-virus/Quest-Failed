@@ -355,7 +355,7 @@ export class MinionAISystem {
       radius: 11,
       eligible: (e) => {
         if ((e.resources?.hp ?? 0) <= 0 || e.aiState === 'dead') return false
-        if (e._vfxLabFrozen || e._nemDuel || e._nemesisDuel || e._lpDuel) return false
+        if (e._vfxLabFrozen || e._nemDuel || e._nemesisDuel) return false
         if (minionIds.has(e.instanceId)) {
           if (STATIONARY_DEF_IDS.has(e.definitionId)) return false
           const standingInCombat = (now - (e._combatStandAt ?? 0)) < 200
@@ -809,26 +809,19 @@ export class MinionAISystem {
         this._die(minion, idx)
         return
       }
-      // Necro raises / beast tames keep pace with their owner. Shadows keep
-      // their OWN 1.5×-base speed set at extraction (slower than the 2×-base
-      // Monarch) — don't override it back to his pace each tick.
-      if (owner.stats?.speed && !minion._shadowExtracted) minion.stats.speed = owner.stats.speed
-      // Necro raises / beast tames LEASH to their owner. Jinwoo's extracted
-      // shadows do NOT — they fan out and hunt the dungeon's own minions
-      // (target selection below is dungeon-wide for them). They still die with
-      // the Monarch via the owner-gone check above.
-      if (!minion._shadowExtracted) {
-        const FOLLOW_LEASH_TILES = 3
-        const distToOwner = Math.hypot(
-          owner.tileX - minion.tileX,
-          owner.tileY - minion.tileY,
-        )
-        if (distToOwner > FOLLOW_LEASH_TILES) {
-          minion.aiState = 'following'
-          minion.currentTargetId = null
-          this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
-          return
-        }
+      // Necro raises / beast tames keep pace with their owner.
+      if (owner.stats?.speed) minion.stats.speed = owner.stats.speed
+      // Necro raises / beast tames LEASH to their owner.
+      const FOLLOW_LEASH_TILES = 3
+      const distToOwner = Math.hypot(
+        owner.tileX - minion.tileX,
+        owner.tileY - minion.tileY,
+      )
+      if (distToOwner > FOLLOW_LEASH_TILES) {
+        minion.aiState = 'following'
+        minion.currentTargetId = null
+        this._walkAlongPath(minion, { x: owner.tileX, y: owner.tileY }, delta)
+        return
       }
     }
 
@@ -855,12 +848,6 @@ export class MinionAISystem {
     // gap or idle next to the owner. Other faction='dungeon' minions
     // return home / patrol.
     minion.currentTargetId = null
-    // Shadows with no hunt target (dungeon cleared) hold position — they never
-    // leash back to the Monarch.
-    if (minion._shadowExtracted) {
-      minion.aiState = 'idle'
-      return
-    }
     const closeOwnerId = minion.raisedByAdvId ?? minion.tamedByAdvId ?? null
     if (closeOwnerId) {
       const owner = this._gameState.adventurers.active.find(
@@ -1079,45 +1066,6 @@ export class MinionAISystem {
       const prey = MinionAbilities.nearestBleedingAdv(this._gameState, minion, this._scene?.time?.now ?? 0)
       if (prey) return prey
     }
-    // Solo Leveling — extracted shadows are dungeon-wide hunters. They have no
-    // home room and ignore the aggro-range gate: they relentlessly seek the
-    // nearest living dungeon-faction minion ANYWHERE on the map and march on it
-    // (cross-room A* via _engageTarget). This runs before the home-room gate
-    // below (which would otherwise return null for their assignedRoomId=null).
-    if (minion._shadowExtracted) {
-      // Sticky — keep hunting the current quarry until it's dead, so the army
-      // doesn't re-pick (and re-clump) every tick.
-      if (minion.currentTargetId) {
-        const cur = this._gameState.minions.find(m => m.instanceId === minion.currentTargetId)
-        if (cur && cur.faction === 'dungeon' && cur.aiState !== 'dead' && (cur.resources?.hp ?? 0) > 0) {
-          return cur
-        }
-      }
-      // Load-balance: tally how many OTHER shadows are already locked onto each
-      // dungeon minion, then pick the nearest one with the FEWEST claimants.
-      // This fans the army out across the dungeon instead of every shadow
-      // dogpiling the single nearest target (the "all run around together"
-      // clump). CLAIM_WEIGHT is large so a far UNclaimed minion always beats a
-      // near already-claimed one.
-      const claims = {}
-      for (const sh of this._gameState.minions) {
-        if (sh !== minion && sh._shadowExtracted && sh.aiState !== 'dead' && sh.currentTargetId) {
-          claims[sh.currentTargetId] = (claims[sh.currentTargetId] ?? 0) + 1
-        }
-      }
-      const CLAIM_WEIGHT = 1000
-      let best = null
-      let bestScore = Infinity
-      for (const m of this._gameState.minions) {
-        if (m === minion || m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
-        if (m.faction !== 'dungeon') continue
-        const d = Math.hypot(m.tileX - minion.tileX, m.tileY - minion.tileY)
-        const score = (claims[m.instanceId] ?? 0) * CLAIM_WEIGHT + d
-        if (score < bestScore) { bestScore = score; best = m }
-      }
-      return best
-    }
-
     const homeRoom = this._gameState.dungeon.rooms.find(r => r.instanceId === minion.assignedRoomId)
     if (!homeRoom) return null
 
@@ -1375,24 +1323,6 @@ export class MinionAISystem {
         bestDist = d
         bestPriority = priority
       }
-    }
-    // Light Party — tank Provoke aura. If the chosen target is a non-tank
-    // Light Party member AND a living tank is within PROVOKE range of THIS
-    // minion, swap to the tank. Reads as "the paladin steps in front" —
-    // minions can't pick off the squishies as long as the tank is nearby.
-    // PROVOKE_RANGE = 4 tiles. Range is measured FROM THE MINION because the
-    // tank's role is to draw aggro within his own threat radius, not to
-    // teleport-block from across the room.
-    if (best && best._lightParty && best._lightPartyRole !== 'tank') {
-      const PROVOKE_RANGE = 4
-      let tank = null, tankD = Infinity
-      for (const a of this._gameState.adventurers?.active ?? []) {
-        if (!a?._lightParty || a._lightPartyRole !== 'tank') continue
-        if (a.aiState === 'dead' || (a.resources?.hp ?? 0) <= 0) continue
-        const d = Math.hypot(a.tileX - minion.tileX, a.tileY - minion.tileY)
-        if (d <= PROVOKE_RANGE && d < tankD) { tank = a; tankD = d }
-      }
-      if (tank) best = tank
     }
     return best
   }
@@ -1711,33 +1641,32 @@ export class MinionAISystem {
       // Dungeon minions HOLD at the doorway until the 0.5 s open animation
       // finishes (so they don't visibly phase through a closed door while
       // patrolling). Owner-following allies — necromancer raises, beast-master
-      // tames, and Jinwoo's shadow army — instead walk through as it opens,
-      // exactly like the adventurer they follow (AISystem opens-on-step, never
-      // pauses). Without this the per-door 0.5 s pause compounds across every
-      // doorway and a fast owner (the 2x-speed Shadow Monarch) leaves his army
-      // stranded behind each door. They still trigger the open above.
+      // tames — instead walk through as it opens, exactly like the adventurer
+      // they follow (AISystem opens-on-step, never pauses). Without this the
+      // per-door 0.5 s pause compounds across every doorway and a fast owner
+      // leaves its followers stranded behind each door. They still trigger the
+      // open above.
       const isFollowingAlly = minion.raisedByAdvId || minion.tamedByAdvId
       if (!isFollowingAlly) return
     }
 
-    // Owner-following allies (necromancer raises, beast-master tames),
-    // extracted shadows, AND any minion currently crossing a doorway all skip
-    // the ½-tile doorway-lane shift + lane L-shape logic below. The diagnosis
-    // (shadows frozen at the first doorway, necromancer summons stuck in doors,
-    // and the Gnoll Hunters-Pack jamming at the boss-room entrance — only one
-    // gets out, the rest stand on the threshold): the lane-centre target lands
+    // Owner-following allies (necromancer raises, beast-master tames) AND any
+    // minion currently crossing a doorway all skip the ½-tile doorway-lane shift
+    // + lane L-shape logic below. The diagnosis (necromancer summons stuck in
+    // doors, and the Gnoll Hunters-Pack jamming at the boss-room entrance — only
+    // one gets out, the rest stand on the threshold): the lane-centre target lands
     // exactly on a doorway seam (world coord = N×TS) and the dist<0.5 snap parks
     // the unit ON that seam, with every subsequent approach/lane waypoint
-    // re-targeting the same seam — so it never moves off it. Hits faster at 2×
-    // speed (shadows) but surfaces on ANY minion whose step lands near the seam,
-    // which is why a whole pack funnelling through one door reliably jams.
+    // re-targeting the same seam — so it never moves off it. Surfaces on ANY
+    // minion whose step lands near the seam, which is why a whole pack funnelling
+    // through one door reliably jams.
     // Nobody needs the single-file lane prettiness badly enough to deadlock —
     // A* already routes everyone down the canonical (walkable) door column, so a
     // dead-simple centre-to-centre step through the doorway is both correct and
     // deadlock-proof. Off-doors, minions keep the lane motion below.
     const nearDoorway = !!(this._dungeonGrid?.isLaneOrApproach?.(minion.tileX, minion.tileY)
                         ||  this._dungeonGrid?.isLaneOrApproach?.(targetTile.x, targetTile.y))
-    if (minion._shadowExtracted || minion.raisedByAdvId || minion.tamedByAdvId || nearDoorway) {
+    if (minion.raisedByAdvId || minion.tamedByAdvId || nearDoorway) {
       const cx = targetTile.x * TS + TS / 2
       const cy = targetTile.y * TS + TS / 2
       const sdx = cx - minion.worldX
@@ -1843,13 +1772,12 @@ export class MinionAISystem {
     const ntx = Math.floor(minion.worldX / TS)
     const nty = Math.floor(minion.worldY / TS)
     // Never latch tileX/tileY onto a non-walkable cell. The ½-tile doorway-lane
-    // shift combined with a LARGE per-step move (fast followers — Jinwoo's
-    // 2×-speed shadow army) can overshoot the lane and floor() into the wall
-    // column beside the 2-wide opening, or onto the pathfinder-blocked
-    // secondary door tile. Latching there makes the next _walkAlongPath
-    // findPath START from a non-walkable tile and return null → the minion
-    // freezes at the doorway forever (reported: shadows stuck at the first
-    // door). Snap to the explicit target waypoint instead — it always comes
+    // shift combined with a LARGE per-step move (fast followers) can overshoot
+    // the lane and floor() into the wall column beside the 2-wide opening, or
+    // onto the pathfinder-blocked secondary door tile. Latching there makes the
+    // next _walkAlongPath findPath START from a non-walkable tile and return
+    // null → the minion freezes at the doorway forever. Snap to the explicit
+    // target waypoint instead — it always comes
     // from the pathfinder (the walkable canonical lane / next step), so the
     // following findPath always starts somewhere it can route out of.
     const gTiles = this._dungeonGrid?.getTiles?.()

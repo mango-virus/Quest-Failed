@@ -35,7 +35,7 @@ const BUILT_CHAMPION_RAIDS = new Set([
 const VANGUARD = {
   rival:        { classId: 'monster_invader', name: 'Rival Scout',          monster: true, flags: ['noFlee'] },
   inquisition:  { classId: 'cleric',          name: 'Inquisition Preacher', flags: ['noFlee', 'inquisitor'] },
-  pantheon:     { classId: 'white_mage',      name: 'Seraph Acolyte', flags: ['pantheonHero'] },
+  pantheon:     { classId: 'priest',          name: 'Seraph Acolyte', flags: ['pantheonHero'] },
   betrayer:     { classId: 'rogue',           name: 'Infiltrator' },
   forlorn_hope: { classId: 'barbarian',       name: 'Forerunner Martyr',    flags: ['noFlee', 'forlornMartyr'] },
   mage_tower:   { classId: 'mage',            name: 'Tower Apprentice' },
@@ -597,19 +597,6 @@ export class DayPhase extends Phaser.Scene {
     if ((this._gameState._eventFlags ?? {}).legendarySpeedrunnerActive) {
       return this._spawnLegendarySpeedrunner()
     }
-    // Dungeon event: Solo Leveling — replaces the normal wave with a lone
-    // named adventurer (Sung Jinwoo, the Shadow Monarch) who beelines the
-    // boss, raises fallen minions as shadows, and duels the boss.
-    if ((this._gameState._eventFlags ?? {}).soloLevelingActive) {
-      return this._spawnSoloLeveling()
-    }
-    // Dungeon event: Light Party — replaces the normal wave with a 4-role
-    // FFXIV raid party (Tank/Healer/DPS/DPS), or an 8-member Full Party at
-    // boss lv 8+. Moves as a single coordinated unit (see LightPartyAi),
-    // duels the boss in a FFXIV-style cinematic when they reach the throne.
-    if ((this._gameState._eventFlags ?? {}).lightPartyActive) {
-      return this._spawnLightParty()
-    }
     // Dungeon event: Cartographer's Convention — replaces the normal
     // wave with 3 scholars that tour every non-boss room then leave.
     if ((this._gameState._eventFlags ?? {}).cartographersConventionActive) {
@@ -650,7 +637,7 @@ export class DayPhase extends Phaser.Scene {
     // ADDITIVE (like the Saboteur) alongside the normal wave to test
     // you, then withdraws (plot-armored). On Act IV's final day (day 40) the
     // crowned Hero King instead arrives for a SOLO throne duel that REPLACES the
-    // normal wave (like the Light Party / Shadow Monarch set-pieces) — only he
+    // normal wave (a lone set-piece duel) — only he
     // can win or fall, so there's no stray adventurer to game-over you the
     // instant you've won. Putting him down wins the run. Once per act.
     if (isActsEnabled(this._gameState)) {
@@ -730,7 +717,7 @@ export class DayPhase extends Phaser.Scene {
     const dayNum     = this._gameState.meta?.dayNumber ?? 1
     // Class spawn gate: DAY-tiered (every 10 days a new cohort joins the pool
     // via each class's `unlockDay`). Single source of truth — getEligibleClasses
-    // also excludes event-only classes (Shadow Monarch + the unlockLevel:99 set)
+    // also excludes event-only classes (the unlockLevel:99 set)
     // and unlocks the full roster in Reckoning NG+. The wave preview, intel
     // panels, and Library forecast all route through the same helper so they
     // never disagree with what actually spawns.
@@ -1544,55 +1531,6 @@ export class DayPhase extends Phaser.Scene {
     return [adv]
   }
 
-  // Dungeon event: Solo Leveling — one named adventurer enters: Sung
-  // Jinwoo, the Shadow Monarch (shadow_monarch class). He beelines the
-  // boss (AISystem _shadowMonarch branch), moves at 2× speed, takes 50%
-  // less from minions/traps and deals 50% more to minions (CombatSystem /
-  // TrapSystem), raises fallen minions as shadows (EventSystem, Phase 1b),
-  // and duels the boss stat-matched (BossSystem, Phase 1c). Replaces the
-  // whole wave — he comes alone.
-  _spawnSoloLeveling() {
-    const game = this.scene.get('Game')
-    const aiSystem = game.aiSystem
-    if (!aiSystem) return []
-
-    const def = (this.cache.json.get('adventurerClasses') ?? [])
-      .find(c => c.id === 'shadow_monarch')
-    if (!def) return []
-
-    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
-    if (!spawn) return []
-
-    const adv = createAdventurer(def, { x: spawn.x, y: spawn.y })
-    adv._shadowMonarch = true   // AISystem beeline + CombatSystem/TrapSystem passives
-    adv.isLegendary    = true   // legendary chrome + entrance pulse
-    adv.name           = 'Sung Jinwoo'
-    adv.partyId        = null
-    // Pin the bespoke Jinwoo sprite: shadow_monarch/v01 — black spiky hair,
-    // black trench coat, black pants/shoes, a steel scimitar — baked from
-    // the LPC pack via tools/bake-lpc-variants.mjs (POOLS.shadow_monarch).
-    // AdventurerRenderer renders adv-shadow_monarch-v01 directly.
-    adv.spriteVariant  = 'shadow_monarch/v01'
-    // He commits — never flees.
-    adv.flags = { ...(adv.flags ?? {}), noFlee: true }
-
-    // Scale on the boss-level + day curve so he stays a credible threat
-    // late game, THEN double his speed (the Monarch is preternaturally
-    // fast). His hall HP/ATK are just to survive the trip + shred minions;
-    // the throne duel re-derives his stats from the boss (Phase 1c).
-    this._scaleAdventurerByBossLevel(adv, this._gameState.boss?.level ?? 1)
-    adv.stats.speed = (adv.stats.speed ?? 1.4) * 2
-
-    this._gameState.adventurers.active.push(adv)
-    aiSystem.pickInitialGoal(adv)
-    EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
-    EventBus.emit('LEGENDARY_HERO_ARRIVED',     { adventurer: adv })
-    // Kick the cinematic layer (entrance title card + shadow vignette).
-    EventBus.emit('SOLO_LEVELING_BEGAN', { adventurer: adv })
-    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: [adv] })
-    return [adv]
-  }
-
   // The Nemesis (Aldric, KR P2) — a recurring named mini-boss who invades in
   // Acts I–III to test you. Plot-armored (CombatSystem/TrapSystem 10% floor on
   // _nemesis), loot-disdaining + scout-and-withdraw (AISystem _nemesis branch).
@@ -2093,91 +2031,6 @@ export class DayPhase extends Phaser.Scene {
     return adv
   }
 
-  // Dungeon event: Light Party — a coordinated 4-role FFXIV raid party
-  // replaces the normal wave. Becomes an 8-member Full Party at boss lv 8+
-  // (2 tanks / 2 healers / 4 DPS). All members share a partyId and per-role
-  // flags so LightPartyAi can drive formation movement, Provoke aura,
-  // never-attack healer, 3s Raise cast, ranged DPS positioning, and the
-  // tactical Limit Breaks. When they reach the throne, BossSystem branches
-  // into the FFXIV-style cinematic boss fight via LIGHT_PARTY_DUEL_BEGAN.
-  _spawnLightParty() {
-    const game = this.scene.get('Game')
-    const aiSystem = game.aiSystem
-    if (!aiSystem) return []
-
-    const allClasses = this.cache.json.get('adventurerClasses') ?? []
-    const defs = {
-      paladin:    allClasses.find(c => c.id === 'paladin'),
-      white_mage: allClasses.find(c => c.id === 'white_mage'),
-      samurai:    allClasses.find(c => c.id === 'samurai'),
-      black_mage: allClasses.find(c => c.id === 'black_mage'),
-    }
-    if (!defs.paladin || !defs.white_mage || !defs.samurai || !defs.black_mage) return []
-
-    // Light Party = 1T / 1H / 2D — always exactly 4. Stat scaling per
-    // boss level keeps them threatening at any era without changing the count.
-    const roster = [
-      { role: 'tank',      def: defs.paladin    },
-      { role: 'healer',    def: defs.white_mage },
-      { role: 'meleeDps',  def: defs.samurai    },
-      { role: 'rangedDps', def: defs.black_mage },
-    ]
-
-    const spawn = aiSystem.pickSpawnTile() ?? this._fallbackEntrySpawn()
-    if (!spawn) return []
-
-    const partyId = `light_party_${Date.now()}`
-    const spawned = []
-    const bossLv  = this._gameState.boss?.level ?? 1
-    roster.forEach((slot, i) => {
-      // Tight diamond spawn offset — formation reshape kicks in on tick 1
-      // via LightPartyAi. The initial overlap is fine for ~30ms.
-      const offset = [
-        { x: 0,  y: 0  }, { x: 1,  y: 0  }, { x: -1, y: 0  }, { x: 0,  y: 1  },
-      ][i] || { x: 0, y: 0 }
-      const tile = { x: spawn.x + offset.x, y: spawn.y + offset.y }
-      const adv  = createAdventurer(slot.def, tile)
-      adv._lightParty      = true
-      adv._lightPartyRole  = slot.role
-      adv._lightPartyIndex = i
-      // Healer-only flag — CombatSystem reads this to skip every attack
-      // attempt (no melee swing, no ranged cast — heals/revives only).
-      if (slot.role === 'healer') adv._neverAttacks = true
-      // Per-role stat bonus on top of boss-level scaling. The trinity feel
-      // comes from the per-class baseStats (paladin = 3× HP, samurai = 2×
-      // ATK, etc.) but small role-specific knobs let us tune the party
-      // shape without touching the JSON.
-      this._scaleAdventurerByBossLevel(adv, bossLv)
-      // Light Party fights to the death — they wipe or they win the duel.
-      // Per-class noFlee tag would do the same job; this is cheaper.
-      adv.flags    = { ...(adv.flags ?? {}), noFlee: true }
-      adv.partyId  = partyId
-      adv.isLegendary = true   // chrome / cinematic / first-sighting beats
-      this._gameState.adventurers.active.push(adv)
-      aiSystem.pickInitialGoal(adv)
-      EventBus.emit('ADVENTURER_ENTERED_DUNGEON', { adventurer: adv })
-      spawned.push(adv)
-    })
-
-    // Stamp the party's ORIGINAL combined max HP (sum across the full roster
-    // as spawned). The throne-duel outcome is decided by the party's combined
-    // HP fraction vs this total — so a member who dies en route contributes 0
-    // to the numerator while their max still counts in this denominator,
-    // genuinely dragging the group's odds down. (BossSystem._runLightPartyDuel
-    // reads gameState._eventFlags.lightPartyTotalMaxHp.)
-    const flags = this._gameState._eventFlags ?? (this._gameState._eventFlags = {})
-    flags.lightPartyTotalMaxHp = spawned.reduce(
-      (sum, a) => sum + (a.resources?.maxHp ?? 0), 0)
-
-    // Cinematic entrance card + persistent vignette + corner party panel.
-    // LightPartyCinematic listens for this and walks the slate sequence.
-    EventBus.emit('LIGHT_PARTY_BEGAN', {
-      partyId, members: spawned,
-    })
-    EventBus.emit('ADVENTURERS_SPAWNED', { adventurers: spawned })
-    return spawned
-  }
-
   // Dungeon event: Cartographer's Convention. 3 scholars enter via the
   // normal entry, tagged `_cartographer = true` so AISystem skips
   // engagement and routes them through every non-boss room. When they
@@ -2428,9 +2281,7 @@ export class DayPhase extends Phaser.Scene {
     if (ef.rivalDungeonActive)    return { total: n,    label: 'INVADERS',       mode: 'bar' }
     if (ef.zombieHordeActive)     return { total: n,    label: 'HORDE',          mode: 'bar' }
     if (ef.bountyHuntersActive)   return { total: n,    label: 'HUNTERS',        mode: 'bar' }
-    if (ef.soloLevelingActive)    return { total: n,    label: 'SHADOW MONARCH', mode: 'bar' }
     if (ef.lootGoblinHeistActive) return { total: n,    label: 'RAIDERS',        mode: 'bar' }
-    if (ef.lightPartyActive)      return { total: n,    label: 'LIGHT PARTY',    mode: 'bar' }
     return { total: n, label: 'ADVENTURERS', mode: 'bar' }
   }
 
@@ -2546,26 +2397,15 @@ export class DayPhase extends Phaser.Scene {
       `Gold: ${s.player.gold}  ·  XP: ${s.meta?.xp ?? 0}/${s.meta?.xpToNext ?? 100}  ·  Kills: ${s.player.totalKills}`
     )
     const n = s.adventurers.active.length
-    // Light Party — its win/loss OUTRO cutscene (duty banner → dialogue →
-    // recall/death beats) plays AFTER the duel resolves, while members may
-    // already be spliced from `active`. Hold the day-end timer until the
-    // outro finishes (BossSystem clears `_lightPartyDuel` at the very end),
-    // exactly like Solo Leveling keeps Jinwoo in active during his outro.
-    const lpDuelRunning = !!this.scene.get('Game')?.bossSystem?._lightPartyDuel
-    // Same hold for the Aldric climax duel — its finale + the killing-blow
-    // setTimeout play out after Aldric leaves `active`; don't let the day end
-    // (and tear down the scene) mid-finale.
+    // Hold the day-end timer for the Aldric climax duel — its finale + the
+    // killing-blow setTimeout play out after Aldric leaves `active`; don't let
+    // the day end (and tear down the scene) mid-finale.
     const nemDuelRunning = !!this.scene.get('Game')?.bossSystem?._nemDuelActive
     // Dev QUIET DAY — keep the stage OPEN with zero adventurers so it's a
     // persistent VFX sandbox (a wave-less day would otherwise end instantly).
-    if (n === 0 && this._allOutTimer == null && !lpDuelRunning && !nemDuelRunning && !globalThis.__qfDevQuietDay) {
+    if (n === 0 && this._allOutTimer == null && !nemDuelRunning && !globalThis.__qfDevQuietDay) {
       this._statsTexts?.activeCount?.setText('All adventurers out — day ends shortly')
-      // Solo Leveling — hold an extra beat so Jinwoo's death animation (loss)
-      // or portal fade-out (win) fully reads before the post-wave summary
-      // covers the dungeon. Normal waves end after the usual 1.5s.
-      const soloLeveling = !!(s._eventFlags ?? {}).soloLevelingActive
-      const endDelay = soloLeveling ? 3000 : 1500
-      this._allOutTimer = this.time.delayedCall(endDelay, () => this._endDay(), [], this)
+      this._allOutTimer = this.time.delayedCall(1500, () => this._endDay(), [], this)
     } else if (n > 0) {
       this._statsTexts?.activeCount?.setText(`Adventurers in dungeon: ${n}`)
     }
@@ -2604,13 +2444,6 @@ export class DayPhase extends Phaser.Scene {
       if (!this._followText) return
       this._followText.setText(id && name ? `▶ ${name}` : '')
     }
-
-    // Light Party duel fully ended — re-arm the day-end timer. Deferred one beat
-    // so BossSystem._endLightPartyDuel (synchronous, right after the DUEL_END
-    // emit) has cleared _lightPartyDuel before _refreshStats re-checks the gate.
-    // Without this, a flawless win (all survivors Recall out, no adventurer event
-    // firing AFTER the flag clears) leaves the all-out timer un-armed → day hangs.
-    const onLpDuelEnd = () => this.time.delayedCall(100, () => this._refreshStats())
 
     // Mango dev — force the Act IV climax duel right now so it can be watched
     // without grinding to day 40 (fired from the TEST EVENT dev modal). Stamps
@@ -2731,7 +2564,6 @@ export class DayPhase extends Phaser.Scene {
     EventBus.on('ADVENTURER_ENTERED_DUNGEON',   onChange)
     EventBus.on('CAMERA_FOLLOW_CHANGED',        onFollow)
     EventBus.on('PERSONALITY_COMBO_ACTIVATED',  onCombo)
-    EventBus.on('LIGHT_PARTY_DUEL_END',         onLpDuelEnd)
     EventBus.on('DEV_FORCE_ALDRIC_DUEL',        onDevDuel)
     EventBus.on('DEV_FORCE_ALDRIC_SCOUT',       onDevScout)
     EventBus.on('DEV_FORCE_CHAMPION_RAID',      onDevChampion)
@@ -2743,7 +2575,6 @@ export class DayPhase extends Phaser.Scene {
       ['ADVENTURER_ENTERED_DUNGEON',  onChange],
       ['PERSONALITY_COMBO_ACTIVATED', onCombo],
       ['CAMERA_FOLLOW_CHANGED',       onFollow],
-      ['LIGHT_PARTY_DUEL_END',        onLpDuelEnd],
       ['DEV_FORCE_ALDRIC_DUEL',       onDevDuel],
       ['DEV_FORCE_ALDRIC_SCOUT',      onDevScout],
       ['DEV_FORCE_CHAMPION_RAID',     onDevChampion],

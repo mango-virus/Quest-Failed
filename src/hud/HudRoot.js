@@ -54,8 +54,6 @@ import { KingdomResponseIntro } from './KingdomResponseIntro.js'
 import { AscensionCinematic }   from './AscensionCinematic.js'
 import { isActsEnabled }        from '../config/acts.js'
 import { CoinFlipCinematic }    from './CoinFlipCinematic.js'
-import { SoloLevelingCinematic } from './SoloLevelingCinematic.js'
-import { LightPartyCinematic }   from './LightPartyCinematic.js'
 import { AldricCinematic }       from './AldricCinematic.js'
 import { RivalShowdownCinematic } from './RivalShowdownCinematic.js'
 import { ChampionBar }           from './ChampionBar.js'
@@ -227,14 +225,6 @@ export class HudRoot {
     this._devMenu = new DevMenu()
     // Full-screen coin-flip sequence for The Gambler's Coin event.
     this._coinFlip         = new CoinFlipCinematic()
-    // Solo Leveling — Shadow Monarch entrance title card + shadow vignette.
-    // Same post-mount() construction rule as the others (appends to
-    // #hud-stage immediately).
-    this._soloLeveling     = new SoloLevelingCinematic()
-    // Light Party — FFXIV-flavored entrance card + persistent party panel
-    // + LB gauge + boss-fight cinematic. Same self-mounting pattern as the
-    // Solo Leveling cinematic; cheap no-op on every other day.
-    this._lightParty       = new LightPartyCinematic()
     // Aldric — the Act IV climax duel (boss vs the crowned Hero King). Form-
     // themed presentation; the kinetic choreography + HP feed live in
     // BossSystem._tickNemesisDuel. Same self-mounting pattern; idle otherwise.
@@ -457,8 +447,6 @@ export class HudRoot {
     this._ascensionCinematic?.destroy(); this._ascensionCinematic = null
     this._championBar?.destroy();    this._championBar = null
     this._coinFlip?.destroy();       this._coinFlip = null
-    this._soloLeveling?.destroy();   this._soloLeveling = null
-    this._lightParty?.destroy();     this._lightParty = null
     this._aldric?.destroy();         this._aldric = null
     this._rivalShowdown?.destroy();  this._rivalShowdown = null
     this._archetypeStrip?.destroy();  this._archetypeStrip  = null

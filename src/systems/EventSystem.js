@@ -124,35 +124,6 @@ export class EventSystem {
     // this when its reveal animation finishes (or the player dismisses
     // early). Applies the pending reward effect at that point.
     on('SACRIFICIAL_ALTAR_SPIN_DONE', () => this._onAltarSpinDone())
-    // Solo Leveling — Shadow Extraction. Every dungeon minion that dies
-    // while Jinwoo is in the dungeon (and he's under the 10-shadow cap)
-    // is raised as a shadow on his side. When Jinwoo himself leaves or
-    // dies, his shadows vanish with him.
-    on('MINION_DIED',     (p) => this._onMinionDiedShadowExtraction(p ?? {}))
-    on('ADVENTURER_DIED', (p) => this._onShadowMonarchGone(p ?? {}))
-    on('ADVENTURER_FLED', (p) => this._onShadowMonarchGone(p ?? {}))
-    // Solo Leveling — the instant Jinwoo steps into the boss room, every
-    // dungeon minion already standing in there is annihilated by his presence
-    // so the throne becomes a strict 1:1 duel. They die outright (NOT raised
-    // as shadows — guarded via the _soloDuelBanished flag below).
-    on('BOSS_FIGHT_INCOMING', (p) => this._onShadowMonarchEnterBossRoom(p ?? {}))
-    // ── Light Party (FFXIV trinity) ────────────────────────────────────
-    // Shared LB gauge fills passively from damage taken / minion kills /
-    // successful Raises. LightPartyAi reads gameState._eventFlags.lightPartyGauge
-    // to decide when an LB fires; we only book-keep here so a save/load
-    // restores the gauge cleanly.
-    //
-    // Why COMBAT_KILL (not MINION_DIED): MinionAISystem._die emits MINION_DIED
-    // with `killerId: null` — by the time the minion dies, the killer info
-    // is gone. COMBAT_KILL fires from CombatSystem with sourceId=attacker at
-    // the killing blow, so we always know who landed it.
-    on('COMBAT_HIT',         (p) => this._onLightPartyHit(p ?? {}))
-    on('COMBAT_KILL',        (p) => this._onLightPartyKill(p ?? {}))
-    on('LIGHT_PARTY_RAISED', (p) => this._onLightPartyRaise(p ?? {}))
-    // Hard-wipe rule: if EVERY party member is dead/fled, the event ends
-    // (the party never reaches the boss). Same shape as the
-    // BOSS_FIGHT_INCOMING wipe trigger used for solo_leveling — fires from
-    // ADVENTURER_DIED / ADVENTURER_FLED already above.
   }
 
   // Dev-only force-fire path used by the mango TEST EVENT picker. Tears
@@ -218,245 +189,6 @@ export class EventSystem {
     EventBus.emit('GAMBLER_DOUBLE_RESULT', { won, goldBefore, goldAfter })
   }
 
-  // ── Solo Leveling — Shadow Extraction ──────────────────────────────────
-  // Max simultaneous shadows Jinwoo can field. (His army cap.)
-  static SHADOW_CAP = 4
-
-  // The live Shadow Monarch (Sung Jinwoo) instance, or null if he's not in
-  // the dungeon / already dead.
-  _liveShadowMonarch() {
-    return (this._gameState.adventurers?.active ?? [])
-      .find(a => a?._shadowMonarch && a.aiState !== 'dead') ?? null
-  }
-
-  _countShadows() {
-    let n = 0
-    for (const m of this._gameState.minions ?? []) {
-      if (m?._shadowExtracted && m.aiState !== 'dead' && (m.resources?.hp ?? 0) > 0) n++
-    }
-    return n
-  }
-
-  // A dungeon minion fell while Jinwoo is present → raise its shadow on his
-  // side (faction-flip, full HP, follows + fights the dungeon like a
-  // necromancer summon). Capped at SHADOW_CAP. No-op unless solo_leveling
-  // is live, Jinwoo is alive, and the fallen unit was a dungeon minion
-  // (never re-raise a shadow, a tamed beast, or a necro summon).
-  _onMinionDiedShadowExtraction({ minion } = {}) {
-    if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
-    if (!minion || minion.faction !== 'dungeon') return
-    // Boss-room minions annihilated by Jinwoo's entry die for good — they are
-    // NOT raised as shadows (keeps the throne-room duel a clean 1:1).
-    if (minion._soloDuelBanished) return
-    if (minion._shadowExtracted) return
-    // Hard cap — never more than SHADOW_CAP (10) shadows alive at once.
-    if (this._countShadows() >= EventSystem.SHADOW_CAP) return
-    const jinwoo = this._liveShadowMonarch()
-    if (!jinwoo) return
-    // Shadows can't raise more shadows — only JINWOO raises. If the fallen
-    // minion's last hit came from one of his shadows (or any adventurer-side
-    // minion), skip. This stops the army chain-multiplying as it clears rooms.
-    const killer = (this._gameState.minions ?? []).find(m => m.instanceId === minion._lastHitBy)
-    if (killer && killer.faction !== 'dungeon') return
-    // Only raise minions that fell in the SAME ROOM Jinwoo is standing in
-    // (his shadows hunting elsewhere don't create new shadows across the map).
-    const grid = this._scene?.dungeonGrid
-    if (grid?.getRoomAtTile) {
-      const minRoom = grid.getRoomAtTile(minion.tileX, minion.tileY)?.instanceId ?? null
-      const jinRoom = grid.getRoomAtTile(jinwoo.tileX, jinwoo.tileY)?.instanceId ?? null
-      if (!minRoom || minRoom !== jinRoom) return
-    }
-    this._extractShadow(minion, jinwoo)
-  }
-
-  // Solo Leveling — Jinwoo just reached the boss chamber (BOSS_FIGHT_INCOMING).
-  // Annihilate every dungeon minion already in that room so the throne is a
-  // clean 1:1 duel. No-op for any other adventurer / when the event isn't live.
-  _onShadowMonarchEnterBossRoom({ adventurer } = {}) {
-    if (!adventurer?._shadowMonarch) return
-    if (!(this._gameState._eventFlags ?? {}).soloLevelingActive) return
-    this._banishBossRoomMinions(adventurer)
-  }
-
-  // Kill every live dungeon minion sharing Jinwoo's boss room outright. They
-  // die for good (the _soloDuelBanished flag makes the shadow-extraction
-  // listener skip them — no army-raising in the throne), using the standard
-  // death state (hp=0 + aiState='dead' + MINION_DIED) so renderers/respawn
-  // behave normally. The per-minion on-death ability hooks are intentionally
-  // skipped so nothing splits / spawns / spores in the duel chamber.
-  _banishBossRoomMinions(jinwoo) {
-    const grid = this._scene?.dungeonGrid
-    if (!grid?.getRoomAtTile || !jinwoo) return
-    const jinRoom = grid.getRoomAtTile(jinwoo.tileX, jinwoo.tileY)
-    if (!jinRoom || jinRoom.definitionId !== 'boss_chamber') return
-    const scene = this._scene
-    const day   = this._gameState.meta?.dayNumber ?? null
-    for (const m of this._gameState.minions ?? []) {
-      if (!m || m.faction !== 'dungeon') continue
-      if (m.aiState === 'dead' || (m.resources?.hp ?? 0) <= 0) continue
-      const mRoom = grid.getRoomAtTile(m.tileX, m.tileY)
-      if (!mRoom || mRoom.instanceId !== jinRoom.instanceId) continue
-      m._soloDuelBanished = true          // tells the extraction listener: do NOT raise
-      m.resources.hp      = 0
-      m.aiState           = 'dead'
-      m.deathDay          = day
-      m.currentTargetId   = null
-      EventBus.emit('MINION_DIED', { minion: m, killerId: jinwoo.instanceId })
-      // A shadow-blue burst as the Monarch's aura snuffs them out.
-      if (scene) AbilityVfx.pulseRing(scene, m.worldX, m.worldY, { color: 0x2a72e6 })
-    }
-  }
-
-  // Build a shadow copy of `src` (a fallen dungeon minion) on Jinwoo's
-  // side. Mirrors ClassAbilitySystem._createSummonedUndead but clones the
-  // dead minion's type/stats so the shadow looks + fights like what it
-  // rose from. The `_shadowExtracted` flag drives the dark glow
-  // (MinionRenderer) and excludes it from the 1:1 throne duel (BossSystem).
-  _extractShadow(src, jinwoo) {
-    const TS = Balance.TILE_SIZE
-    const tileX = src.tileX, tileY = src.tileY
-    // Normal stats — a shadow is a straight 1:1 copy of the minion it rose
-    // from (no Monarch stat buff).
-    const shadowHp  = Math.max(1, src.resources?.maxHp ?? src.resources?.hp ?? src.stats?.hp ?? 8)
-    const shadowAtk = Math.max(1, src.stats?.attack ?? 3)
-    const shadowDef = src.stats?.defense ?? 0
-    const shadow = {
-      instanceId: `shadow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      definitionId: src.definitionId,
-      name: null, color: 0x9b2fe0, sigil: 'S',
-      tileX, tileY,
-      worldX: src.worldX ?? (tileX * TS + TS / 2),
-      worldY: src.worldY ?? (tileY * TS + TS / 2),
-      homeTileX: tileX, homeTileY: tileY,
-      assignedRoomId: null,
-      behaviorType: 'guard',
-      tags: [...(src.tags ?? [])],
-      damageType: src.damageType ?? 'physical',
-      attackRange: src.attackRange ?? 1,
-      faction: 'adventurer', factionExpiresOn: null,
-      raisedByAdvId: jinwoo.instanceId, tamedByAdvId: null,
-      isMiniBoss: false,
-      stats: {
-        hp:      shadowHp,
-        attack:  shadowAtk,
-        defense: shadowDef,
-        // Normal speed — the shadow keeps the natural movement speed of the
-        // minion it rose from (no Monarch speed buff).
-        speed:   src.stats?.speed ?? 1.0,
-        abilities: [...(src.stats?.abilities ?? [])],
-      },
-      resources: {
-        hp:    shadowHp,
-        maxHp: shadowHp,
-      },
-      level: src.level ?? 1, xp: 0,
-      aiState: 'idle', currentTargetId: null, deathDay: null, killHistory: [],
-      _shadowExtracted: true,
-    }
-    this._gameState.minions.push(shadow)
-    EventBus.emit('MINION_SUMMONED', { minion: shadow, summoner: jinwoo })
-    EventBus.emit('SHADOW_EXTRACTED', { minion: shadow, monarch: jinwoo })
-    // Extraction VFX — a purple "ARISE" pop + shadow burst ring at the
-    // raised minion (world-space; the screen-space cinematics live in
-    // SoloLevelingCinematic).
-    const scene = this._scene
-    if (scene) {
-      AbilityVfx.shadowAriseFx?.(scene, shadow.worldX, shadow.worldY)
-      AbilityVfx.floatingText(scene, shadow.worldX, shadow.worldY - 16, 'ARISE', {
-        color: '#c9a9ff', fontSize: '13px',
-      })
-    }
-  }
-
-  // Jinwoo left the dungeon (died or — rare — fled). His shadows are bound
-  // to him: they vanish the moment he's gone.
-  _onShadowMonarchGone({ adventurer } = {}) {
-    if (!adventurer?._shadowMonarch) return
-    this._despawnShadows()
-  }
-
-  // ── Light Party (FFXIV trinity) ────────────────────────────────────────
-  // Shared LB gauge balance — tuned so a clean run reaches LB3 (100) right
-  // around the boss-room door. Roughly: ~40pt from incidental damage,
-  // ~50pt from minion kills, ~10pt from a revive (or two).
-  //
-  // Tuning notes (2026-05-29 v2): initial pass had DAMAGE_PCT=0.5 + PER_KILL=5
-  // which never reached 100 in a normal run because Provoke pulls most hits to
-  // the tank (so damage taken per member is sparse) AND kill counts hover near
-  // 5-10. Bumped to ~10× the damage-fill rate and 2× the kill rate so a normal
-  // dungeon traversal actually fills the bar.
-  static LB_GAUGE_MAX        = 100
-  static LB_GAUGE_DAMAGE_PCT = 5     // pts per 1% maxHp of party damage taken
-  static LB_GAUGE_PER_KILL   = 10    // pts per minion killed by a party member
-  static LB_GAUGE_PER_RAISE  = 15    // pts per successful Raise cast
-
-  _liveLightParty() {
-    return (this._gameState.adventurers?.active ?? [])
-      .filter(a => a?._lightParty && a.aiState !== 'dead')
-  }
-
-  _bumpLbGauge(delta) {
-    const flags = this._gameState._eventFlags ?? {}
-    if (!flags.lightPartyActive) return
-    const next = Math.min(EventSystem.LB_GAUGE_MAX, (flags.lightPartyGauge ?? 0) + delta)
-    if (next === flags.lightPartyGauge) return
-    flags.lightPartyGauge = next
-    EventBus.emit('LIGHT_PARTY_LB_GAUGE', { value: next, max: EventSystem.LB_GAUGE_MAX })
-  }
-
-  // Damage taken by ANY party member feeds the gauge. The percent-of-maxHp
-  // formula keeps the fill rate roughly era-flat — a paladin at 1500 maxHp
-  // takes the same fraction of a hit as a black_mage at 280, both contribute
-  // proportional gauge.
-  _onLightPartyHit({ targetId, damage } = {}) {
-    const flags = this._gameState._eventFlags ?? {}
-    if (!flags.lightPartyActive || !targetId || !damage) return
-    const adv = (this._gameState.adventurers?.active ?? []).find(a => a?.instanceId === targetId)
-    if (!adv?._lightParty) return
-    const maxHp = adv.resources?.maxHp || 1
-    const pct = (damage / maxHp) * 100
-    this._bumpLbGauge(pct * EventSystem.LB_GAUGE_DAMAGE_PCT)
-  }
-
-  // Party member killing a minion gives a flat bump. COMBAT_KILL carries the
-  // ATTACKER id as sourceId and the VICTIM as targetId — checking that the
-  // attacker is a light-party adv AND the victim is a dungeon-faction minion.
-  _onLightPartyKill({ sourceId, targetId } = {}) {
-    const flags = this._gameState._eventFlags ?? {}
-    if (!flags.lightPartyActive || !sourceId) return
-    const adv = (this._gameState.adventurers?.active ?? []).find(a => a?.instanceId === sourceId)
-    if (!adv?._lightParty) return
-    const victim = (this._gameState.minions ?? []).find(m => m?.instanceId === targetId)
-    if (!victim || victim.faction === 'adventurer') return  // shadows / charms — not a real "kill"
-    this._bumpLbGauge(EventSystem.LB_GAUGE_PER_KILL)
-  }
-
-  // Successful Raise (LightPartyAi emits this when the healer's 3s cast
-  // completes without interruption). Big chunk of gauge as a reward for
-  // surviving the cast window.
-  _onLightPartyRaise() {
-    this._bumpLbGauge(EventSystem.LB_GAUGE_PER_RAISE)
-  }
-
-  // Used by LightPartyAi to consume the full gauge after firing an LB.
-  // Exposed via the scene reference (scene.eventSystem.consumeLbGauge()).
-  consumeLbGauge() {
-    const flags = this._gameState._eventFlags ?? {}
-    flags.lightPartyGauge = 0
-    EventBus.emit('LIGHT_PARTY_LB_GAUGE', { value: 0, max: EventSystem.LB_GAUGE_MAX })
-  }
-
-  // Remove every shadow from the roster outright — their sprites are culled
-  // on the renderer's next tick. Splicing (vs marking dead) guarantees no
-  // faction='adventurer' entries linger into the next day.
-  _despawnShadows() {
-    const list = this._gameState.minions
-    if (!Array.isArray(list)) return
-    for (let i = list.length - 1; i >= 0; i--) {
-      if (list[i]?._shadowExtracted) list.splice(i, 1)
-    }
-  }
-
   destroy() {
     for (const [evt, fn] of this._listeners) EventBus.off(evt, fn, this)
     this._listeners = []
@@ -510,19 +242,11 @@ export class EventSystem {
   // First use (2026-05-27): Treasure Hunters can't fire if the player owns
   // no treasure chests — there'd be nothing to rob.
   _eventPrecondMet(def) {
-    // Solo Leveling rolls organically like any other event (enabled 2026-05-28).
-    // If the boss DIES to it (Jinwoo wins the duel), _onDayPhaseEnded throws it
-    // back into the shuffle bag so it can recur without waiting for the full
-    // roster to cycle — see the re-queue there.
     // Treasure Hunters fires as a normal shuffle-bag event (2026-06-01, by user
     // request — the dedicated 10-day "Treasure Raid" track was removed). It only
     // makes sense when there's liquid gold to skim, so gate it on a non-empty
     // treasury (it steals gold, not chests — see _applyEffect case).
     if (def.id === 'treasure_hunters') return (this._gameState.player?.gold ?? 0) > 0
-    // Light Party — ENABLED in the normal shuffle rotation (2026-06-01, by user
-    // request). Like Solo Leveling, if the boss dies to it (the party wins the
-    // duel) the win re-queues it into the bag (see _onDayPhaseEnded) so it stays
-    // a recurring threat instead of waiting for the full roster to cycle.
     return true
   }
 
@@ -1625,21 +1349,7 @@ export class EventSystem {
     // Mark this event spent in the current shuffle bag so _eligibleEvents
     // won't draw it again until the whole roster has cycled (then resets).
     ev.firedThisRun ??= []
-    // Solo Leveling — if the boss DIED to Jinwoo this run (he won the duel, so
-    // the boss lost a life), throw the event back into the pool: don't mark it
-    // spent (and drop any stale entry), so it stays eligible and can recur
-    // without waiting for the whole roster to cycle. boss._diedThisDay is set
-    // in BossSystem._endFight on a life loss and cleared next night; on a
-    // solo_leveling day the duel is the only fight, so it's true iff Jinwoo won.
-    const soloBossDied = id === 'solo_leveling' && !!this._gameState.boss?._diedThisDay
-    // Light Party — same rule as Solo Leveling. The party-vs-boss duel is the
-    // only fight on a light_party day, so a boss life loss = the party won
-    // (LightPartyCinematic resolved as a party victory). Re-queue so the event
-    // stays a recurring threat instead of waiting for the full shuffle bag.
-    const lightPartyBossDied = id === 'light_party' && !!this._gameState.boss?._diedThisDay
-    if (soloBossDied || lightPartyBossDied) {
-      ev.firedThisRun = ev.firedThisRun.filter(x => x !== id)
-    } else if (!ev.firedThisRun.includes(id)) {
+    if (!ev.firedThisRun.includes(id)) {
       ev.firedThisRun.push(id)
     }
     // Gap is measured from the day the event actually FIRED, not from
@@ -1748,28 +1458,6 @@ export class EventSystem {
         flags.treasureRaidStartGold   = this._gameState.player?.gold ?? 0
         flags.treasureRaidStolenToday = 0
         flags.treasureRaidPartySize   = 0
-        break
-      case 'solo_leveling':
-        // DayPhase spawns ONLY Sung Jinwoo (the Shadow Monarch) instead of
-        // the normal wave. He beelines the boss, raises fallen minions as
-        // shadows, and duels the boss stat-matched. _spawnSoloLeveling reads
-        // this flag.
-        flags.soloLevelingActive = true
-        break
-      case 'light_party':
-        // DayPhase spawns the fixed 4-role raid party (Tank/Healer/2×DPS)
-        // instead of the normal wave — see _spawnLightParty. Per-role AI
-        // takes over movement/combat once they enter; the cinematic boss
-        // fight fires when the party reaches the throne. Stat scaling per
-        // boss level keeps the encounter threatening at any era without
-        // changing the count. The LB gauge starts empty + fills through
-        // play (see _onLightPartyHit / _onLightPartyMinionKill /
-        // _onLightPartyRaise).
-        flags.lightPartyActive = true
-        flags.lightPartyGauge  = 0
-        EventBus.emit('LIGHT_PARTY_LB_GAUGE', {
-          value: 0, max: EventSystem.LB_GAUGE_MAX,
-        })
         break
       case 'dark_deal':
         // The pact-pick happens in night phase (DarkDealDemonRenderer + the
@@ -1919,24 +1607,6 @@ export class EventSystem {
         flags.treasureRaidStartGold   = null
         flags.treasureRaidStolenToday = 0
         flags.treasureRaidPartySize   = 0
-        break
-      case 'solo_leveling':
-        flags.soloLevelingActive = false
-        // Belt-and-suspenders: drop any shadows still on the roster so
-        // faction='adventurer' minions never persist into the next day.
-        this._despawnShadows()
-        break
-      case 'light_party':
-        // Clear all party-wide event state. LightPartyAi reads these flags
-        // on every tick; nulling them ensures any straggler advs (rare —
-        // the party usually wipes or wins outright) drop back to default
-        // adventurer behaviour for the rest of the day.
-        flags.lightPartyActive   = false
-        flags.lightPartyGauge    = 0
-        flags.lightPartyDuelDone = false
-        EventBus.emit('LIGHT_PARTY_LB_GAUGE', {
-          value: 0, max: EventSystem.LB_GAUGE_MAX,
-        })
         break
       case 'goblin_market':
         // The peddler packs up — prices revert. Null the map + tell the

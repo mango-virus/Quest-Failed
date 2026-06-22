@@ -113,17 +113,6 @@ const DEFAULT_METRICS = {
   // CAREER one-shot booleans (stored as 0/1)
   partyWipedInDayEver:        0,
   noMinionsLostInDayEver:     0,
-  // Defeated Sung Jinwoo in the Solo Leveling event — gates monarch_slayer
-  // (→ necroknight companion). Seeded here so it persists + appears in the
-  // metric snapshot; set to 1 by the boss-fight resolution handler.
-  shadowMonarchDefeated:      0,
-  // Defeated the Light Party in the throne-room duel — gates warrior_of_light
-  // (→ luna companion). Latched 0/1 the moment the boss WINS a Light Party
-  // duel (LIGHT_PARTY_DEFEATED_BOSS … wait, that fires on PARTY win — the
-  // achievement is granted when the BOSS wins the duel, i.e. the player
-  // successfully cut down the raiding party). Set by BossSystem's
-  // _resolveLightPartyDuel on the 'loss' (party-loses) branch.
-  lightPartyDefeated:         0,
   // CAREER sets — persisted as arrays, hydrated to Sets in memory
   roomTypesPlaced:            [],
   trapTypesFired:             [],
@@ -304,19 +293,6 @@ class AchievementSystemImpl {
     on('BOSS_DAMAGED',            (p) => this._onBossDamaged(p?.amount))
     on('SUMMON_ADD_DEATH_BOSS_TOLL', (p) => this._onBossDamaged(p?.amount))
     on('PACT_BOSS_LIGHTNING_FIRED', (p) => this._onBossDamaged(p?.selfCost))
-    // Light Party event — gates the legendary 'warrior_of_light' achievement
-    // (→ Luna companion + "Warrior of Light" title). Latched the moment the
-    // BOSS wins the throne-room duel (party loses → boss defeated the party).
-    // Mirrors the monarch_slayer latch pattern: one-shot, never un-set.
-    on('LIGHT_PARTY_DUEL_END', (p) => this._onLightPartyDuelEnd(p))
-  }
-
-  _onLightPartyDuelEnd({ outcome } = {}) {
-    if (outcome !== 'loss') return     // 'loss' = party lost = boss won
-    if (this._metrics.lightPartyDefeated >= 1) return
-    this._metrics.lightPartyDefeated = 1
-    this._persistMetrics()
-    this._checkMetric('lightPartyDefeated')
   }
 
   // KR P7 — the campaign was won (RUN_VICTORY). Bump the career counter and
@@ -425,15 +401,6 @@ class AchievementSystemImpl {
         }
       }
     }
-    // Solo Leveling — the legendary 'monarch_slayer' achievement (→ Necroknight
-    // companion + "King of the Dead" title) is earned ONLY when the player's
-    // BOSS kills Sung Jinwoo in the throne-room duel. Jinwoo is unkillable by
-    // anything else (minions, traps, abilities all floor him at 10%), so a boss
-    // kill is the sole qualifying death — gate explicitly on `isBoss` so no
-    // other death source can ever grant it. One-shot latch metric.
-    if (adv?._shadowMonarch && isBoss) {
-      this._metrics.shadowMonarchDefeated = 1
-    }
     this._persistMetrics()
     // Check threshold-based metrics that may have just crossed.
     this._checkMetric('killsTotal')
@@ -446,7 +413,6 @@ class AchievementSystemImpl {
     this._checkMetric('veteransKilled')
     this._checkMetric('veteransKilledInRunMax')
     this._checkMetric('classesKilledCount')
-    this._checkMetric('shadowMonarchDefeated')
   }
 
   _onAdventurerEntered(payload) {

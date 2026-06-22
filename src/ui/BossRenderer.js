@@ -49,15 +49,6 @@ const DECOY_TINT    = 0xffaad6
 const DECOY_ALPHA   = 0.5
 const DECOY_STEP_PX = 46
 
-// Lerp between two 0xRRGGBB colors (k in 0..1) → packed 0xRRGGBB. Used to give
-// a claimed boss the SAME cycling blue↔black flame the shadow minions wear.
-function _lerpHex(a, b, k) {
-  const r  = Math.round((a >> 16 & 255) + ((b >> 16 & 255) - (a >> 16 & 255)) * k)
-  const g  = Math.round((a >> 8  & 255) + ((b >> 8  & 255) - (a >> 8  & 255)) * k)
-  const bl = Math.round((a       & 255) + ((b       & 255) - (a       & 255)) * k)
-  return (r << 16) | (g << 8) | bl
-}
-
 export class BossRenderer {
   constructor(scene, gameState) {
     this._scene     = scene
@@ -112,16 +103,6 @@ export class BossRenderer {
     // here (BossSystem tears down shortly after, into GameOver).
     this._onFinalDeath = () => { this._dead = true }
     EventBus.on('BOSS_DEFEATED_FINAL', this._onFinalDeath)
-
-    // Solo Leveling — when Jinwoo wins his duel he "extracts" the boss on
-    // "Arise.": _shadowRevived forces the boss to STAND (overriding the death
-    // pose) while it sits at 0 HP mid-outro; boss.shadowClaimed then gives it
-    // the blue shadow-flame + tint for the rest of the run.
-    this._shadowRevived = false
-    this._claimedFlame  = null
-    this._claimedTinted = false
-    this._onReviveAsShadow = () => { this._shadowRevived = true }
-    EventBus.on('BOSS_REVIVE_AS_SHADOW', this._onReviveAsShadow)
 
     // Succubus Doppelgänger — translucent illusion duplicates that flank
     // the Queen during the boss fight. Driven entirely by BossSystem's
@@ -244,14 +225,6 @@ export class BossRenderer {
     }
     this._lastHp = boss.hp
 
-    // Light Party duel — the boss is staged at chamber centre with the party
-    // fanned BELOW it, but the upward stage-in tween leaves `_facing` stuck on
-    // 'up' (movement-delta facing) so the boss idles facing away from the
-    // party. Force 'down' for the whole duel so it always faces the party it's
-    // fighting. (Every duel target — tank/DPS/healer slots — sits below the
-    // boss, so 'down' is correct for the slam lunges too.)
-    if (this._scene.bossSystem?._lightPartyDuel) this._facing = 'down'
-
     // Rival "Clash of Dominions" duel — the boss holds the throne (north) and
     // channels its beam at Vorzak to the south. It barely moves, so movement-delta
     // facing would leave it idling whichever way it last walked instead of squaring
@@ -296,29 +269,6 @@ export class BossRenderer {
       this._sprite.play(animKey, true)
     }
 
-    // Solo Leveling — once the boss is alive again (next day, HP refilled) the
-    // revive-override is moot; drop it so normal poses resume. The claimed
-    // shadow-flame + blue tint persist for the rest of the run.
-    if (this._shadowRevived && (boss.hp ?? 0) > 0) this._shadowRevived = false
-    if (boss.shadowClaimed) {
-      this._ensureClaimedFlame()
-      this._applyClaimedTint()
-      if (this._claimedFlame) {
-        // Same cycling blue↔black flame tint the shadow minions wear.
-        const k   = (Math.sin(this._scene.time.now / 650) + 1) / 2
-        const top = _lerpHex(0x0a2a6b, 0x4aa0ff, k)   // deep-blue → bright-blue
-        const bot = _lerpHex(0x02040a, 0x123a8c, k)   // near-black → deep-blue
-        this._claimedFlame.setTint(top, top, bot, bot)
-      }
-    } else if (this._claimedFlame || this._claimedTinted) {
-      // Solo Leveling — the boss broke free of Jinwoo's claim (killed him on a
-      // rematch; BossSystem cleared shadowClaimed at the night boundary). Drop
-      // the shadow-flame + blue tint so it renders normally again. Runs once on
-      // the transition (guarded above), so it won't fight per-frame hurt tints.
-      this._claimedFlame?.destroy?.(); this._claimedFlame = null
-      if (this._claimedTinted) { this._sprite?.clearTint?.(); this._claimedTinted = false }
-    }
-
     // Doppelgänger decoys trail the Queen + mirror her animation.
     this._updateDecoys(boss)
 
@@ -331,8 +281,6 @@ export class BossRenderer {
 
   destroy() {
     EventBus.off('BOSS_DEFEATED_FINAL', this._onFinalDeath)
-    EventBus.off('BOSS_REVIVE_AS_SHADOW', this._onReviveAsShadow)
-    this._claimedFlame?.destroy?.(); this._claimedFlame = null
     EventBus.off('SUCCUBUS_DOPPEL_SPLIT',   this._onDoppelSplit)
     EventBus.off('SUCCUBUS_DOPPEL_SHATTER', this._onDoppelShatter)
     EventBus.off('BOSS_FIGHT_RESOLVED',     this._onDoppelClear)
@@ -352,10 +300,6 @@ export class BossRenderer {
 
   _pickState() {
     if (this._dead) return 'death'
-    // Solo Leveling — a freshly-revived shadow boss stands instead of holding
-    // its death pose (it's Jinwoo's shadow now, at 0 HP mid-outro). Auto-clears
-    // in update() once the boss is alive again (next day).
-    if (this._shadowRevived) return this._isMoving ? 'walk' : 'idle'
     // Death pose is owned by BossSystem: _deathPoseUntil is a ~4s
     // timestamp on a non-final life loss (collapse → recover) or
     // Infinity on the final death, cleared to 0 when a new fight starts
@@ -386,37 +330,6 @@ export class BossRenderer {
     if (action === 'chase') return 'run'
     if (this._isMoving) return 'walk'
     return 'idle'
-  }
-
-  // Solo Leveling — attach the looping blue shadow-flame behind the boss once
-  // it's been claimed (same VFX the shadow minions wear). Scaled to engulf the
-  // boss sprite; sent to back so the boss renders in front.
-  _ensureClaimedFlame() {
-    if (this._claimedFlame || !this._container || !this._sprite) return
-    if (!this._scene.textures.exists('vfx-shadow-flame')) return
-    if (!this._scene.anims.exists('vfx-shadow-flame-loop')) {
-      const tex = this._scene.textures.get('vfx-shadow-flame')
-      if (tex.setFilter) tex.setFilter(Phaser.Textures.FilterMode.NEAREST)
-      this._scene.anims.create({
-        key: 'vfx-shadow-flame-loop',
-        frames: this._scene.anims.generateFrameNumbers('vfx-shadow-flame', { start: 0, end: 5 }),
-        frameRate: 10, repeat: -1,
-      })
-    }
-    const dsz = this._sprite.displayHeight || 96
-    const Sf  = Math.max(1.6, dsz / 40)
-    const flame = this._scene.add.sprite(0, -6 * Sf, 'vfx-shadow-flame', 0).setOrigin(0.5, 0.5).setScale(Sf)
-    flame.anims.play('vfx-shadow-flame-loop', true)
-    this._container.add(flame)
-    this._container.sendToBack(flame)
-    this._claimedFlame = flame
-  }
-
-  // Blue→black gradient tint, matching the extracted shadow minions.
-  _applyClaimedTint() {
-    if (this._claimedTinted || !this._sprite) return
-    this._sprite.setTint(0x4a8bff, 0x4a8bff, 0x0a0a16, 0x0a0a16)
-    this._claimedTinted = true
   }
 
   // ── Evolution: tier → sprite key ─────────────────────────────────────────

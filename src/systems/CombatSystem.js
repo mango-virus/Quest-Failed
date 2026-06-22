@@ -134,21 +134,16 @@ export class CombatSystem {
   tryAttack(attacker, target, opts = {}) {
     if (!attacker || !target) return null
     if (target.resources.hp <= 0) return null
-    // Pacifist gate — Light Party's healer (white_mage) is tagged
-    // _neverAttacks at spawn and stays a pure support unit (heals + revives,
-    // no swings). The flag lives on the adv instance, so anywhere the AI
-    // calls tryAttack(healer, …) it short-circuits here. Generic enough for
-    // any future "never-attacks" adventurer / minion to use the same flag.
+    // Pacifist gate — an adv tagged _neverAttacks (e.g. a coward) stays a pure
+    // support / non-combatant: anywhere the AI calls tryAttack(it, …) it
+    // short-circuits here. Generic flag for any "never-attacks" adventurer / minion.
     if (attacker._neverAttacks) return null
     // Mage Tower POLYMORPH — a minion turned into a harmless critter can't swing
     // until the transmute expires (KingdomModifierSystem clears the flag).
     if (attacker._polymorphed) return null
-    // Invulnerability — Light Party's Hallowed Ground (tank self-cast at
-    // <30% HP) and Stronghold (Tank LB party-wide) both set target._invuln
-    // for a short window. Damage is fully suppressed: no hit registered,
-    // no hurt animation, nothing. The flag is cleared by the system that
-    // set it (LightPartyAi via a Phaser delayedCall). Generic enough for
-    // any future "invuln window" mechanic (mechanic cards, dark pacts, …).
+    // Invulnerability — a target._invuln window fully suppresses damage: no hit
+    // registered, no hurt animation, nothing. The flag is cleared by the system
+    // that set it. Generic enough for any "invuln window" mechanic.
     if (target._invuln) return null
 
     // Doorway gate — combat only resolves when BOTH attacker and target
@@ -479,14 +474,11 @@ export class CombatSystem {
       }
     }
 
-    // Solo Leveling — Sung Jinwoo can't be dropped below 10% max HP by
-    // minions (only the boss duel can finish him). Floor the hit here so his
-    // HP bar visibly bottoms out at 10% instead of flashing to 0 before
-    // AISystem._kill bounces him back.
-    // Light Party shares the Shadow Monarch's 10% floor: party members may ONLY
-    // die in the scripted boss duel (which drives HP directly, not through this
-    // path), so normal combat can never chip them below 10% maxHp.
-    const _smFloor = (target._shadowMonarch || target._lightParty || target._nemesis)
+    // The Nemesis (Aldric) can't be dropped below 10% max HP by minions (only
+    // the boss duel can finish him). Floor the hit here so his HP bar visibly
+    // bottoms out at 10% instead of flashing to 0 before AISystem._kill bounces
+    // him back.
+    const _smFloor = target._nemesis
       ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
 
     // Forlorn Hope — Captain Halric's "Last Vow": the FIRST lethal hit can't kill
@@ -607,8 +599,8 @@ export class CombatSystem {
       AbilityVfx.floatingText(this._scene, attacker.worldX, (attacker.worldY ?? 0) - 20, `HOUSE PAYS +${payout}g`, { color: '#ffd34d', fontSize: '12px' })
     } else if (_diceFace === 4 && target.resources.hp > 0) {
       // Double strike — land a second hit of the same damage (two distinct blows,
-      // per spec), honouring the same shadow-monarch/light-party HP floor.
-      const fl = (target._shadowMonarch || target._lightParty || target._nemesis)
+      // per spec), honouring the same Nemesis 10% HP floor.
+      const fl = target._nemesis
         ? Math.max(1, Math.ceil((target.resources.maxHp ?? 1) * 0.10)) : 0
       target.resources.hp = Math.max(fl, target.resources.hp - finalDmg)
       EventBus.emit('COMBAT_HIT', { sourceId: attacker.instanceId, targetId: target.instanceId, damage: finalDmg, damageType, isCritical: false })
@@ -1226,17 +1218,6 @@ export class CombatSystem {
       mit = Math.floor(mit * Balance.MECHANIC_WHISPERER_PARTY_DAMAGE_MULT)
     }
 
-    // Solo Leveling — the Shadow Monarch (Sung Jinwoo) shrugs off your
-    // defenders and butchers them: he takes 50% less damage from minions
-    // and deals 50% more damage to them. (Trap reduction lives in
-    // TrapSystem; the boss duel is stat-matched separately in BossSystem.)
-    if (target._shadowMonarch && _isMinionAttacker(attacker)) {
-      mit = Math.max(1, Math.floor(mit * 0.5))
-    }
-    if (attacker._shadowMonarch && target.faction === 'dungeon') {
-      mit = Math.floor(mit * 1.5)
-    }
-
     const variance = 1 + (Math.random() - 0.5) * 0.3
     return Math.max(1, Math.floor(mit * variance))
   }
@@ -1275,8 +1256,8 @@ export class CombatSystem {
     const frac = tinkered ? 0.50 : 0.30
     const reflect = Math.max(1, Math.round(dmgDealt * frac))
     // Don't let thorns kill a scripted/protected adventurer (mirror the
-    // shadow-monarch / light-party / nemesis 10% floor used for direct hits).
-    const floor = (attacker._shadowMonarch || attacker._lightParty || attacker._nemesis)
+    // Nemesis 10% floor used for direct hits).
+    const floor = attacker._nemesis
       ? Math.max(1, Math.ceil((attacker.resources.maxHp ?? 1) * 0.10)) : 0
     attacker.resources.hp = Math.max(floor, (attacker.resources.hp ?? 0) - reflect)
     attacker._lastHitBy = 'thorn_hall'
