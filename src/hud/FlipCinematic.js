@@ -37,13 +37,15 @@ function _injectCss() {
   const css = `
   .qf-fc { position:absolute; inset:0; z-index:3500; overflow:hidden; pointer-events:auto;
     font-family:'Press Start 2P',monospace; background:rgba(3,2,7,1); }
-  .qf-fc-world { position:absolute; inset:0; z-index:1; transform-origin:50% 56%; transition: transform 1.1s cubic-bezier(.3,.7,.25,1); }
-  .qf-fc.flipped .qf-fc-world { transform: scale(1.13); }
-  .qf-fc-spot { position:absolute; left:50%; top:50%; width:135vh; height:135vh; transform:translate(-50%,-42%); pointer-events:none;
+  .qf-fc-world { position:absolute; left:50%; top:50%; width:1920px; height:1080px; z-index:1;
+    transform: translate(-50%,-50%) scale(var(--fc-scale,1)); transform-origin:50% 50%; }
+  .qf-fc-scene { position:absolute; inset:0; transform-origin:50% 56%; transition: transform 1.1s cubic-bezier(.3,.7,.25,1); }
+  .qf-fc.flipped .qf-fc-scene { transform: scale(1.13); }
+  .qf-fc-spot { position:absolute; left:50%; top:50%; width:1460px; height:1460px; transform:translate(-50%,-42%); pointer-events:none;
     opacity:.45; transition:opacity .8s ease, background .8s ease;
     background: radial-gradient(circle, rgba(212,166,72,.16) 0%, rgba(212,166,72,.05) 32%, transparent 60%); }
   .qf-fc.flipped .qf-fc-spot { opacity:1; background: radial-gradient(circle, rgba(200,51,74,.3) 0%, rgba(212,166,72,.13) 34%, transparent 64%); }
-  .qf-fc-shaft { position:absolute; top:-14%; width:22vh; height:138%; pointer-events:none; opacity:.15; mix-blend-mode:screen;
+  .qf-fc-shaft { position:absolute; top:-14%; width:238px; height:138%; pointer-events:none; opacity:.15; mix-blend-mode:screen;
     background: linear-gradient(180deg, rgba(255,210,130,.5), transparent 72%); filter:blur(7px); }
   .qf-fc-shaft.a{left:9%;transform:rotate(11deg)} .qf-fc-shaft.b{left:33%;transform:rotate(6deg);opacity:.09}
   .qf-fc-shaft.c{right:33%;transform:rotate(-6deg);opacity:.09} .qf-fc-shaft.d{right:9%;transform:rotate(-11deg)}
@@ -102,9 +104,9 @@ function _injectCss() {
   .qf-fc-throne .dais::before { content:''; position:absolute; left:13%; right:13%; top:42%; bottom:0;
     background: linear-gradient(180deg, rgba(56,40,62,.92), rgba(18,11,24,.94)); clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%); }
   /* sprites */
-  .qf-fc-party { position:absolute; bottom:29%; left:7%; display:flex; gap:18px; align-items:flex-end; z-index:3; transform:translateX(-66vw); transition: transform 2.9s linear; }
+  .qf-fc-party { position:absolute; bottom:29%; left:7%; display:flex; gap:18px; align-items:flex-end; z-index:3; transform:translateX(-1280px); transition: transform 2.9s linear; }
   .qf-fc.marched .qf-fc-party { transform:translateX(0); }
-  .qf-fc.fled .qf-fc-party { transform: translateX(-115vw); transition: transform 2.6s cubic-bezier(.45,.05,.6,.6); }
+  .qf-fc.fled .qf-fc-party { transform: translateX(-2200px); transition: transform 2.6s cubic-bezier(.45,.05,.6,.6); }
   .qf-fc-hero { width:150px; height:150px; display:flex; align-items:flex-end; justify-content:center;
     color: color-mix(in srgb, var(--gold) 60%, white); font-size:56px; filter: drop-shadow(0 6px 7px rgba(0,0,0,.7));
     transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
@@ -144,16 +146,16 @@ function _injectCss() {
   .qf-fc-redo { position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0; background: radial-gradient(circle at 50% 46%, rgba(200,51,74,.5), transparent 60%); }
   .qf-fc-redo.go { animation: qf-fc-redo 1.2s ease-out; }
   @keyframes qf-fc-redo { 0%{opacity:0} 18%{opacity:1} 100%{opacity:0} }
-  .qf-fc.shake .qf-fc-world { animation: qf-fc-shake .55s ease-out; }
+  .qf-fc.shake .qf-fc-scene { animation: qf-fc-shake .55s ease-out; }
   @keyframes qf-fc-shake { 0%,100%{transform:scale(1.13) translate(0,0)} 20%{transform:scale(1.13) translate(-11px,7px)} 40%{transform:scale(1.13) translate(10px,-8px)} 60%{transform:scale(1.13) translate(-8px,5px)} 80%{transform:scale(1.13) translate(6px,-3px)} }
   .qf-fc-burst { position:absolute; left:50%; bottom:42%; z-index:5; pointer-events:none; }
   .qf-fc-burst i { position:absolute; width:7px; height:7px; border-radius:50%; background: var(--gold); box-shadow:0 0 9px var(--gold); opacity:0; }
   .qf-fc-burst.go i { animation: qf-fc-spark 1.1s ease-out forwards; }
   @keyframes qf-fc-spark { 0%{opacity:1; transform:translate(0,0) scale(1)} 100%{opacity:0; transform:translate(var(--dx),var(--dy)) scale(.3)} }
   .qf-fc-emb { position:absolute; bottom:-10px; border-radius:50%; z-index:2; background: color-mix(in srgb, var(--gold) 80%, white); box-shadow:0 0 6px var(--gold); opacity:0; animation: qf-fc-rise linear infinite; }
-  @keyframes qf-fc-rise { 0%{opacity:0; transform:translateY(0)} 12%{opacity:.8} 90%{opacity:.45} 100%{opacity:0; transform:translateY(-96vh)} }
+  @keyframes qf-fc-rise { 0%{opacity:0; transform:translateY(0)} 12%{opacity:.8} 90%{opacity:.45} 100%{opacity:0; transform:translateY(-1040px)} }
   .qf-fc-dust { position:absolute; border-radius:50%; z-index:2; background:rgba(180,160,140,.5); opacity:0; animation: qf-fc-drift linear infinite; }
-  @keyframes qf-fc-drift { 0%{opacity:0} 20%{opacity:.4} 80%{opacity:.22} 100%{opacity:0; transform:translate(var(--dx), -40vh)} }
+  @keyframes qf-fc-drift { 0%{opacity:0} 20%{opacity:.4} 80%{opacity:.22} 100%{opacity:0; transform:translate(var(--dx), -432px)} }
   .qf-fc-vig { position:absolute; inset:0; z-index:8; pointer-events:none; background: radial-gradient(135% 105% at 50% 46%, transparent 36%, rgba(2,1,5,.92) 100%); }
   .qf-fc-bar { position:absolute; left:0; right:0; height:10.5%; z-index:9; background:rgba(0,0,0,1); transition: transform .7s cubic-bezier(.3,.7,.2,1); }
   .qf-fc-bar.t { top:0; transform:translateY(-100%); } .qf-fc-bar.b { bottom:0; transform:translateY(100%); }
@@ -163,7 +165,7 @@ function _injectCss() {
   .qf-fc-eyebrow.on { opacity:.92; }
   .qf-fc-line { margin-top:14px; font-size:18px; letter-spacing:.05em; color: var(--bone); text-shadow:0 2px 0 rgba(0,0,0,.8); opacity:0; transform:translateY(8px); transition: opacity .6s ease, transform .6s ease; }
   .qf-fc-line.on { opacity:1; transform:none; }
-  .qf-fc-reveal { position:absolute; left:0; right:0; top:13%; z-index:10; text-align:center; pointer-events:none; opacity:0; transform: scale(.82); transition: opacity .7s ease, transform .9s cubic-bezier(.2,.9,.25,1); }
+  .qf-fc-reveal { position:absolute; left:0; right:0; top:30%; z-index:10; text-align:center; pointer-events:none; opacity:0; transform: scale(.82); transition: opacity .7s ease, transform .9s cubic-bezier(.2,.9,.25,1); }
   .qf-fc-reveal.on { opacity:1; transform:none; }
   .qf-fc-title { font-size:62px; letter-spacing:.07em; line-height:1.15; color: var(--gold); text-shadow: 0 0 26px rgba(212,166,72,.65), 0 5px 0 rgba(0,0,0,.85); }
   .qf-fc-title b { color: var(--blood); text-shadow: 0 0 28px rgba(200,51,74,.7), 0 5px 0 rgba(0,0,0,.85); }
@@ -191,6 +193,16 @@ export class FlipCinematic {
     this._el = null; this._timers = []; this._stopFns = []; this._heroSlots = []
     this._tutChecked = true
     this._esc = (e) => { if (e.key === 'Escape') this._finish(true) }
+    this._onResize = () => this._fit()
+  }
+
+  // Scale the fixed 1920×1080 scene to fit the (variable-size) stage so the whole
+  // composition scales as one unit — nothing overlaps on smaller windows.
+  _fit() {
+    if (!this._el) return
+    const w = this._el.clientWidth || window.innerWidth
+    const hgt = this._el.clientHeight || window.innerHeight
+    this._el.style.setProperty('--fc-scale', Math.min(w / 1920, hgt / 1080))
   }
 
   maybeOpen() { if (!this._gameState?.meta?.introSeen) this.open() }
@@ -216,9 +228,6 @@ export class FlipCinematic {
     ])
     const dec = (file, st, extra) => h('img', { className: 'qf-fc-dec' + (extra ? ' ' + extra : ''), src: DEC(file), style: st, on: { error: e => e.currentTarget.remove() } })
     const setDressing = h('div', {}, [
-      // banners flanking the throne (hang from up high)
-      dec('decor-banner-sigil.png', { left: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1 }),
-      dec('decor-banner-sigil.png', { right: '38%', top: '8%', width: '74px', opacity: .8, zIndex: 1, transform: 'scaleX(-1)' }),
       // statues framing
       dec('decor-statue-l.png', { left: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3 }),
       dec('decor-statue-l.png', { right: '22%', bottom: '33%', width: '94px', opacity: .62, zIndex: 3, transform: 'scaleX(-1)' }),
@@ -231,10 +240,6 @@ export class FlipCinematic {
       // size as the main menu (172×192 frame, 6-frame burn) + the matching glow.
       h('div', { className: 'qf-fc-torch l', style: { left: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
       h('div', { className: 'qf-fc-torch r', style: { right: '24%', top: '26%' } }, [h('div', { className: 'qf-fc-torchsprite' })]),
-      dec('decor-chain-draped.png', { left: '6%', top: '0', width: '70px', opacity: .4 }),
-      dec('decor-chain-draped.png', { right: '6%', top: '0', width: '70px', opacity: .4, transform: 'scaleX(-1)' }),
-      dec('decor-chain-single-m.png', { left: '46%', top: '0', width: '30px', opacity: .35 }),
-      dec('decor-chain-single-l.png', { right: '45%', top: '0', width: '30px', opacity: .35 }),
       // floor bones
       dec('decor-skel-floor-1.png', { left: '18%', bottom: '24%', width: '60px', opacity: .4, zIndex: 1 }),
       dec('decor-skull-pile.png', { right: '20%', bottom: '24%', width: '56px', opacity: .45, zIndex: 1 }),
@@ -259,13 +264,18 @@ export class FlipCinematic {
       h('div', { className: 'qf-fc-tut', on: { click: () => { this._tutChecked = !this._tutChecked; tutBox.textContent = this._tutChecked ? '✓' : '' } } }, [tutBox, 'Show me how to play']),
     ])
 
-    const world = h('div', { className: 'qf-fc-world' }, [
+    // The SCENE is authored at a fixed 1920×1080 and the WORLD scales it to fit the
+    // stage (which has a variable logical size) — so every element scales together
+    // and nothing overlaps on smaller windows. Full-screen UI (bars, vignette,
+    // captions, button) stays a sibling overlay at .qf-fc level (viewport-relative).
+    const scene = h('div', { className: 'qf-fc-scene' }, [
       ...buildCryptBackdrop(), setDressing,
       h('div', { className: 'qf-fc-shaft a' }), h('div', { className: 'qf-fc-shaft b' }), h('div', { className: 'qf-fc-shaft c' }), h('div', { className: 'qf-fc-shaft d' }),
       h('div', { className: 'qf-fc-spot' }), h('div', { className: 'qf-fc-ground' }), h('div', { className: 'qf-fc-carpet' }),
       throne, embers, dust, partyEl, bossSlot, fxLayer, burst,
       h('div', { className: 'qf-fc-pillar l' }), h('div', { className: 'qf-fc-pillar r' }),
     ])
+    const world = h('div', { className: 'qf-fc-world' }, [scene])
     this._el = h('div', { className: 'qf-fc' }, [
       world, red, flash, h('div', { className: 'qf-fc-vig' }),
       h('div', { className: 'qf-fc-bar t' }), h('div', { className: 'qf-fc-bar b' }),
@@ -273,6 +283,7 @@ export class FlipCinematic {
       h('button', { className: 'qf-fc-skip', on: { click: () => this._finish(true) } }, 'Skip ▸▸'),
     ])
     ;(document.getElementById('hud-stage') || document.body).appendChild(this._el)
+    this._fit(); window.addEventListener('resize', this._onResize)
     window.addEventListener('keydown', this._esc)
     this._fxLayer = fxLayer
 
@@ -315,7 +326,7 @@ export class FlipCinematic {
     const knight = this._heroSlots.find(s => s.dataset.melee === '1')
     if (knight) {
       knight.style.transition = 'transform 1s ease-out'   // weighty charge, not a zoom
-      knight.style.transform = 'translateX(33vw)'
+      knight.style.transform = 'translateX(634px)'
       ;[1000, 2000].forEach(t => {                          // two measured swings, idle between (full arc then rest)
         T(t,       () => { this._setHeroAtk(knight, 'slash', 'right'); this._slashAt(knight) })
         T(t + 620, () => this._setHero(knight, 'idle', 'right'))
@@ -416,7 +427,9 @@ export class FlipCinematic {
   destroy() {
     for (const t of this._timers) clearTimeout(t); this._timers = []
     for (const s of this._stopFns) { try { s() } catch {} } this._stopFns = []
+    ;(this._assaultTimers || []).forEach(clearTimeout); this._assaultTimers = []
     window.removeEventListener('keydown', this._esc)
+    window.removeEventListener('resize', this._onResize)
     try { this._el?.remove() } catch {}
     this._el = null; this._heroSlots = []; this._fxLayer = null
   }

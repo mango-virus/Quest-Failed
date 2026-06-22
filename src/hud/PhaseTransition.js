@@ -41,7 +41,14 @@ export class PhaseTransition {
     this._listeners = []
     const sub = (event, fn) => { EventBus.on(event, fn); this._listeners.push([event, fn]) }
     sub('DAY_PHASE_BEGAN',   () => this.fire('day'))
-    sub('NIGHT_PHASE_BEGAN', () => this.fire('night'))
+    sub('NIGHT_PHASE_BEGAN', () => {
+      // First-ever night begins UNDER the intro cinematic — don't pop the NIGHT 1
+      // stamp on top of it. Defer until the player dismisses the intro and actually
+      // enters the dungeon view. (On later runs introSeen is true → fires normally.)
+      if (!this._gameState?.meta?.introSeen) { this._pendingPhase = 'night'; return }
+      this.fire('night')
+    })
+    sub('INTRO_DISMISSED', () => { if (this._pendingPhase) { const p = this._pendingPhase; this._pendingPhase = null; this.fire(p) } })
   }
 
   fire(to) {
