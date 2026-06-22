@@ -363,7 +363,11 @@ export const PlayerProfile = {
   isCompanionUnlocked(id) {
     if (!id) return false
     if (_isCheatName(this.getName())) return true
-    return this.getUnlockedCompanions().has(id)
+    // TEMP (2026-06-22): all companions are unlocked by default for every
+    // player — works regardless of any existing persisted unlock set. Revert
+    // this early-return to restore the achievement-gated unlock behaviour
+    // (`return this.getUnlockedCompanions().has(id)`).
+    return true
   },
 
   // Add `id` to the unlocked set + persist. No-op if already unlocked.

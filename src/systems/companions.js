@@ -144,7 +144,7 @@ export const COMPANIONS = {
     // 10,000 gold in a single run. Thematic — an ancient dragon recognises
     // a fellow hoarder. AchievementSystem fires PlayerProfile.unlockCompanion
     // when the threshold is met. See `src/data/achievements.json`.
-    locked: true,
+    locked: false,   // TEMP: all companions unlocked by default (2026-06-22)
     // Zul'Gath's art is a WIDE landscape composition (aspect ~1.79) — the
     // other companions are tall portraits, and every companion slot is a
     // tall portrait shape. He is sized BIG (height matched to the humanoids)
@@ -348,7 +348,7 @@ export const COMPANIONS = {
     // Player-facing "what this keeper is like to play with" descriptors,
     // shown on the CompanionSelect card.
     traits:    ['gallows humour', 'showman flair', 'practical bone-tips'],
-    locked:    true,
+    locked:    false,   // TEMP: all companions unlocked by default (2026-06-22)
     // Tuned to match the other locked teasers (Luna / Nocturna). If
     // his source art proportions differ noticeably, bump up/down — see
     // the long iterations on Cinder & Marina in the git history for
@@ -524,7 +524,7 @@ export const COMPANIONS = {
     name:      'Spectra',
     tagline:   "A ghost with a head full of tropes — the dungeon's resident weeb.",
     traits:    ['anime brain', 'gamer reflexes', 'snack-fueled chaos'],
-    locked:    true,
+    locked:    false,   // TEMP: all companions unlocked by default (2026-06-22)
     portraitScale: 1.15,
     portraitOrigin: '50% 100%',
     // After the 2026-05-27 swap with Zul'Gath, Spectra sits at the LEFT
@@ -652,7 +652,7 @@ export const COMPANIONS = {
     name:      'Nocturna',
     tagline:   'A keeper of the witching hour.',
     traits:    [],
-    locked:    true,
+    locked:    false,   // TEMP: all companions unlocked by default (2026-06-22)
     // Her source art is tall + portrait, with the character filling most
     // of the frame but reading visually smaller than Lilith / Safira when
     // contained at scale 1. Bumped to 1.15 so her body matches the other
