@@ -150,6 +150,8 @@ export class BossArchetypeStrip {
     sub('NIGHT_PHASE_BEGAN', () => this._refresh())
     sub('DAY_PHASE_BEGAN',   () => this._refresh())
     sub('NIGHT_PHASE_STARTED', () => this._refresh())
+    // The onboarding grants a one-time ability charge mid-day — re-read uses/resources.
+    sub('BOSS_ARCH_STRIP_REFRESH', () => this._refresh())
     // Echo events from BossArchetypeSystem update our armed labels.
     sub('GOLEM_EARTHQUAKE_ARMED',    () => { this._golemArmed = true;  this._refresh() })
     sub('GOLEM_EARTHQUAKE_DISARMED', () => { this._golemArmed = false; this._refresh() })

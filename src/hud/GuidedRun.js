@@ -21,6 +21,22 @@ import { CoachMark } from './CoachMark.js'
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms))
 
+// Per-archetype day-ability: button selector + the FIRED echo to advance on.
+const BOSS_ABILITY = {
+  golem:     { sel: '.qf-archstrip-earthquake', fired: 'GOLEM_EARTHQUAKE_FIRED' },
+  demon:     { sel: '.qf-archstrip-sacrifice',  fired: 'DEMON_SACRIFICE_FIRED' },
+  lich:      { sel: '.qf-archstrip-channel',    fired: 'LICH_CHANNEL_FIRED' },
+  slime:     { sel: '.qf-archstrip-surge',      fired: 'SLIME_SURGE_FIRED' },
+  beholder:  { sel: '.qf-archstrip-gaze',       fired: 'BEHOLDER_GAZE_FIRED' },
+  orc:       { sel: '.qf-archstrip-throw',      fired: 'ORC_TROPHY_THROW_FIRED' },
+  myconid:   { sel: '.qf-archstrip-seed',       fired: 'MYCONID_SEED_FIRED' },
+  lizardman: { sel: '.qf-archstrip-spit',       fired: 'LIZARD_SPIT_FIRED' },
+  vampire:   { sel: '.qf-archstrip-rite',       fired: 'VAMPIRE_RITE_FIRED' },
+  wraith:    { sel: '.qf-archstrip-terror',     fired: 'WRAITH_TERROR_FIRED' },
+  gnoll:     { sel: '.qf-archstrip-hunt',       fired: 'GNOLL_HUNT_FIRED' },
+  succubus:  { sel: '.qf-archstrip-kiss',       fired: 'SUCCUBUS_KISS_FIRED' },
+}
+
 export class GuidedRun {
   constructor(gameState) {
     this._gameState = gameState
@@ -109,7 +125,7 @@ export class GuidedRun {
     if (!t || !t.closest) return
     if (t.closest('.qf-cm-skip, .qf-cm-next, .qf-cm-bubble')) return   // coach-mark controls
     if (t.tagName === 'CANVAS' || t.closest('canvas')) return          // the dungeon map (placement clicks)
-    const ctrl = t.closest('.bsh-card, .htr-segtab, .hc-btn')
+    const ctrl = t.closest('.bsh-card, .htr-segtab, .hc-btn, .qf-archstrip-btn')
     if (!ctrl) return                                                  // not a restricted control — leave it
     const allowed = this._resolveEl(target)
     if (allowed && (ctrl === allowed || allowed.contains(ctrl) || ctrl.contains(allowed))) return
@@ -196,11 +212,54 @@ export class GuidedRun {
     const wp = this._gameState.run?.nextWavePreview
     if (wp) { wp.classIds = ['rogue']; wp.spriteVariants = ['rogue/v01']; wp.eventType = null; wp.vendettaHunter = null }
     await this._waitEvent('ADVENTURERS_SPAWNED')
-    await wait(700)   // let them walk in
-    // Watch the dungeon do the work — resolves when the wave is wiped.
+    await wait(900)   // let the invader walk in
+
+    // ── Boss-ability lesson (one intervention, while the invader's alive) ──
+    const ab = BOSS_ABILITY[this._gameState.player?.bossArchetypeId]
+    if (ab && (this._gameState.adventurers?.active?.length ?? 0) > 0) {
+      this._grantAbilityCharge()                       // ensure today's power can fire
+      EventBus.emit('TIME_SCALE_SET', { scale: 0 })    // freeze so the lesson isn't a race
+      await wait(150)                                  // strip re-reads the charge
+      const armed = await this._coach(
+        { target: ab.sel, eyebrow: 'YOUR POWER', text: 'Arm your dungeon ability', gesture: 'tap', advance: 'tap', lock: true })
+      if (armed !== 'skip') {
+        await this._coach(
+          { eyebrow: 'YOUR POWER', text: 'Now click a room to unleash it', advance: 'hold', passThrough: true, anchor: 'top', lock: true, hint: 'Click a room →' },
+          ab.fired)
+      }
+      EventBus.emit('TIME_SCALE_SET', { scale: 1 })    // resume the day
+      await wait(400)
+    }
+
+    // ── Watch the dungeon finish them — resolves when the wave is wiped ──
     if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, anchor: 'top', hint: 'Watch them fall →' }) === 'skip') return
     await wait(500)
     await this._explain('YOU ARE THE DUNGEON', 'They came to kill you — your dungeon killed them. That is your power.')
+  }
+
+  // Ensure the player's boss day-ability can fire ONCE for the tutorial, whatever
+  // the archetype's normal gate (8 reset daily; lich=essence, orc=trophy, the rest
+  // =usesLeft). Pure data on the (JSON) gameState — the existing fire handlers read
+  // it. Then tell the strip to re-read so the button enables.
+  _grantAbilityCharge() {
+    const gs = this._gameState, boss = gs.boss
+    if (!boss) return
+    const ensure = (obj, key) => { if (!obj) return; obj[key] ??= {}; if (!(obj[key].usesLeft > 0)) obj[key].usesLeft = 1 }
+    switch (gs.player?.bossArchetypeId) {
+      case 'golem':     boss._golem ??= {}; if (!(boss._golem.earthquakeUsesLeft > 0)) boss._golem.earthquakeUsesLeft = 1; break
+      case 'demon':     gs._demon ??= {}; if (!(gs._demon.sacrificeUsesLeft > 0)) gs._demon.sacrificeUsesLeft = 1; break
+      case 'lich':      boss.soulEssence = Math.max(boss.soulEssence ?? 0, 30); break  // ≥ LICH_CHANNEL_COST
+      case 'slime':     ensure(boss, '_slimeSurge'); break
+      case 'beholder':  ensure(boss, '_beholderGaze'); break
+      case 'orc':       ensure(boss, '_orcThrow'); boss.trophies ??= {}; if (!Object.keys(boss.trophies).length) boss.trophies.knight = { stacks: 1 }; break
+      case 'myconid':   ensure(boss, '_myconidSeed'); break
+      case 'lizardman': ensure(boss, '_lizSpit'); break
+      case 'vampire':   ensure(boss, '_vampRite'); break
+      case 'wraith':    ensure(boss, '_wraithTerror'); break
+      case 'gnoll':     ensure(boss, '_gnollHunt'); break
+      case 'succubus':  ensure(boss, '_succubusKiss'); break
+    }
+    EventBus.emit('BOSS_ARCH_STRIP_REFRESH')
   }
 
   // Resolve on the next EventBus `ev` (one-shot).
