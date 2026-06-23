@@ -12,9 +12,14 @@
 import { EventBus }  from '../systems/EventBus.js'
 import { CoachMark } from './CoachMark.js'
 
-// Each drip: id (seen-key), optional phase ('night'|'day'), optional minDay, an
-// optional when(gs) predicate, the target to spotlight, and the caption. advance
-// 'next' — a quick "Got it"; informs, doesn't force the action.
+// Each drip: id (seen-key); EITHER `on` (fires only when that EventBus event ticks
+// it) OR a `phase` ('night'|'day') checkpoint; optional minDay + when(gs) predicate;
+// an optional `target` to spotlight (omit for a centered/anchored info beat, e.g.
+// over a modal) + `anchor`/`passThrough`; and the caption. advance 'next' — a quick
+// "Got it" that informs, never forces the action.
+const TRAPS_TAB = () => [...document.querySelectorAll('.htr-segtab')].find(t => /TRAP/i.test(t.textContent || ''))
+const hasLibrary = (gs) => (gs.dungeon?.rooms ?? []).some(r => r.definitionId === 'library_of_whispers')
+
 const DRIPS = [
   { id: 'speed',   phase: 'day',                target: '.hc-spd',
     eyebrow: 'SPEED',   text: 'Speed up or pause the day here' },
@@ -25,6 +30,15 @@ const DRIPS = [
     eyebrow: 'SELL',    text: 'Sell a placement back for gold' },
   { id: 'move',    phase: 'night', minDay: 2,   target: '.hc-t-move',
     eyebrow: 'MOVE',    text: 'Move a room or minion anytime' },
+  // Traps tab only exists while the build drawer is open → catch it on a drawer-open tick.
+  { id: 'traps',   phase: 'night', minDay: 2,   target: TRAPS_TAB,
+    eyebrow: 'TRAPS',   text: 'Traps maim invaders — try the Traps tab' },
+  // Intel — once a Library of Whispers is built, the next wave can be scouted.
+  { id: 'intel',   phase: 'night', when: hasLibrary, target: '[data-tray-anchor="INTEL"]',
+    eyebrow: 'INTEL',   text: 'Scout the coming wave — open Intel' },
+  // Pacts — event-driven; the dark-pact picker is a modal, so a top, non-blocking note.
+  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'top', passThrough: true,
+    eyebrow: 'DARK PACT', text: 'A mighty boon with a dark price — choose one' },
 ]
 
 export class DripCoach {
@@ -39,6 +53,12 @@ export class DripCoach {
     sub('MINION_TIER_UNLOCKED', () => this._tick(this._phase()))
     sub('BOSS_LEVELED_UP',      () => this._tick(this._phase()))
     sub('ROOM_PLACED',          () => this._tick(this._phase()))
+    // The build drawer just opened — the TRAPS tab is now in the DOM.
+    const onDrawer = () => setTimeout(() => this._tick('night'), 300)
+    sub('TOGGLE_BUILD_DRAWER', onDrawer)
+    sub('OPEN_BUILD_DRAWER',   onDrawer)
+    // Event-driven drips (e.g. the dark-pact picker just opened).
+    sub('SHOW_DARK_PACT', () => setTimeout(() => this._tick(this._phase(), 'SHOW_DARK_PACT'), 300))
   }
 
   _phase() { return this._gameState?.meta?.phase ?? 'night' }
@@ -50,7 +70,7 @@ export class DripCoach {
     return t
   }
 
-  _tick(phase) {
+  _tick(phase, ev = null) {
     const meta = this._gameState?.meta
     if (!meta?.tutorialEnabled) return        // player opted out
     if (CoachMark.isActive) return            // never stack on another coach-mark
@@ -60,13 +80,19 @@ export class DripCoach {
     const day = meta.dayNumber ?? 1
     for (const d of DRIPS) {
       if (meta.seenDrips[d.id]) continue
-      if (d.phase && d.phase !== phase) continue
+      // Event ticks fire ONLY their matching event-drip; phase checkpoints fire ONLY
+      // phase-drips. (Without this split, a phase-drip would steal an event tick.)
+      if (ev) { if (d.on !== ev) continue }
+      else { if (d.on) continue; if (d.phase && d.phase !== phase) continue }
       if (d.minDay && day < d.minDay) continue
       if (d.when) { let ok; try { ok = d.when(this._gameState) } catch { ok = false } if (!ok) continue }
-      const el = this._resolveEl(d.target)
-      if (!el) continue                       // target not on screen yet — catch it next tick
+      if (d.target && !this._resolveEl(d.target)) continue   // spotlight target not on screen yet
       meta.seenDrips[d.id] = true
-      CoachMark.show({ target: d.target, eyebrow: d.eyebrow, text: d.text, gesture: 'tap', advance: 'next', nextLabel: 'Got it ›' })
+      CoachMark.show({
+        target: d.target, eyebrow: d.eyebrow, text: d.text,
+        gesture: d.target ? 'tap' : undefined, anchor: d.anchor, passThrough: d.passThrough,
+        advance: 'next', nextLabel: 'Got it ›',
+      })
       return                                  // one at a time
     }
   }
