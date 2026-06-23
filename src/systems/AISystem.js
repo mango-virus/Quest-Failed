@@ -36,6 +36,14 @@ const MORALE_BREAK_MS              = 1300   // game-time in the Breaking band be
 const PANIC_ONSET_MS               = 550
 const PANIC_HOLD_MS                = 1200
 const PANIC_VFX_CADENCE_MS         = 650
+// Nerve afflictions (2026-06-23, research briefing #5) — a morale break now selects
+// ONE of several DISTINCT breakdown beats (terror/rout/despair/paranoia/hysteria),
+// each cashing out as a player win. DESPAIR = a slow defeated trudge to the exit
+// (can't fight, exposed, 0.5× pace); HYSTERIA = lashing out at party-mates for a window.
+const DESPAIR_HOLD_MS              = 3500
+const DESPAIR_SPEED_MUL           = 0.5
+const HYSTERIA_WINDOW_MS          = 6000
+const AFFLICTION_VFX_CADENCE_MS   = 650
 // (panicked heroes take +50% damage — that multiplier lives in CombatSystem._computeDamage.)
 // Room appraisal (Thread 2) — the "read the room" threshold beat.
 const APPRAISE_PAUSE_MIN_MS        = 220    // a quick glance (confident entry)
@@ -2147,6 +2155,15 @@ export class AISystem {
     // Pre-boss huddle — a final confer as a party closes on the throne.
     this._maybePreBossConfer(adv)
 
+    // Nerve afflictions — resolve a timed affliction (despair trudge / hysteria
+    // friendly-fire) whose window has lapsed, then check for a high-nerve HUBRIS
+    // overextension. Both run every tick, independent of the Breaking band.
+    {
+      const now = this._scene?.time?.now ?? 0
+      this._tickAffliction(adv, now)
+      this._checkHubris(adv, now)
+    }
+
     // Morale-break flee (AI overhaul): a sustained Breaking nerve band makes a
     // normal adventurer crack and bolt even before their HP is low — the arc
     // payoff. Gated to real dungeon pressure + non-scripted roles so it can't
@@ -2755,7 +2772,10 @@ export class AISystem {
     // Sells the "running away in panic" feel and (more importantly)
     // clears the end-of-day exit queue at the entry hall doorway
     // before the player has time to get bored.
-    const fleeMul  = adv.aiState === 'fleeing' ? FLEE_SPEED_MULT : 1
+    // DESPAIR affliction — they're routed to the exit (aiState 'fleeing') but DON'T
+    // sprint; they trudge out defeated at half pace, so the exposed kill is slow + sure.
+    const despairing = adv._despairUntil != null && (this._scene?.time?.now ?? 0) < adv._despairUntil
+    const fleeMul  = despairing ? DESPAIR_SPEED_MUL : (adv.aiState === 'fleeing' ? FLEE_SPEED_MULT : 1)
     // Phase 5c — Bard Song of Speed: same-party advs within 2 tiles of a
     // speed-song-active Bard move 20% faster.
     const songMul  = this._songOfSpeedMul(adv)
@@ -3295,6 +3315,9 @@ export class AISystem {
     // Vampire charm: charmed adventurers are walking to the boss to be turned
     // into thralls — they cannot break off and flee.
     if (adv._charmed) return
+    // HUBRIS affliction — a glory-drunk hero who has committed to the deep charge
+    // will NOT break off; they push to the throne and die there (player win).
+    if (adv._hubris) return
 
     // Phase 5c — partial-retreat option. For "soft" panic reasons
     // (coward_panic, low_hp_retreat) there's a 50% chance the adv pulls
@@ -3580,6 +3603,37 @@ export class AISystem {
     return 1
   }
 
+  // HUBRIS (nerve affliction #6) — the HIGH-nerve overextension. A BOLD, glory-hungry
+  // hero (overconfident / underdog snowball / zealot / high risk-tolerance) deep in the
+  // dungeon throws caution out and charges the throne, splitting from the cautious party.
+  // Cashes out as a player win: they overextend into your killzone and die deep. Fires
+  // once per life, only well inside the dungeon so it reads as overextension not a spawn
+  // rush. Heavily guarded like the morale break (scripted / no-flee / charmed roles skip).
+  _checkHubris(adv, now) {
+    if (adv._hubrisTriggered || adv.mood !== 'bold') return
+    if (adv.classId === 'barbarian' || adv.flags?.noFlee || adv._charmed ||
+        adv._nemesis || adv._nemesisDuel || adv._speedrunner || adv._saboteur ||
+        adv.flags?.zombieShambler || this._beelinesBoss(adv) || this._isScriptedRole(adv)) return
+    if (adv.aiState === 'fleeing' || adv.goal?.type === 'FLEE' || adv.goal?.type === 'AT_BOSS' ||
+        adv.goal?.type === 'SEEK_BOSS' || adv.goal?.type === 'ATTACK_ALLY') return
+    const tags = this._personalitySystem?.getTags?.(adv) ?? new Set()
+    const w    = this._personalitySystem?.getWeights?.(adv) ?? {}
+    const prone = tags.has?.('overconfident') || tags.has?.('underdog') || tags.has?.('zealot') ||
+                  (w.riskTolerance ?? 0.5) > 0.8
+    if (!prone) return
+    // Only well inside the dungeon (so it's a deep overextension, not a doorway charge).
+    const deep = Math.max(Math.abs(adv.tileX - (adv.spawnTileX ?? adv.tileX)),
+                          Math.abs(adv.tileY - (adv.spawnTileY ?? adv.tileY)))
+    if (deep < 7) return
+    adv._hubrisTriggered = true
+    adv._hubris = true   // suppresses flee (see _setFleeGoal) — they commit to the deep push
+    adv.goal = { type: 'SEEK_BOSS', reason: 'hubris' }
+    adv.path = null
+    EventBus.emit('ADVENTURER_AFFLICTED', { advId: adv.instanceId, type: 'hubris' })
+    EventBus.emit('SAY_hubris', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.hubrisFx?.(this._scene, adv.worldX, adv.worldY, {})
+  }
+
   // Morale-break flee (AI overhaul). A normal adventurer whose nerve has sat in the
   // Breaking band under real pressure for MORALE_BREAK_MS of game-time cracks and bolts.
   // `_breakingMs` accumulates SCALED delta (game-time), so it behaves identically at any
@@ -3611,23 +3665,178 @@ export class AISystem {
     }
     if (!damaged && !threatNear && !deep) { adv._breakingMs = 0; return }
     adv._breakingMs = Math.min(PANIC_ONSET_MS, (adv._breakingMs ?? 0) + (delta ?? 16))
-    if (adv._breakingMs >= PANIC_ONSET_MS) {
-      // PANIC IN PLACE (nerve rework) — terror no longer routes them out (that just
-      // hands the player a lost kill + a knowledge leak). Instead it PINS them: they
-      // freeze and cower (the freeze gate in _tickAdventurer), can't fight back
-      // (CombatSystem attack gate), and take +50% damage — a helpless, defenceless
-      // kill standing in your killzone. Refreshed each tick the pressure holds, so a
-      // hero stays panicked while a ghost is near; lapses when nerve recovers.
-      const now = this._scene?.time?.now ?? 0
-      const wasPanicked = adv._panickedUntil != null && now < adv._panickedUntil
+    if (adv._breakingMs >= PANIC_ONSET_MS) this._afflict(adv)
+  }
+
+  // ── Nerve afflictions (research briefing #5, 2026-06-23) ─────────────────────
+  // A morale break no longer ALWAYS panics-in-place. It selects ONE distinct
+  // breakdown beat (weighted by personality + context), locks it for its window,
+  // and re-rolls only after the window lapses while still breaking. Each affliction
+  // is a legible story beat that cashes out as a PLAYER WIN (never an escape-loss):
+  //   TERROR  — freeze & cower (helpless kill)            [existing panic-in-place]
+  //   ROUT    — bolt to exit + cascade panic to allies    [flee + NerveSystem cascade]
+  //   DESPAIR — give up: slow trudge to exit, can't fight [exposed, 0.5× pace]
+  //   PARANOIA— break from party: flee AWAY from allies   [isolated, picked off]
+  //   HYSTERIA— lash out at a party-mate for a window      [friendly fire]
+  // (HUBRIS — the high-nerve overextension — is a separate check, _checkHubris.)
+  _afflict(adv) {
+    const now = this._scene?.time?.now ?? 0
+    const a = adv._affliction
+    if (a && a.until != null && now < a.until) { this._afflictUpkeep(adv, a.type, now); return }
+    const type = this._selectAffliction(adv)
+    adv._affliction = { type, until: now }   // each onset stamps its own .until
+    EventBus.emit('ADVENTURER_AFFLICTED', { advId: adv.instanceId, type })
+    switch (type) {
+      case 'rout':     this._afflictRout(adv, now);     break
+      case 'despair':  this._afflictDespair(adv, now);  break
+      case 'paranoia': this._afflictParanoia(adv, now); break
+      case 'hysteria': this._afflictHysteria(adv, now); break
+      default:         this._afflictTerror(adv, now);   break   // 'terror'
+    }
+  }
+
+  // Weighted roll over the breakdown beats, dialled by personality + context so the
+  // SAME nerve-break reads differently per character (the emergent-story payoff).
+  _selectAffliction(adv) {
+    const tags = this._personalitySystem?.getTags?.(adv) ?? new Set()
+    const w    = this._personalitySystem?.getWeights?.(adv) ?? {}
+    const has  = (t) => tags.has?.(t)
+    const hpFrac = adv.resources?.maxHp > 0 ? adv.resources.hp / adv.resources.maxHp : 1
+    const mates  = adv.partyId
+      ? (this._gameState.adventurers?.active ?? []).filter(a => a !== adv && a.partyId === adv.partyId && a.aiState !== 'dead').length
+      : 0
+    const alone = mates === 0
+    const aggr  = w.aggressionLevel ?? 0.5
+    const weights = {
+      terror:   1.0 + (has('coward') ? 1.5 : 0) + (has('traumatized') ? 0.4 : 0),
+      rout:     0.9 + (has('traumatized') ? 1.0 : 0) + (mates > 0 ? 0.4 : 0),
+      despair:  0.5 + (hpFrac < 0.25 ? 1.6 : 0) + (has('traumatized') ? 0.8 : 0) + (alone ? 0.5 : 0),
+      paranoia: 0.5 + (has('coward') ? 0.9 : 0) + (alone ? 1.0 : 0),
+      hysteria: 0.2 + (has('berserker') ? 1.6 : 0) + Math.max(0, (aggr - 0.5) * 2.4) + (mates > 0 ? 0.5 : -2.0),
+    }
+    if (this._hysteriaTargets(adv).length === 0) weights.hysteria = 0
+    return this._weightedPick(weights) ?? 'terror'
+  }
+
+  _weightedPick(weights) {
+    let total = 0
+    for (const k in weights) { if (weights[k] > 0) total += weights[k] }
+    if (total <= 0) return null
+    let r = Math.random() * total
+    for (const k in weights) { if (weights[k] > 0 && (r -= weights[k]) <= 0) return k }
+    return null
+  }
+
+  // Per-tick upkeep while an affliction's window is still open (VFX cadence; terror
+  // also REFRESHES so a hero stays frozen while a threat lingers). Goal-driven
+  // afflictions (rout/paranoia/hysteria) need no upkeep here — their goal carries them.
+  _afflictUpkeep(adv, type, now) {
+    if (type === 'terror') {
       adv._panickedUntil = now + PANIC_HOLD_MS
-      if (!wasPanicked) {
-        EventBus.emit('SAY_moraleBreak', { adventurer: adv })   // a terrified cry as they freeze
-        adv._panicVfxAt = 0
-      }
-      if (now - (adv._panicVfxAt ?? 0) >= PANIC_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
+      adv._affliction.until = adv._panickedUntil
+      if (now - (adv._afflictVfxAt ?? 0) >= AFFLICTION_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
         AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})
-        adv._panicVfxAt = now
+        adv._afflictVfxAt = now
+      }
+    } else if (type === 'despair') {
+      if (now - (adv._afflictVfxAt ?? 0) >= AFFLICTION_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
+        AbilityVfx.despairStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+        adv._afflictVfxAt = now
+      }
+    }
+  }
+
+  _afflictTerror(adv, now) {
+    adv._panickedUntil = now + PANIC_HOLD_MS
+    adv._affliction.until = adv._panickedUntil
+    adv._afflictVfxAt = 0
+    EventBus.emit('SAY_moraleBreak', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+  }
+
+  _afflictRout(adv, now) {
+    adv._affliction.until = now + 1e9   // committed — the flee goal carries them out
+    this._setFleeGoal(adv, 'rout')
+    if (adv.aiState !== 'fleeing') { this._afflictTerror(adv, now); return }   // flee was guarded → fall back
+    EventBus.emit('SAY_rout', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.panicBreakFx?.(this._scene, adv.worldX, (adv.worldY ?? 0) - 16, {})
+  }
+
+  _afflictDespair(adv, now) {
+    adv._despairUntil = now + DESPAIR_HOLD_MS
+    adv._affliction.until = adv._despairUntil
+    adv._afflictVfxAt = 0
+    this._dropFleeGold(adv)
+    adv.goal    = { type: 'FLEE', reason: 'despair' }
+    adv.aiState = 'fleeing'   // exposed + uses flee pathing; fleeMul forces the slow trudge
+    adv.path    = null
+    EventBus.emit('SAY_despair', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.despairStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+  }
+
+  _afflictParanoia(adv, now) {
+    adv._affliction.until = now + 1e9   // committed — flees away from the party
+    this._dropFleeGold(adv)
+    adv.goal    = { type: 'FLEE', reason: 'paranoia', paranoiaBreakaway: true }
+    adv.aiState = 'fleeing'
+    adv.path    = null
+    EventBus.emit('SAY_paranoia', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.paranoiaStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+  }
+
+  _afflictHysteria(adv, now) {
+    const targets = this._hysteriaTargets(adv)
+    if (targets.length === 0) { this._afflictTerror(adv, now); return }
+    const target = targets[Math.floor(Math.random() * targets.length)]
+    adv._fearAttackUntil = now + HYSTERIA_WINDOW_MS
+    adv._affliction.until = adv._fearAttackUntil
+    adv.goal = { type: 'ATTACK_ALLY', allyId: target.instanceId, source: 'hysteria' }
+    adv.path = null
+    EventBus.emit('SAY_hysteria', { adventurer: adv })
+    if (Number.isFinite(adv.worldX)) AbilityVfx.hysteriaStateFx?.(this._scene, adv.worldX, adv.worldY, {})
+  }
+
+  // Living same-party mates (or any living adventurer if soloing) a hysteric can turn on.
+  _hysteriaTargets(adv) {
+    const all = this._gameState.adventurers?.active ?? []
+    const pool = all.filter(a => a !== adv && a.aiState !== 'dead' && (a.resources?.hp ?? 0) > 0)
+    if (adv.partyId) {
+      const mates = pool.filter(a => a.partyId === adv.partyId)
+      if (mates.length) return mates
+    }
+    return pool
+  }
+
+  // Shared "drop gold in the panic" payout (extracted from _setFleeGoal so despair /
+  // paranoia, which set their own flee goal, still pay the player for the scare).
+  _dropFleeGold(adv) {
+    if (adv._fleeLootDropped) return
+    adv._fleeLootDropped = true
+    const lvl = this._gameState.boss?.level ?? 1
+    const drop = Math.max(3, Math.round(4 + lvl * 1.5))
+    this._gameState.player.gold += drop
+    adv.goldDropped = (adv.goldDropped ?? 0) + drop
+    if (Number.isFinite(adv.worldX)) {
+      EventBus.emit('RESOURCES_AWARDED', { gold: drop, reason: 'adventurer_flee_drop', worldX: adv.worldX, worldY: adv.worldY })
+    }
+  }
+
+  // Resolve a timed affliction whose window has lapsed (despair trudge / hysteria
+  // friendly-fire) back to normal AI. Called every tick from _tickAdventurer so it
+  // fires even after the hero recovers out of the Breaking band. Terror lapses on its
+  // own (panic gate); rout/paranoia are committed flees that run to completion.
+  _tickAffliction(adv, now) {
+    const a = adv._affliction
+    if (!a) return
+    if (a.type === 'despair' && now >= (adv._despairUntil ?? 0)) {
+      adv._affliction = null
+      if (adv.goal?.type === 'FLEE' && adv.goal?.reason === 'despair') {
+        adv.aiState = 'walking'; adv.goal = null; adv.path = null   // resume a fresh goal
+      }
+    } else if (a.type === 'hysteria' && now >= (adv._fearAttackUntil ?? 0)) {
+      adv._affliction = null
+      if (adv.goal?.type === 'ATTACK_ALLY' && adv.goal?.source === 'hysteria') {
+        adv.goal = null; adv.path = null
       }
     }
   }
@@ -5653,6 +5862,15 @@ export class AISystem {
   // adventurer moves between two equidistant exits. Returns null if there
   // are no entry halls at all.
   _fleeExitTile(adv) {
+    // PARANOIA affliction — they don't run for the door, they break AWAY from the
+    // party: head for the room farthest from their group (and from any entrance) so
+    // they isolate themselves and get picked off alone. Re-evaluated each call so they
+    // keep drifting away as the party moves. Falls through to a normal exit if there's
+    // no sensible breakaway room.
+    if (adv.goal?.paranoiaBreakaway) {
+      const t = this._paranoiaAwayTile(adv)
+      if (t) return t
+    }
     // False Exit detour (2026-05-27). When _setFleeGoal rolled the 50%
     // false-exit flee, head for that room's center first — entering it
     // fires RoomBehaviorSystem's teleport, which scatters the adv to a
@@ -5681,6 +5899,38 @@ export class AISystem {
       if (entry && adv.goal) adv.goal.fleeEntryId = entry.instanceId
     }
     return entry ? entryDoorTile(entry) : null
+  }
+
+  // PARANOIA breakaway target — the center of the placed room farthest from the party
+  // centroid (and biased away from entrances so they don't accidentally escape). When
+  // soloing, "the party" is the entrances themselves, so they just flee deep. Returns
+  // null if there's no non-entry/non-boss room to bolt to.
+  _paranoiaAwayTile(adv) {
+    const rooms = (this._gameState.dungeon?.rooms ?? []).filter(r =>
+      r.isActive !== false && r.definitionId !== 'entry_hall' && r.definitionId !== 'boss_chamber')
+    if (rooms.length === 0) return null
+    const mates = adv.partyId
+      ? (this._gameState.adventurers?.active ?? []).filter(a => a !== adv && a.partyId === adv.partyId && a.aiState !== 'dead')
+      : []
+    let cx, cy
+    if (mates.length) {
+      cx = mates.reduce((s, a) => s + a.tileX, 0) / mates.length
+      cy = mates.reduce((s, a) => s + a.tileY, 0) / mates.length
+    } else {
+      const halls = this._entryHalls()
+      if (halls.length) {
+        cx = halls.reduce((s, h) => s + h.gridX + (h.width ?? 0) / 2, 0) / halls.length
+        cy = halls.reduce((s, h) => s + h.gridY + (h.height ?? 0) / 2, 0) / halls.length
+      } else { cx = adv.tileX; cy = adv.tileY }
+    }
+    let best = null, bestD = -1
+    for (const r of rooms) {
+      const rx = r.gridX + Math.floor((r.width ?? 1) / 2)
+      const ry = r.gridY + Math.floor((r.height ?? 1) / 2)
+      const d = Math.hypot(rx - cx, ry - cy)
+      if (d > bestD) { bestD = d; best = { x: rx, y: ry } }
+    }
+    return best
   }
 
   // Returns a spawn-door tile for a fresh adventurer, or null (no entry

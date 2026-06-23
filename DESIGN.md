@@ -3016,6 +3016,65 @@ want to completely remove the twitch streamer class and twitch con event from th
 
 ---
 
+## Nerve afflictions — distinct breakdown behaviors (LOCKED 2026-06-23, research briefing #5)
+
+> Canonical spec. Build from THIS. Extends Thread 1 (Nerve/Morale) below. Acceptance
+> checklist in `DESIGN_COVERAGE.md §"Nerve afflictions"` — tick each box against code.
+
+**Source:** research briefing item #5 (Darkest Dungeon's 7 distinct affliction behaviors).
+**Problem:** despite rich nerve *inputs*, a breakdown only ever produces TWO generic
+outcomes — panic-in-place or generic flee — so every personality breaks the same way. The
+break doesn't read as character.
+
+**Hard constraint (NON-NEGOTIABLE — `feedback_nerve_player_positive`):** the player IS the
+dungeon. EVERY affliction must cash out as a player WIN / kill, NEVER a player escape-loss.
+Adopt Darkest Dungeon's *pattern* (distinct legible beats), NOT its player-loss outcomes.
+
+**The mechanic:** when an adventurer crosses into `breaking` under pressure (the existing
+`_checkMoraleBreak` onset, AISystem ~3589), instead of always panic-in-place they select
+ONE affliction by a personality+context-weighted roll, lock it for its duration, and on
+expiry re-roll if still breaking. A separate high-nerve check drives HUBRIS. Each affliction
+gets a DISTINCT behavior + VFX + emote + barked line, and emits `ADVENTURER_AFFLICTED {advId,
+type}` (also feeds the future #8 story-recap).
+
+**The 6 afflictions (user signed off "All 6", 2026-06-23):**
+
+| # | Affliction | DD analogue | Behavior | Player cash-out | Favored by |
+|---|---|---|---|---|---|
+| 1 | **TERROR** | Fearful | Freeze & cower in place (existing panic-in-place: `_panickedUntil`, +50% vuln, can't attack) | Helpless → easy kill | coward, low baseline |
+| 2 | **ROUT** | Fearful-flight | Bolt to exit (existing `_setFleeGoal`), exposed; ALSO cascades a nerve hit to nearby same-party allies (new) | Gold drop + gauntlet death + spreads panic | traumatized, raid-leader-death survivors |
+| 3 | **DESPAIR** | Hopeless | Gives up — abandons goal, slumps, shuffles slowly/aimlessly, won't fight (can't attack), exposed (+dmg) | Slow, defenceless → free kill | traumatized, very low HP |
+| 4 | **PARANOIA** | Paranoid/Selfish | Breaks FROM the party — flees AWAY from the party centroid (not the exit), deeper/alone, refuses to regroup | Isolated → picked off without ally support | coward, loner types |
+| 5 | **HYSTERIA** | Abusive/Irrational | Lashes out — `ATTACK_ALLY` goal (reuses Wraith friendly-fire plumbing) on nearest party-mate for a window | Damages/kills their own party for you | berserker, aggressive |
+| 6 | **HUBRIS** *(high-nerve, NOT a break)* | — (virtue-inverse) | Overconfident push: charges deep toward boss/most-dangerous room, ignores threats, splits from cautious party | Overextends into your kill zone → dies deep | overconfident, underdog, zealot |
+
+**Parameters (starting points, tunable in preview/sim — NOT balance-final):**
+- Selection weights derived from personality tags + context (HP, party state, depth).
+- Durations: Terror ~1.2s (existing PANIC_HOLD_MS, refreshes under pressure); Despair ~3.5s;
+  Hysteria ~6s (WRAITH_FEAR_FRIENDLY_FIRE_WINDOW analogue); Rout/Paranoia until exit-or-death;
+  Hubris until they reach the deep room or die.
+- Re-roll only after the current affliction's window lapses AND still breaking.
+
+**Guards (inherit from `_checkMoraleBreak` / `_setFleeGoal`):** barbarian, `flags.noFlee`,
+`_charmed`, berserker-when-bleeding, scripted roles (`_nemesis`/`_saboteur`/`_speedrunner`/
+beelines-boss/zombieShambler) never afflict. Hysteria must not double-fire with Wraith's own
+fear friendly-fire (share the `_fearAttackUntil`/`ATTACK_ALLY` state, don't stack).
+
+**Legibility (VFX-variety mandate — each DISTINCT, no same-y rings):** extend `AbilityVfx`
+with a per-affliction variant (Terror=existing sweat/tremble pink `panicStateFx`; Despair=
+slumped grey desaturation + sinking motes; Paranoia=darting glance/recoil; Hysteria=red rage
+haze; Hubris=reckless gold charge streak). Distinct `SAY_*` barked line per affliction via
+NpcDirector. Emote per affliction in EmoteSystem.
+
+**Persistence:** `_affliction` (+ any new `*Until` timers) added to SaveSystem persist list
+(JSON-serializable). Cleared on night phase / death.
+
+**Build order:** (A) selection + Terror/Despair/Rout-cascade; (B) Paranoia + Hysteria;
+(C) Hubris. Verify each in preview before the next. Owns AISystem (adventurer — NOT the
+parallel-owned MinionAISystem), NerveSystem, AbilityVfx, EmoteSystem, NpcDirector lines.
+
+---
+
 ## Adventurer AI & Personality Overhaul (2026-06-10) — VERBATIM SPEC (locked with user)
 
 > This is the **canonical spec** for the AI/personality rework. Build from THIS, not from

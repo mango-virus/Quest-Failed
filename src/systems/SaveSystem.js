@@ -437,6 +437,9 @@ function _rehydrateRunHistory(state) {
     // Nerve rework · panic-in-place — `_panickedUntil` is a scene-time stamp (drives the
     // cower freeze + attack-suppress + +50% vuln); drop on load so a hero doesn't load frozen.
     '_panickedUntil', '_panicVfxAt', '_breakingMs',
+    // Nerve afflictions (distinct breakdown beats) — scene-time stamps + the active
+    // affliction record; drop on load so a hero doesn't resume mid-despair/hysteria.
+    '_despairUntil', '_afflictVfxAt', '_affliction', '_hubris', '_hubrisTriggered',
     // Gnoll BLOOD HUNT — `_bleedUntil`/`_bleedTickAt`/`_noHealUntil` are scene-time stamped;
     // drop on load so a hero doesn't load bleeding / un-healable / with a stale trail anchor.
     '_bleedStacks', '_bleedUntil', '_bleedTickAt', '_bleedPerStack', '_bleedInterval', '_bleedSource',

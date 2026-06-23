@@ -1186,6 +1186,48 @@
       "Breaking. I'm breaking. OUT.",
       "No more. NO MORE."
     ],
+    "despair": [
+      "What's the point... what's the point of any of it.",
+      "We were never going to make it.",
+      "Just... let it end.",
+      "I can't go on. I won't.",
+      "It doesn't matter anymore.",
+      "Leave me. I'm finished.",
+      "There's no way out. There never was.",
+      "Why did I even come here..."
+    ],
+    "rout": [
+      "RUN! RUN, ALL OF YOU!",
+      "It's over — GET OUT!",
+      "Don't look back, just GO!",
+      "Forget the gold, SAVE YOURSELVES!",
+      "We're all going to DIE here — MOVE!",
+      "Sound the retreat! SOUND IT!"
+    ],
+    "paranoia": [
+      "Get AWAY from me — all of you!",
+      "You'll get me killed. I'm going alone.",
+      "I can't trust any of you!",
+      "Stay back! STAY BACK!",
+      "On my own. Safer on my own.",
+      "You're not dragging me down with you!"
+    ],
+    "hysteria": [
+      "GET BACK! I'll cut down anyone who comes near!",
+      "Is that you?! IS THAT YOU?!",
+      "Stay away! I'll KILL you, I swear it!",
+      "Everyone's against me — EVERYONE!",
+      "Don't TOUCH me!",
+      "I can't tell what's real anymore — DIE!"
+    ],
+    "hubris": [
+      "Stand aside — I'll end the beast MYSELF!",
+      "The throne is MINE!",
+      "Cowards! Watch how a real hero does it!",
+      "No monster can stop me!",
+      "Glory waits in the deep — FORWARD!",
+      "I don't need any of you. I never did."
+    ],
     "avenge": [
       "You'll PAY for that.",
       "FOR THE FALLEN!",

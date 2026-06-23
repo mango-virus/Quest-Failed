@@ -106,6 +106,8 @@ export class ChatBubbles {
       // AI overhaul beats + reactions
       'confer', 'taunt', 'lastStand', 'rally',
       'ghost', 'dread', 'awe', 'moraleBreak', 'avenge',
+      // Nerve afflictions (distinct breakdown beats, 2026-06-23)
+      'despair', 'rout', 'paranoia', 'hysteria', 'hubris',
     ]) {
       const handler = ({ adventurer }) => {
         if (adventurer) this._showContextualBubble(adventurer, this._pickEventLine(key))

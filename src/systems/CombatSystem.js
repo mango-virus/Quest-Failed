@@ -180,6 +180,7 @@ export class CombatSystem {
     // genuinely FLEEING hero is likewise too busy running to swing. Either way their
     // attacks are suppressed so your minions cut them down for free.
     if (attacker._panickedUntil != null && now < attacker._panickedUntil) return null
+    if (attacker._despairUntil != null && now < attacker._despairUntil) return null   // DESPAIR affliction — given up, won't raise a weapon
     if (attacker._petrifiedUntil != null && now < attacker._petrifiedUntil) return null   // Beholder petrify — a statue can't swing
     if (attacker.faction !== 'dungeon' && attacker.aiState === 'fleeing') return null
     // Lizardman CAMOUFLAGE — heroes literally can't hit what they can't see. A
@@ -257,6 +258,7 @@ export class CombatSystem {
     {
       const tNow = this._scene?.time?.now ?? 0
       const exposed = (target._panickedUntil != null && tNow < target._panickedUntil) ||
+                      (target._despairUntil != null && tNow < target._despairUntil) ||
                       (target.faction !== 'dungeon' && target.aiState === 'fleeing')
       if (exposed && finalDmg > 0) finalDmg = Math.max(1, Math.round(finalDmg * 1.5))
       // Beholder GAZE hex — a hexed hero takes amplified damage for the window.

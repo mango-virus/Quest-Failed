@@ -1305,6 +1305,29 @@ A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light pa
 | ai-add-claustrophobe | ADD **Claustrophobe** — geometry-driven nerve (fears TIGHT spaces — user pick) | ✅ DONE (2026-06-10) | `nerve{baseline:55, geometry:'tight'}`; NerveSystem `_roomTightness` drains in corridors / min-dim≤3 rooms, steadies in open halls (harness: tight 55→52, open 55→71). Novel — nothing else reacts to layout. |
 | ai-roster-counts | STATUS.md count + verify-docs + sim:soak | ✅ DONE (2026-06-10) | STATUS.md count auto-synced 16→18 + notes updated; `verify-docs` OK; `lint-content` green; `sim:soak` 120/120 clean. |
 
+### Nerve afflictions — distinct breakdown behaviors (locked 2026-06-23, briefing #5) — per-detail checklist
+
+> Spec: DESIGN.md → "Nerve afflictions — distinct breakdown behaviors". User signed off "All 6"
+> 2026-06-23. Hard constraint: every affliction cashes out as a player WIN (never an escape-loss).
+> **✅ BUILT + headless-verified 2026-06-23** (nerve-rework-check 25/25, npm test 49/49, soak 120/120).
+> ⏳ remaining: user's Electron eyeball of the 4 new VFX (proxy screenshot is unreliable).
+
+| ID | Detail | Status | Notes |
+|---|---|---|---|
+| aff-select | Affliction selection at break onset (personality+context weighted roll; lock for duration; re-roll on lapse-if-still-breaking) | ✅ DONE | `_afflict`/`_selectAffliction`/`_weightedPick` in AISystem; replaces the always-panic in `_checkMoraleBreak` |
+| aff-terror | TERROR — freeze & cower (existing panic-in-place) → easy kill | ✅ DONE | `_afflictTerror` reuses `_panickedUntil` gate + refresh in `_afflictUpkeep` |
+| aff-rout | ROUT — bolt to exit (existing flee) + NEW cascade nerve hit to nearby party allies | ✅ DONE | `_afflictRout`; cascade in `NerveSystem._onAfflicted` (IMP_ROUT_CASCADE −14) |
+| aff-despair | DESPAIR — give up: slow defeated trudge to the exit, can't attack, exposed → free kill | ✅ DONE | `_afflictDespair`; `_despairUntil` + `fleeMul` forced to 0.5×; CombatSystem attack-gate + vuln. (Implemented as a slow trudge-to-exit, not a random wander — cleaner read, no pathfinding risk.) |
+| aff-paranoia | PARANOIA — flee AWAY from party centroid (not exit), isolate → picked off alone | ✅ DONE | `_afflictParanoia` + `_paranoiaAwayTile`; `_fleeExitTile` paranoiaBreakaway branch |
+| aff-hysteria | HYSTERIA — `ATTACK_ALLY` nearest party-mate for a window → damages own party | ✅ DONE | `_afflictHysteria` reuses ATTACK_ALLY goal + `_fearAttackUntil`; expiry in `_tickAffliction` |
+| aff-hubris | HUBRIS (high-nerve, not a break) — overconfident deep charge → overextends into kill zone | ✅ DONE | `_checkHubris` (bold + prone + deep≥7); `_setFleeGoal` `_hubris` guard; once per life |
+| aff-vfx | Per-affliction DISTINCT VFX variant (no same-y rings; lint-vfx passes) | ✅ DONE | `despairStateFx`/`paranoiaStateFx`/`hysteriaStateFx`/`hubrisFx` in AbilityVfx; lint-vfx green; live-fire clean. ⏳ user Electron eyeball |
+| aff-legibility | Per-affliction barked line + visual tell | ✅ DONE | `SAY_despair/rout/paranoia/hysteria/hubris` (chatLines.json + ChatBubbles); VFX is the visual tell (no new emote-sprite art needed) |
+| aff-event | `ADVENTURER_AFFLICTED {advId,type}` emitted (feeds future #8 story-recap) | ✅ DONE | emitted from `_afflict` + `_checkHubris` |
+| aff-persist | `_affliction` + new `*Until` timers in SaveSystem strip list; dropped on load | ✅ DONE | added to SaveSystem transient strip (don't load mid-affliction) |
+| aff-guards | Inherit no-flee guards (barbarian/noFlee/charmed/berserker-bleeding/scripted roles) | ✅ DONE | break inherits `_checkMoraleBreak` guards; hubris re-guards; rout falls back to terror if flee guarded |
+| aff-verify | Verify each in preview/sim; STATUS unaffected (no content count change) | ✅ DONE | nerve-rework-check 25/25, npm test 49/49, soak 120/120; no content-count change |
+
 ---
 
 ## How to keep this file honest

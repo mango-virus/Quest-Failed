@@ -3089,6 +3089,136 @@ export const AbilityVfx = {
     return made
   },
 
+  // DESPAIR STATE (nerve affliction) — "they've given up." Distinct from terror's
+  // trembling: a heavy, COLOURLESS sink. A grey sigh-puff sags off the head and
+  // drifts DOWN, ashen motes rain slowly, and a dim downturned mark droops over them
+  // — the body-language of hopelessness. On-the-unit, sinking (no ring).
+  despairStateFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0x8b94a6, depth: 41, durationMs: 900, ...opts }   // ashen grey
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const hy = y - 16
+    // 1. a slow grey "sigh" puff that sags and sinks.
+    const puff = scene.add.graphics().setPosition(x, hy).setDepth(o.depth).setAlpha(0); made.push(puff)
+    puff.fillStyle(o.color, 0.5)
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2; puff.fillCircle(Math.cos(a) * 3, Math.sin(a) * 1.6, 2.6) }
+    puff.fillStyle(_lerpColor(o.color, 0xffffff, 0.4), 0.4); puff.fillCircle(0, -1, 2.2)
+    scene.tweens.add({ targets: puff, y: hy + 12, alpha: 0.7, scaleX: 1.5, scaleY: 0.7, duration: life * 0.5, ease: 'Sine.easeIn',
+      onComplete: () => scene.tweens.add({ targets: puff, alpha: 0, y: hy + 20, duration: life * 0.4, onComplete: () => puff.destroy() }) })
+    // 2. ashen motes rain down slowly (despair settling).
+    for (let i = 0; i < 4; i++) {
+      const mx = x + (Math.random() - 0.5) * 16, my = hy - 4 + Math.random() * 6
+      const g = scene.add.graphics().setPosition(mx, my).setDepth(o.depth - 0.1).setAlpha(0); made.push(g)
+      g.fillStyle(o.color, 0.85); g.fillCircle(0, 0, 0.9 + Math.random() * 0.6)
+      scene.tweens.add({ targets: g, y: my + 16 + Math.random() * 8, alpha: 0.8, duration: life * 0.6, delay: i * 90, ease: 'Quad.easeIn',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: life * 0.2, onComplete: () => g.destroy() }) })
+    }
+    // 3. a dim, DOWNTURNED mark droops over the head (the inverse of the fright pop).
+    const mk = scene.add.graphics().setPosition(x, hy - 9).setDepth(o.depth + 0.3).setAlpha(0).setScale(0.5); made.push(mk)
+    mk.fillStyle(0x05060f, 0.4); mk.fillCircle(0.6, 0.6, 1.7)
+    mk.fillStyle(o.color, 0.9); mk.fillCircle(0, 0, 1.6)                                        // dot
+    mk.lineStyle(1.6, o.color, 0.9); mk.beginPath(); mk.moveTo(-3, -5); mk.lineTo(0, -3.4); mk.lineTo(3, -5); mk.strokePath()   // downturned brow
+    scene.tweens.add({ targets: mk, alpha: 0.95, scale: 0.92, y: hy - 4, duration: life * 0.4, ease: 'Sine.easeIn',
+      onComplete: () => scene.tweens.add({ targets: mk, alpha: 0, y: hy + 2, duration: life * 0.45, onComplete: () => mk.destroy() }) })
+    return made
+  },
+
+  // PARANOIA STATE (nerve affliction) — "trust no one." Sharp little glance-DARTS
+  // flick out around the head, each stabbing a different direction (eyes snapping
+  // around), with an erratic recoil jitter. Sickly wary yellow-green. Quick + nervy,
+  // nothing like the slow despair sink. On-the-unit angular flicks (no ring).
+  paranoiaStateFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xc9d65a, depth: 41, durationMs: 620, ...opts }   // wary chartreuse
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const hy = y - 17
+    // 4 darting glance-flicks: a short arrow-like stab pointing outward, popping in
+    // and snapping back at staggered times (the eyes can't settle).
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + (Math.random() - 0.5) * 0.8
+      const dist = 9 + Math.random() * 4
+      const g = scene.add.graphics().setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      const dx = Math.cos(a), dy = Math.sin(a) * 0.7
+      const draw = (al) => { g.clear(); g.lineStyle(1.8, o.color, al); g.beginPath()
+        g.moveTo(x + dx * 4, hy + dy * 4); g.lineTo(x + dx * dist, hy + dy * dist)            // shaft
+        // arrowhead
+        g.moveTo(x + dx * dist, hy + dy * dist); g.lineTo(x + dx * (dist - 3) - dy * 2.4, hy + dy * (dist - 3) + dx * 2.4)
+        g.moveTo(x + dx * dist, hy + dy * dist); g.lineTo(x + dx * (dist - 3) + dy * 2.4, hy + dy * (dist - 3) - dx * 2.4)
+        g.strokePath() }
+      scene.tweens.addCounter({ from: 0, to: 1, duration: life * 0.4, delay: i * (life * 0.13), onUpdate: (tw) => draw(Math.sin(tw.getValue() * Math.PI) * 0.9), onComplete: () => g.destroy() })
+    }
+    // small recoil jitter mark over the head (a nervous flinch).
+    const mk = scene.add.graphics().setPosition(x, hy - 8).setDepth(o.depth + 0.3).setAlpha(0); made.push(mk)
+    _drawFrightMark(mk, o.color); mk.setScale(0.42)
+    scene.tweens.add({ targets: mk, alpha: 0.9, x: x + 2, duration: 60, yoyo: true, repeat: 3, onComplete: () => scene.tweens.add({ targets: mk, alpha: 0, duration: 120, onComplete: () => mk.destroy() }) })
+    return made
+  },
+
+  // HYSTERIA STATE (nerve affliction) — "lashing out." A violent red rage: jagged
+  // spike-bursts flail outward erratically and a hot tint throbs at the body. Sharp,
+  // aggressive, asymmetric — the opposite read of cowering. On-the-unit jagged spikes.
+  hysteriaStateFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xe8453a, depth: 41, durationMs: 640, ...opts }   // rage red
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const cy = y - 12
+    // throbbing hot haze at the chest.
+    const haze = scene.add.graphics().setDepth(o.depth - 0.1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(haze)
+    scene.tweens.addCounter({ from: 0, to: 1, duration: life, onUpdate: (tw) => { const p = tw.getValue()
+      haze.clear(); haze.setAlpha(Math.sin(p * Math.PI) * 0.5); haze.fillStyle(o.color, 0.5)
+      const r = 8 + Math.sin(p * Math.PI * 5) * 2.2; haze.fillCircle(x, cy, r) }, onComplete: () => haze.destroy() })
+    // 5 jagged rage-spikes flailing outward at erratic angles.
+    for (let i = 0; i < 5; i++) {
+      const a = Math.random() * Math.PI * 2, len = 10 + Math.random() * 7
+      const g = scene.add.graphics().setDepth(o.depth + 0.2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      const dx = Math.cos(a), dy = Math.sin(a)
+      // a sharp zig spike (two segments kinked) — not a clean line.
+      const kx = x + dx * len * 0.55 + -dy * (Math.random() * 3 + 1.5)
+      const ky = cy + dy * len * 0.55 +  dx * (Math.random() * 3 + 1.5)
+      g.lineStyle(2.2, o.color, 0.9); g.beginPath(); g.moveTo(x + dx * 3, cy + dy * 3); g.lineTo(kx, ky); g.lineTo(x + dx * len, cy + dy * len); g.strokePath()
+      g.lineStyle(1, _lerpColor(o.color, 0xffffff, 0.5), 0.9); g.beginPath(); g.moveTo(kx, ky); g.lineTo(x + dx * len, cy + dy * len); g.strokePath()
+      scene.tweens.addCounter({ from: 0, to: 1, duration: life * (0.4 + Math.random() * 0.3), delay: i * 50, onUpdate: (tw) => g.setAlpha(Math.sin(tw.getValue() * Math.PI) * 0.95), onComplete: () => g.destroy() })
+    }
+    return made
+  },
+
+  // HUBRIS (nerve affliction #6, high-nerve) — "glory or nothing." A one-shot bold
+  // GOLD surge as a hero throws caution aside and charges the throne: forward speed-
+  // chevrons streak ahead and a crown-glint flares over the head. Triumphant, forward,
+  // gold — the visual inverse of every fearful break. Fired once at onset (no cadence).
+  hubrisFx(scene, x, y, opts = {}) {
+    if (!_validXY(x, y)) return null
+    const o = { color: 0xffcf4d, depth: 42, durationMs: 720, dir: 1, ...opts }   // glory gold
+    const slow = o.slow ?? 1, life = o.durationMs * slow, made = []
+    const cy = y - 14, dir = o.dir >= 0 ? 1 : -1
+    // 3 forward chevrons surging ahead (the charge).
+    for (let i = 0; i < 3; i++) {
+      const g = scene.add.graphics().setDepth(o.depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      const oy = cy + (i - 1) * 6
+      g.lineStyle(2.6 - i * 0.4, o.color, 0.95); g.beginPath()
+      g.moveTo(0, -4); g.lineTo(6 * dir, 0); g.lineTo(0, 4); g.strokePath()
+      g.setPosition(x + dir * 4, oy)
+      scene.tweens.add({ targets: g, x: x + dir * (20 + i * 8), alpha: 0.95, duration: life * 0.4, delay: i * 60, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, x: g.x + dir * 10, duration: life * 0.3, onComplete: () => g.destroy() }) })
+    }
+    // crown-glint flare over the head.
+    const cr = scene.add.graphics().setPosition(x, cy - 16).setDepth(o.depth + 0.3).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.4); made.push(cr)
+    cr.fillStyle(o.color, 0.95); cr.beginPath()
+    cr.moveTo(-6, 3); cr.lineTo(-6, -2); cr.lineTo(-2.5, 1); cr.lineTo(0, -4); cr.lineTo(2.5, 1); cr.lineTo(6, -2); cr.lineTo(6, 3); cr.closePath(); cr.fillPath()
+    cr.fillStyle(0xffffff, 0.8); cr.fillCircle(0, -3, 1)
+    scene.tweens.add({ targets: cr, alpha: 1, scale: 1, y: cy - 20, duration: life * 0.3, ease: 'Back.easeOut', yoyo: true, hold: life * 0.2,
+      onComplete: () => cr.destroy() })
+    // a quick gold uprush sparkle at the feet (resolve to charge).
+    for (let i = 0; i < 5; i++) {
+      const sx = x + (Math.random() - 0.5) * 12
+      const g = scene.add.graphics().setPosition(sx, y - 2).setDepth(o.depth - 0.1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); made.push(g)
+      g.fillStyle(o.color, 0.9); g.fillCircle(0, 0, 1 + Math.random())
+      scene.tweens.add({ targets: g, y: y - 14 - Math.random() * 8, alpha: 0.9, duration: life * 0.45, delay: i * 40, ease: 'Quad.easeOut',
+        onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: 120, onComplete: () => g.destroy() }) })
+    }
+    return made
+  },
+
   // ── Beholder · GAZE / DOMINATION toolkit ──────────────────────────────────
   // A wavering, iris-textured GAZE-RAY from the eye to a target (not a clean laser:
   // it snakes + flickers). Shared by mesmerizeFx + manyEyesFx.

@@ -48,6 +48,7 @@ const IMP_HEAL          =  12   // healed at a fountain
 const IMP_HIT_PER_PCT   = -0.28 // per 1% maxHP of a single incoming hit
 const IMP_HIT_CAP       = -12   // floor on a single hit's nerve bite
 const ALLY_DEATH_RADIUS = 7     // tiles — non-party deaths within this rattle witnesses
+const IMP_ROUT_CASCADE  = -14   // a party-mate breaking and bolting (ROUT affliction) is contagious
 
 const TS = Balance.TILE_SIZE
 
@@ -69,6 +70,7 @@ export class NerveSystem {
     EventBus.on('BUFF_GAINED',        this._onLoot,       this)
     EventBus.on('FOUNTAIN_HEAL_USED', this._onHeal,       this)
     EventBus.on('MINION_OBSERVED',    this._onMinionSeen, this)
+    EventBus.on('ADVENTURER_AFFLICTED', this._onAfflicted, this)
     // The profile cache is keyed by instanceId and only seeded; evict it each night
     // so it doesn't accumulate an entry per adventurer that ever lived (the next
     // wave re-seeds on first tick).
@@ -84,6 +86,7 @@ export class NerveSystem {
     EventBus.off('BUFF_GAINED',        this._onLoot,       this)
     EventBus.off('FOUNTAIN_HEAL_USED', this._onHeal,       this)
     EventBus.off('MINION_OBSERVED',    this._onMinionSeen, this)
+    EventBus.off('ADVENTURER_AFFLICTED', this._onAfflicted, this)
     EventBus.off('NIGHT_PHASE_STARTED', this._onNightNerve, this)
     this._profiles.clear()
   }
@@ -350,6 +353,25 @@ export class NerveSystem {
     if (!adventurer || adventurer.aiState === 'dead') return
     this._seed(adventurer)
     this._apply(adventurer, IMP_HEAL)
+  }
+
+  // ROUT cascade (nerve afflictions) — when a hero breaks and bolts (the ROUT
+  // affliction, emitted by AISystem), the sight of a party-mate fleeing in terror
+  // is contagious: same-party mates take a full hit, nearby non-party witnesses a
+  // smaller one. Can chain a whole party into collapse — a player-positive snowball.
+  _onAfflicted({ advId, type } = {}) {
+    if (type !== 'rout' || !advId) return
+    const src = (this._gameState.adventurers?.active ?? []).find(a => a.instanceId === advId)
+    if (!src) return
+    for (const a of this._gameState.adventurers?.active ?? []) {
+      if (a === src || a.aiState === 'dead') continue
+      if (src.partyId && a.partyId === src.partyId) {
+        this._seed(a); this._apply(a, IMP_ROUT_CASCADE)
+      } else {
+        const d = Math.hypot(a.tileX - src.tileX, a.tileY - src.tileY)
+        if (d <= ALLY_DEATH_RADIUS) { this._seed(a); this._apply(a, IMP_ROUT_CASCADE * 0.6) }
+      }
+    }
   }
 
   // Ambush (unreliable rumours, Enh B) — sighting a threat in a room they'd already

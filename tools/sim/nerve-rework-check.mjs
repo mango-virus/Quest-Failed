@@ -7,6 +7,7 @@
 import { boot } from './headless.mjs'
 import { MinionAbilities } from '../../src/systems/MinionAbilities.js'
 import { NerveSystem } from '../../src/systems/NerveSystem.js'
+import { EventBus } from '../../src/systems/EventBus.js'
 
 const { scene, gs, grid, systems } = boot({ boss: 'lich' })
 const ai = systems.aiSystem, cs = systems.combatSystem
@@ -16,18 +17,64 @@ const check = (n, c, d = '') => { if (c) { pass++; out.push(`  ✓ ${n}`) } else
 let uid = 0
 const adv = (o = {}) => ({ instanceId: `a${uid++}`, classId: 'knight', faction: 'adventurer', tileX: 5, tileY: 5, worldX: 160, worldY: 160, aiState: 'walking', nerve: 80, mood: 'steady', goal: { type: 'EXPLORE_ROOM' }, resources: { hp: 100, maxHp: 100 }, stats: { attack: 10, defense: 0, speed: 1 }, ...o })
 
-// ── A: Panic-in-place — _checkMoraleBreak PANICS, doesn't flee ──
+// ── A: morale break → a DISTINCT, player-positive affliction (briefing #5, 2026-06-23) ──
+// A break no longer ALWAYS panics in place — it rolls one of several breakdown beats
+// (terror/rout/despair/paranoia/hysteria). EVERY outcome must still cash out as a
+// player win (helpless, or committed to a flee/attack), never a clean free escape.
 {
   gs.minions = [{ instanceId: 'm1', faction: 'dungeon', aiState: 'fighting', tileX: 5, tileY: 5, resources: { hp: 10 } }]
-  const a = adv({ mood: 'breaking', nerve: 5, resources: { hp: 50, maxHp: 100 } })
-  gs.adventurers.active = [a]
-  for (let i = 0; i < 7; i++) { scene.time.now += 100; ai._checkMoraleBreak(a, 100) }
-  check('A: breaking+pressure PANICS in place (sets _panickedUntil)', (a._panickedUntil ?? 0) > scene.time.now, `until=${a._panickedUntil} now=${scene.time.now}`)
-  check('A: terror does NOT set a FLEE goal (no lost kill)', a.goal?.type !== 'FLEE', `goal=${a.goal?.type}`)
-  // a calm (non-breaking) hero never panics
+  const seen = {}; let allPositive = true; let badT = null
+  for (let i = 0; i < 60; i++) {
+    scene.time.now += 100
+    const a = adv({ mood: 'breaking', nerve: 5, resources: { hp: 50, maxHp: 100 } })
+    gs.adventurers.active = [a]; gs.player.gold = 1000
+    ai._afflict(a)
+    const t = a._affliction?.type; seen[t] = (seen[t] ?? 0) + 1
+    const positive =
+      (t === 'terror'   && (a._panickedUntil ?? 0) > scene.time.now) ||
+      (t === 'despair'  && (a._despairUntil ?? 0) > scene.time.now && a.aiState === 'fleeing') ||
+      (t === 'rout'     && a.aiState === 'fleeing') ||
+      (t === 'paranoia' && a.aiState === 'fleeing' && a.goal?.paranoiaBreakaway === true)
+    if (!positive) { allPositive = false; badT = t }
+  }
+  check('A: every morale break yields a player-positive affliction', allPositive, `bad=${badT} seen=${JSON.stringify(seen)}`)
+  check('A: breaks are VARIED (≥2 distinct afflictions seen)', Object.keys(seen).length >= 2, `seen=${JSON.stringify(seen)}`)
+  check('A: terror (panic-in-place) is still in the mix', (seen.terror ?? 0) > 0, `seen=${JSON.stringify(seen)}`)
+  // a calm (non-breaking) hero never breaks
   const b = adv({ mood: 'steady', nerve: 70 }); gs.adventurers.active = [b]
   for (let i = 0; i < 7; i++) { scene.time.now += 100; ai._checkMoraleBreak(b, 100) }
-  check('A: a steady hero never panics', !(b._panickedUntil > scene.time.now))
+  check('A: a steady hero never breaks', !b._affliction && !(b._panickedUntil > scene.time.now))
+}
+
+// ── A2: each affliction's onset is correct + player-positive ──
+{
+  const t = adv({ mood: 'breaking' }); t._affliction = {}; gs.adventurers.active = [t]
+  ai._afflictTerror(t, scene.time.now)
+  check('A2 terror: panic freeze, no FLEE goal', (t._panickedUntil ?? 0) > scene.time.now && t.goal?.type !== 'FLEE', `until=${t._panickedUntil} goal=${t.goal?.type}`)
+
+  const d = adv({ mood: 'breaking' }); d._affliction = {}; gs.adventurers.active = [d]; gs.player.gold = 100
+  ai._afflictDespair(d, scene.time.now)
+  check('A2 despair: slow trudge, exposed, gold dropped', (d._despairUntil ?? 0) > scene.time.now && d.aiState === 'fleeing' && d.goal?.reason === 'despair' && gs.player.gold > 100, `until=${d._despairUntil} gold=${gs.player.gold}`)
+
+  const p = adv({ mood: 'breaking' }); p._affliction = {}; gs.adventurers.active = [p]; gs.player.gold = 100
+  ai._afflictParanoia(p, scene.time.now)
+  check('A2 paranoia: breakaway flee + gold', p.aiState === 'fleeing' && p.goal?.paranoiaBreakaway === true && gs.player.gold > 100, `goal=${JSON.stringify(p.goal)} gold=${gs.player.gold}`)
+
+  const r = adv({ mood: 'breaking' }); r._affliction = {}; gs.adventurers.active = [r]; gs.player.gold = 100
+  ai._afflictRout(r, scene.time.now)
+  check('A2 rout: flee to exit + gold', r.aiState === 'fleeing' && gs.player.gold > 100, `goal=${r.goal?.type} gold=${gs.player.gold}`)
+
+  const h1 = adv({ mood: 'breaking', partyId: 'P1' }); const h2 = adv({ partyId: 'P1' })
+  h1._affliction = {}; gs.adventurers.active = [h1, h2]
+  ai._afflictHysteria(h1, scene.time.now)
+  check('A2 hysteria: turns on a party-mate (ATTACK_ALLY)', h1.goal?.type === 'ATTACK_ALLY' && h1.goal?.allyId === h2.instanceId, `goal=${JSON.stringify(h1.goal)}`)
+}
+
+// ── A3: HUBRIS commits the hero — they will NOT flee ──
+{
+  const a = adv({ mood: 'bold' }); a._hubris = true; gs.adventurers.active = [a]; gs.player.gold = 100
+  ai._setFleeGoal(a, 'low_hp_retreat')
+  check('A3 hubris: a committed hero refuses to flee', a.goal?.type !== 'FLEE' && a.aiState !== 'fleeing', `goal=${a.goal?.type}`)
 }
 
 // ── B: Bold = reckless — no low-HP retreat ──
@@ -108,6 +155,13 @@ const adv = (o = {}) => ({ instanceId: `a${uid++}`, classId: 'knight', faction: 
   check('D: guild panic lowers a new hero\'s starting nerve', a2.nerve < base, `base=${base} panicked=${a2.nerve}`)
   gs._guildPanic = 22; ns._onNightNerve()
   check('D: guild panic decays each night', gs._guildPanic < 22 && gs._guildPanic >= 0, `gp=${gs._guildPanic}`)
+
+  // ROUT cascade — a party-mate bolting in terror craters nearby allies' nerve.
+  const r = adv({ partyId: 'PC' }); const mate = adv({ partyId: 'PC', tileX: 5, tileY: 5 })
+  mate.nerve = 80; mate.mood = 'bold'; mate._nerveSeeded = true
+  gs.adventurers.active = [r, mate]
+  EventBus.emit('ADVENTURER_AFFLICTED', { advId: r.instanceId, type: 'rout' })
+  check('D: ROUT cascades panic to a party-mate (nerve drops)', mate.nerve < 80, `mate=${mate.nerve}`)
 }
 
 // ── E: Pall of Dread = MASS PANIC in place ──
