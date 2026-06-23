@@ -21,20 +21,22 @@ import { CoachMark } from './CoachMark.js'
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms))
 
-// Per-archetype day-ability: button selector + the FIRED echo to advance on.
+// Per-archetype day-ability: button selector, the FIRED echo to advance on, and a
+// plain-language explanation of what THAT boss's power actually does (from the
+// bossArchetypes day-active mechanics).
 const BOSS_ABILITY = {
-  golem:     { sel: '.qf-archstrip-earthquake', fired: 'GOLEM_EARTHQUAKE_FIRED' },
-  demon:     { sel: '.qf-archstrip-sacrifice',  fired: 'DEMON_SACRIFICE_FIRED' },
-  lich:      { sel: '.qf-archstrip-channel',    fired: 'LICH_CHANNEL_FIRED' },
-  slime:     { sel: '.qf-archstrip-surge',      fired: 'SLIME_SURGE_FIRED' },
-  beholder:  { sel: '.qf-archstrip-gaze',       fired: 'BEHOLDER_GAZE_FIRED' },
-  orc:       { sel: '.qf-archstrip-throw',      fired: 'ORC_TROPHY_THROW_FIRED' },
-  myconid:   { sel: '.qf-archstrip-seed',       fired: 'MYCONID_SEED_FIRED' },
-  lizardman: { sel: '.qf-archstrip-spit',       fired: 'LIZARD_SPIT_FIRED' },
-  vampire:   { sel: '.qf-archstrip-rite',       fired: 'VAMPIRE_RITE_FIRED' },
-  wraith:    { sel: '.qf-archstrip-terror',     fired: 'WRAITH_TERROR_FIRED' },
-  gnoll:     { sel: '.qf-archstrip-hunt',       fired: 'GNOLL_HUNT_FIRED' },
-  succubus:  { sel: '.qf-archstrip-kiss',       fired: 'SUCCUBUS_KISS_FIRED' },
+  golem:     { sel: '.qf-archstrip-earthquake', fired: 'GOLEM_EARTHQUAKE_FIRED', name: 'Seismic Slam',   desc: 'Quake a room — damage everyone inside.' },
+  demon:     { sel: '.qf-archstrip-sacrifice',  fired: 'DEMON_SACRIFICE_FIRED',  name: 'Infernal Pact',   desc: 'Burn an imp to engulf a room in hellfire.' },
+  lich:      { sel: '.qf-archstrip-channel',    fired: 'LICH_CHANNEL_FIRED',     name: 'Channel Souls',   desc: 'Spend soul essence to blast a room.' },
+  slime:     { sel: '.qf-archstrip-surge',      fired: 'SLIME_SURGE_FIRED',      name: 'Mitosis Surge',   desc: 'Flood a room with swarming gooplings.' },
+  beholder:  { sel: '.qf-archstrip-gaze',       fired: 'BEHOLDER_GAZE_FIRED',    name: "Tyrant's Gaze",   desc: 'Lock down everyone in a room.' },
+  orc:       { sel: '.qf-archstrip-throw',      fired: 'ORC_TROPHY_THROW_FIRED', name: 'Trophy Throw',    desc: 'Hurl claimed weapons into a room.' },
+  myconid:   { sel: '.qf-archstrip-seed',       fired: 'MYCONID_SEED_FIRED',     name: 'Seed the Bloom',  desc: 'Colonize a room with deadly spores.' },
+  lizardman: { sel: '.qf-archstrip-spit',       fired: 'LIZARD_SPIT_FIRED',      name: 'Plague Spit',     desc: 'Infect a room — the plague then spreads.' },
+  vampire:   { sel: '.qf-archstrip-rite',       fired: 'VAMPIRE_RITE_FIRED',     name: 'Blood Rite',      desc: 'Drain the life from a whole room.' },
+  wraith:    { sel: '.qf-archstrip-terror',     fired: 'WRAITH_TERROR_FIRED',    name: 'Night Terror',    desc: 'Flood a room with paralyzing fear.' },
+  gnoll:     { sel: '.qf-archstrip-hunt',       fired: 'GNOLL_HUNT_FIRED',       name: 'Sound the Hunt',  desc: 'Frenzy your pack to swarm a room.' },
+  succubus:  { sel: '.qf-archstrip-kiss',       fired: 'SUCCUBUS_KISS_FIRED',    name: 'Kiss of Rapture', desc: 'Mesmerize everyone in a room.' },
 }
 
 export class GuidedRun {
@@ -203,8 +205,8 @@ export class GuidedRun {
   }
 
   // Beat 2 — the guided first DAY: a single weak invader walks in and dies to the
-  // dungeon (the payoff that cements the inversion). (The boss-ability lesson —
-  // grant a charge + arm→target→fire while the party is alive — lands in 2b.)
+  // dungeon (the payoff). Once the invader steps into a room, it teaches the boss
+  // day-ability (explain → grant a charge → arm → target → fire, while alive).
   async _runBeat2() {
     // Force a trivial first day: one weak rogue. Reuse the engine's pre-rolled
     // preview so the day/count already line up (day-1 base count is 1); just swap
@@ -212,22 +214,12 @@ export class GuidedRun {
     const wp = this._gameState.run?.nextWavePreview
     if (wp) { wp.classIds = ['rogue']; wp.spriteVariants = ['rogue/v01']; wp.eventType = null; wp.vendettaHunter = null }
     await this._waitEvent('ADVENTURERS_SPAWNED')
-    await wait(900)   // let the invader walk in
+    await this._waitAdvInRoom()   // wait until the invader has stepped a couple tiles into a room
 
     // ── Boss-ability lesson (one intervention, while the invader's alive) ──
     const ab = BOSS_ABILITY[this._gameState.player?.bossArchetypeId]
     if (ab && (this._gameState.adventurers?.active?.length ?? 0) > 0) {
-      this._grantAbilityCharge()                       // ensure today's power can fire
-      EventBus.emit('TIME_SCALE_SET', { scale: 0 })    // freeze so the lesson isn't a race
-      await wait(150)                                  // strip re-reads the charge
-      const armed = await this._coach(
-        { target: ab.sel, eyebrow: 'YOUR POWER', text: 'Arm your dungeon ability', gesture: 'tap', advance: 'tap', lock: true })
-      if (armed !== 'skip') {
-        await this._coach(
-          { eyebrow: 'YOUR POWER', text: 'Now click a room to unleash it', advance: 'hold', passThrough: true, anchor: 'top', lock: true, hint: 'Click a room →' },
-          ab.fired)
-      }
-      EventBus.emit('TIME_SCALE_SET', { scale: 1 })    // resume the day
+      await this._abilityLesson(ab)
       await wait(400)
     }
 
@@ -260,6 +252,53 @@ export class GuidedRun {
       case 'succubus':  ensure(boss, '_succubusKiss'); break
     }
     EventBus.emit('BOSS_ARCH_STRIP_REFRESH')
+  }
+
+  // Teach the boss day-ability: explain what it does, then arm → click a room →
+  // fire. The day is frozen so the lone invader can't die mid-lesson; the `finally`
+  // ALWAYS un-freezes (even on skip). A skip just exits the lesson — the watch +
+  // payoff still run.
+  async _abilityLesson(ab) {
+    this._grantAbilityCharge()
+    EventBus.emit('TIME_SCALE_SET', { scale: 0 })   // freeze
+    await wait(150)                                 // strip re-reads the charge
+    try {
+      if (await this._explain(ab.name.toUpperCase(), ab.desc) === 'skip') return
+      if (await this._coach({ target: ab.sel, eyebrow: 'YOUR POWER', text: 'Arm your dungeon ability', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return
+      await this._coach(
+        { eyebrow: 'YOUR POWER', text: 'Now click a room to unleash it', advance: 'hold', passThrough: true, anchor: 'top', lock: true, hint: 'Click a room →' },
+        ab.fired)
+    } finally {
+      EventBus.emit('TIME_SCALE_SET', { scale: 1 })  // ALWAYS resume the day
+    }
+  }
+
+  // Resolve once the lead invader has stepped a couple tiles into a room (so the
+  // ability lesson lands with the invader actually inside the dungeon, not at the
+  // doorway). Falls through on a timeout or if the wave is already gone.
+  _waitAdvInRoom(maxMs = 9000) {
+    return new Promise((resolve) => {
+      let elapsed = 0
+      const iv = setInterval(() => {
+        elapsed += 200
+        const advs = this._gameState.adventurers?.active ?? []
+        if (advs.length === 0) { clearInterval(iv); resolve('gone') }
+        else if (advs.some(a => this._advInRoomInterior(a))) { clearInterval(iv); resolve('in') }
+        else if (elapsed >= maxMs) { clearInterval(iv); resolve('timeout') }
+      }, 200)
+    })
+  }
+
+  // True when the adventurer is ≥2 tiles inside a placed room OTHER than the entry
+  // hall (i.e. it's pushed into the dungeon proper, where a minion is waiting).
+  _advInRoomInterior(adv) {
+    const TS = 32   // Balance.TILE_SIZE
+    const tx = Math.floor((adv.worldX ?? adv.x ?? 0) / TS)
+    const ty = Math.floor((adv.worldY ?? adv.y ?? 0) / TS)
+    return (this._gameState.dungeon?.rooms ?? []).some(r =>
+      r.definitionId !== 'entry_hall' &&
+      tx >= r.gridX + 2 && tx <= r.gridX + r.width - 3 &&
+      ty >= r.gridY + 2 && ty <= r.gridY + r.height - 3)
   }
 
   // Resolve on the next EventBus `ev` (one-shot).
