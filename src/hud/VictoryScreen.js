@@ -24,6 +24,7 @@ import { runCountUp } from './countUp.js'
 import { FullLogOverlay } from './FullLogOverlay.js'
 import { VictoryMusic } from '../systems/VictoryMusic.js'
 import { domShake } from './screenShake.js'
+import { composeSaga } from '../systems/StoryRecapSystem.js'
 
 function _json(key) {
   const arr = window.__game?.cache?.json?.get?.(key)
@@ -168,6 +169,7 @@ export class VictoryScreen {
           'All of them broke against your dungeon. You reign — eternal.'),
         this._statGrid(),
         this._detail(),
+        this._renderSaga(),
         this._unlock(nextTier, freshUnlock),
         h('div', { className: 'qf-victory-actions' }, [
           h('button', { className: 'btn', on: { click: () => this._openFullLog() } }, 'FULL LOG'),
@@ -267,6 +269,24 @@ export class VictoryScreen {
     if (responses.length) rows.push(this._drow('STRATEGIES BROKEN', responses.join(' · ')))
     rows.push(this._drow('YOUR FINAL FORM', finalForm, 'gold'))
     return h('div', { className: 'qf-victory-detail' }, rows)
+  }
+
+  // THE SAGA — the run's emergent-narrative arc (victory framing). Briefing #8.
+  _renderSaga() {
+    let saga
+    try { saga = composeSaga(this._gs, { won: true }) } catch { return null }
+    if (!saga || !(saga.lines?.length)) return null
+    return h('div', { className: 'qf-victory-saga', style: { margin: '18px auto 4px', maxWidth: '760px', textAlign: 'left' } }, [
+      h('div', {
+        style: { textAlign: 'center', color: 'var(--gold)', fontSize: '11px', letterSpacing: '.22em', textTransform: 'uppercase', marginBottom: '11px' },
+      }, `⸺  ${saga.title}  ⸺`),
+      ...saga.lines.map(line => h('div', {
+        style: { display: 'flex', gap: '10px', alignItems: 'baseline', color: 'var(--text)', fontSize: '13px', lineHeight: '1.55', marginBottom: '6px' },
+      }, [
+        h('span', { style: { color: 'var(--gold)', flex: '0 0 auto' } }, '◆'),
+        h('span', {}, line),
+      ])),
+    ])
   }
 
   _unlock(nextTier, fresh) {

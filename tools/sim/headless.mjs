@@ -123,7 +123,7 @@ import { TrapSystem }             from '../../src/systems/TrapSystem.js'
 import { EvolutionSystem }        from '../../src/systems/EvolutionSystem.js'
 import { MinionEvolutionSystem }  from '../../src/systems/MinionEvolutionSystem.js'
 import { DungeonMechanicSystem }  from '../../src/systems/DungeonMechanicSystem.js'
-import { NewspaperSystem }        from '../../src/systems/NewspaperSystem.js'
+import { StoryRecapSystem }       from '../../src/systems/StoryRecapSystem.js'
 import { InquisitorSystem }       from '../../src/systems/InquisitorSystem.js'
 import { BossSystem }             from '../../src/systems/BossSystem.js'
 import { BossArchetypeSystem }    from '../../src/systems/BossArchetypeSystem.js'
@@ -174,7 +174,7 @@ export function boot({ boss = 'lich' } = {}) {
   add('evolutionSystem',   new EvolutionSystem(scene, gs)); systems.evolutionSystem.loadDefinitions?.()
   add('minionEvolutionSystem', new MinionEvolutionSystem(scene, gs))
   add('dungeonMechanicSystem', new DungeonMechanicSystem(scene, gs)); systems.dungeonMechanicSystem.loadDefinitions?.()
-  add('newspaperSystem',   new NewspaperSystem(scene, gs))
+  add('storyRecapSystem',  new StoryRecapSystem(scene, gs))
   add('inquisitorSystem',  new InquisitorSystem(scene, gs, systems.dungeonMechanicSystem, systems.personalitySystem))
   add('bossSystem',        new BossSystem(scene, gs))
   add('bossArchetypeSystem', new BossArchetypeSystem(scene, gs))  // per-archetype boss behavior (the differentiator)

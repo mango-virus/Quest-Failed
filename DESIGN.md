@@ -3075,6 +3075,50 @@ parallel-owned MinionAISystem), NerveSystem, AbilityVfx, EmoteSystem, NpcDirecto
 
 ---
 
+## Story recap — emergent-narrative end-of-day / end-of-run beat (LOCKED 2026-06-23, briefing #8)
+
+> Canonical spec. Build from THIS. Acceptance checklist in `DESIGN_COVERAGE.md §"Story recap"`.
+
+**Source:** research briefing #8 (RimWorld/Dwarf-Fortress procedural storytelling). Surface the
+emergent narrative the AI already generates — who fled, who died greedy, the party that wiped,
+and (rich new material) the #5 nerve afflictions — as readable prose at end-of-day + end-of-run.
+
+**Tone (user pick 2026-06-23): HYBRID — grim + wry.** Mostly serious dark-fantasy; an occasional
+cruel/wry edge. e.g. "Aldric the Knight met a giant rat in the dark. The rat won." / "The cleric
+died reviving a man who'd already fled. Heroic. Pointless." NOT the old deadpan "Boss Daily" memo.
+
+**What exists:** `NewspaperSystem` harvests daily events but is ORPHANED (`compose()` never called —
+the old full-screen newspaper scene was refactored to a thin orchestrator). PostWaveOverlay
+(end-of-day) shows fate cards but not the dramatic *why*; GameOverOverlay (end-of-run) shows stats
+but no arc. FullLog stays the exhaustive chronological list — the recap is the CURATED highlights.
+
+**The build:**
+1. **Harvest + compose engine** (revive/repurpose NewspaperSystem → a story-recap composer):
+   - Wire in `ADVENTURER_AFFLICTED` (+ existing died/fled/kill/loot/event buffers).
+   - GROUP the day's events by adventurer (instanceId/name) → build the RICHEST single beat per
+     notable hero (combine affliction + death + greed into one character arc, no double-beats).
+   - Affliction beats: hysteria "turned their blade on their own", paranoia "abandoned the party,
+     died alone", hubris "charged the throne alone, certain of glory", despair "gave up, was cut
+     down", rout/cascade "broke and ran; the panic took the party with them", terror "froze and
+     never moved again". Plus greed (looted then died), the final blow, a recurring escapee nemesis.
+   - Multiple phrasings per cause (variety; avg/seed so it's not same-y). Curate to the top ~3-4
+     most DRAMATIC beats/day (ranked: afflicted-and-died > notable death > affliction > fled-w/-gold
+     > fled). FullLog keeps the rest.
+   - Run accumulation (JSON-safe on `gameState.history`): deadliest day, the nemesis (most escapes),
+     the final blow, running toll — for the end-of-run saga.
+2. **End-of-day "THE DAY'S TALE"** — a compact narrative section (headline + 2-4 beats + the toll)
+   integrated into the existing end-of-day summary (PostWaveOverlay), additively. No extra click.
+3. **End-of-run "THE SAGA OF YOUR REIGN"** — a section in GameOverOverlay (loss) + the victory
+   screen: the run's arc (deadliest day, the nemesis, the final blow, the toll, a closing line).
+
+**Constraints:** GameState stays JSON-serializable (plain objects only). Reuse the crypt-console HUD
+shell + tokens (`var(--blood)`/`--gold`/`--text-mute`, eyebrow pattern) — NO raw #hex (lint-hex).
+Additive edits to the shared result screens (don't disturb existing PostWave/GameOver content). A
+parallel session may own styles.css — prefer inline/existing classes; if a new rule is needed, ADD
+only, never touch theirs. Build order: (A) engine [headless-testable] → (B) end-of-day → (C) end-of-run.
+
+---
+
 ## Adventurer AI & Personality Overhaul (2026-06-10) — VERBATIM SPEC (locked with user)
 
 > This is the **canonical spec** for the AI/personality rework. Build from THIS, not from

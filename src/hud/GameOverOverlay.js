@@ -29,6 +29,7 @@ import { isActsEnabled } from '../config/acts.js'
 import { GameOverMusic } from '../systems/GameOverMusic.js'
 import { PlayerProfile } from '../systems/PlayerProfile.js'
 import { classLabel, minionLabel } from '../util/displayNames.js'
+import { composeSaga } from '../systems/StoryRecapSystem.js'
 
 export class GameOverOverlay {
   constructor(gameState) {
@@ -301,6 +302,8 @@ export class GameOverOverlay {
           ]),
         ]),
       ]),
+      // THE SAGA — the run's emergent-narrative arc (briefing #8).
+      this._renderSaga(),
       // Footer
       h('div', { className: 'qf-go-footer' }, [
         h('button', {
@@ -312,6 +315,25 @@ export class GameOverOverlay {
           on: { click: () => this._riseAgain() },
         }, 'RISE AGAIN'),
       ]),
+    ])
+  }
+
+  // THE SAGA OF YOUR REIGN — the run's emergent-narrative arc (deadliest day, the
+  // nemesis, the final blow, the toll, a closing line). Pure compose from gameState.
+  _renderSaga() {
+    let saga
+    try { saga = composeSaga(this._gameState) } catch { return null }
+    if (!saga || !(saga.lines?.length)) return null
+    return h('div', { className: 'qf-go-saga panel bevel', style: { marginTop: '16px', padding: '16px 20px' } }, [
+      h('div', { className: 'pix qf-go-section-title', style: { textAlign: 'center', marginBottom: '12px', color: 'var(--gold)' } }, `⸺  ${saga.title}  ⸺`),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '900px', margin: '0 auto' } },
+        saga.lines.map(line => h('div', {
+          style: { display: 'flex', gap: '10px', alignItems: 'baseline', color: 'var(--text)', fontSize: '13.5px', lineHeight: '1.55' },
+        }, [
+          h('span', { style: { color: 'var(--blood)', flex: '0 0 auto' } }, '◆'),
+          h('span', {}, line),
+        ]))
+      ),
     ])
   }
 

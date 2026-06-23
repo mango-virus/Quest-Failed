@@ -159,6 +159,8 @@ export class PostWaveOverlay {
           intelLeakers.length > 0 && this._renderLeakWarn(intelLeakers),
         ]),
       ]),
+      // THE DAY'S TALE — the curated emergent-narrative recap (briefing #8).
+      this._renderDaysTale(),
       // Footer
       h('div', { className: 'qf-pws-footer' }, [
         h('button', {
@@ -176,6 +178,29 @@ export class PostWaveOverlay {
         }, 'CONTINUE TO NIGHT'),
       ]),
     ])
+  }
+
+  // THE DAY'S TALE — the curated story beats for the day just fought, written by
+  // StoryRecapSystem to gameState.history.latestTale. A compact strip; FullLog has the
+  // exhaustive log. Returns null on a quiet day (no beats) so nothing renders.
+  _renderDaysTale() {
+    const tale = this._gameState.history?.latestTale
+    if (!tale || !(tale.beats?.length)) return null
+    return h('div', { className: 'panel bevel qf-pws-tale', style: { marginTop: '14px', padding: '14px 18px' } }, [
+      h('div', { className: 'pix qf-pws-eyebrow', style: { textAlign: 'center', marginBottom: '6px' } }, '⸺  THE DAY’S TALE  ⸺'),
+      tale.title ? h('div', {
+        className: 'pix',
+        style: { textAlign: 'center', color: 'var(--gold)', fontSize: '11px', letterSpacing: '.14em', marginBottom: '11px' },
+      }, tale.title) : null,
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px', maxWidth: '1040px', margin: '0 auto' } },
+        tale.beats.map(b => h('div', {
+          style: { display: 'flex', gap: '10px', alignItems: 'baseline', color: 'var(--text)', fontSize: '13px', lineHeight: '1.5' },
+        }, [
+          h('span', { style: { color: 'var(--blood)', flex: '0 0 auto' } }, '◆'),
+          h('span', {}, b),
+        ]))
+      ),
+    ].filter(Boolean))
   }
 
   // FullLogOverlay opens on top of this overlay (Overlay shell sits at

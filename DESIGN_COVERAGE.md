@@ -1330,6 +1330,26 @@ A 4-role coordinated raid party (Tank/Healer/DPS/DPS) inspired by FFXIV light pa
 
 ---
 
+### Story recap — emergent-narrative beat (locked 2026-06-23, briefing #8) — per-detail checklist
+
+> Spec: DESIGN.md → "Story recap". Tone = HYBRID (grim + wry). Build order A→B→C.
+> **✅ BUILT + headless-verified 2026-06-23** (story-recap-check 16/16, npm test 50/50).
+> ⏳ remaining: user Electron eyeball of the 3 in-game end-screens (proxy can't trigger them).
+
+| ID | Detail | Status | Notes |
+|---|---|---|---|
+| story-harvest | Wire `ADVENTURER_AFFLICTED` into the day-event buffer (+ existing died/fled/etc.) | ✅ DONE | `StoryRecapSystem` (repurposed NewspaperSystem) |
+| story-arc | Group day events per-adventurer → richest single beat (affliction+death+greed, no double-beats) | ✅ DONE | grouped by instanceId; afflicted+died = 1 beat (tested) |
+| story-beats | Hybrid-tone beat templates per cause (afflictions/death/greed/final-blow/nemesis), varied phrasings | ✅ DONE | `_heroBeat`/`composeSaga`; seeded `_pick` for stable variety |
+| story-curate | Curate top ~3-4 most dramatic beats/day (ranked); FullLog keeps the rest | ✅ DONE | `_score` ranking, MAX_BEATS_PER_DAY=4 |
+| story-runaccum | Run accumulation on gameState.history (deadliest day, nemesis, final blow, toll) — JSON-safe | ✅ DONE | `history.days[]` (capped 80) + `latestTale`; saga derives from it |
+| story-eod | End-of-day "THE DAY'S TALE" section in PostWaveOverlay (additive) | ✅ DONE | `_renderDaysTale()`; null on a quiet day |
+| story-eor | End-of-run "THE SAGA" section in GameOverOverlay + victory screen | ✅ DONE | GameOver `_renderSaga()` + VictoryScreen `_renderSaga()` (won framing) |
+| story-style | Crypt-console shell + tokens, no raw #hex (lint-hex), additive to shared screens | ✅ DONE | var() tokens only; lint-hex green; DOM smoke-test = no raw hex |
+| story-verify | Headless test of the compose engine + preview eyeball of both surfaces | ✅ DONE (headless) / ⏳ (visual) | story-recap-check 16/16; DOM render smoke-tested; in-game look = user Electron pass |
+
+---
+
 ## How to keep this file honest
 
 - **At every phase exit**: update statuses for items tagged in that phase. If a row is still PENDING or PARTIAL when the phase ends, either fix it or get explicit user approval to defer.

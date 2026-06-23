@@ -13,7 +13,7 @@ import { MinionEvolutionSystem } from '../systems/MinionEvolutionSystem.js'
 import { ClassAbilitySystem } from '../systems/ClassAbilitySystem.js'
 import { KnowledgeSystem }    from '../systems/KnowledgeSystem.js'
 import { DungeonMechanicSystem } from '../systems/DungeonMechanicSystem.js'
-import { NewspaperSystem }    from '../systems/NewspaperSystem.js'
+import { StoryRecapSystem }   from '../systems/StoryRecapSystem.js'
 import { InquisitorSystem }   from '../systems/InquisitorSystem.js'
 import { BossSystem }         from '../systems/BossSystem.js'
 import { RoomBehaviorSystem } from '../systems/RoomBehaviorSystem.js'
@@ -290,7 +290,7 @@ export class Game extends Phaser.Scene {
     this.minionEvolutionSystem = track(new MinionEvolutionSystem(this, this.gameState))
     this.dungeonMechanicSystem = track(new DungeonMechanicSystem(this, this.gameState))
     this.dungeonMechanicSystem.loadDefinitions()
-    this.newspaperSystem     = track(new NewspaperSystem(this, this.gameState))
+    this.storyRecapSystem    = track(new StoryRecapSystem(this, this.gameState))
     this.inquisitorSystem    = track(new InquisitorSystem(this, this.gameState, this.dungeonMechanicSystem, this.personalitySystem))
     this.bossSystem          = track(new BossSystem(this, this.gameState))
     this.sfxSystem           = track(new SfxSystem(this, this.gameState))
