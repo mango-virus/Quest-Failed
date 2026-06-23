@@ -22,6 +22,7 @@ import { currentActResponseId } from '../config/acts.js'
 import { TILE } from '../systems/DungeonGrid.js'
 import { installDevInvariants } from './DevInvariants.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { ensureDissolvePipeline, DISSOLVE_PIPELINE_KEY } from '../ui/DissolvePipeline.js'
 import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { VfxLab } from './VfxLab.js'
 import { VfxGallery } from './VfxGallery.js'
@@ -487,6 +488,45 @@ export function installDevSandbox(scene) {
       return { ok: true, type, ticks, count: n, hasMinionAbilities: !!ma }
     },
 
+    // Verify the room-SELL PIXEL DISSOLVE shader in isolation — no placed room
+    // needed. Stamps a checker swatch centre-screen and disintegrates it with
+    // the REAL Dissolve post-FX (ember burn-edge + pixel-block scatter). Also
+    // surfaces a GLSL compile failure immediately. WebGL only.
+    // usage: __qfDev.dissolveTest()  |  .dissolveTest(2.2)   // slow it down
+    dissolveTest(seconds = 0.9) {
+      if (scene.renderer?.type !== Phaser.WEBGL) { log('dissolveTest needs WebGL'); return { ok: false } }
+      if (!ensureDissolvePipeline(scene)) { log('dissolve pipeline failed to register (GLSL compile? check console)'); return { ok: false } }
+      const key = '__qfDissolveSwatch'
+      if (!scene.textures.exists(key)) {
+        const g = scene.add.graphics()
+        const S = 96, c = 12
+        for (let y = 0; y < S; y += c) for (let x = 0; x < S; x += c) {
+          g.fillStyle(((x / c + y / c) & 1) ? 0x6f6878 : 0xb0a8c0, 1)
+          g.fillRect(x, y, c, c)
+        }
+        g.lineStyle(3, 0xf2ecff, 1).strokeRect(1, 1, S - 2, S - 2)
+        g.generateTexture(key, S, S)
+        g.destroy()
+      }
+      const cam = scene.cameras.main
+      const cx = cam.worldView?.centerX || cam.midPoint?.x || 0
+      const cy = cam.worldView?.centerY || cam.midPoint?.y || 0
+      const img = scene.add.image(cx, cy, key).setDepth(99).setScale(2)
+      img.setPostPipeline(DISSOLVE_PIPELINE_KEY)
+      const got = img.getPostPipeline(DISSOLVE_PIPELINE_KEY)
+      const pipe = Array.isArray(got) ? got[0] : got
+      if (!pipe) { img.destroy(); log('could not attach dissolve pipeline to test image'); return { ok: false } }
+      pipe.progress = 0
+      const proxy = { t: 0 }
+      scene.tweens.add({
+        targets: proxy, t: 1.06, duration: Math.max(120, seconds * 1000), ease: 'Sine.easeIn',
+        onUpdate: () => { try { pipe.progress = proxy.t } catch (e) {} },
+        onComplete: () => img.destroy(),
+      })
+      log(`dissolveTest firing (~${seconds}s) at screen centre — watch the swatch disintegrate`)
+      return { ok: true }
+    },
+
     // Live-tune the scene post-processing pipeline (VFX frontier #1).
     //   __qfDev.postfx()                      → report current state
     //   __qfDev.postfx('boss')                → cross-fade to a mood
@@ -603,6 +643,7 @@ export function installDevSandbox(scene) {
         'window.__qfDev — Kingdom-Response VFX sandbox',
         "  .resTest()                       resolution-independence harness: sim any res (720p…4K…UW) + overflow scan",
         "  .gallery()                       VFX review: .plan = capture list; .stage(key) stages each for a screenshot",
+        "  .dissolveTest([secs])            room-SELL pixel-dissolve shader, isolated centre-screen (WebGL)",
         "  .arena()                         one-click: wire an entry hall to the boss so a day can start",
         "  .quietDay(true|false)            toggle QUIET mode (no wave + day stays open); false = back to normal",
         "  .startDay()                      end build phase, start the NORMAL wave",

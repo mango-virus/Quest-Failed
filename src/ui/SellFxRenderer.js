@@ -17,6 +17,7 @@
 import { EventBus }     from '../systems/EventBus.js'
 import { Balance }      from '../config/balance.js'
 import { userSettings } from '../hud/userSettings.js'
+import { ensureDissolvePipeline, DISSOLVE_PIPELINE_KEY } from './DissolvePipeline.js'
 
 // Mid-tone masonry palette — readable against both the dungeon floor and
 // the dark void a sold room leaves behind.
@@ -25,7 +26,9 @@ const CRACK_COLOR  = 0xf2ecff   // bright spreading fracture lines
 
 const DEPTH_DUST  = 93
 const DEPTH_CHUNK = 94
+const DEPTH_FLASH = 95
 const DEPTH_CRACK = 96
+const DEPTH_EMBER = 97
 
 // Particle-quality scale (matches CoinBurstRenderer's reading of the
 // `qf.video.particles` user setting).
@@ -101,10 +104,20 @@ export class SellFxRenderer {
     const area = Math.max(1, width) * Math.max(1, height)
     const mult = _particlesMult()
 
+    const pieces = this._collectRoomSurface(worldX, worldY, fw, fh)
+
+    // Preferred path: PIXEL DISSOLVE — the actual room skin disintegrates,
+    // block by block, with an ember burn-edge (WebGL only). Needs live tile
+    // clones + the post-FX pipeline; otherwise we drop to the chunk shatter.
+    const webgl = this._scene.renderer?.type === Phaser.WEBGL
+    if (pieces.length > 0 && webgl && ensureDissolvePipeline(this._scene)) {
+      this._dissolveRoom(pieces, worldX, worldY, fw, fh, area, mult)
+      return
+    }
+
+    // ── Fallback: crack → break into chunks → dissolve (Canvas / no pipeline) ──
     this._cameraShake(area)
     this._spawnCracks(worldX, worldY, fw, fh)
-
-    const pieces = this._cloneRoomTiles(worldX, worldY, fw, fh)
     if (pieces.length === 0) {
       // No tile sprites found (e.g. a procedurally-rendered cell, or
       // DungeonRenderer not yet ready) — fall back to procedural chunks
@@ -130,6 +143,158 @@ export class SellFxRenderer {
       const dust = Math.min(12, Math.max(3, Math.round((2 + area) * mult)))
       for (let i = 0; i < dust; i++) this._spawnDust(worldX, worldY, fw, fh)
     }
+  }
+
+  // ── Pixel dissolve: drive the Dissolve post-FX across the room's real tile
+  //    clones in lockstep so the skin disintegrates as one continuous noise
+  //    field, with an ember burn-edge + warm ash motes peeling off the front.
+  _dissolveRoom(pieces, worldX, worldY, fw, fh, area, mult) {
+    const TS = Balance.TILE_SIZE
+    const x0 = worldX - fw / 2
+    const y0 = worldY - fh / 2
+
+    this._cameraShake(area)
+    this._spawnBurnFlash(worldX, worldY, fw, fh)
+
+    // Attach the pipeline to every surface clone. Size the noise cells to a
+    // fixed ~3px world block so the dissolve reads as consistent pixel-blocks
+    // on a 512px skin and a 32px tile alike, and offset each clone's field by
+    // its position so the whole footprint scatters as one continuous surface.
+    const BLOCK_PX = 3.5
+    const pipes = []
+    for (const img of pieces) {
+      let pipe = null
+      try {
+        img.setPostPipeline(DISSOLVE_PIPELINE_KEY)
+        const got = img.getPostPipeline(DISSOLVE_PIPELINE_KEY)
+        pipe = Array.isArray(got) ? got[0] : got
+      } catch (e) { pipe = null }
+      if (pipe) {
+        const dw = img.displayWidth  || TS
+        const dh = img.displayHeight || TS
+        pipe.blocks = [
+          Math.max(4, Math.min(220, Math.round(dw / BLOCK_PX))),
+          Math.max(4, Math.min(220, Math.round(dh / BLOCK_PX))),
+        ]
+        pipe.uOffset  = [(img.x - dw / 2 - x0) / BLOCK_PX, (img.y - dh / 2 - y0) / BLOCK_PX]
+        pipe.progress = 0
+        pipes.push(pipe)
+      }
+    }
+
+    // Pipeline attach failed unexpectedly — fall back so the player still
+    // gets feedback rather than the room vanishing with no effect.
+    if (pipes.length === 0) {
+      for (const img of pieces) this._animateTilePiece(img, worldX, worldY)
+      return
+    }
+
+    // Lockstep dissolve. progress overshoots 1 so the last cells (threshold
+    // ≈1) are guaranteed to clear. Slight ease-in = the snap accelerates.
+    const proxy = { t: 0 }
+    this._scene.tweens.add({
+      targets:  proxy,
+      t:        1.06,
+      duration: 780,
+      ease:     'Sine.easeIn',
+      onUpdate: () => { for (const p of pipes) { try { p.progress = proxy.t } catch (e) {} } },
+      onComplete: () => {
+        for (const img of pieces) { this._untrack(img); try { img.destroy() } catch (e) {} }
+      },
+    })
+
+    // Warm ash motes peel off the dissolving surface and rise.
+    if (mult > 0) {
+      const motes = Math.min(48, Math.max(8, Math.round((6 + area * 10) * mult)))
+      for (let i = 0; i < motes; i++) this._spawnEmberMote(worldX, worldY, fw, fh)
+    }
+  }
+
+  // A brief warm wash over the footprint at the moment of ignition.
+  _spawnBurnFlash(cx, cy, fw, fh) {
+    const r = this._scene.add.rectangle(cx, cy, fw, fh, 0xff7a2e, 1)
+      .setDepth(DEPTH_FLASH)
+      .setBlendMode(Phaser.BlendModes.ADD)
+    this._track(r)
+    this._scene.tweens.add({
+      targets:  r,
+      alpha:    { from: 0.4, to: 0 },
+      scaleX:   1.04, scaleY: 1.04,
+      duration: 320,
+      ease:     'Quad.easeOut',
+      onComplete: () => { this._untrack(r); r.destroy() },
+    })
+  }
+
+  // One warm ash mote: pops in as its block chars, then rises, shrinks, and
+  // fades. A small additive square reads as a pixel-ember, not a soft puff.
+  _spawnEmberMote(cx, cy, fw, fh) {
+    const ox = cx + (Math.random() - 0.5) * fw * 0.92
+    const oy = cy + (Math.random() - 0.5) * fh * 0.92
+    const sz = 2 + Math.random() * 2.5
+    const warm = [0xffe39a, 0xff9d3c, 0xff6a1e, 0xfff1c2][(Math.random() * 4) | 0]
+    const r = this._scene.add.rectangle(ox, oy, sz, sz, warm, 1)
+      .setDepth(DEPTH_EMBER)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAngle(Math.random() * 90)
+      .setAlpha(0)   // invisible until its block dissolves (after the delay)
+    this._track(r)
+    const rise  = 16 + Math.random() * 28
+    const drift = (Math.random() - 0.5) * 18
+    this._scene.tweens.add({
+      targets:  r,
+      x:        ox + drift,
+      y:        oy - rise,
+      scaleX:   0.2, scaleY: 0.2,
+      angle:    r.angle + (Math.random() - 0.5) * 140,
+      alpha:    { from: 1, to: 0 },
+      delay:    Math.random() * 560,
+      duration: 420 + Math.random() * 360,
+      ease:     'Sine.easeOut',
+      onComplete: () => { this._untrack(r); r.destroy() },
+    })
+  }
+
+  // Collect clones of the room's actual rendered SURFACE inside the footprint:
+  // a full-room SKIN image (DungeonRenderer draws one stretched image per
+  // skinned room in `_cRoomSkins` and suppresses the per-cell tiles), PLUS any
+  // per-cell tile sprites (themed / partially-themed rooms keep these in
+  // `_cTileSprites`). A skinned room has NO entries in `_cTileSprites`, which is
+  // why cloning only that container produced nothing and the sell fell back to
+  // the procedural chunk shatter. Returns free-standing clones to dissolve.
+  _collectRoomSurface(worldX, worldY, fw, fh) {
+    const dr = this._scene._dungeonRenderer
+    const out = []
+    const TS = Balance.TILE_SIZE
+
+    // 1. Full-room skin image(s): centred on the footprint (same centre the
+    //    sell event reports). Match by centre proximity (< half a tile) so an
+    //    adjacent room's skin — at least one tile away — is never grabbed.
+    const skins = dr?._cRoomSkins?.list
+    if (skins) {
+      for (const src of skins.slice()) {
+        if (!src || typeof src.x !== 'number' || typeof src.y !== 'number') continue
+        if (Math.abs(src.x - worldX) > TS * 0.5 || Math.abs(src.y - worldY) > TS * 0.5) continue
+        const clone = this._cloneTileImage(src)
+        if (clone) out.push(clone)
+      }
+    }
+
+    // 2. Per-cell tile sprites whose centre sits inside the footprint.
+    const tiles = dr?._cTileSprites?.list
+    if (tiles) {
+      const x0 = worldX - fw / 2
+      const y0 = worldY - fh / 2
+      const x1 = x0 + fw
+      const y1 = y0 + fh
+      for (const src of tiles.slice()) {
+        if (!src || typeof src.x !== 'number' || typeof src.y !== 'number') continue
+        if (src.x < x0 || src.x >= x1 || src.y < y0 || src.y >= y1) continue
+        const clone = this._cloneTileImage(src)
+        if (clone) out.push(clone)
+      }
+    }
+    return out
   }
 
   // Walk DungeonRenderer's tile-sprite container and clone every image
