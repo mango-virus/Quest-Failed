@@ -1,0 +1,378 @@
+{
+  "_README": "STATUS: the live build now uses SYNTHESIZED CHIPTUNE for these 46 SFX (tools/audio/chiptune.mjs SPECS, npm run audio:chiptune). Synthesized audio is ORIGINAL and fully commercial-safe — NO licensing / placeholder swap needed. The earlier free-tier-AI clips are archived (unused) in assets/audio/_raw/. If you ever revert to the AI clips, they are non-commercial placeholders again and would need swapping before a paid release.",
+  "_generated": "2026-06-23 — switched from AI-crush to synthesized chiptune.",
+  "_styling": "Source of truth = SPECS in tools/audio/chiptune.mjs (square/triangle/saw/noise oscillators + envelopes + pitch sweeps/arps). Tune a sound = edit its SPEC + npm run audio:chiptune, then npm run audio:board + reload. The retrofy.mjs crusher + AI raws are kept as an alternate path.",
+  "_status_values": "placeholder = free-tier AI in use & WIRED (swap before commercial) | placeholder-unwired = file in build but its ability fires no trigger event yet (needs a hook) | final = license-clean, ship-safe",
+  "count": 46,
+  "entries": [
+    {
+      "key": "sfx-cin-ascension",
+      "file": "assets/audio/sfx-cin-ascension.wav",
+      "moment": "DARK ASCENSION apex (AscensionCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-kingdom",
+      "file": "assets/audio/sfx-cin-kingdom.wav",
+      "moment": "THE KINGDOM RESPONDS intro (KingdomResponseIntro)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-bladelock",
+      "file": "assets/audio/sfx-cin-bladelock.wav",
+      "moment": "Aldric duel blade-lock (AldricCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-finalblow",
+      "file": "assets/audio/sfx-cin-finalblow.wav",
+      "moment": "Aldric duel final blow (AldricCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-collapse",
+      "file": "assets/audio/sfx-cin-collapse.wav",
+      "moment": "Rival showdown collapse (RivalShowdownCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-verdict",
+      "file": "assets/audio/sfx-cin-verdict.wav",
+      "moment": "Rival showdown verdict (RivalShowdownCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-coin-land",
+      "file": "assets/audio/sfx-cin-coin-land.wav",
+      "moment": "Gambler coin lands (CoinFlipCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-cin-coin-win",
+      "file": "assets/audio/sfx-cin-coin-win.wav",
+      "moment": "Gambler coin win (CoinFlipCinematic)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-orc-throw",
+      "file": "assets/audio/sfx-boss-orc-throw.wav",
+      "moment": "Orc ORC_TROPHY_THROW_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-lich-wither",
+      "file": "assets/audio/sfx-boss-lich-wither.wav",
+      "moment": "Lich LICH_CHANNEL_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-slime-surge",
+      "file": "assets/audio/sfx-boss-slime-surge.wav",
+      "moment": "Slime SLIME_SURGE_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-beholder-gaze",
+      "file": "assets/audio/sfx-boss-beholder-gaze.wav",
+      "moment": "Beholder BEHOLDER_GAZE_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-beholder-petrify",
+      "file": "assets/audio/sfx-boss-beholder-petrify.wav",
+      "moment": "Beholder BEHOLDER_PETRIFY_FIRED + PACT_BOSS_PETRIFY_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-myconid-bloom",
+      "file": "assets/audio/sfx-boss-myconid-bloom.wav",
+      "moment": "Myconid MYCONID_SEED_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-demon-sacrifice",
+      "file": "assets/audio/sfx-boss-demon-sacrifice.wav",
+      "moment": "Demon DEMON_SACRIFICE_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-golem-quake",
+      "file": "assets/audio/sfx-boss-golem-quake.wav",
+      "moment": "Golem GOLEM_EARTHQUAKE_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-lizard-spit",
+      "file": "assets/audio/sfx-boss-lizard-spit.wav",
+      "moment": "Lizardman LIZARD_SPIT_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-vampire-rite",
+      "file": "assets/audio/sfx-boss-vampire-rite.wav",
+      "moment": "Vampire VAMPIRE_RITE_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-wraith-terror",
+      "file": "assets/audio/sfx-boss-wraith-terror.wav",
+      "moment": "Wraith WRAITH_TERROR_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-gnoll-howl",
+      "file": "assets/audio/sfx-boss-gnoll-howl.wav",
+      "moment": "Gnoll GNOLL_HUNT_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-boss-succubus-kiss",
+      "file": "assets/audio/sfx-boss-succubus-kiss.wav",
+      "moment": "Succubus SUCCUBUS_KISS_FIRED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-bomb",
+      "file": "assets/audio/sfx-trap-bomb.wav",
+      "moment": "TRAP_TRIGGERED bomb",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-cannon",
+      "file": "assets/audio/sfx-trap-cannon.wav",
+      "moment": "TRAP_TRIGGERED cannon",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-dragonfire",
+      "file": "assets/audio/sfx-trap-dragonfire.wav",
+      "moment": "TRAP_TRIGGERED dragon_trap",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-spikes",
+      "file": "assets/audio/sfx-trap-spikes.wav",
+      "moment": "TRAP_TRIGGERED spike_pillar",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-pit",
+      "file": "assets/audio/sfx-trap-pit.wav",
+      "moment": "TRAP_TRIGGERED spike_pit",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-blades",
+      "file": "assets/audio/sfx-trap-blades.wav",
+      "moment": "TRAP_TRIGGERED rotating_blades",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-saw",
+      "file": "assets/audio/sfx-trap-saw.wav",
+      "moment": "TRAP_TRIGGERED saw_blade",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-trap-arrows",
+      "file": "assets/audio/sfx-trap-arrows.wav",
+      "moment": "TRAP_TRIGGERED shooting_arrows",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-arcane",
+      "file": "assets/audio/sfx-abil-arcane.wav",
+      "moment": "ABILITY mage arcane_burst",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-stun",
+      "file": "assets/audio/sfx-abil-stun.wav",
+      "moment": "ABILITY monk stunning_palm",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-riposte",
+      "file": "assets/audio/sfx-abil-riposte.wav",
+      "moment": "ABILITY monk riposte",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-bulwark",
+      "file": "assets/audio/sfx-abil-bulwark.wav",
+      "moment": "ABILITY knight bulwark",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-charge",
+      "file": "assets/audio/sfx-abil-charge.wav",
+      "moment": "ABILITY barbarian reckless_charge",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-dice",
+      "file": "assets/audio/sfx-abil-dice.wav",
+      "moment": "ABILITY gambler double_or_nothing",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-hymn",
+      "file": "assets/audio/sfx-abil-hymn.wav",
+      "moment": "ABILITY bard crescendo + encore",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-mob",
+      "file": "assets/audio/sfx-abil-mob.wav",
+      "moment": "ABILITY peasant strength_in_numbers",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-tame",
+      "file": "assets/audio/sfx-abil-tame.wav",
+      "moment": "ABILITY beast_master tame_beast",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-tunnel",
+      "file": "assets/audio/sfx-abil-tunnel.wav",
+      "moment": "ABILITY miner tunnel",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-vanish",
+      "file": "assets/audio/sfx-abil-vanish.wav",
+      "moment": "ABILITY rogue invisibility",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-summon",
+      "file": "assets/audio/sfx-abil-summon.wav",
+      "moment": "ABILITY necromancer MINION_SUMMONED",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-layhands",
+      "file": "assets/audio/sfx-abil-layhands.wav",
+      "moment": "ABILITY templar lay on hands (TEMPLAR_LAY_ON_HANDS)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-pierce",
+      "file": "assets/audio/sfx-abil-pierce.wav",
+      "moment": "ABILITY ranger piercing_shot (CombatSystem)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-plunder",
+      "file": "assets/audio/sfx-abil-plunder.wav",
+      "moment": "ABILITY pirate plunder_run (AISystem chest steal hook)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-roar",
+      "file": "assets/audio/sfx-abil-roar.wav",
+      "moment": "ABILITY gladiator crowd_roar (CombatSystem)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    },
+    {
+      "key": "sfx-abil-wings",
+      "file": "assets/audio/sfx-abil-wings.wav",
+      "moment": "ABILITY valkyrie winged_flight (TrapSystem soar hook)",
+      "tier": "synth-original (commercial-safe)",
+      "status": "synth",
+      "wired": true
+    }
+  ],
+  "synth": 46
+}

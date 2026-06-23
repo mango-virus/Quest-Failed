@@ -419,9 +419,9 @@ export const COMPANIONS = {
   // raise and owe a debt to. Merciless yet reverent: that contradiction
   // is his whole register. Speaks in oaths and eulogies, archaic and
   // measured. Signature address is "my Monarch" — chosen because no other
-  // keeper uses it AND it ties to his unlock: you earn him by defeating the
-  // Shadow Monarch (the `monarch_slayer` "Arise" achievement), so you have
-  // BECOME his Monarch. Unique secondary tags "warden"/"sovereign" (also
+  // keeper uses it and it fits his oath-bound register: he serves the DUTY of
+  // the dungeon, and the player is the sovereign he has sworn that duty to.
+  // Unique secondary tags "warden"/"sovereign" (also
   // used by no other companion); "keeper" is the shared-generic everyone
   // uses. He/him.
   //

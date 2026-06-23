@@ -585,6 +585,8 @@ export class AISystem {
       }
       EventBus.emit('TREASURE_CHEST_OPENED', { chest, adv, stolen })
       if (stolen > 0) EventBus.emit('TREASURE_STOLEN', { adv, gold: stolen, tier: chest.tier })
+      // Pirate "Plunder Run" cue — only when a pirate actually robs a chest.
+      if (stolen > 0 && adv.classId === 'pirate') EventBus.emit('ABILITY_TRIGGERED', { adventurer: adv, abilityId: 'plunder_run', message: `${adv.name} plundered ${stolen} gold!` })
       EventBus.emit('SAY_stoleTreasure', { adventurer: adv })
       // Roll for escape goal — if hit, the adv abandons everything and
       // sprints for the exit. Treasure Hunters ALWAYS bolt the instant

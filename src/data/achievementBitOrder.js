@@ -54,9 +54,12 @@ export const ACHIEVEMENT_BIT_ORDER = [
   'punching_bag', 'event_veteran', 'event_connoisseur', 'innkeeper',
   'eternal_host', 'magnate', 'headsman', 'martyrmaker', 'campaigner',
   'munitions_expert', 'the_unbreaking',
-  // Solo Leveling event boss
+  // DEPRECATED dead slots — the Solo Leveling ('monarch_slayer') and Light Party
+  // ('warrior_of_light') IP events were removed (2026-06-22); these achievements
+  // no longer exist in achievements.json, so they resolve to no card (harmless).
+  // Per the DEPRECATE rule above, the ids STAY here as permanent slots so every
+  // previously-submitted leaderboard bitmask keeps decoding — NEVER delete them.
   'monarch_slayer',
-  // Light Party event boss
   'warrior_of_light',
   // Progression — boss levels 21-25 (moved to the end so old masks never
   // reach them; see the achievements.json reorder + this list's rules).

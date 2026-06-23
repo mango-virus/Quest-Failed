@@ -535,6 +535,9 @@ export class TrapSystem {
       AbilityVfx.wingedFlightFx?.(this._scene, entity.worldX, entity.worldY)
       AbilityVfx.floatingText?.(this._scene, entity.worldX, (entity.worldY ?? 0) - 18, 'SOAR', { color: '#ffe6a0' })
       EventBus.emit('TRAP_DODGED', { trap, def, adventurer: entity })
+      // Distinct from the monk-dodge above (which also emits TRAP_DODGED) so the
+      // wing-beat SFX only fires for the valkyrie soar, not every dodge.
+      EventBus.emit('ABILITY_TRIGGERED', { adventurer: entity, abilityId: 'winged_flight', message: `${entity.name ?? 'The valkyrie'} soared over the trap.` })
       return false
     }
     let damage = dmg

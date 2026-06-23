@@ -16,6 +16,7 @@
 
 import { h } from './dom.js'
 import { EventBus } from '../systems/EventBus.js'
+import { playSfx } from '../systems/SfxVolume.js'
 import { buildCryptBackdrop } from './menuBackdrop.js'
 import { animatedBossSprite, animatedAdventurer, animatedAdventurerAnim, animatedAdventurerAtk } from './inGameSnapshot.js'
 import { ensureAdventurerBaseSheet } from '../scenes/AdventurerBaseLoader.js'
@@ -307,8 +308,9 @@ export class FlipCinematic {
     at(60,   () => this._el.classList.add('framed'))
     at(260,  () => { this._el.classList.add('marched', 'bossShown'); eyebrow.classList.add('on') })
     at(3300, () => this._assault())                                                                          // arrive → measured assault
-    at(5600, () => { flash.classList.add('go'); this._el.classList.add('bossFell'); eyebrow.classList.remove('on'); setLine('…and the monster always fell.'); this._ceaseAssault() })  // boss falls → everyone STOPS + stands at ease
+    at(5600, () => { flash.classList.add('go'); this._el.classList.add('bossFell'); eyebrow.classList.remove('on'); setLine('…and the monster always fell.'); this._ceaseAssault(); this._sfx('sfx-death', 0.6) })  // boss falls → everyone STOPS + stands at ease
     at(9000, () => {                                                                                          // THE FLIP
+      this._sfx('sfx-cin-flip', 1.0)                                                                          // the eruption sting
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); red.classList.add('go'); burst.classList.add('go')
       this._el.classList.remove('bossFell'); this._el.classList.add('flipped', 'shake')
       this._fillBoss(bossSlot, archId)   // reanimates into the full/canonical form
@@ -318,7 +320,7 @@ export class FlipCinematic {
       setTimeout(() => this._el && this._el.classList.add('fled'), 220)   // run off-screen
       setLine('Not this time.')
     })
-    at(13400, () => { capLine.classList.remove('on'); reveal.classList.add('on'); this._el.classList.add('revealing') })
+    at(13400, () => { capLine.classList.remove('on'); reveal.classList.add('on'); this._el.classList.add('revealing'); this._sfx('sfx-event-boss', 0.7) })
     at(15800, () => foot.classList.add('on'))
   }
 
@@ -378,13 +380,17 @@ export class FlipCinematic {
     const hr = s.getBoundingClientRect()
     return { x: (hr.left - ref.sr.left + hr.width * 0.7) / ref.k, y: (hr.top - ref.sr.top + hr.height * 0.45) / ref.k }
   }
+  // Play a gameplay SFX through the SFX volume gate (safe if not yet loaded).
+  _sfx(key, vol = 0.6) { try { playSfx(window.__game?.sound, key, vol) } catch {} }
   _slashAt() {
+    this._sfx(Math.random() < 0.5 ? 'sfx-melee-1' : 'sfx-melee-2', 0.55)
     const c = this._bossCenter(); if (!c || !this._fxLayer) return
     const el = h('div', { className: 'qf-fc-slash', style: { left: (c.x - 45 + (Math.random() * 40 - 20)) + 'px', top: (c.y - 45) + 'px' } })
     this._fxLayer.appendChild(el); void el.offsetWidth; el.classList.add('go')
     this._hit(c.x, c.y); setTimeout(() => el.remove(), 400)
   }
   _fire(s, kind) {
+    this._sfx(kind === 'arrow' ? 'sfx-archer-shoot' : 'sfx-mage-attack', 0.5)
     const from = this._heroCenter(s), to = this._bossCenter(); if (!from || !to || !this._fxLayer) return
     const el = h('div', { className: 'qf-fc-proj ' + (['arrow', 'arcane', 'holy'].includes(kind) ? kind : 'arcane'), style: { left: from.x + 'px', top: from.y + 'px' } })
     this._fxLayer.appendChild(el)

@@ -74,6 +74,22 @@ const SFX_VOLUMES = {
   'sfx-event-boss':     0.80,   // Boss-tier event notification — MP3
   'sfx-scrub-intel':    0.78,   // intel scrubbed via Knowledge Map — WAV estimate
   'sfx-minion-levelup': 0.82,   // minion level-up / evolution — WAV estimate
+
+  // ── Boss signature cues (AI placeholder; marquee moments, keep prominent) ──
+  'sfx-boss-orc-throw':        0.88,
+  'sfx-boss-lich-wither':      0.85,
+  'sfx-boss-slime-surge':      0.85,
+  'sfx-boss-beholder-gaze':    0.85,
+  'sfx-boss-beholder-petrify': 0.85,
+  'sfx-boss-myconid-bloom':    0.82,
+  'sfx-boss-demon-sacrifice':  0.88,
+  'sfx-boss-golem-quake':      0.90,
+  'sfx-boss-lizard-spit':      0.85,
+  'sfx-boss-vampire-rite':     0.85,
+  'sfx-boss-wraith-terror':    0.88,
+  'sfx-boss-gnoll-howl':       0.88,
+  'sfx-boss-succubus-kiss':    0.82,
+  // Trap + ability cues fall back to SFX_DEFAULT_VOL (0.70) for now — tune by ear.
 }
 
 // Fallback for any key not in the table.
@@ -100,6 +116,18 @@ const PITCH_VARY = new Set([
   'sfx-melee-1', 'sfx-melee-2', 'sfx-monk-1', 'sfx-monk-2',
   'sfx-archer-shoot', 'sfx-mage-attack', 'sfx-beholder-beam', 'sfx-boss-attack',
   'sfx-collect-gold',
+  // Boss signature cues — light jitter so a fast-ticking boss passive doesn't loop.
+  'sfx-boss-orc-throw', 'sfx-boss-lich-wither', 'sfx-boss-slime-surge',
+  'sfx-boss-beholder-gaze', 'sfx-boss-beholder-petrify', 'sfx-boss-myconid-bloom',
+  'sfx-boss-demon-sacrifice', 'sfx-boss-golem-quake', 'sfx-boss-lizard-spit',
+  'sfx-boss-vampire-rite', 'sfx-boss-wraith-terror', 'sfx-boss-gnoll-howl',
+  'sfx-boss-succubus-kiss',
+  // Trap timbres — fire repeatedly across a wave, so vary them.
+  'sfx-trap-bomb', 'sfx-trap-cannon', 'sfx-trap-dragonfire', 'sfx-trap-spikes',
+  'sfx-trap-pit', 'sfx-trap-blades', 'sfx-trap-saw', 'sfx-trap-arrows',
+  // Combat-impact ability cues (chimes/buffs left stable below).
+  'sfx-abil-arcane', 'sfx-abil-charge', 'sfx-abil-stun', 'sfx-abil-riposte',
+  'sfx-abil-pierce', 'sfx-abil-dice', 'sfx-abil-roar', 'sfx-abil-wings',
 ])
 const PITCH_SPREAD_CENTS = 200   // ± per play
 const VOL_JITTER         = 0.10  // ±10% gain per play
@@ -112,19 +140,44 @@ const VOL_JITTER         = 0.10  // ±10% gain per play
 const PAN_STRENGTH    = 0.7
 const DIST_MIN_VOLMUL = 0.45
 
-// Trap-type → attack timbre. Reuses loaded combat samples so each trap kind
-// reads distinct by ear (arrows whistle, bombs/cannons boom, blades slash, the
-// dragon trap breathes) instead of every trap firing the generic take-damage
-// thud. All of these keys are in PITCH_VARY → each fire auto-varies in pitch.
+// Trap-type → its own bespoke timbre (AI placeholder set). Each trap kind reads
+// distinct by ear (arrows whistle, bombs/cannons boom, blades whirr, the dragon
+// trap breathes fire, spikes shing) instead of borrowing combat samples. All of
+// these keys are in PITCH_VARY → each fire auto-varies in pitch.
 const TRAP_SFX = {
-  shooting_arrows: 'sfx-archer-shoot',   // arrow volley
-  bomb:            'sfx-boss-attack',    // explosion boom
-  cannon:          'sfx-boss-attack',    // cannon boom
-  spike_pillar:    'sfx-take-damage',    // heavy slam impact
-  dragon_trap:     'sfx-beholder-beam',  // fiery energy breath
-  spike_pit:       'sfx-take-damage',    // impalement
-  rotating_blades: 'sfx-melee-2',        // whirling blades
-  saw_blade:       'sfx-melee-1',        // saw slash
+  shooting_arrows: 'sfx-trap-arrows',     // arrow volley
+  bomb:            'sfx-trap-bomb',       // explosion boom
+  cannon:          'sfx-trap-cannon',     // cannon boom
+  spike_pillar:    'sfx-trap-spikes',     // metallic spikes + impale
+  dragon_trap:     'sfx-trap-dragonfire', // fiery breath jet
+  spike_pit:       'sfx-trap-pit',        // trapdoor → impalement
+  rotating_blades: 'sfx-trap-blades',     // whirling blades
+  saw_blade:       'sfx-trap-saw',        // grinding saw
+}
+
+// Class-ability id (from ABILITY_TRIGGERED) → bespoke cue (AI placeholder set).
+// piercing_shot + crowd_roar emit from CombatSystem; winged_flight (valkyrie soar)
+// + plunder_run (pirate chest steal) emit from TrapSystem/AISystem hooks added for
+// audio. lay_on_hands cues via its own TEMPLAR_LAY_ON_HANDS event (_onLayOnHands).
+// summon_undead is intentionally omitted — the necromancer's summon already cues
+// via MINION_SUMMONED → _onNecroSummon (mapping both would double the sound).
+const ABILITY_SFX = {
+  arcane_burst:        'sfx-abil-arcane',   // mage elemental burst
+  stunning_palm:       'sfx-abil-stun',     // monk palm strike
+  riposte:             'sfx-abil-riposte',  // monk counter
+  bulwark:             'sfx-abil-bulwark',  // knight shield-wall
+  reckless_charge:     'sfx-abil-charge',   // barbarian charge
+  double_or_nothing:   'sfx-abil-dice',     // gambler dice
+  crescendo:           'sfx-abil-hymn',     // bard battle hymn (swells)
+  encore:              'sfx-abil-hymn',     // bard finale — reuses the hymn motif
+  strength_in_numbers: 'sfx-abil-mob',      // peasant mob rally
+  tame_beast:          'sfx-abil-tame',     // beast-master tame
+  tunnel:              'sfx-abil-tunnel',   // miner dig
+  invisibility:        'sfx-abil-vanish',   // rogue vanish
+  piercing_shot:       'sfx-abil-pierce',   // ranger pierce line-shot (CombatSystem)
+  crowd_roar:          'sfx-abil-roar',     // gladiator roar stack (CombatSystem)
+  winged_flight:       'sfx-abil-wings',    // valkyrie soars over a trap (TrapSystem)
+  plunder_run:         'sfx-abil-plunder',  // pirate robs a chest (AISystem)
 }
 
 // Boss SIGNATURE-ability fire events → a fitting dramatic cue. Most of these
@@ -135,24 +188,27 @@ const TRAP_SFX = {
 // warp. Only ONE boss is active per run, so its ability becomes a consistent
 // "voice". (PACT_BOSS_PETRIFY_FIRED is already wired elsewhere — not here.)
 const BOSS_ABILITY_SFX = {
-  BEHOLDER_GAZE_FIRED:       'sfx-beholder-beam',
-  BEHOLDER_PETRIFY_FIRED:    'sfx-beholder-beam',
-  DEMON_SACRIFICE_FIRED:     'sfx-dark-pact',
+  // Per-boss SIGNATURE cues — each of the 12 bosses now has a recognizable voice
+  // (was 18 events sharing 4 samples). Pact-GRANTED generic abilities + the
+  // archetype-agnostic Final Breath keep the shared combat samples by design.
+  BEHOLDER_GAZE_FIRED:       'sfx-boss-beholder-gaze',
+  BEHOLDER_PETRIFY_FIRED:    'sfx-boss-beholder-petrify',
+  DEMON_SACRIFICE_FIRED:     'sfx-boss-demon-sacrifice',
   FINAL_BREATH_TRIGGERED:    'sfx-boss-attack',
-  GNOLL_HUNT_FIRED:          'sfx-boss-attack',
-  GOLEM_EARTHQUAKE_FIRED:    'sfx-boss-attack',
-  LICH_CHANNEL_FIRED:        'sfx-necro-summon',
-  LIZARD_SPIT_FIRED:         'sfx-beholder-beam',
-  MYCONID_SEED_FIRED:        'sfx-necro-summon',
-  ORC_TROPHY_THROW_FIRED:    'sfx-boss-attack',
+  GNOLL_HUNT_FIRED:          'sfx-boss-gnoll-howl',
+  GOLEM_EARTHQUAKE_FIRED:    'sfx-boss-golem-quake',
+  LICH_CHANNEL_FIRED:        'sfx-boss-lich-wither',
+  LIZARD_SPIT_FIRED:         'sfx-boss-lizard-spit',
+  MYCONID_SEED_FIRED:        'sfx-boss-myconid-bloom',
+  ORC_TROPHY_THROW_FIRED:    'sfx-boss-orc-throw',
   PACT_BOSS_HELLFIRE_FIRED:  'sfx-boss-attack',
   PACT_BOSS_LIGHTNING_FIRED: 'sfx-beholder-beam',
   PACT_BOSS_SHOCKWAVE_FIRED: 'sfx-boss-attack',
   PACT_BOSS_VORTEX_FIRED:    'sfx-teleport',
-  SLIME_SURGE_FIRED:         'sfx-boss-attack',
-  SUCCUBUS_KISS_FIRED:       'sfx-dark-pact',
-  VAMPIRE_RITE_FIRED:        'sfx-dark-pact',
-  WRAITH_TERROR_FIRED:       'sfx-dark-pact',
+  SLIME_SURGE_FIRED:         'sfx-boss-slime-surge',
+  SUCCUBUS_KISS_FIRED:       'sfx-boss-succubus-kiss',
+  VAMPIRE_RITE_FIRED:        'sfx-boss-vampire-rite',
+  WRAITH_TERROR_FIRED:       'sfx-boss-wraith-terror',
 }
 
 // ── Window-focus tracking ───────────────────────────────────────────────────
@@ -242,6 +298,7 @@ export class SfxSystem {
     // Abilities
     on('ABILITY_TRIGGERED',       this._onAbilityTriggered)
     on('ALLY_HEALED',             this._onAllyHealed)
+    on('TEMPLAR_LAY_ON_HANDS',    this._onLayOnHands)
     on('ADVENTURER_RESURRECTED',  this._onRevive)
     on('MINION_SUMMONED',         this._onNecroSummon)
 
@@ -276,6 +333,21 @@ export class SfxSystem {
     // Knowledge / dungeon events
     on('KNOWLEDGE_SCRUBBED',      this._onIntelScrubbed)
     on('DUNGEON_EVENT_ANNOUNCED', this._onEventNotif)
+
+    // ── Gap-fill cues (2026-06-23): big player-facing moments that were silent ──
+    on('ADVENTURERS_SPAWNED',      this._onWaveStart)    // first spawn each day = wave horn
+    on('LEGENDARY_HERO_ARRIVED',   this._onLegendary)
+    on('BOUNTY_HUNTER_ARRIVED',    this._onAlert)
+    on('VENDETTA_HUNTER_ARRIVED',  this._onAlert)
+    on('CHAMPION_RAID_INCOMING',   this._onAlert)
+    on('NECRARCH_ARRIVES',         this._onAlert)
+    on('SPAWN_FAILSAFE_TRIGGERED', this._onAlert)
+    on('ACT_CLEARED',              this._onActClear)
+    on('ACT_OVERTIME',             this._onOvertime)
+    on('SHOW_POST_WAVE_SUMMARY',   this._onSummary)
+    on('MINION_DEFECTED',          this._onDefect)
+    on('MINIONS_LOST_FALLEN',      this._onCasualty)
+    on('RUN_VICTORY',              this._onRunVictory)
 
     // Night-phase building
     on('ROOM_REMOVED',            this._onSell)
@@ -335,7 +407,7 @@ export class SfxSystem {
       this._meleeAlt = 1 - this._meleeAlt
     }
     switch (cue) {
-      case 'begin': this._play('sfx-event-boss'); break
+      case 'begin': this._play('sfx-duel-begin'); break
       case 'clash':
         if (now - (this._lastNemClashAt ?? 0) < 110) return
         this._lastNemClashAt = now; swing(); break
@@ -480,17 +552,21 @@ export class SfxSystem {
   }
 
   _onAbilityTriggered({ abilityId, adventurer } = {}) {
-    // Only abilities with an UNAMBIGUOUS type-matched sample get a cue here
-    // (others would need their own assets to not mislead). Positional.
-    const sp = this._spatial(adventurer)
-    switch (abilityId) {
-      case 'arcane_burst':  this._play('sfx-mage-attack', undefined, sp); break  // mage blast
-      case 'stunning_palm': this._play('sfx-monk-1',      undefined, sp); break  // monk strike
-      case 'riposte':       this._play('sfx-melee-2',     undefined, sp); break  // melee counter
-    }
+    // Each mapped class ability gets its bespoke cue (ABILITY_SFX). A short
+    // per-ability cooldown stops abilities that re-fire (crescendo stacks,
+    // strength_in_numbers on roster change) from machine-gunning. Positional.
+    const key = ABILITY_SFX[abilityId]
+    if (!key) return
+    const now = this._now()
+    if (!this._abilityAt) this._abilityAt = {}
+    if (now - (this._abilityAt[abilityId] ?? 0) < 140) return
+    this._abilityAt[abilityId] = now
+    this._play(key, undefined, this._spatial(adventurer))
   }
 
   _onAllyHealed()    { this._play('sfx-cleric-heal') }
+  // Templar "Lay on Hands" — once-per-raid self-heal when death looms.
+  _onLayOnHands({ adventurer } = {}) { this._play('sfx-abil-layhands', undefined, this._spatial(adventurer)) }
   _onRevive()        { this._play('sfx-revive') }
   _onNecroSummon()   { this._play('sfx-necro-summon') }
   _onDoorOpened()    { this._play('sfx-door-open') }
@@ -498,7 +574,7 @@ export class SfxSystem {
   _onDoorUnlock()    { this._play('sfx-door-unlock') }
   _onChestOpen()     { this._play('sfx-chest-open') }
   _onTeleport()      { this._play('sfx-teleport') }
-  _onBeholderBeam()  { this._play('sfx-beholder-beam') }
+  _onBeholderBeam()  { this._play('sfx-beholder-beam') }  // PACT_BOSS_PETRIFY — reuses the beholder beam
   _onDayStart()      { this._play('sfx-day-start') }
   _onDayEnd()        { this._play('sfx-day-end') }
 
@@ -514,6 +590,30 @@ export class SfxSystem {
   // Intel scrubbed via the Knowledge Map "SCRUB INTEL" button. Fires on
   // KNOWLEDGE_SCRUBBED — emitted only on a successful (paid) scrub.
   _onIntelScrubbed()    { this._play('sfx-scrub-intel') }
+
+  // ── Gap-fill handlers ───────────────────────────────────────────────────────
+  // First adventurer spawn of the day = the wave horn; later spawns stay quiet.
+  _onWaveStart() {
+    const d = this._gameState?.meta?.dayNumber ?? 0
+    if (d === this._lastWaveDay) return
+    this._lastWaveDay = d
+    this._play('sfx-wave-start')
+  }
+  _onLegendary() { this._play('sfx-legendary', 1.2) }
+  // Shared ominous "incoming threat" cue (bounty/vendetta/champion/necrarch/failsafe),
+  // rate-limited so coincident arrivals don't stack.
+  _onAlert() {
+    const now = this._now()
+    if (now - (this._lastAlertAt ?? 0) < 250) return
+    this._lastAlertAt = now
+    this._play('sfx-alert')
+  }
+  _onActClear()  { this._play('sfx-act-clear', 1.3) }
+  _onOvertime()  { this._play('sfx-overtime', 1.2) }
+  _onSummary()   { this._play('sfx-summary') }
+  _onDefect()    { this._play('sfx-defect') }
+  _onCasualty({ count } = {}) { if (count > 0) this._play('sfx-casualty') }
+  _onRunVictory() { this._play('sfx-cin-victory', 1.6) }
 
   // First dungeon-event notification of the day. EventSystem can announce
   // more than one event in a day; only the first gets the cue.

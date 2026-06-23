@@ -94,7 +94,6 @@ const MINION_FRAMES_128 = new Set([
   'demon1', 'demon2',
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
-  'gargoyle1',
   'golem1', 'golem2',
   'rat1', 'rat2', 'rat3',
 ])
@@ -103,7 +102,6 @@ const MINION_IDS = [
   'demon1', 'demon2',
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
-  'gargoyle1',
   'ghost1', 'ghost2',
   'gnoll1', 'gnoll2',
   'goblin1', 'goblin2', 'goblin3',

@@ -42,15 +42,12 @@ const UI_VOL = {
   // cache-existence guard below), so wiring these ships NO assets. Base gains
   // are starting points; tune once the real files are in. Louder than UI chips
   // (these are dramatic beats, not clicks).
-  cin_arise:      1.60,
   cin_ascension:  1.60,
   cin_kingdom:    1.55,
   cin_bladelock:  1.30,
   cin_finalblow:  1.60,
   cin_collapse:   1.60,
   cin_verdict:    1.45,
-  cin_duty:       1.45,
-  cin_lb3:        1.55,
   cin_coin_land:  1.25,
   cin_coin_win:   1.55,
 }
@@ -78,17 +75,14 @@ const UI_KEY = {
   demote:             'sfx-boss-death',          // dethroned — "the mighty have fallen"
   // Cinematic apex stingers (P2-1) — these audio keys are NOT loaded yet; the
   // game ships no files for them, so each cue no-ops until the file is added to
-  // Preload under the matching key. Add e.g. `this.load.audio('sfx-cin-arise',
-  // 'assets/audio/cin/arise.mp3')` in Preload, then it lights up automatically.
-  cin_arise:      'sfx-cin-arise',
+  // Preload under the matching key. Add e.g. `this.load.audio('sfx-cin-ascension',
+  // 'assets/audio/cin/ascension.mp3')` in Preload, then it lights up automatically.
   cin_ascension:  'sfx-cin-ascension',
   cin_kingdom:    'sfx-cin-kingdom',
   cin_bladelock:  'sfx-cin-bladelock',
   cin_finalblow:  'sfx-cin-finalblow',
   cin_collapse:   'sfx-cin-collapse',
   cin_verdict:    'sfx-cin-verdict',
-  cin_duty:       'sfx-cin-duty',
-  cin_lb3:        'sfx-cin-lb3',
   cin_coin_land:  'sfx-cin-coin-land',
   cin_coin_win:   'sfx-cin-coin-win',
 }
@@ -111,15 +105,12 @@ const COOLDOWN = {
   demote:             300,
   // Cinematic apex stingers (P2-1) — long guards; each fires at most once per
   // beat, and a long cooldown stops a re-fired event from layering the sting.
-  cin_arise:      800,
   cin_ascension:  800,
   cin_kingdom:    800,
   cin_bladelock:  350,
   cin_finalblow:  600,
   cin_collapse:   800,
   cin_verdict:    800,
-  cin_duty:       600,
-  cin_lb3:        600,
   cin_coin_land:  500,
   cin_coin_win:   500,
 }
