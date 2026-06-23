@@ -173,7 +173,7 @@ export class CoachMark {
       if (!t) {
         // No spotlight target. passThrough = don't dim/cover the screen (e.g. the
         // "watch the fight" beat — the player must SEE the gameplay). anchor places
-        // the bubble out of the action ('top' | 'bottom' | default 'center').
+        // the bubble out of the action ('top' | 'bottom' | 'left' | 'right' | 'center').
         if (opts.passThrough) {
           for (let i = 0; i < 4; i++) dims[i].style.display = 'none'
         } else {
@@ -182,10 +182,17 @@ export class CoachMark {
         }
         ring.style.display = 'none'; arrow.style.display = 'none'
         const bw = bubble.offsetWidth || 280, bh = bubble.offsetHeight || 80
-        bubble.style.left = (sw / 2 - bw / 2) + 'px'
-        bubble.style.top  = opts.anchor === 'top'    ? '64px'
-                          : opts.anchor === 'bottom' ? (sh - bh - 96) + 'px'
-                          : (sh / 2 - bh / 2) + 'px'
+        if (opts.anchor === 'left' || opts.anchor === 'right') {
+          // Side-middle — keeps the centre of the screen clear so the player can watch
+          // the gameplay while reading (user pref 2026-06-23: was top, now left-middle).
+          bubble.style.left = opts.anchor === 'left' ? '32px' : (sw - bw - 32) + 'px'
+          bubble.style.top  = (sh / 2 - bh / 2) + 'px'
+        } else {
+          bubble.style.left = (sw / 2 - bw / 2) + 'px'
+          bubble.style.top  = opts.anchor === 'top'    ? '64px'
+                            : opts.anchor === 'bottom' ? (sh - bh - 96) + 'px'
+                            : (sh / 2 - bh / 2) + 'px'
+        }
         return
       }
       const r = _rectInStage(t)

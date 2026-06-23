@@ -44,6 +44,11 @@ const DESPAIR_HOLD_MS              = 3500
 const DESPAIR_SPEED_MUL           = 0.5
 const HYSTERIA_WINDOW_MS          = 6000
 const AFFLICTION_VFX_CADENCE_MS   = 650
+// A hero must NEVER be frozen-in-place forever (panic / terror / sight-panic). Cap the
+// CONTINUOUS freeze, then force a cooldown during which they can't re-freeze — so a
+// terror-locked hero breaks out and moves/flees/dies rather than standing still all day.
+const PANIC_MAX_MS                = 1400   // longest continuous freeze
+const PANIC_COOLDOWN_MS           = 2600   // can't re-freeze during this (terror weight → 0)
 // (panicked heroes take +50% damage — that multiplier lives in CombatSystem._computeDamage.)
 // Room appraisal (Thread 2) — the "read the room" threshold beat.
 const APPRAISE_PAUSE_MIN_MS        = 220    // a quick glance (confident entry)
@@ -3281,11 +3286,28 @@ export class AISystem {
   // sight-panic (cowards + Whisperer pact) so terror cashes out as an easy KILL
   // in your killzone rather than a clean escape. Refreshed each tick the threat
   // holds (the caller re-detects on sight); lapses when it leaves.
+  // Extend (or begin) the freeze-in-place, BOUNDED so a hero never freezes forever:
+  // a continuous freeze caps at PANIC_MAX_MS, then a PANIC_COOLDOWN_MS lockout during
+  // which it can't re-arm (so they break out and move). Returns true if the freeze is
+  // (still) active this tick, false if it's capped/cooling-down (caller should NOT pin).
+  _pinPanic(adv, now) {
+    if (now < (adv._panicCooldownUntil ?? 0)) return false   // forced out of the freeze
+    const active = adv._panickedUntil != null && now < adv._panickedUntil
+    if (!active) adv._panicStartAt = now                      // a fresh freeze begins
+    if (now - (adv._panicStartAt ?? now) >= PANIC_MAX_MS) {   // held long enough — release + lock out
+      adv._panicCooldownUntil = now + PANIC_COOLDOWN_MS
+      adv._panickedUntil = 0
+      return false
+    }
+    adv._panickedUntil = now + PANIC_HOLD_MS
+    return true
+  }
+
   _panicInPlace(adv) {
     if (!adv || adv.aiState === 'dead' || adv.flags?.noFlee) return
     const now = this._scene?.time?.now ?? 0
     const wasPanicked = adv._panickedUntil != null && now < adv._panickedUntil
-    adv._panickedUntil = now + PANIC_HOLD_MS
+    if (!this._pinPanic(adv, now)) return   // freeze capped / cooling down — don't re-pin
     if (!wasPanicked) {
       // The panic re-triggers each time the hold lapses while the threat lingers
       // (~once per 1.2s) — throttle the spoken cry so it doesn't chatter "I can't!"
@@ -3707,6 +3729,7 @@ export class AISystem {
       : 0
     const alone = mates === 0
     const aggr  = w.aggressionLevel ?? 0.5
+    const now   = this._scene?.time?.now ?? 0
     const weights = {
       terror:   1.0 + (has('coward') ? 1.5 : 0) + (has('traumatized') ? 0.4 : 0),
       rout:     0.9 + (has('traumatized') ? 1.0 : 0) + (mates > 0 ? 0.4 : 0),
@@ -3715,7 +3738,10 @@ export class AISystem {
       hysteria: 0.2 + (has('berserker') ? 1.6 : 0) + Math.max(0, (aggr - 0.5) * 2.4) + (mates > 0 ? 0.5 : -2.0),
     }
     if (this._hysteriaTargets(adv).length === 0) weights.hysteria = 0
-    return this._weightedPick(weights) ?? 'terror'
+    // Just broke OUT of a capped freeze — don't immediately re-freeze; force a MOBILE
+    // breakdown (flee/despair/paranoia/lash-out) so they never lock in place again.
+    if (now < (adv._panicCooldownUntil ?? 0)) weights.terror = 0
+    return this._weightedPick(weights) ?? 'rout'
   }
 
   _weightedPick(weights) {
@@ -3732,7 +3758,9 @@ export class AISystem {
   // afflictions (rout/paranoia/hysteria) need no upkeep here — their goal carries them.
   _afflictUpkeep(adv, type, now) {
     if (type === 'terror') {
-      adv._panickedUntil = now + PANIC_HOLD_MS
+      // Bounded refresh — once the freeze caps, end the affliction so the next break
+      // re-rolls into a MOBILE beat (terror is locked out during the cooldown).
+      if (!this._pinPanic(adv, now)) { adv._affliction = null; return }
       adv._affliction.until = adv._panickedUntil
       if (now - (adv._afflictVfxAt ?? 0) >= AFFLICTION_VFX_CADENCE_MS && Number.isFinite(adv.worldX)) {
         AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})
@@ -3747,8 +3775,11 @@ export class AISystem {
   }
 
   _afflictTerror(adv, now) {
-    adv._panickedUntil = now + PANIC_HOLD_MS
-    adv._affliction.until = adv._panickedUntil
+    // If terror is locked out (just broke a capped freeze, or a fallback landed here
+    // mid-cooldown) DON'T re-freeze — clear and let them act; they'll re-roll a mobile
+    // beat next break. (Avoids any re-freeze loop / flee-guard bypass.)
+    if (!this._pinPanic(adv, now)) { adv._affliction = null; return }
+    if (adv._affliction) adv._affliction.until = adv._panickedUntil
     adv._afflictVfxAt = 0
     EventBus.emit('SAY_moraleBreak', { adventurer: adv })
     if (Number.isFinite(adv.worldX)) AbilityVfx.panicStateFx?.(this._scene, adv.worldX, adv.worldY, {})

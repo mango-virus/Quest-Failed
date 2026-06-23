@@ -77,6 +77,18 @@ const adv = (o = {}) => ({ instanceId: `a${uid++}`, classId: 'knight', faction: 
   check('A3 hubris: a committed hero refuses to flee', a.goal?.type !== 'FLEE' && a.aiState !== 'fleeing', `goal=${a.goal?.type}`)
 }
 
+// ── A4: a freeze NEVER lasts forever — capped + cooldown lockout (user 2026-06-23) ──
+{
+  const a = adv({ mood: 'breaking' }); gs.adventurers.active = [a]
+  scene.time.now += 1000; const start = scene.time.now
+  let capHitAt = null
+  for (let i = 0; i < 25; i++) { scene.time.now += 100; const p = ai._pinPanic(a, scene.time.now); if (!p && capHitAt === null) capHitAt = scene.time.now - start }   // 2.5s of pressure
+  check('A4: freeze RELEASES quickly (capped ≤ ~1.6s, never forever)', capHitAt !== null && capHitAt <= 1700 && (a._panicCooldownUntil ?? 0) > start, `capHitAt=${capHitAt}`)
+  const midCd = (a._panicCooldownUntil ?? 0) - 200; scene.time.now = midCd
+  const pinned = ai._pinPanic(a, scene.time.now)
+  check('A4: cannot re-freeze during the cooldown (they break out + move)', pinned === false && !((a._panickedUntil ?? 0) > scene.time.now), `pinned=${pinned} until=${a._panickedUntil}`)
+}
+
 // ── B: Bold = reckless — no low-HP retreat ──
 {
   const a = adv({ mood: 'bold', nerve: 90, resources: { hp: 20, maxHp: 100 } }); a.goal = { type: 'EXPLORE_ROOM' }

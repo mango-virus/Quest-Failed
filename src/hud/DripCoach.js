@@ -23,32 +23,33 @@ const hasLibrary = (gs) => (gs.dungeon?.rooms ?? []).some(r => r.definitionId ==
 const DRIPS = [
   { id: 'speed',   phase: 'day',                target: '.hc-spd',
     eyebrow: 'SPEED',   text: 'Speed up or pause the day here' },
-  { id: 'upgrade',                              target: '.hc-t-upgrade',
+  { id: 'upgrade',  phase: 'night',             target: '.hc-t-upgrade',
     when: () => !!document.querySelector('.hc-t-upgrade .nu'),
     eyebrow: 'UPGRADE', text: 'A minion can evolve — upgrade it' },
   { id: 'sell',    phase: 'night', minDay: 2,   target: '.hc-t-sell',
     eyebrow: 'SELL',    text: 'Sell a placement back for gold' },
   { id: 'move',    phase: 'night', minDay: 2,   target: '.hc-t-move',
     eyebrow: 'MOVE',    text: 'Move a room or minion anytime' },
-  // Traps tab only exists while the build drawer is open → catch it on a drawer-open tick.
-  { id: 'traps',   phase: 'night', minDay: 2,   target: TRAPS_TAB,
+  // Traps unlock at boss LEVEL 3 — don't teach them before then. Tab only exists while
+  // the build drawer is open → catch it on a drawer-open tick.
+  { id: 'traps',   phase: 'night', when: (gs) => (gs.boss?.level ?? 1) >= 3, target: TRAPS_TAB,
     eyebrow: 'TRAPS',   text: 'Traps maim invaders — try the Traps tab' },
   // Intel — once a Library of Whispers is built, the next wave can be scouted.
   { id: 'intel',   phase: 'night', when: hasLibrary, target: '[data-tray-anchor="INTEL"]',
     eyebrow: 'INTEL',   text: 'Scout the coming wave — open Intel' },
   // Pacts — event-driven; the dark-pact picker is a modal, so a top, non-blocking note.
-  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'top', passThrough: true,
+  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'left', passThrough: true,
     eyebrow: 'DARK PACT', text: 'A mighty boon with a dark price — choose one' },
   // Adventurer autonomy — they aren't scripted; they decide for themselves.
-  { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'top', passThrough: true,
+  { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'left', passThrough: true,
     eyebrow: 'THEY THINK FOR THEMSELVES',
     text: 'Adventurers scout, fight and flee by their own wits — you shape the maze, not their minds' },
   // The knowledge system — escapees teach the kingdom your dungeon.
-  { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'top', passThrough: true,
+  { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'left', passThrough: true,
     eyebrow: 'THE KINGDOM LEARNS',
     text: 'An escapee carried your secrets home — future raids route around what the kingdom now knows' },
   // Bestiary — survivors study your MINION types and return with counters.
-  { id: 'minionCounter', phase: 'night', anchor: 'top', passThrough: true,
+  { id: 'minionCounter', phase: 'night', anchor: 'left', passThrough: true,
     when: (gs) => Object.keys(gs.knowledge?.sharedPool?.bestiary ?? {}).length > 0,
     eyebrow: 'THEY STUDY YOUR MINIONS',
     text: 'Survivors learn each minion type and bring counters — vary your defenders to stay unpredictable' },
