@@ -182,9 +182,15 @@ export class CoachMark {
         }
         ring.style.display = 'none'; arrow.style.display = 'none'
         const bw = bubble.offsetWidth || 280, bh = bubble.offsetHeight || 80
-        if (opts.anchor === 'left' || opts.anchor === 'right') {
-          // Side-middle — keeps the centre of the screen clear so the player can watch
-          // the gameplay while reading (user pref 2026-06-23: was top, now left-middle).
+        if (opts.anchor === 'aboveBar') {
+          // Horizontally centred, sitting just ABOVE the action bar — keeps the play
+          // area clear while reading (user pref 2026-06-23). offsetHeight is logical
+          // (the bar lives in the same scaled #hud-stage), so no scale conversion.
+          const bar = document.querySelector('.qf-bottombar')
+          const barH = bar ? bar.offsetHeight : 96
+          bubble.style.left = (sw / 2 - bw / 2) + 'px'
+          bubble.style.top  = (sh - bh - barH - 18) + 'px'
+        } else if (opts.anchor === 'left' || opts.anchor === 'right') {
           bubble.style.left = opts.anchor === 'left' ? '32px' : (sw - bw - 32) + 'px'
           bubble.style.top  = (sh / 2 - bh / 2) + 'px'
         } else {

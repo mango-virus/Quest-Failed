@@ -250,7 +250,7 @@ export class GuidedRun {
     }
 
     // ── Watch the dungeon finish them — resolves when the wave is wiped ──
-    if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, anchor: 'left', hint: 'Watch them fall →' }) === 'skip') return
+    if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, anchor: 'aboveBar', hint: 'Watch them fall →' }) === 'skip') return
     await wait(500)
     await this._explain('YOU ARE THE DUNGEON', 'They came to kill you — your dungeon killed them. That is your power.')
   }
@@ -292,7 +292,7 @@ export class GuidedRun {
       if (await this._explain(ab.name.toUpperCase(), ab.desc) === 'skip') return
       if (await this._coach({ target: ab.sel, eyebrow: 'YOUR POWER', text: 'Arm your dungeon ability', gesture: 'tap', advance: 'tap', lock: true }) === 'skip') return
       await this._coach(
-        { eyebrow: 'YOUR POWER', text: 'Now click a room to unleash it', advance: 'hold', passThrough: true, anchor: 'left', lock: true, hint: 'Click a room →' },
+        { eyebrow: 'YOUR POWER', text: 'Now click a room to unleash it', advance: 'hold', passThrough: true, anchor: 'aboveBar', lock: true, hint: 'Click a room →' },
         ab.fired)
     } finally {
       EventBus.emit('TIME_SCALE_SET', { scale: 1 })  // ALWAYS resume the day

@@ -19,37 +19,58 @@ import { CoachMark } from './CoachMark.js'
 // "Got it" that informs, never forces the action.
 const TRAPS_TAB = () => [...document.querySelectorAll('.htr-segtab')].find(t => /TRAP/i.test(t.textContent || ''))
 const hasLibrary = (gs) => (gs.dungeon?.rooms ?? []).some(r => r.definitionId === 'library_of_whispers')
+const hasTrapFactory = (gs) => (gs.dungeon?.rooms ?? []).some(r => r.definitionId === 'trap_factory' && r.isActive !== false)
+
+// The live MinionEvolutionSystem (Game scene) — same lookup RosterOverlay uses — so the
+// UPGRADE drip fires on REAL eligibility (a placed roster minion whose next tier's
+// night-gate has passed), not the always-present `.nu` badge span.
+const _evo = () => {
+  // Re-looked-up each call (cheap, only on night ticks) — NOT cached, so a Game-scene
+  // restart can't leave us holding a stale system bound to an old gameState.
+  for (const s of (window.__game?.scene?.scenes || [])) if (s?.minionEvolutionSystem) return s.minionEvolutionSystem
+  return null
+}
+const hasUpgradeableMinion = (gs) => {
+  const evo = _evo(); if (!evo?.canUpgrade) return false
+  return (gs.minions ?? []).some(m => m && m.faction === 'dungeon' && evo.canUpgrade(m))
+}
 
 const DRIPS = [
   { id: 'speed',   phase: 'day',                target: '.hc-spd',
     eyebrow: 'SPEED',   text: 'Speed up or pause the day here' },
   { id: 'upgrade',  phase: 'night',             target: '.hc-t-upgrade',
-    when: () => !!document.querySelector('.hc-t-upgrade .nu'),
+    when: hasUpgradeableMinion,
     eyebrow: 'UPGRADE', text: 'A minion can evolve — upgrade it' },
   { id: 'sell',    phase: 'night', minDay: 2,   target: '.hc-t-sell',
     eyebrow: 'SELL',    text: 'Sell a placement back for gold' },
   { id: 'move',    phase: 'night', minDay: 2,   target: '.hc-t-move',
     eyebrow: 'MOVE',    text: 'Move a room or minion anytime' },
-  // Traps unlock at boss LEVEL 3 — don't teach them before then. Tab only exists while
-  // the build drawer is open → catch it on a drawer-open tick.
-  { id: 'traps',   phase: 'night', when: (gs) => (gs.boss?.level ?? 1) >= 3, target: TRAPS_TAB,
-    eyebrow: 'TRAPS',   text: 'Traps maim invaders — try the Traps tab' },
+  // Traps unlock at boss LEVEL 3, and need a Trap Factory FIRST (the gateway room).
+  // Two-stage TELL (never forced — they may not afford it): step 1 = build a Factory;
+  // step 2 (once one exists) = place a trap. Step 1 is a no-target note above the bar.
+  { id: 'trapFactory', phase: 'night', anchor: 'aboveBar', passThrough: true,
+    when: (gs) => (gs.boss?.level ?? 1) >= 3 && !hasTrapFactory(gs),
+    eyebrow: 'TRAPS', text: 'Traps are unlocked! First build a Trap Factory — then you can place traps inside your rooms' },
+  // Step 2: a Factory exists → point at the Traps tab (only in the DOM while the build
+  // drawer is open, so this catches on a drawer-open tick).
+  { id: 'traps',   phase: 'night', when: (gs) => (gs.boss?.level ?? 1) >= 3 && hasTrapFactory(gs), target: TRAPS_TAB,
+    eyebrow: 'TRAPS',   text: 'Now place a trap — open the Traps tab' },
   // Intel — once a Library of Whispers is built, the next wave can be scouted.
   { id: 'intel',   phase: 'night', when: hasLibrary, target: '[data-tray-anchor="INTEL"]',
     eyebrow: 'INTEL',   text: 'Scout the coming wave — open Intel' },
   // Pacts — event-driven; the dark-pact picker is a modal, so a top, non-blocking note.
-  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'left', passThrough: true,
+  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'aboveBar', passThrough: true,
     eyebrow: 'DARK PACT', text: 'A mighty boon with a dark price — choose one' },
   // Adventurer autonomy — they aren't scripted; they decide for themselves.
-  { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'left', passThrough: true,
+  { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'aboveBar', passThrough: true,
     eyebrow: 'THEY THINK FOR THEMSELVES',
     text: 'Adventurers scout, fight and flee by their own wits — you shape the maze, not their minds' },
   // The knowledge system — escapees teach the kingdom your dungeon.
-  { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'left', passThrough: true,
+  { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'aboveBar', passThrough: true,
     eyebrow: 'THE KINGDOM LEARNS',
     text: 'An escapee carried your secrets home — future raids route around what the kingdom now knows' },
   // Bestiary — survivors study your MINION types and return with counters.
-  { id: 'minionCounter', phase: 'night', anchor: 'left', passThrough: true,
+  { id: 'minionCounter', phase: 'night', anchor: 'aboveBar', passThrough: true,
     when: (gs) => Object.keys(gs.knowledge?.sharedPool?.bestiary ?? {}).length > 0,
     eyebrow: 'THEY STUDY YOUR MINIONS',
     text: 'Survivors learn each minion type and bring counters — vary your defenders to stay unpredictable' },
@@ -94,6 +115,7 @@ export class DripCoach {
   _tick(phase, ev = null) {
     const meta = this._gameState?.meta
     if (!meta?.tutorialEnabled) return        // player opted out
+    if (!meta.introSeen) return               // intro cinematic still running — nothing drips yet
     if (CoachMark.isActive) return            // never stack on another coach-mark
     if (this._guidedRun?._active) return       // don't collide with the scripted guided run
     if (globalThis.__qfDevTestStage) return
