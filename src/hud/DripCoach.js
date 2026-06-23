@@ -47,6 +47,11 @@ const DRIPS = [
   { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'top', passThrough: true,
     eyebrow: 'THE KINGDOM LEARNS',
     text: 'An escapee carried your secrets home — future raids route around what the kingdom now knows' },
+  // Bestiary — survivors study your MINION types and return with counters.
+  { id: 'minionCounter', phase: 'night', anchor: 'top', passThrough: true,
+    when: (gs) => Object.keys(gs.knowledge?.sharedPool?.bestiary ?? {}).length > 0,
+    eyebrow: 'THEY STUDY YOUR MINIONS',
+    text: 'Survivors learn each minion type and bring counters — vary your defenders to stay unpredictable' },
 ]
 
 export class DripCoach {
