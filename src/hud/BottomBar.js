@@ -247,7 +247,12 @@ export class BottomBar {
     }
     if (mode === 'move')    EventBus.emit('TOOL_MOVE')
     if (mode === 'sell')    EventBus.emit('TOOL_SELL')
-    if (mode === 'upgrade') { this._clearBadge('upgrade'); EventBus.emit('TOOL_UPGRADE') }
+    if (mode === 'upgrade') {
+      // Greyed = nothing upgradeable; swallow the click so the tool can't arm
+      // into a dead state (matches the .cant dimming applied in _tick).
+      if (this._refs.mode_upgrade?.classList.contains('cant')) return
+      this._clearBadge('upgrade'); EventBus.emit('TOOL_UPGRADE')
+    }
   }
 
   _onSpeedClick(scale) {
@@ -261,7 +266,7 @@ export class BottomBar {
     const box = this._refs.speedBox
     if (!box) return
     box.querySelector('.hc-spdcue')?.remove()
-    const cue = h('span', { className: 'hc-spdcue' }, `${scale}× SPEED`)
+    const cue = h('span', { className: 'hc-spdcue' }, scale === 0 ? 'PAUSED' : `${scale}× SPEED`)
     box.appendChild(cue)
     setTimeout(() => cue.remove(), 700)
   }
@@ -349,12 +354,22 @@ export class BottomBar {
     for (const k of Object.keys(this._refs ?? {})) {
       if (k.startsWith('speed_')) this._refs[k] = null
     }
-    return steps.map(s => h('button', {
+    // Leading PAUSE toggle — freezes the invasion sim (scale 0 → DayPhase holds
+    // time.timeScale at ~0). Sits with the speed multipliers so all time control
+    // is in one place; mirrors the existing SPACE-to-pause keybind.
+    const pauseBtn = h('button', {
+      className: 'hc-spdb hc-spdb-pause',
+      dataset: { speed: 'pause' },
+      ref: el => { this._refs.speed_pause = el },
+      on: { click: () => this._onSpeedClick(0) },
+      title: 'Pause the day (Space)',
+    }, '⏸')
+    return [ pauseBtn, ...steps.map(s => h('button', {
       className: 'hc-spdb',
       dataset: { speed: s },
       ref: el => { this._refs[`speed_${s}`] = el },
       on: { click: () => this._onSpeedClick(s) },
-    }, `${s}×`))
+    }, `${s}×`)) ]
   }
 
   // Rebuild speed buttons in-place when the day crosses HYPER_UNLOCK_DAY.
@@ -424,6 +439,7 @@ export class BottomBar {
       if (!el) continue
       el.classList.toggle('on', s === scale)
     }
+    this._refs.speed_pause?.classList.toggle('on', scale === 0)
   }
 
   // ── Launcher "new" badges (INTEL / KNOWLEDGE) ─────────────────────
@@ -558,7 +574,31 @@ export class BottomBar {
       this._prevRebuildSig = rebuildSig
       this._renderRebuildBtn(gs)
     }
+    // UPGRADE tool — grey it out unless at least one placed minion actually has
+    // an eligible next tier (canUpgrade covers tier-cap, night-gate, pact locks).
+    // Only meaningful at night (upgrades execute then); re-evaluate live so it
+    // un-greys the moment a tier unlocks or a fresh minion is placed.
+    if (phase === 'night') {
+      const eligible = this._hasEligibleUpgrade(gs)
+      if (eligible !== this._prevUpgradeEligible) {
+        this._prevUpgradeEligible = eligible
+        this._refs.mode_upgrade?.classList.toggle('cant', !eligible)
+      }
+    }
     this._tickHandle = requestAnimationFrame(() => this._tick())
+  }
+
+  // The Game scene's MinionEvolutionSystem (lives off the persistent Game host).
+  _evoSystem() {
+    for (const s of (window.__game?.scene?.scenes || [])) if (s?.minionEvolutionSystem) return s.minionEvolutionSystem
+    return null
+  }
+
+  // True when any placed roster minion can advance a tier right now.
+  _hasEligibleUpgrade(gs) {
+    const evo = this._evoSystem()
+    if (!evo?.canUpgrade) return false
+    return (gs.minions ?? []).some(m => m && m.faction === 'dungeon' && evo.canUpgrade(m))
   }
 
   destroy() {

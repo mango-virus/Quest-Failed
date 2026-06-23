@@ -50,6 +50,11 @@ const FALLBACK_TEXT_COOLDOWN_MS = 5000
 // than the day patrol so it reads as calm "alive" idling, not frantic pacing.
 const NIGHT_PAUSE_MS = 2600
 
+// Pay-to-revive rises WHERE IT FELL: hold this long before it starts walking
+// home so the reverse-death "knit back together + stand up" animation reads
+// (covers the renderer's ~500ms reverse-clip with margin).
+const REVIVE_RISE_HOLD_MS = 700
+
 // ── EXPERIMENTAL: transit avoidance (Phase B) ────────────────────────────────
 // Local steer-around for WALKING minions on open floor so they don't phase
 // straight through another unit they're approaching. Deliberately conservative:
@@ -146,6 +151,29 @@ export class MinionAISystem {
       if (m._faceOverride) m._faceOverride = null   // resume normal facing
       const home = this._gameState.dungeon.rooms.find(r => r.instanceId === m.assignedRoomId)
       if (!home) continue
+      // Just revived in place → hold for the rise animation, then walk home and
+      // resume normal room wander once back inside the assigned room.
+      if (m._returningHome) {
+        const now = this._scene?.time?.now ?? 0
+        if (now < (m._reviveRiseUntil ?? 0)) continue   // freeze during the rise
+        if (_pointInRoom(m.tileX, m.tileY, home)) {
+          m._returningHome = false
+          m._chasePath = null
+          m._patrolTarget = null
+        } else {
+          const ok = this._walkAlongPath(m, { x: m.homeTileX, y: m.homeTileY }, delta)
+          if (!ok) {
+            // Home unreachable (room sold/sealed since it died) — snap home so a
+            // revived minion can never get stranded as a walking corpse.
+            m.tileX = m.homeTileX; m.tileY = m.homeTileY
+            m.worldX = m.homeTileX * TS + TS / 2
+            m.worldY = m.homeTileY * TS + TS / 2
+            m._returningHome = false
+            m._chasePath = null
+          }
+          continue
+        }
+      }
       if (m._patrolTarget) {
         if (m.tileX === m._patrolTarget.x && m.tileY === m._patrolTarget.y) {
           m._patrolTarget = null
@@ -167,7 +195,7 @@ export class MinionAISystem {
     // Keep settled (idle, between-hop) minions spread on distinct tiles.
     applyCrowdSeparation(minions, this._dungeonGrid, {
       radius: 11,
-      eligible: (m) => m.aiState === 'idle' && !m._patrolTarget &&
+      eligible: (m) => m.aiState === 'idle' && !m._patrolTarget && !m._returningHome &&
         (m.resources?.hp ?? 0) > 0 && m.faction === 'dungeon',
     })
   }
@@ -1875,7 +1903,7 @@ export class MinionAISystem {
   // full-heal, return home, clear per-night ability + behaviour state. Shared
   // by respawnAll (living survivors) and reviveFallen (paid revives) so the
   // two can never drift apart.
-  _dawnRefresh(m, bossLv, day) {
+  _dawnRefresh(m, bossLv, day, opts = {}) {
     // Re-apply day+boss scaling each dawn so retained minions stay competitive.
     // applyMinionScaling always recomputes from _baseMaxHp/_baseAtk, never stacks.
     applyMinionScaling(m, bossLv, day)
@@ -1885,10 +1913,22 @@ export class MinionAISystem {
       m.resources.hp = Math.max(1, Math.floor((m.resources.maxHp ?? 0) * Balance.MECHANIC_LAST_STAND_RESPAWN_HP_FRAC))
       m._lastStandUsed = false
     }
-    m.tileX  = m.homeTileX
-    m.tileY  = m.homeTileY
-    m.worldX = m.homeTileX * TS + TS / 2
-    m.worldY = m.homeTileY * TS + TS / 2
+    if (opts.inPlace) {
+      // Pay-to-revive (2026-06-23): the minion RISES WHERE IT FELL — keep its
+      // death-spot coords so the reverse-death animation plays there — then
+      // walks back to its assigned room (nightWander handles the walk via
+      // _returningHome once the rise-hold elapses).
+      m._returningHome   = true
+      m._reviveRiseUntil = (this._scene?.time?.now ?? 0) + REVIVE_RISE_HOLD_MS
+    } else {
+      // Dawn respawn (survivors + auto-managed garrison): snap straight home.
+      m.tileX  = m.homeTileX
+      m.tileY  = m.homeTileY
+      m.worldX = m.homeTileX * TS + TS / 2
+      m.worldY = m.homeTileY * TS + TS / 2
+      m._returningHome   = false
+      m._reviveRiseUntil = 0
+    }
     m.aiState = 'idle'
     m.currentTargetId = null
     m.deathDay = null
@@ -1938,8 +1978,9 @@ export class MinionAISystem {
       EventBus.emit('MINION_RESPAWNED', { minion: m, count: m.timesKilledAndRespawned })
       // A paid revive returns the minion at its UPGRADED tier (2026-05-29) —
       // _dawnRefresh rescales from its upgraded base. No XP/level reset (the
-      // kill-XP system was removed).
-      this._dawnRefresh(m, bossLv, day)
+      // kill-XP system was removed). inPlace: it rises where it fell and walks
+      // home, rather than teleporting straight to its room.
+      this._dawnRefresh(m, bossLv, day, { inPlace: true })
     }
     EventBus.emit('MINIONS_REVIVED', { count: fallen.length })
     return fallen.length

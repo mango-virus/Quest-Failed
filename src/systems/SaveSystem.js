@@ -453,7 +453,7 @@ function _rehydrateRunHistory(state) {
     '_possessedUntil', '_hexUntil', '_hexVulnMul', '_silencedUntil',
     // Plant ENTANGLE / generic CC — scene-time root/slow/stagger stamps; a saved
     // future value would freeze or slow an adventurer on load until wall-clock catches up.
-    '_rootedUntil', '_staggeredUntil', '_slowUntil', '_slowMult',
+    '_rootedUntil', '_rootImmuneUntil', '_staggeredUntil', '_slowUntil', '_slowMult',
     // Knockback — scene-time slide velocity + window; a saved value would fling
     // the entity on load.
     '_knockbackUntil', '_kbVx', '_kbVy',
@@ -619,8 +619,12 @@ function _rehydrateRunHistory(state) {
     // Reckless Charge knockback + future CC). Scene.time-stamped; a saved future
     // value would freeze a minion on load until the clock catches up. (Dawn reset
     // also clears these, but strip on mid-day save/load for correctness.)
-    '_staggeredUntil', '_rootedUntil', '_slowUntil', '_slowMult',
+    '_staggeredUntil', '_rootedUntil', '_rootImmuneUntil', '_slowUntil', '_slowMult',
     '_knockbackUntil', '_kbVx', '_kbVy',
+    // Pay-to-revive rise-hold — scene-time stamp; a saved future value would
+    // freeze a mid-walk-home revived minion on load. `_returningHome` is kept
+    // (a plain bool) so it resumes walking home after load.
+    '_reviveRiseUntil',
   ]
   for (const m of (state.minions ?? [])) {
     for (const k of MIN_TRANSIENT_KEYS) if (k in m) delete m[k]

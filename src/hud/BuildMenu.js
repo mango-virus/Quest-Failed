@@ -18,6 +18,7 @@ import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { liveMinion, snapshotItem, snapshotTrap } from './inGameSnapshot.js'
 import { getRoomThumbnail } from './roomThumbnailCache.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
+import { rosterCap, trapCap } from '../util/slotCaps.js'
 
 // Categories — same kind/cache/unlock wiring as the old dock, with the
 // design's glyphs + accent colours.
@@ -45,6 +46,13 @@ export class BuildMenu {
     this._tray = null
     this._cat = 'ROOMS'
     this._page = 0
+    // Live carousel refs (set via ref callbacks in _render) — _goToPage updates
+    // the track transform + pager chrome in place so a page slide isn't killed
+    // by a full re-render.
+    this._trackEl = null
+    this._pipsEl = null
+    this._arrowLEl = null
+    this._arrowREl = null
     this._armedId = null
     this._ghost = null
     this._onMouseMove = (e) => this._moveGhost(e)
@@ -116,18 +124,14 @@ export class BuildMenu {
   _render() {
     const cat = this._catInfo()
     const items = this._defsFor(cat)
-    // Floating (square) → show the whole category as a scrollable grid (no pager).
     const detached = !!this._tray?.isDetached
-    const per = detached ? Math.max(PER_PAGE, items.length) : PER_PAGE
-    const pages = Math.max(1, Math.ceil(items.length / per))
-    if (this._page > pages - 1) this._page = pages - 1
-    const start = this._page * per
-    const visible = items.slice(start, start + per)
     const bossLv = this._gameState.boss?.level ?? 1
     const gold = this._gameState.player?.gold ?? this._gameState.player?.soulEssence ?? 0
 
-    // Top segmented category bar (shared .htr-segbar).
-    const segbar = h('div', { className: 'htr-segbar' }, CATEGORIES.map(c => h('div', {
+    // Top segmented category bar (shared .htr-segbar). On the MINIONS tab the
+    // roster slot readout rides on the RIGHT of this bar — header space above
+    // the cards, so it never overlaps a card the way a card-area chip did.
+    const segTabs = CATEGORIES.map(c => h('div', {
       className: 'htr-segtab' + (this._cat === c.id ? ' on' : ''),
       style: { '--tc': c.color },
       on: { click: () => { if (this._cat !== c.id) { this._cat = c.id; this._page = 0; this._disarm(); this._rerender() } } },
@@ -135,33 +139,65 @@ export class BuildMenu {
       h('span', { className: 'tg' }, c.glyph),
       h('span', { className: 'lb' }, c.id),
       h('span', { className: 'ct' }, String(this._defsFor(c).length)),
-    ])))
+    ]))
+    if (this._cat === 'MINIONS')   segTabs.push(this._renderSlotMeter('minion'))
+    else if (this._cat === 'TRAPS') segTabs.push(this._renderSlotMeter('trap'))
+    const segbar = h('div', { className: 'htr-segbar' }, segTabs)
 
-    // Page-pip cluster (top-right).
-    const pips = pages > 1 ? h('div', { className: 'bsh-pips' }, Array.from({ length: pages }, (_, i) => h('span', {
+    // ── Detached (floating square) → one scrollable grid, no pager / carousel. ──
+    if (detached) {
+      const cards = items.length === 0
+        ? [ h('div', { className: 'bsh-empty' }, 'Nothing unlocked here yet.') ]
+        : items.map((def, i) => this._renderSlot(def, cat, i, i, bossLv, gold))
+      const mid = h('div', { className: 'bsh-mid' }, [
+        h('div', { className: 'bsh-pager' }, [ h('div', { className: 'bsh-rowclip' }, [ h('div', { className: 'bsh-row' }, cards) ]) ]),
+      ])
+      return h('div', { className: 'htr-chrome m-col' }, [ segbar, h('div', { className: 'htr-content' }, [ mid ]) ])
+    }
+
+    // ── Anchored → a CAROUSEL. Every page is a full-width panel in one flex
+    // track; paging just translates the track a whole page (_goToPage), so the
+    // cards visibly slide the full width past before settling — no mid-slide
+    // jump. The track + pager chrome are updated in place, never rebuilt mid
+    // -transition (a rebuild would kill the CSS slide). ──
+    const per = PER_PAGE
+    const pages = Math.max(1, Math.ceil(items.length / per))
+    if (this._page > pages - 1) this._page = pages - 1
+
+    const panels = Array.from({ length: pages }, (_, p) => {
+      const vis = items.slice(p * per, p * per + per)
+      const cards = vis.length === 0
+        ? [ h('div', { className: 'bsh-empty' }, 'Nothing unlocked here yet.') ]
+        : vis.map((def, i) => this._renderSlot(def, cat, p * per + i, i, bossLv, gold))
+      return h('div', { className: 'bsh-page', style: { flex: `0 0 ${100 / pages}%` } }, cards)
+    })
+    const track = h('div', {
+      className: 'bsh-track',
+      ref: el => { this._trackEl = el },
+      style: { width: `${pages * 100}%`, transform: `translateX(-${(this._page * 100) / pages}%)` },
+    }, panels)
+
+    const pips = pages > 1 ? h('div', { className: 'bsh-pips', ref: el => { this._pipsEl = el } }, Array.from({ length: pages }, (_, i) => h('span', {
       className: 'dot' + (i === this._page ? ' on' : ''),
-      on: { click: () => { this._page = i; this._rerender() } },
+      on: { click: () => this._goToPage(i) },
     }))) : null
 
-    const slots = visible.length === 0
-      ? [ h('div', { className: 'bsh-empty' }, 'Nothing unlocked here yet.') ]
-      : visible.map((def, i) => this._renderSlot(def, cat, start + i, i, bossLv, gold))
-
-    const row = h('div', { className: 'bsh-row' }, slots)
     const arrowL = h('div', {
       className: 'bsh-arrow left' + (this._page <= 0 ? ' off' : ''),
-      on: { click: () => { if (this._page > 0) { this._page--; this._rerender() } } },
+      ref: el => { this._arrowLEl = el },
+      on: { click: () => this._goToPage(this._page - 1) },
     }, [ '◂', h('span', { className: 'lab' }, 'PREV') ])
     const arrowR = h('div', {
       className: 'bsh-arrow right' + (this._page >= pages - 1 ? ' off' : ''),
-      on: { click: () => { if (this._page < pages - 1) { this._page++; this._rerender() } } },
+      ref: el => { this._arrowREl = el },
+      on: { click: () => this._goToPage(this._page + 1) },
     }, [ '▸', h('span', { className: 'lab' }, 'NEXT') ])
 
     const mid = h('div', { className: 'bsh-mid' }, [
       pips,
       h('div', { className: 'bsh-pager' }, [
         arrowL,
-        h('div', { className: 'bsh-rowclip' }, [ row ]),
+        h('div', { className: 'bsh-rowclip' }, [ track ]),
         arrowR,
       ]),
     ].filter(Boolean))
@@ -170,6 +206,59 @@ export class BuildMenu {
       className: 'htr-chrome m-col',
       on: { wheel: (e) => this._onWheel(e) },
     }, [ segbar, h('div', { className: 'htr-content' }, [ mid ]) ])
+  }
+
+  // Slide the carousel to page `p` (clamped). Only the track transform changes
+  // — CSS transitions it — so every card slides the full page width before it
+  // lands. Pager chrome (pips + arrows) is synced in place; rebuilding would
+  // destroy the track mid-transition and kill the slide.
+  _goToPage(p) {
+    const items = this._defsFor(this._catInfo())
+    const pages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+    const next = Math.min(pages - 1, Math.max(0, p))
+    if (next === this._page || !this._trackEl) return
+    this._page = next
+    this._trackEl.style.transform = `translateX(-${(next * 100) / pages}%)`
+    if (this._pipsEl) {
+      this._pipsEl.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('on', i === next))
+    }
+    this._arrowLEl?.classList.toggle('off', next <= 0)
+    this._arrowREl?.classList.toggle('off', next >= pages - 1)
+    this._hideTip()
+  }
+
+  // Slot meter for the MINIONS / TRAPS tabs — "used / cap" with the category
+  // glyph, tinted in the category accent (turns warn when full, red when there
+  // are no slots at all). Cap + used match NightPhase's enforcement exactly
+  // (slotCaps.rosterCap/trapCap; roster-class non-dead minions / placed traps)
+  // so it can never disagree with what placement actually allows.
+  _renderSlotMeter(kind) {
+    let cap, used, icon, label, source, color
+    if (kind === 'trap') {
+      cap    = trapCap(this._gameState)
+      used   = (this._gameState.dungeon?.traps ?? []).length
+      icon   = '⚙'; label = 'TRAPS'; source = 'a Trap Factory'; color = 'var(--blood)'
+    } else {
+      cap    = rosterCap(this._gameState)
+      used   = (this._gameState.minions ?? [])
+        .filter(m => (m.class ?? 'roster') === 'roster' && m.aiState !== 'dead').length
+      icon   = '☠'; label = 'MINIONS'; source = 'a Barracks'; color = 'var(--poison)'
+    }
+    const full = cap > 0 && used >= cap
+    const none = cap === 0
+    return h('div', {
+      className: 'bsh-slots' + (full ? ' full' : '') + (none ? ' none' : ''),
+      style: { '--sic': color },
+      title: none
+        ? `Build ${source} to gain ${label.toLowerCase()} slots`
+        : `${used} of ${cap} ${label.toLowerCase()} slots used`,
+    }, [
+      h('span', { className: 'bsh-slots-ic' }, icon),
+      none
+        ? h('span', { className: 'bsh-slots-n' }, 'NO SLOTS')
+        : h('span', { className: 'bsh-slots-n' }, `${used} / ${cap}`),
+      h('span', { className: 'bsh-slots-lb' }, label),
+    ])
   }
 
   // Mouse-wheel over the menu pages through the slots (anchored pager). The
@@ -187,8 +276,7 @@ export class BuildMenu {
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
     if (!d) return
     this._lastWheelAt = now
-    const next = Math.min(pages - 1, Math.max(0, this._page + (d > 0 ? 1 : -1)))
-    if (next !== this._page) { this._page = next; this._rerender() }
+    this._goToPage(this._page + (d > 0 ? 1 : -1))
   }
 
   _renderSlot(def, cat, absIdx, i, bossLv, gold) {

@@ -196,13 +196,17 @@ export class MinionRenderer {
     for (const m of minions) {
       seen.add(m.instanceId)
       let s = this._sprites[m.instanceId]
-      // Don't re-spawn corpses on the next day's first tick. If a dead minion
-      // survived in gameState past NIGHT_PHASE_STARTED (which destroyed its
-      // sprite), skip creating a new one. Live minions still construct here.
+      // Build a sprite even for an already-dead minion so its CORPSE shows —
+      // fallen roster minions persist through the build night (revivable in
+      // place) and a continued save can load straight into a night full of
+      // bodies. Mark the fresh sprite dead so it renders the death frame and a
+      // later pay-to-revive trips the dead→alive reverse-rise in the state pick.
       if (!s) {
-        const curHp = m.resources?.hp ?? 0
-        if (m.aiState === 'dead' || curHp <= 0) continue
         s = this._createSprite(m)
+        if (s) {
+          const curHp = m.resources?.hp ?? 0
+          if (m.aiState === 'dead' || curHp <= 0) { s.isDead = true; s._wasDead = true }
+        }
       }
       if (!s) continue
 
@@ -1075,10 +1079,13 @@ export class MinionRenderer {
   // ── Hover tooltip ─────────────────────────────────────────────────────────
 
   _showHoverLabel(m) {
-    const def = this._defMap[m.definitionId]
-    const name = m.name ?? def?.name ?? m.definitionId ?? 'Minion'
-    this._hoverLabel.setText(name).setVisible(true)
-    this._hoverMinion = m
+    // Disabled (2026-06-23): the black-background name label that used to pop up
+    // over a hovered minion is removed at user request — the richer InspectPopup
+    // (DOM hover inspector, fed by HudRoot's hit-test) already shows the name +
+    // stats, so this Phaser label was a redundant, cruder duplicate. Kept as a
+    // no-op so the sprite pointerover wiring stays harmless.
+    this._hoverLabel?.setVisible(false)
+    this._hoverMinion = null
   }
 
   _hideHoverLabel(m) {
@@ -1786,11 +1793,10 @@ export class MinionRenderer {
   }
 
   _refreshAll() {
-    // Wipe all corpse sprites at the start of a night so they don't linger
-    // into the next day. Live minions stay; the update() guard above also
-    // keeps gameState entries flagged 'dead' from re-spawning fresh sprites.
-    for (const id of Object.keys(this._sprites)) {
-      if (this._sprites[id].isDead) this._destroySprite(id)
-    }
+    // Corpses now PERSIST through the build night so the player can see who
+    // fell and revive them in place (they rise where they died and walk home).
+    // Nothing to wipe here: unrevived fallen are purged from gameState at DAY
+    // start, and update()'s unseen-id cull removes their sprites then, so no
+    // corpse lingers into the next day.
   }
 }

@@ -1718,6 +1718,7 @@ export const MinionAbilities = {
     // Status expiry — clear flags whose deadline has passed so isRooted /
     // isStaggered cleanup happens even if the entity isn't actively queried.
     if (entity._rootedUntil && now >= entity._rootedUntil) entity._rootedUntil = 0
+    if (entity._rootImmuneUntil && now >= entity._rootImmuneUntil) entity._rootImmuneUntil = 0
     if (entity._staggeredUntil && now >= entity._staggeredUntil) entity._staggeredUntil = 0
     if (entity._slowUntil && now >= entity._slowUntil) { entity._slowUntil = 0; entity._slowMult = 1 }
     if (entity._armorShredUntil && now >= entity._armorShredUntil) { entity._armorShredUntil = 0; entity._armorShred = 0 }
@@ -2120,6 +2121,7 @@ export const MinionAbilities = {
     // flags, oncePerFight re-arm). Legacy per-family flags were wiped.
     minion._dot = null
     minion._rootedUntil = 0
+    minion._rootImmuneUntil = 0
     minion._staggeredUntil = 0
     minion._slowUntil = 0; minion._slowMult = 1
     minion._armorShredUntil = 0; minion._armorShred = 0
@@ -2175,10 +2177,21 @@ export const MinionAbilities = {
     target._dot.push({ ...dot, _lastTickAt: scene?.time?.now ?? 0 })
   },
 
-  _applyRoot(target, scene, durationMs) {
+  // Anti-perma-root grace: after a root ENDS, the target can't be re-rooted
+  // for this long, guaranteeing a free window to act/escape. Without it a vine
+  // minion (or any chain-root) re-applies the root every hit while the target
+  // stands pinned beside it — trapping an adventurer in place forever.
+  ROOT_REIMMUNE_MS: 2000,
+
+  _applyRoot(target, scene, durationMs, immuneMs = this.ROOT_REIMMUNE_MS) {
     const now = scene?.time?.now ?? 0
+    // Still inside the immunity window from the previous root → ignore. (Covers
+    // both the active root and the post-root grace, so re-hits can't extend it.)
+    if (now < (target._rootImmuneUntil ?? 0)) return
     const next = now + durationMs
     if ((target._rootedUntil ?? 0) < next) target._rootedUntil = next
+    // Grant immunity that outlasts THIS root by the grace period.
+    target._rootImmuneUntil = next + immuneMs
   },
 
   _applyStagger(target, scene, durationMs) {
