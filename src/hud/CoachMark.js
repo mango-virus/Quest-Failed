@@ -171,11 +171,21 @@ export class CoachMark {
       }
       curTarget = t
       if (!t) {
-        dims[0].style.cssText = 'position:absolute;background:rgba(4,2,8,.72);pointer-events:auto;left:0;top:0;width:100%;height:100%'
-        for (let i = 1; i < 4; i++) dims[i].style.display = 'none'
+        // No spotlight target. passThrough = don't dim/cover the screen (e.g. the
+        // "watch the fight" beat — the player must SEE the gameplay). anchor places
+        // the bubble out of the action ('top' | 'bottom' | default 'center').
+        if (opts.passThrough) {
+          for (let i = 0; i < 4; i++) dims[i].style.display = 'none'
+        } else {
+          dims[0].style.cssText = 'position:absolute;background:rgba(4,2,8,.72);pointer-events:auto;left:0;top:0;width:100%;height:100%'
+          for (let i = 1; i < 4; i++) dims[i].style.display = 'none'
+        }
         ring.style.display = 'none'; arrow.style.display = 'none'
-        bubble.style.left = (sw / 2 - bubble.offsetWidth / 2) + 'px'
-        bubble.style.top  = (sh / 2 - bubble.offsetHeight / 2) + 'px'
+        const bw = bubble.offsetWidth || 280, bh = bubble.offsetHeight || 80
+        bubble.style.left = (sw / 2 - bw / 2) + 'px'
+        bubble.style.top  = opts.anchor === 'top'    ? '64px'
+                          : opts.anchor === 'bottom' ? (sh - bh - 96) + 'px'
+                          : (sh / 2 - bh / 2) + 'px'
         return
       }
       const r = _rectInStage(t)

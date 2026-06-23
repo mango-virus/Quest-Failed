@@ -198,7 +198,7 @@ export class GuidedRun {
     await this._waitEvent('ADVENTURERS_SPAWNED')
     await wait(700)   // let them walk in
     // Watch the dungeon do the work — resolves when the wave is wiped.
-    if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, hint: 'Watch them fall →' }) === 'skip') return
+    if (await this._coachUntilCleared({ eyebrow: 'WATCH', text: 'Watch your dungeon kill the invader', advance: 'hold', passThrough: true, anchor: 'top', hint: 'Watch them fall →' }) === 'skip') return
     await wait(500)
     await this._explain('YOU ARE THE DUNGEON', 'They came to kill you — your dungeon killed them. That is your power.')
   }
