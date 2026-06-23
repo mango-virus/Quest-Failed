@@ -43,6 +43,7 @@ export class GuidedRun {
   constructor(gameState) {
     this._gameState = gameState
     this._active = false
+    this._aborted = false   // set when the player turns Gameplay Hints OFF mid-run
     this._ready = false   // latest DUNGEON_READINESS.ready (entry hall + all rooms connected)
     this._listeners = []
     // guidedPlace gates NightPhase's onboarding placement rail — a RUNTIME flag, so
@@ -51,6 +52,26 @@ export class GuidedRun {
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
     sub('INTRO_DISMISSED', (p) => this._maybeStart(p))
     sub('DUNGEON_READINESS', (p) => { this._ready = !!p?.ready })
+    // Live response to the Settings "Gameplay Hints" toggle: OFF mid-run bails out
+    // of the guided run; ON mid first-night starts it (a late opt-in).
+    sub('SETTINGS_CHANGED', () => this._onHintsToggled())
+  }
+
+  // Read the authoritative hints setting directly (the localStorage key the Settings
+  // lever writes), so we don't race TutorialSystem's meta.tutorialEnabled sync.
+  _hintsOn() {
+    try { return localStorage.getItem('qf.gameplay.tutorials') !== 'false' } catch { return true }
+  }
+
+  _onHintsToggled() {
+    const on = this._hintsOn()
+    if (!on && this._active) {
+      this._aborted = true   // _coach / _coachUntilCleared resolve as skip and the chain unwinds
+      CoachMark.hide()
+    } else if (on && !this._active) {
+      const meta = this._gameState?.meta
+      if (meta && !meta.guidedRunDone && (meta.dayNumber ?? 1) === 1 && meta.phase === 'night') this._start()
+    }
   }
 
   _maybeStart(p) {
@@ -67,6 +88,7 @@ export class GuidedRun {
 
   async _start() {
     this._active = true
+    this._aborted = false
     this._gameState.meta.guidedRunDone = true   // don't repeat within THIS run (per-run flag)
     await wait(420)                              // let the intro cinematic finish tearing down
     try {
@@ -94,6 +116,7 @@ export class GuidedRun {
   //               multi-step actions (place a room/minion) the target click alone
   //               isn't completion, so we wait for the game event.
   _coach(opts, until, pred) {
+    if (this._aborted) return Promise.resolve('skip')   // hints turned off mid-run → unwind
     return new Promise((resolve) => {
       let settled = false, off = null
       // opts.lock: keep the player on rails — only the spotlighted target (+ the map)
@@ -221,7 +244,7 @@ export class GuidedRun {
 
     // ── Boss-ability lesson (one intervention, while the invader's alive) ──
     const ab = BOSS_ABILITY[this._gameState.player?.bossArchetypeId]
-    if (ab && (this._gameState.adventurers?.active?.length ?? 0) > 0) {
+    if (ab && !this._aborted && (this._gameState.adventurers?.active?.length ?? 0) > 0) {
       await this._abilityLesson(ab)
       await wait(400)
     }
@@ -285,7 +308,8 @@ export class GuidedRun {
       const iv = setInterval(() => {
         elapsed += 200
         const advs = this._gameState.adventurers?.active ?? []
-        if (advs.length === 0) { clearInterval(iv); resolve('gone') }
+        if (this._aborted) { clearInterval(iv); resolve('gone') }
+        else if (advs.length === 0) { clearInterval(iv); resolve('gone') }
         else if (advs.some(a => this._advInRoomInterior(a))) { clearInterval(iv); resolve('in') }
         else if (elapsed >= maxMs) { clearInterval(iv); resolve('timeout') }
       }, 200)
@@ -319,7 +343,8 @@ export class GuidedRun {
       let settled = false, poll = 0
       const done = (v) => { if (settled) return; settled = true; if (poll) clearInterval(poll); CoachMark.hide(); resolve(v) }
       poll = setInterval(() => {
-        if ((this._gameState.adventurers?.active?.length ?? 0) === 0) done('cleared')
+        if (this._aborted) done('skip')   // hints turned off mid-run
+        else if ((this._gameState.adventurers?.active?.length ?? 0) === 0) done('cleared')
       }, 400)
       CoachMark.show(opts).then((ok) => { if (!ok) done('skip') })
     })

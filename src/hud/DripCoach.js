@@ -75,6 +75,10 @@ export class DripCoach {
     sub('SHOW_DARK_PACT',            () => setTimeout(() => this._tick(this._phase(), 'SHOW_DARK_PACT'), 300))
     sub('ADVENTURER_ENTERED_DUNGEON', () => this._tick(this._phase(), 'ADVENTURER_ENTERED_DUNGEON'))
     sub('INTEL_LEAKED',              () => this._tick(this._phase(), 'INTEL_LEAKED'))
+    // Player toggled Gameplay Hints in Settings — if they turned it back ON, evaluate
+    // drips promptly. (Deferred so TutorialSystem syncs meta.tutorialEnabled first.
+    // Turned OFF just re-ticks + bails on the tutorialEnabled gate — harmless.)
+    sub('SETTINGS_CHANGED', () => setTimeout(() => this._tick(this._phase()), 60))
   }
 
   _phase() { return this._gameState?.meta?.phase ?? 'night' }
