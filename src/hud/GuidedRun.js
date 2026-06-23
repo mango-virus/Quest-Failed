@@ -57,14 +57,17 @@ export class GuidedRun {
     if (this._active) return
     if (!p?.tutorialEnabled || p.skipped) return    // opted out of / skipped the guided run
     const meta = this._gameState?.meta
-    if (!meta || meta.guidedRunDone) return          // only ever the first run
+    // guidedRunDone lives on the per-run meta (NOT global) — so the guided run plays
+    // on the first night of EACH new game and won't repeat mid-run. Per-game replay
+    // is intentional (user decision 2026-06-22): a fresh run re-teaches.
+    if (!meta || meta.guidedRunDone) return
     if ((meta.dayNumber ?? 1) > 1) return            // first night only
     this._start()
   }
 
   async _start() {
     this._active = true
-    this._gameState.meta.guidedRunDone = true   // never nag again (persisted)
+    this._gameState.meta.guidedRunDone = true   // don't repeat within THIS run (per-run flag)
     await wait(420)                              // let the intro cinematic finish tearing down
     try {
       const ok = await this._runBeat1()
