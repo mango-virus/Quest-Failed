@@ -445,8 +445,12 @@ dungeon, not the hero."* Everything else is taught just-in-time.
   **Codex** = recall reference.
 
 **Phased build (each shippable + visually verified in preview/Electron):** (1) coach-mark toolkit
-[FOUNDATION, build first], (2) Beat-0 flip cinematic, (3) Beats 1–2 guided first run, (4) Beat-3
-drip + companion-as-mentor, (5) day-phase telegraphing (bigger; maybe a general feature).
+[FOUNDATION, build first] ✅, (2) Beat-0 flip cinematic ✅, (3) Beats 1–2 guided first run ✅, (4) Beat-3
+drip + companion-as-mentor ✅, (5) day-phase telegraphing (bigger; maybe a general feature) — FUTURE.
+**(Built 2026-06-22.)** Phases 1–4 are implemented (`src/hud/CoachMark.js`, `FlipCinematic.js`,
+`GuidedRun.js`, `DripCoach.js`); the companion-as-mentor needed NO new code — the game-over screen already
+shows the companion (`npcKind:'gameover'` → `HUD_MENU_OPENED` → NpcDirector `menu_gameover` Hades-style lines).
+Pending: a full Electron playtest of the live drips (day 2+) + copy/target tuning.
 
 **Hard rules:** ≤8 words/caption; never teach >3 things at once; never teach what isn't usable yet;
 everything skippable; failure never punished while teaching.
