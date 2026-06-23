@@ -39,6 +39,14 @@ const DRIPS = [
   // Pacts — event-driven; the dark-pact picker is a modal, so a top, non-blocking note.
   { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'top', passThrough: true,
     eyebrow: 'DARK PACT', text: 'A mighty boon with a dark price — choose one' },
+  // Adventurer autonomy — they aren't scripted; they decide for themselves.
+  { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'top', passThrough: true,
+    eyebrow: 'THEY THINK FOR THEMSELVES',
+    text: 'Adventurers scout, fight and flee by their own wits — you shape the maze, not their minds' },
+  // The knowledge system — escapees teach the kingdom your dungeon.
+  { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'top', passThrough: true,
+    eyebrow: 'THE KINGDOM LEARNS',
+    text: 'An escapee carried your secrets home — future raids route around what the kingdom now knows' },
 ]
 
 export class DripCoach {
@@ -57,8 +65,11 @@ export class DripCoach {
     const onDrawer = () => setTimeout(() => this._tick('night'), 300)
     sub('TOGGLE_BUILD_DRAWER', onDrawer)
     sub('OPEN_BUILD_DRAWER',   onDrawer)
-    // Event-driven drips (e.g. the dark-pact picker just opened).
-    sub('SHOW_DARK_PACT', () => setTimeout(() => this._tick(this._phase(), 'SHOW_DARK_PACT'), 300))
+    // Event-driven drips (e.g. the dark-pact picker just opened, an adventurer
+    // entered, intel leaked home).
+    sub('SHOW_DARK_PACT',            () => setTimeout(() => this._tick(this._phase(), 'SHOW_DARK_PACT'), 300))
+    sub('ADVENTURER_ENTERED_DUNGEON', () => this._tick(this._phase(), 'ADVENTURER_ENTERED_DUNGEON'))
+    sub('INTEL_LEAKED',              () => this._tick(this._phase(), 'INTEL_LEAKED'))
   }
 
   _phase() { return this._gameState?.meta?.phase ?? 'night' }
