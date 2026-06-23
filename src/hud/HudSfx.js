@@ -14,6 +14,17 @@
 // is called directly by the surfaces that want a click feel.
 
 import { SfxVolume } from '../systems/SfxVolume.js'
+import { SoundConfig } from '../systems/SoundConfig.js'
+
+// UI cue → Sound Studio trigger id. Plain UI cues map to ui_*; cin_* cues use
+// their own id (registered as-is). Lets the Studio edit UI/cinematic sounds too.
+const CUE_TRIGGER = {
+  hover: 'ui_hover', click: 'ui_click', click_danger: 'ui_click_danger',
+  denied: 'ui_denied', toast: 'ui_toast', tab: 'ui_tab',
+  open_panel: 'ui_open_panel', close_panel: 'ui_close_panel',
+  unlock_reward: 'ui_unlock_reward', unlock_achievement: 'ui_unlock_achievement',
+  demote: 'ui_demote',
+}
 
 // Per-cue base gain. Kept conservative so UI clicks don't drown out
 // gameplay SFX. Tweak via SettingsOverlay's master + sfx sliders.
@@ -120,13 +131,17 @@ const _lastAt = {}
 export const HudSfx = {
   playUi(cue) {
     if (SfxVolume.isMuted()) return
+    // Resolve Sound Studio overrides (sound swap / volume / pitch / mute).
+    const tid = CUE_TRIGGER[cue] || cue
+    const c = SoundConfig.resolve(tid)
+    if (c.mute) return
     const cd = COOLDOWN[cue] ?? 100
     const now = performance.now()
     if (_lastAt[cue] && now - _lastAt[cue] < cd) return
     _lastAt[cue] = now
 
     const sound = window.__game?.sound
-    const key   = UI_KEY[cue]
+    const key   = c.key || UI_KEY[cue]
     if (!sound || !key) return
     // Only play if Phaser already loaded the audio in Preload — silent fail
     // otherwise. (DOM HUD ships before the Phaser cache is fully populated.)
@@ -134,14 +149,16 @@ export const HudSfx = {
     const hasIt = scenes.some(s => s.cache?.audio?.exists?.(key))
     if (!hasIt) return
 
-    const base = UI_VOL[cue] ?? 0.5
+    const base = (c.vol != null) ? c.vol : (UI_VOL[cue] ?? 0.5)
     // Cap at 4.0 — Phaser's WebAudio gain accepts values >1, and quiet
     // source files (Press button.wav is the prime offender) need real
     // amplification to read at the same loudness as gameplay chips.
     // SfxSystem caps at 4.0 too for its boosted payouts.
     const vol  = Math.min(4.0, base * UI_BOOST * SfxVolume.getVolume())
     if (vol <= 0) return
-    try { sound.play(key, { volume: vol }) } catch {}
+    const cfg = { volume: vol }
+    if (c.pitch) cfg.detune = (Math.random() * 2 - 1) * 200   // Studio-enabled jitter
+    try { sound.play(key, cfg) } catch {}
   },
 }
 

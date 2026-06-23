@@ -891,6 +891,16 @@ export class MainMenuOverlay {
         // shortcut does).
         this._openDevTools()
         break
+      case 'soundstudio':
+        // Mango-only — the Sound Studio (per-trigger sound editor). Works from
+        // the menu (preview lazy-loads deferred audio). Lazy import keeps it off
+        // the ordinary-player bundle.
+        if (this._soundStudio) break
+        import('./SoundStudioOverlay.js').then(({ SoundStudioOverlay }) => {
+          this._soundStudio = new SoundStudioOverlay({ onClose: () => { this._soundStudio = null } })
+          this._soundStudio.open()
+        }).catch(() => {})
+        break
       case 'jump50':
         // Mango dev shortcut — stamps one-shot localStorage flags that
         // ArchetypeSelect._beginRun reads after createGameState to bump

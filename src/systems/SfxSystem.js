@@ -13,6 +13,7 @@
 
 import { EventBus }   from './EventBus.js'
 import { SfxVolume } from './SfxVolume.js'
+import { SoundConfig } from './SoundConfig.js'
 
 // Per-sound volume table.  Values derived from measured peak/RMS levels:
 //   take damge.wav  → -1.8 dBpk / -20.6 dBrms  (reference = 0.70)
@@ -145,14 +146,14 @@ const DIST_MIN_VOLMUL = 0.45
 // trap breathes fire, spikes shing) instead of borrowing combat samples. All of
 // these keys are in PITCH_VARY → each fire auto-varies in pitch.
 const TRAP_SFX = {
-  shooting_arrows: 'sfx-trap-arrows',     // arrow volley
-  bomb:            'sfx-trap-bomb',       // explosion boom
-  cannon:          'sfx-trap-cannon',     // cannon boom
-  spike_pillar:    'sfx-trap-spikes',     // metallic spikes + impale
-  dragon_trap:     'sfx-trap-dragonfire', // fiery breath jet
-  spike_pit:       'sfx-trap-pit',        // trapdoor → impalement
-  rotating_blades: 'sfx-trap-blades',     // whirling blades
-  saw_blade:       'sfx-trap-saw',        // grinding saw
+  shooting_arrows: 'trap_arrows',
+  bomb:            'trap_bomb',
+  cannon:          'trap_cannon',
+  spike_pillar:    'trap_spikes',
+  dragon_trap:     'trap_dragonfire',
+  spike_pit:       'trap_pit',
+  rotating_blades: 'trap_blades',
+  saw_blade:       'trap_saw',
 }
 
 // Class-ability id (from ABILITY_TRIGGERED) → bespoke cue (AI placeholder set).
@@ -162,22 +163,22 @@ const TRAP_SFX = {
 // summon_undead is intentionally omitted — the necromancer's summon already cues
 // via MINION_SUMMONED → _onNecroSummon (mapping both would double the sound).
 const ABILITY_SFX = {
-  arcane_burst:        'sfx-abil-arcane',   // mage elemental burst
-  stunning_palm:       'sfx-abil-stun',     // monk palm strike
-  riposte:             'sfx-abil-riposte',  // monk counter
-  bulwark:             'sfx-abil-bulwark',  // knight shield-wall
-  reckless_charge:     'sfx-abil-charge',   // barbarian charge
-  double_or_nothing:   'sfx-abil-dice',     // gambler dice
-  crescendo:           'sfx-abil-hymn',     // bard battle hymn (swells)
-  encore:              'sfx-abil-hymn',     // bard finale — reuses the hymn motif
-  strength_in_numbers: 'sfx-abil-mob',      // peasant mob rally
-  tame_beast:          'sfx-abil-tame',     // beast-master tame
-  tunnel:              'sfx-abil-tunnel',   // miner dig
-  invisibility:        'sfx-abil-vanish',   // rogue vanish
-  piercing_shot:       'sfx-abil-pierce',   // ranger pierce line-shot (CombatSystem)
-  crowd_roar:          'sfx-abil-roar',     // gladiator roar stack (CombatSystem)
-  winged_flight:       'sfx-abil-wings',    // valkyrie soars over a trap (TrapSystem)
-  plunder_run:         'sfx-abil-plunder',  // pirate robs a chest (AISystem)
+  arcane_burst:        'abil_arcane',   // mage elemental burst
+  stunning_palm:       'abil_stun',     // monk palm strike
+  riposte:             'abil_riposte',  // monk counter
+  bulwark:             'abil_bulwark',  // knight shield-wall
+  reckless_charge:     'abil_charge',   // barbarian charge
+  double_or_nothing:   'abil_dice',     // gambler dice
+  crescendo:           'abil_hymn',     // bard battle hymn (swells)
+  encore:              'abil_hymn',     // bard finale — reuses the hymn motif
+  strength_in_numbers: 'abil_mob',      // peasant mob rally
+  tame_beast:          'abil_tame',     // beast-master tame
+  tunnel:              'abil_tunnel',   // miner dig
+  invisibility:        'abil_vanish',   // rogue vanish
+  piercing_shot:       'abil_pierce',   // ranger pierce line-shot (CombatSystem)
+  crowd_roar:          'abil_roar',     // gladiator roar stack (CombatSystem)
+  winged_flight:       'abil_wings',    // valkyrie soars over a trap (TrapSystem)
+  plunder_run:         'abil_plunder',  // pirate robs a chest (AISystem)
 }
 
 // Boss SIGNATURE-ability fire events → a fitting dramatic cue. Most of these
@@ -191,24 +192,24 @@ const BOSS_ABILITY_SFX = {
   // Per-boss SIGNATURE cues — each of the 12 bosses now has a recognizable voice
   // (was 18 events sharing 4 samples). Pact-GRANTED generic abilities + the
   // archetype-agnostic Final Breath keep the shared combat samples by design.
-  BEHOLDER_GAZE_FIRED:       'sfx-boss-beholder-gaze',
-  BEHOLDER_PETRIFY_FIRED:    'sfx-boss-beholder-petrify',
-  DEMON_SACRIFICE_FIRED:     'sfx-boss-demon-sacrifice',
-  FINAL_BREATH_TRIGGERED:    'sfx-boss-attack',
-  GNOLL_HUNT_FIRED:          'sfx-boss-gnoll-howl',
-  GOLEM_EARTHQUAKE_FIRED:    'sfx-boss-golem-quake',
-  LICH_CHANNEL_FIRED:        'sfx-boss-lich-wither',
-  LIZARD_SPIT_FIRED:         'sfx-boss-lizard-spit',
-  MYCONID_SEED_FIRED:        'sfx-boss-myconid-bloom',
-  ORC_TROPHY_THROW_FIRED:    'sfx-boss-orc-throw',
-  PACT_BOSS_HELLFIRE_FIRED:  'sfx-boss-attack',
-  PACT_BOSS_LIGHTNING_FIRED: 'sfx-beholder-beam',
-  PACT_BOSS_SHOCKWAVE_FIRED: 'sfx-boss-attack',
-  PACT_BOSS_VORTEX_FIRED:    'sfx-teleport',
-  SLIME_SURGE_FIRED:         'sfx-boss-slime-surge',
-  SUCCUBUS_KISS_FIRED:       'sfx-boss-succubus-kiss',
-  VAMPIRE_RITE_FIRED:        'sfx-boss-vampire-rite',
-  WRAITH_TERROR_FIRED:       'sfx-boss-wraith-terror',
+  BEHOLDER_GAZE_FIRED:       'boss_beholder_gaze',
+  BEHOLDER_PETRIFY_FIRED:    'boss_beholder_petrify',
+  DEMON_SACRIFICE_FIRED:     'boss_demon_sacrifice',
+  FINAL_BREATH_TRIGGERED:    'boss_final_breath',
+  GNOLL_HUNT_FIRED:          'boss_gnoll_howl',
+  GOLEM_EARTHQUAKE_FIRED:    'boss_golem_quake',
+  LICH_CHANNEL_FIRED:        'boss_lich_wither',
+  LIZARD_SPIT_FIRED:         'boss_lizard_spit',
+  MYCONID_SEED_FIRED:        'boss_myconid_bloom',
+  ORC_TROPHY_THROW_FIRED:    'boss_orc_throw',
+  PACT_BOSS_HELLFIRE_FIRED:  'boss_pact_hellfire',
+  PACT_BOSS_LIGHTNING_FIRED: 'boss_pact_lightning',
+  PACT_BOSS_SHOCKWAVE_FIRED: 'boss_pact_shockwave',
+  PACT_BOSS_VORTEX_FIRED:    'boss_pact_vortex',
+  SLIME_SURGE_FIRED:         'boss_slime_surge',
+  SUCCUBUS_KISS_FIRED:       'boss_succubus_kiss',
+  VAMPIRE_RITE_FIRED:        'boss_vampire_rite',
+  WRAITH_TERROR_FIRED:       'boss_wraith_terror',
 }
 
 // ── Window-focus tracking ───────────────────────────────────────────────────
@@ -270,7 +271,7 @@ export class SfxSystem {
   // ── Public API ────────────────────────────────────────────────────────────
 
   // Called directly by NightPhase._showPlacementError().
-  playError() { this._play('sfx-error') }
+  playError() { this._play('sfx-error', undefined, undefined, 'build_error') }
 
   // ── Wiring ────────────────────────────────────────────────────────────────
 
@@ -390,12 +391,12 @@ export class SfxSystem {
 
   // A boss signature ability fired — play its mapped cue, per-key rate-limited
   // (a boss with a fast-ticking passive shouldn't stack the same sound).
-  _onBossAbility(key) {
+  _onBossAbility(triggerId) {
     const now = this._now()
     if (!this._bossAbilityAt) this._bossAbilityAt = {}
-    if (now - (this._bossAbilityAt[key] ?? 0) < 200) return
-    this._bossAbilityAt[key] = now
-    this._play(key)
+    if (now - (this._bossAbilityAt[triggerId] ?? 0) < 200) return
+    this._bossAbilityAt[triggerId] = now
+    this._playTrigger(triggerId)
   }
 
   // Aldric climax duel — map each scripted beat to a sound. Rapid clash/slash
@@ -457,7 +458,7 @@ export class SfxSystem {
       if ((this._gameState?.minions ?? []).some(m => m.instanceId === sourceId)) {
         if (now - (this._lastMinionSwingAt ?? 0) >= 110) {
           this._lastMinionSwingAt = now
-          this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2', undefined, sp)
+          this._play(this._meleeAlt === 0 ? 'sfx-melee-1' : 'sfx-melee-2', undefined, sp, 'minion_attack')
           this._meleeAlt = 1 - this._meleeAlt
         }
       }
@@ -485,7 +486,7 @@ export class SfxSystem {
   _onBossMeleeHit({ damage, targetId } = {}) {
     const sp = this._spatial(this._entityPos(targetId))
     // Play boss attack sound every other hit to avoid rapid-fire repetition.
-    if (this._bossAttackAlt === 0) this._play('sfx-boss-attack', undefined, sp)
+    if (this._bossAttackAlt === 0) this._play('sfx-boss-attack', undefined, sp, 'boss_melee')
     this._bossAttackAlt = 1 - this._bossAttackAlt
     // Boss melee always targets an adventurer → Human_Hit.
     this._playHumanHit(damage, sp)
@@ -499,7 +500,7 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastHumanHitAt < 80) return
     this._lastHumanHitAt = now
-    this._play(this._pickVariant('sfx-human-hit-', 3, '_humanHitLast'), undefined, spatial)
+    this._play(this._pickPool('adv_hurt'), undefined, spatial, 'adv_hurt')
   }
 
   // Minion death. Adventurer death has its own handler (_onAdventurerDeath).
@@ -516,15 +517,15 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastHumanDieAt < 250) return
     this._lastHumanDieAt = now
-    this._play(this._pickVariant('sfx-human-die-', 2, '_humanDieLast'), undefined, this._spatial(adventurer))
+    this._play(this._pickPool('adv_die'), undefined, this._spatial(adventurer), 'adv_die')
   }
 
   _onBossFightStarted() {
-    this._play('sfx-boss-attack')
+    this._play('sfx-boss-attack', undefined, undefined, 'boss_fight_start')
   }
 
   _onBossFightResolved({ winner }) {
-    if (winner === 'party') this._play('sfx-boss-death')
+    if (winner === 'party') this._play('sfx-boss-death', undefined, undefined, 'boss_death')
   }
 
   _onBossLeveledUp() {
@@ -535,7 +536,7 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastTrapAt < 300) return
     this._lastTrapAt = now
-    this._play(TRAP_SFX[def?.id] || 'sfx-take-damage', undefined, this._spatial(adventurer))
+    this._playTrigger(TRAP_SFX[def?.id] || 'minion_hurt', { spatial: this._spatial(adventurer) })
   }
 
   // Fires for both MINION_LEVELED_UP and MINION_EVOLVED. Shared 500ms guard
@@ -548,39 +549,39 @@ export class SfxSystem {
   }
 
   _onMinibossPromoted() {
-    this._play('sfx-necro-summon')
+    this._play('sfx-necro-summon', undefined, undefined, 'miniboss_promoted')
   }
 
   _onAbilityTriggered({ abilityId, adventurer } = {}) {
     // Each mapped class ability gets its bespoke cue (ABILITY_SFX). A short
     // per-ability cooldown stops abilities that re-fire (crescendo stacks,
     // strength_in_numbers on roster change) from machine-gunning. Positional.
-    const key = ABILITY_SFX[abilityId]
-    if (!key) return
+    const tid = ABILITY_SFX[abilityId]
+    if (!tid) return
     const now = this._now()
     if (!this._abilityAt) this._abilityAt = {}
     if (now - (this._abilityAt[abilityId] ?? 0) < 140) return
     this._abilityAt[abilityId] = now
-    this._play(key, undefined, this._spatial(adventurer))
+    this._playTrigger(tid, { spatial: this._spatial(adventurer) })
   }
 
   _onAllyHealed()    { this._play('sfx-cleric-heal') }
   // Templar "Lay on Hands" — once-per-raid self-heal when death looms.
   _onLayOnHands({ adventurer } = {}) { this._play('sfx-abil-layhands', undefined, this._spatial(adventurer)) }
   _onRevive()        { this._play('sfx-revive') }
-  _onNecroSummon()   { this._play('sfx-necro-summon') }
+  _onNecroSummon()   { this._play('sfx-necro-summon', undefined, undefined, 'necro_summon') }
   _onDoorOpened()    { this._play('sfx-door-open') }
   _onDoorClosed()    { this._play('sfx-close-door') }
   _onDoorUnlock()    { this._play('sfx-door-unlock') }
   _onChestOpen()     { this._play('sfx-chest-open') }
   _onTeleport()      { this._play('sfx-teleport') }
-  _onBeholderBeam()  { this._play('sfx-beholder-beam') }  // PACT_BOSS_PETRIFY — reuses the beholder beam
+  _onBeholderBeam()  { this._play('sfx-beholder-beam', undefined, undefined, 'boss_pact_petrify') }  // PACT_BOSS_PETRIFY
   _onDayStart()      { this._play('sfx-day-start') }
   _onDayEnd()        { this._play('sfx-day-end') }
 
   // Night-phase transition — the dark-pact sting doubles as the
   // "night falls, build your dungeon" cue.
-  _onNightTransition()  { this._play('sfx-dark-pact') }
+  _onNightTransition()  { this._play('sfx-dark-pact', undefined, undefined, 'night_begins') }
 
   // The boss level-up / ASCENSION screen appeared (EndOfDay → overlay).
   // Distinct from BOSS_LEVELED_UP, which fires mid-day when the level
@@ -647,15 +648,15 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastGoldAt < 400) return
     this._lastGoldAt = now
-    this._play('sfx-collect-gold', 3.0)
+    this._play('sfx-collect-gold', 3.0, undefined, 'sell_refund')
   }
-  _onBuildError()    { this._play('sfx-error') }
-  _onDarkPact()      { this._play('sfx-dark-pact', 3.5) }
+  _onBuildError()    { this._play('sfx-error', undefined, undefined, 'build_error') }
+  _onDarkPact()      { this._play('sfx-dark-pact', 3.5, undefined, 'dark_pact_open') }
 
   _onPactSealed() {
     // Reuse the cinematic pact sting — slightly quieter than the popup
     // open since this fires on confirm rather than reveal.
-    this._play('sfx-dark-pact', 2.0)
+    this._play('sfx-dark-pact', 2.0, undefined, 'pact_sealed')
   }
 
   _onIntelLeaked() {
@@ -664,31 +665,31 @@ export class SfxSystem {
     const now = this._now()
     if (now - this._lastTrapAt < 300) return
     this._lastTrapAt = now
-    this._play('sfx-error', 1.2)
+    this._play('sfx-error', 1.2, undefined, 'intel_leaked')
   }
 
   _onGameOver() {
     // Big dramatic stinger as QUEST FAILED burns in. Sfx-boss-death is
     // already loud + dramatic; bump the extra cap to make it cut through
     // even with the score-countup loop layered on top.
-    this._play('sfx-boss-death', 2.5)
+    this._play('sfx-boss-death', 2.5, undefined, 'game_over')
   }
 
   _onBountyPosted() {
     // Bounty posters are positive events for the boss ("hunters approach,
     // reinforce the wing"). Door-unlock reads as a portentous bell.
-    this._play('sfx-door-unlock', 0.8)
+    this._play('sfx-door-unlock', 0.8, undefined, 'bounty_posted')
   }
 
   _onCoinFlip() {
     // The coin leaves the imp's hand — a bright metallic toss.
-    this._play('sfx-collect-gold', 1.6)
+    this._play('sfx-collect-gold', 1.6, undefined, 'coin_flip')
   }
 
   _onCoinRevealed({ won } = {}) {
     // Win — a fat gold chime; loss — the error chirp as the hoard drains.
-    if (won) this._play('sfx-collect-gold', 3.5)
-    else     this._play('sfx-error', 1.3)
+    if (won) this._play('sfx-collect-gold', 3.5, undefined, 'coin_win')
+    else     this._play('sfx-error', 1.3, undefined, 'coin_lose')
   }
 
   _onResourcesAwarded({ gold }) {
@@ -698,7 +699,7 @@ export class SfxSystem {
     this._lastGoldAt = now
     // Gold pickups get an extra boost — they're a satisfying milestone and
     // were getting buried under combat sounds at the standard 1.0 cap.
-    this._play('sfx-collect-gold', 3.0)
+    this._play('sfx-collect-gold', 3.0, undefined, 'collect_gold')
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -707,19 +708,28 @@ export class SfxSystem {
   // volume exceed 1.0 — Phaser's WebAudio GainNode accepts gain > 1, so we
   // rely on it for the "extra loud" pickup sounds (collect-gold) where the
   // standard ceiling makes them disappear in the mix.
-  _play(key, extraBoost, spatial) {
+  // Plays a sound, resolved through the Sound Studio (SoundConfig). `triggerId`
+  // wins; otherwise the key's PRIMARY trigger; otherwise the bare key. Overrides
+  // (sound swap / volume / pitch / mute) fall back to the original code defaults
+  // when unset, so behaviour is identical until the dev edits a trigger.
+  _play(key, extraBoost, spatial, triggerId) {
     // Backgrounded — drop the sound entirely so it can't queue up and
     // burst on return (see the _pageHasFocus note above).
     if (!_pageHasFocus) return
     if (SfxVolume.isMuted()) return
-    if (!this._scene?.cache?.audio?.exists?.(key)) return
-    const baseGain = SFX_VOLUMES[key] ?? SFX_DEFAULT_VOL
+    const tid = triggerId || SoundConfig.triggerForKey(key) || key
+    const c = SoundConfig.resolve(tid)
+    if (c.mute) return
+    const playKey = c.key || key
+    if (!playKey || !this._scene?.cache?.audio?.exists?.(playKey)) return
+    const baseGain = (c.vol != null) ? c.vol : (SFX_VOLUMES[playKey] ?? SFX_DEFAULT_VOL)
     const cap = extraBoost ? 4 : 1
     let vol = Math.min(cap, baseGain * SFX_BOOST * (extraBoost ?? 1) * SfxVolume.getVolume())
     if (vol <= 0) return
     const cfg = { volume: vol }
-    // Per-play pitch + volume jitter on high-frequency combat cues (see PITCH_VARY).
-    if (PITCH_VARY.has(key)) {
+    // Per-play pitch + volume jitter (default from PITCH_VARY; Studio can override).
+    const pitchOn = (c.pitch != null) ? c.pitch : PITCH_VARY.has(playKey)
+    if (pitchOn) {
       cfg.detune = (Math.random() * 2 - 1) * PITCH_SPREAD_CENTS
       cfg.volume = Math.min(cap, vol * (1 + (Math.random() * 2 - 1) * VOL_JITTER))
     }
@@ -729,18 +739,28 @@ export class SfxSystem {
       cfg.pan = spatial.pan
       cfg.volume = Math.min(cap, cfg.volume * spatial.volMul)
     }
-    try { this._scene.sound.play(key, cfg) } catch {}
+    try { this._scene.sound.play(playKey, cfg) } catch {}
   }
 
-  // Pick a 1-based variant index for a sample pool, avoiding an immediate
-  // repeat so back-to-back hits/deaths never play the exact same file twice
-  // running (random-without-repeat reads better than strict round-robin for
-  // bursty combat). `stateKey` stores the last index on the instance.
-  _pickVariant(prefix, count, stateKey) {
-    let i = 1 + Math.floor(Math.random() * count)
-    if (count > 1 && i === this[stateKey]) i = (i % count) + 1
-    this[stateKey] = i
-    return `${prefix}${i}`
+  // Play a REGISTERED trigger by id (looks up its default key). For event/data-map
+  // driven cues (boss abilities, traps, class abilities).
+  _playTrigger(triggerId, { spatial = null, boost } = {}) {
+    this._play(SoundConfig.get(triggerId)?.key, boost, spatial, triggerId)
+  }
+
+  // Pick one key from a trigger's variant POOL (Studio override keys, else the
+  // registry default pool), avoiding an immediate repeat. Returns null if empty.
+  _pickPool(triggerId) {
+    const c = SoundConfig.resolve(triggerId)
+    const def = SoundConfig.get(triggerId)
+    const pool = (c.keys && c.keys.length) ? c.keys : (def?.keys || (def?.key ? [def.key] : []))
+    if (!pool.length) return null
+    if (pool.length < 2) return pool[0]
+    if (!this._poolLast) this._poolLast = {}
+    let i = Math.floor(Math.random() * pool.length)
+    if (i === this._poolLast[triggerId]) i = (i + 1) % pool.length
+    this._poolLast[triggerId] = i
+    return pool[i]
   }
 
   _now() { return this._scene?.time?.now ?? Date.now() }

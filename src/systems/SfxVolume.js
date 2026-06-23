@@ -6,6 +6,8 @@
 // skips playback entirely when isMuted() is true.
 // AudioControls subscribes via onChange() to keep its SFX slider in sync.
 
+import { SoundConfig } from './SoundConfig.js'
+
 const STORAGE_KEY      = 'qf.audio.sfxVolume'
 const STORAGE_MUTE_KEY = 'qf.audio.sfxMuted'
 const DEFAULT_VOLUME   = 0.8
@@ -54,7 +56,19 @@ export const SfxVolume = {
 // `opts` passes through extra Phaser sound config (rate, loop, etc.).
 export function playSfx(soundManager, key, baseVolume = 1, opts = {}) {
   if (!soundManager || _muted) return null
-  const vol = baseVolume * _volume
+  // Sound Studio overrides (sound swap / volume / pitch / mute) for inline cues,
+  // resolved via the key's primary trigger. Falls back to the caller's values.
+  let playKey = key, volBase = baseVolume, pitch = false
+  try {
+    const c = SoundConfig.resolve(SoundConfig.triggerForKey(key) || key)
+    if (c.mute) return null
+    if (c.key) playKey = c.key
+    if (c.vol != null) volBase = c.vol
+    if (c.pitch) pitch = true
+  } catch {}
+  const vol = volBase * _volume
   if (vol <= 0) return null
-  try { return soundManager.play(key, { ...opts, volume: vol }) } catch { return null }
+  const cfg = { ...opts, volume: vol }
+  if (pitch && cfg.detune == null) cfg.detune = (Math.random() * 2 - 1) * 200
+  try { return soundManager.play(playKey, cfg) } catch { return null }
 }

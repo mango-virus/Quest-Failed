@@ -74,6 +74,8 @@ export class MainMenu extends Phaser.Scene {
       if (!this.scene.isActive()) return
       this.load.maxParallelDownloads = 4
       kickOffDeferredAudioLoad(this)
+      // Pull dev Sound-Studio custom uploads into the cache so swapped sounds play.
+      import('../systems/SoundCustom.js').then(m => m.hydrateCustomSounds(this)).catch(() => {})
     })
   }
 

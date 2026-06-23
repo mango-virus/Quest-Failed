@@ -202,6 +202,8 @@ export class Game extends Phaser.Scene {
     // GameplayMusic._playKey lazy-loads the current track too, so music still
     // starts immediately even before this batch lands.
     kickOffDeferredAudioLoad(this)
+    // Pull dev Sound-Studio custom uploads into the cache so swapped sounds play.
+    import('../systems/SoundCustom.js').then(m => m.hydrateCustomSounds(this)).catch(() => {})
 
     // Title music belongs to MainMenu / ArchetypeSelect only — kill
     // it on the way into the dungeon and hand off to the gameplay

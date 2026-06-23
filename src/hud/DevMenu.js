@@ -233,6 +233,7 @@ export class DevMenu {
       this._card({ icon: '⚡', name: this._lbl('FAST ABILITIES', globalThis.__qfDevFastAbilities), desc: 'Collapse champion/All-Star cast cadence to ~0.6s for screenshotting.', keepOpen: true, on: () => this._lbl('FAST ABILITIES', d()?.fastAbilities(!globalThis.__qfDevFastAbilities)) }),
       this._card({ icon: '✖', name: 'CLEAR SANDBOX', desc: 'Remove every dev-spawned minion / trap / raid unit.', keepOpen: true, on: () => d()?.clear() }),
       this._card({ icon: '★', name: 'VFX LAB', desc: 'Open an isolated stage: a frozen minion/adventurer + dummy target. Trigger any ability / VFX / sprite-animation on demand (loop + slow-mo).', on: () => d()?.vfxLab() }),
+      this._card({ icon: '🔊', name: 'SOUND STUDIO', desc: 'Tune every sound trigger — swap the sound, set volume/pitch, mute, preview, A/B vs default, export. Applies live, no reload.', on: () => import('./SoundStudioOverlay.js').then(({ SoundStudioOverlay }) => new SoundStudioOverlay().open()).catch(() => {}) }),
     ]))
 
     out.push(this._section('BOSS', 'champ'))

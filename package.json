@@ -16,6 +16,7 @@
     "audio:retrofy": "node tools/audio/retrofy.mjs",
     "audio:board": "node tools/audio/soundboard.mjs",
     "audio:chiptune": "node tools/audio/chiptune.mjs",
+    "audio:apply-config": "node tools/audio/apply-config.mjs",
     "serve": "node tools/devserve.mjs",
     "gen-walkers": "node tools/gen-walker-manifest.mjs",
     "sim": "node tools/sim/harness.mjs game",

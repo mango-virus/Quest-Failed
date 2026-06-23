@@ -29,6 +29,7 @@ const DEV_TOOL_GROUPS = [
     label: 'EDITORS', color: '#7fb53a',
     tools: [
       { id: 'rooms', icon: '▦', label: 'ROOM EDITOR', sub: 'Rooms · tiles · themes · doors' },
+      { id: 'soundstudio', icon: '🔊', label: 'SOUND STUDIO', sub: 'Per-trigger sound · volume · pitch · swap' },
     ],
   },
   {
