@@ -38,6 +38,7 @@ export class SoundStudioOverlay {
     this._cat = SOUND_CATEGORIES[0]
     this._query = ''
     this._previewVol = 0.9
+    this._expanded = new Set()   // trigger ids whose pool editor is open
     this._overlay = new Overlay({
       eyebrow: "THE DARK LORD'S EAR",
       title: 'SOUND STUDIO',
@@ -152,29 +153,41 @@ export class SoundStudioOverlay {
     return list.map(t => this._row(t))
   }
 
+  // Effective sound list for a trigger (override pool/key, else registry default).
+  _poolKeys(t, c) {
+    if (c.keys && c.keys.length) return [...c.keys]
+    if (c.key) return [c.key]
+    if (t.keys && t.keys.length) return [...t.keys]
+    if (t.key) return [t.key]
+    return []
+  }
+
   _row(t) {
     const c = SoundConfig.resolve(t.id)
     const overridden = SoundConfig.isOverridden(t.id)
-    const curKey = c.key || (c.keys && c.keys[0]) || t.key || (t.keys && t.keys[0])
-    const isPool = !!(t.keys && t.keys.length > 1) && !c.key
-    const missing = curKey && !this._keyLoaded(curKey)
+    const keys = this._poolKeys(t, c)
+    const isPool = keys.length > 1
+    const curKey = keys[0]
+    const missing = !isPool && curKey && !this._keyLoaded(curKey)
     const baseVol = (c.vol != null) ? c.vol : (t.vol ?? 0.8)
     const pitchOn = (c.pitch != null) ? c.pitch : !!t.pitch
+    const expanded = this._expanded.has(t.id)
 
     let valEl
-    const row = h('div', { className: 'qf-ss-row' + (overridden ? ' mod' : '') }, [
+    const line = h('div', { className: 'qf-ss-row' + (overridden ? ' mod' : '') }, [
       h('button', { className: 'qf-ss-ic play', title: 'Preview', on: { click: () => this._previewTrigger(t) } }, '▶'),
       h('div', { className: 'qf-ss-name' }, [
         h('div', { className: 'nm' }, [overridden ? h('span', { className: 'dot', title: 'edited' }) : null, t.label].filter(Boolean)),
-        h('div', { className: 'sub' }, isPool ? `${(c.keys || t.keys).length} variants` : (curKey || '—')),
+        h('div', { className: 'sub' }, isPool ? `${keys.length} variants` : (curKey || '—')),
       ]),
-      // sound swap
-      isPool
-        ? h('div', { className: 'qf-ss-pool', title: 'Variant pool' }, 'POOL')
-        : h('select', {
-            className: 'qf-ss-select' + (missing ? ' missing' : ''),
-            on: { change: (e) => { const v = e.target.value; v === t.key ? this._patch(t, { key: undefined }) : this._patch(t, { key: v }) } },
-          }, ALL_KEYS.map(k => h('option', { value: k, selected: k === curKey }, k.replace(/^sfx-/, '')))),
+      // sound summary — click to open the pool editor (add/remove/swap sounds)
+      h('button', {
+        className: 'qf-ss-sound' + (missing ? ' missing' : '') + (expanded ? ' open' : ''),
+        title: 'Edit sound(s)', on: { click: () => this._toggleExpand(t.id) },
+      }, [
+        h('span', { className: 'sct' }, isPool ? `POOL · ${keys.length}` : (curKey ? curKey.replace(/^sfx-/, '') : '—')),
+        h('span', { className: 'cv' }, expanded ? '▾' : '▸'),
+      ]),
       // volume
       h('input', {
         className: 'qf-ss-vol', type: 'range', min: '0', max: String(VOL_MAX), step: '5',
@@ -182,21 +195,10 @@ export class SoundStudioOverlay {
         on: { input: (e) => { const pct = Number(e.target.value); if (valEl) valEl.textContent = pct + '%'; this._patch(t, { vol: pct / 100 }, true) } },
       }),
       h('div', { className: 'qf-ss-val', ref: el => { valEl = el } }, Math.round(baseVol * 100) + '%'),
-      // pitch
-      h('button', {
-        className: 'qf-ss-ic tog' + (pitchOn ? ' on' : ''), title: 'Pitch variation',
-        on: { click: () => this._patch(t, { pitch: !pitchOn }) },
-      }, '♪'),
-      // mute
-      h('button', {
-        className: 'qf-ss-ic tog' + (c.mute ? ' on danger' : ''), title: 'Mute',
-        on: { click: () => this._patch(t, { mute: !c.mute }) },
-      }, c.mute ? '🔇' : '🔊'),
-      // A/B default
+      h('button', { className: 'qf-ss-ic tog' + (pitchOn ? ' on' : ''), title: 'Pitch variation', on: { click: () => this._patch(t, { pitch: !pitchOn }) } }, '♪'),
+      h('button', { className: 'qf-ss-ic tog' + (c.mute ? ' on danger' : ''), title: 'Mute', on: { click: () => this._patch(t, { mute: !c.mute }) } }, c.mute ? '🔇' : '🔊'),
       h('button', { className: 'qf-ss-ic ab', title: 'Play default (A/B)', on: { click: () => this._previewDefault(t) } }, 'DEF'),
-      // upload custom file
       h('button', { className: 'qf-ss-ic up', title: 'Upload a custom sound file', on: { click: () => this._uploadFor(t) } }, '⤒'),
-      // reset
       h('button', {
         className: 'qf-ss-ic reset', title: 'Reset to default', disabled: !overridden,
         on: { click: () => { const hadFile = SoundConfig.resolve(t.id).fileKey; SoundConfig.reset(t.id); if (hadFile) removeBlob(t.id); this._refreshList() } },
@@ -204,7 +206,55 @@ export class SoundStudioOverlay {
       c.fileKey ? h('span', { className: 'qf-ss-tag custom', title: 'Custom uploaded sound' }, 'CUSTOM') : null,
       missing ? h('span', { className: 'qf-ss-tag miss', title: 'Sound not loaded' }, 'MISSING') : null,
     ].filter(Boolean))
-    return row
+
+    if (!expanded) return line
+    return h('div', { className: 'qf-ss-rowwrap' }, [line, this._poolEditor(t, keys, baseVol)])
+  }
+
+  // The expandable sound/pool editor: one row per sound (preview · pick · remove)
+  // + "add sound". 2+ sounds = a pool (a random one plays each time).
+  _poolEditor(t, keys, baseVol) {
+    return h('div', { className: 'qf-ss-pooledit' }, [
+      h('div', { className: 'qf-ss-pe-lbl' },
+        keys.length > 1 ? 'POOL — a random variant plays each time:' : 'SOUND — add a 2nd to make a random pool:'),
+      ...keys.map((k, i) => h('div', { className: 'qf-ss-pe-slot' }, [
+        h('button', { className: 'qf-ss-ic play sm', title: 'Preview this sound', on: { click: () => this._playKey(k, baseVol * this._previewVol) } }, '▶'),
+        h('select', {
+          className: 'qf-ss-select grow' + (this._keyLoaded(k) ? '' : ' missing'),
+          on: { change: (e) => this._setSlot(t, keys, i, e.target.value) },
+        }, ALL_KEYS.map(o => h('option', { value: o, selected: o === k }, o.replace(/^sfx-/, '')))),
+        keys.length > 1
+          ? h('button', { className: 'qf-ss-ic rm sm', title: 'Remove from pool', on: { click: () => this._setSlot(t, keys, i, null) } }, '✕')
+          : null,
+      ].filter(Boolean))),
+      h('button', { className: 'qf-ss-pe-add', on: { click: () => this._addSlot(t, keys) } }, '＋ add sound'),
+    ])
+  }
+
+  _toggleExpand(id) {
+    this._expanded.has(id) ? this._expanded.delete(id) : this._expanded.add(id)
+    this._refreshList()
+  }
+
+  // Set slot i to `val` (null = remove). Rebuilds the pool/key override.
+  _setSlot(t, keys, i, val) {
+    const next = keys.slice()
+    if (val == null) next.splice(i, 1)
+    else next[i] = val
+    this._setPool(t, next)
+  }
+
+  _addSlot(t, keys) {
+    const add = ALL_KEYS.find(k => !keys.includes(k)) || ALL_KEYS[0]
+    this._setPool(t, [...keys, add])
+  }
+
+  // Persist a sound list as the trigger override: 1 sound → {key}, 2+ → {keys}.
+  _setPool(t, keys) {
+    const uniq = [...new Set(keys.filter(Boolean))]
+    if (uniq.length <= 1) SoundConfig.set(t.id, { key: uniq[0], keys: undefined })
+    else SoundConfig.set(t.id, { keys: uniq, key: undefined })
+    this._refreshList()
   }
 
   // Apply an override patch. `light` (slider drag) skips the full list rebuild so
@@ -320,8 +370,24 @@ const CSS = `
 .qf-ss-select { flex:0 0 150px; max-width:150px; background:var(--bg-0); border:1px solid var(--line-2);
   color:var(--text); padding:5px 6px; border-radius:6px; font:inherit; font-size:11px; }
 .qf-ss-select.missing { border-color:var(--warn); color:var(--warn); }
-.qf-ss-pool { flex:0 0 150px; max-width:150px; text-align:center; font-size:10px; letter-spacing:1px; color:var(--gold-bright);
-  border:1px dashed var(--line-2); border-radius:6px; padding:5px 0; }
+.qf-ss-sound { flex:0 0 150px; max-width:150px; display:flex; align-items:center; justify-content:space-between; gap:6px;
+  background:var(--bg-0); border:1px solid var(--line-2); color:var(--text); padding:5px 8px; border-radius:6px;
+  font:inherit; font-size:11px; cursor:pointer; }
+.qf-ss-sound:hover, .qf-ss-sound.open { border-color:var(--gold); }
+.qf-ss-sound.missing { border-color:var(--warn); color:var(--warn); }
+.qf-ss-sound .sct { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qf-ss-sound .cv { flex:0 0 auto; color:var(--dim); }
+.qf-ss-rowwrap { display:flex; flex-direction:column; }
+.qf-ss-pooledit { margin:3px 0 5px 30px; padding:9px 11px; background:rgba(0,0,0,.3); border:1px solid var(--line-2);
+  border-radius:7px; display:flex; flex-direction:column; gap:6px; }
+.qf-ss-pe-lbl { font-size:10px; letter-spacing:.5px; text-transform:uppercase; color:var(--dim); }
+.qf-ss-pe-slot { display:flex; align-items:center; gap:8px; }
+.qf-ss-select.grow { flex:1 1 auto; max-width:none; }
+.qf-ss-ic.sm { width:26px; height:26px; font-size:11px; }
+.qf-ss-ic.rm { color:var(--warn); }
+.qf-ss-pe-add { align-self:flex-start; background:transparent; border:1px dashed var(--line-2); color:var(--gold-bright);
+  padding:5px 12px; border-radius:6px; font:inherit; font-size:11px; letter-spacing:.5px; cursor:pointer; }
+.qf-ss-pe-add:hover { border-style:solid; border-color:var(--gold); }
 .qf-ss-vol { flex:0 0 120px; accent-color:var(--gold-bright); }
 .qf-ss-vol.wide { flex:0 0 160px; }
 .qf-ss-val { flex:0 0 42px; text-align:right; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
