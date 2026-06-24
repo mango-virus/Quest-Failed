@@ -359,10 +359,10 @@ export class BossFightOverlay {
       icon       = '🏃'
       colorTheme = 'bone'
     } else {
-      title      = 'INTRUDER REPELLED'
-      notif      = 'The dungeon endures.'
-      icon       = '🛡️'
-      colorTheme = 'green'
+      // Boss held the throne and put the intruder down. No banner here — a
+      // successful repel is the expected outcome, so the pop-up read as noise
+      // (removed per request). The dungeon-log line still records it.
+      return
     }
     EventBus.emit('HUD_BANNER', {
       title, notif, icon, colorTheme,
