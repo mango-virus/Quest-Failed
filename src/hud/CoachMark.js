@@ -17,9 +17,19 @@
 // any uiScale. Re-measures on resize + a light interval so it tracks layout.
 
 import { h } from './dom.js'
+import { EventBus } from '../systems/EventBus.js'
 
 let _injected = false
 let _active = null   // { layer, finish } for the current mark
+
+// Opt out of ALL onboarding guide messages from any coach-mark's "Turn off hints"
+// control. Mirrors the Settings → GAMEPLAY HINTS lever: flip the global key and
+// announce it. TutorialSystem syncs the per-run meta.tutorialEnabled flag, GuidedRun
+// aborts its scripted run, and DripCoach stops — all off the one SETTINGS_CHANGED.
+function _disableHints() {
+  try { localStorage.setItem('qf.gameplay.tutorials', 'false') } catch {}
+  EventBus.emit('SETTINGS_CHANGED')
+}
 
 function _injectCss() {
   if (_injected) return
@@ -62,6 +72,12 @@ function _injectCss() {
   .qf-cm-arrow { position:absolute; width:13px; height:13px; transform:rotate(45deg); pointer-events:none;
     background: rgba(26,21,36,1); border:1.5px solid color-mix(in srgb, var(--gold) 70%, transparent); }
   .qf-cm-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:12px; }
+  /* opt-out: a quiet text link on the left so it never competes with the gold CTA */
+  .qf-cm-row.has-optout { justify-content:space-between; }
+  .qf-cm-optout { pointer-events:auto; cursor:pointer; font-family:'Silkscreen',monospace;
+    font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; line-height:1.4;
+    color: rgba(240,230,212,.42); background:none; border:none; padding:2px 0; text-align:left; }
+  .qf-cm-optout:hover { color: color-mix(in srgb, var(--blood) 65%, var(--bone)); text-decoration:underline; }
   /* CTA = a gold action-bar tablet button with the signature sheen-sweep */
   .qf-cm-next { position:relative; overflow:hidden; cursor:pointer; font-family:'Press Start 2P',monospace;
     font-size:10px; letter-spacing:.05em; text-transform:uppercase; color: rgba(20,8,2,1);
@@ -245,15 +261,25 @@ export class CoachMark {
       }
     }
 
+    // Opt-out: a small "Turn off hints" control on EVERY guide message so the
+    // player can leave the onboarding early without hunting through Settings.
+    // Disables all hints globally, then dismisses this mark (skip).
+    const optOutBtn = opts.allowOptOut === false ? null
+      : h('button', { className: 'qf-cm-optout', on: { click: () => { _disableHints(); finish(false) } } }, 'Turn off hints')
+
+    let actionEl = null
     if (advance === 'next') {
-      bubble.appendChild(h('div', { className: 'qf-cm-row' },
-        [h('button', { className: 'qf-cm-next', on: { click: () => finish(true) } }, opts.nextLabel || 'Got it ›')]))
+      actionEl = h('button', { className: 'qf-cm-next', on: { click: () => finish(true) } }, opts.nextLabel || 'Got it ›')
     } else if (advance === 'tap' || advance === 'hold') {
       // 'tap' advances when the target is clicked (listener bound in layout()).
       // 'hold' shows the same hint but binds NO listener — the caller keeps the
       // spotlight up through a multi-step action and dismisses it externally
       // (CoachMark.hide()) once a game event confirms the action.
-      bubble.appendChild(h('div', { className: 'qf-cm-row' }, [h('span', { className: 'qf-cm-hint' }, opts.hint || 'Try it →')]))
+      actionEl = h('span', { className: 'qf-cm-hint' }, opts.hint || 'Try it →')
+    }
+    if (optOutBtn || actionEl) {
+      bubble.appendChild(h('div', { className: 'qf-cm-row' + (optOutBtn ? ' has-optout' : '') },
+        [optOutBtn, actionEl].filter(Boolean)))
     }
 
     layout()

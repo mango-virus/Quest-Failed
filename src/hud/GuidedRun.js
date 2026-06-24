@@ -18,6 +18,7 @@
 
 import { EventBus }  from '../systems/EventBus.js'
 import { CoachMark } from './CoachMark.js'
+import { isActsEnabled } from '../config/acts.js'
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms))
 
@@ -43,8 +44,10 @@ export class GuidedRun {
   constructor(gameState) {
     this._gameState = gameState
     this._active = false
-    this._aborted = false   // set when the player turns Gameplay Hints OFF mid-run
+    this._aborted = false   // set when the player turns Gameplay Hints OFF mid-run OR the HUD tears down (quit to menu)
     this._ready = false   // latest DUNGEON_READINESS.ready (entry hall + all rooms connected)
+    this._actIntroDismissed = false   // campaign: the Act I "Apprentice Trials" card has been read + closed
+    this._actIntroWaiter = null
     this._listeners = []
     // guidedPlace gates NightPhase's onboarding placement rail — a RUNTIME flag, so
     // reset it on every load (a save taken mid-run must not constrain normal play).
@@ -52,6 +55,9 @@ export class GuidedRun {
     const sub = (ev, fn) => { EventBus.on(ev, fn); this._listeners.push([ev, fn]) }
     sub('INTRO_DISMISSED', (p) => this._maybeStart(p))
     sub('DUNGEON_READINESS', (p) => { this._ready = !!p?.ready })
+    // Campaign: note when the Act I chapter card is dismissed so the guide can
+    // hold its first message until the player is done reading it (see _start).
+    sub('ACT_INTRO_DISMISSED', () => { this._actIntroDismissed = true; this._actIntroWaiter?.() })
     // Live response to the Settings "Gameplay Hints" toggle: OFF mid-run bails out
     // of the guided run; ON mid first-night starts it (a late opt-in).
     sub('SETTINGS_CHANGED', () => this._onHintsToggled())
@@ -67,6 +73,7 @@ export class GuidedRun {
     const on = this._hintsOn()
     if (!on && this._active) {
       this._aborted = true   // _coach / _coachUntilCleared resolve as skip and the chain unwinds
+      this._actIntroWaiter?.()   // release any pending Act-I-card wait too
       CoachMark.hide()
     } else if (on && !this._active) {
       const meta = this._gameState?.meta
@@ -91,6 +98,8 @@ export class GuidedRun {
     this._aborted = false
     this._gameState.meta.guidedRunDone = true   // don't repeat within THIS run (per-run flag)
     await wait(420)                              // let the intro cinematic finish tearing down
+    await this._waitForActIntro()                // campaign: hold until the Act I card is dismissed
+    if (this._aborted) { this._end(); return }
     try {
       const ok = await this._runBeat1()
       if (ok) await this._runBeat2()
@@ -102,6 +111,31 @@ export class GuidedRun {
     this._active = false
     if (this._gameState?.meta) this._gameState.meta.guidedPlace = null
     CoachMark.hide()
+  }
+
+  // In the Kingdom's Reckoning campaign, the Act I "Apprentice Trials" chapter
+  // card (ActIntro) lands on the first night — on top of the build view — and the
+  // player dismisses it AFTER the premise cinematic. Hold the very first coach-mark
+  // until they've read + closed that card so the guide messages don't appear over /
+  // under it. The premise cinematic itself is unchanged — it still plays first.
+  // Endless mode has no card → resolves immediately. A fallback timer guarantees the
+  // onboarding can never get stranded if the event somehow never arrives.
+  _waitForActIntro() {
+    if (!isActsEnabled(this._gameState)) return Promise.resolve()
+    if (this._actIntroDismissed || this._aborted) return Promise.resolve()
+    return new Promise((resolve) => {
+      let settled = false
+      const done = () => {
+        if (settled) return
+        settled = true
+        clearTimeout(t)
+        this._actIntroWaiter = null
+        resolve()
+      }
+      const t = setTimeout(done, 20000)   // safety net — never strand the onboarding
+      // Resolved by the ACT_INTRO_DISMISSED sub above, or by abort/teardown.
+      this._actIntroWaiter = done
+    })
   }
 
   _setPlace(v) { if (this._gameState?.meta) this._gameState.meta.guidedPlace = v }
@@ -328,10 +362,14 @@ export class GuidedRun {
       ty >= r.gridY + 2 && ty <= r.gridY + r.height - 3)
   }
 
-  // Resolve on the next EventBus `ev` (one-shot).
+  // Resolve on the next EventBus `ev` (one-shot), or early if the run is aborted
+  // (quit to menu / hints off) so the Beat-2 chain never hangs on a dead listener.
   _waitEvent(ev) {
     return new Promise((res) => {
-      const fn = () => { EventBus.off(ev, fn); res() }
+      let settled = false
+      const finish = () => { if (settled) return; settled = true; EventBus.off(ev, fn); clearInterval(iv); res() }
+      const fn = () => finish()
+      const iv = setInterval(() => { if (this._aborted) finish() }, 200)
       EventBus.on(ev, fn)
     })
   }
@@ -351,6 +389,11 @@ export class GuidedRun {
   }
 
   destroy() {
+    // Mark aborted FIRST: the Beat-1/2 lesson runs as an async chain that may be
+    // paused on an `await wait(...)` gap. Without this flag the timer resolves after
+    // teardown and the next _coach() would pop a coach-mark onto the main menu.
+    this._aborted = true
+    this._actIntroWaiter?.()   // release any pending Act-I-card wait so _start() unwinds
     for (const [ev, fn] of this._listeners) EventBus.off(ev, fn)
     this._listeners = []
     this._end()
