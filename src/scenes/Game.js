@@ -22,7 +22,7 @@ import { LiveRunPublisher }  from '../systems/LiveRunPublisher.js'
 import { BossArchetypeSystem } from '../systems/BossArchetypeSystem.js'
 import { EmoteSystem }        from '../systems/EmoteSystem.js'
 import { Balance }            from '../config/balance.js'
-import { fallenRevivable, totalReviveCost, reviveCandidates, planRevive } from '../util/minionRevive.js'
+import { fallenRevivable, totalReviveCost, reviveCandidates, planRevive, reviveCapAllowed } from '../util/minionRevive.js'
 import { brokenTraps, totalTrapRebuildCost } from '../util/trapRebuild.js'
 import { createTrap }          from '../entities/Trap.js'
 import { DungeonRenderer }    from '../ui/DungeonRenderer.js'
@@ -967,6 +967,15 @@ export class Game extends Phaser.Scene {
     if (!gs || gs.meta?.phase !== 'night') return
     const fallen = fallenRevivable(gs)
     if (fallen.length === 0) return
+    // None of the fallen fit their rooms (each is full to MINIONS_PER_ROOM_CAP of
+    // live minions) — nothing can be revived. Say so instead of charging 0 / no-op.
+    if (reviveCapAllowed(gs, fallen).length === 0) {
+      EventBus.emit('SHOW_TOAST', {
+        message: 'Those rooms are full — sell or move a minion to make space, then revive.',
+        type: 'error',
+      })
+      return
+    }
     const minionDefs = this.cache.json.get('minionTypes') ?? []
     const chains     = this.cache.json.get('minionEvolutions')
     const total      = totalReviveCost(gs, minionDefs, chains)

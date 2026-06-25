@@ -14,7 +14,7 @@ import { Balance }          from '../config/balance.js'
 import { TILE }             from './DungeonGrid.js'
 import { applyMinionScaling } from '../entities/Minion.js'
 import { AbilityVfx }       from '../ui/AbilityVfx.js'
-import { isPermadeadAtDawn, fallenRevivable } from '../util/minionRevive.js'
+import { isPermadeadAtDawn, fallenRevivable, reviveCapAllowed } from '../util/minionRevive.js'
 import { applyCrowdSeparation } from '../util/crowdSeparation.js'
 import { meleeSlotTile } from '../util/combatSlots.js'
 
@@ -1972,7 +1972,11 @@ export class MinionAISystem {
   // the pay-to-revive partial flow when the player can't afford everyone. Omit
   // to revive all fallen revivable.
   reviveFallen(instanceIds = null) {
-    let fallen = fallenRevivable(this._gameState)
+    // Cap-gated: only revive minions that fit their room (≤ MINIONS_PER_ROOM_CAP
+    // live), so the dead can't double up a room that's been refilled with fresh
+    // minions. The charge site (Game._onReviveFallenRequest) prices the same
+    // cap-allowed set, so the player is never charged for a skipped revive.
+    let fallen = reviveCapAllowed(this._gameState, fallenRevivable(this._gameState))
     if (instanceIds) {
       const set = instanceIds instanceof Set ? instanceIds : new Set(instanceIds)
       fallen = fallen.filter(m => set.has(m.instanceId))

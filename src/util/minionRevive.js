@@ -74,6 +74,32 @@ export function fallenRevivable(gameState) {
   )
 }
 
+// Of `fallen`, return only the ones that can actually be revived WITHOUT pushing
+// any room past MINIONS_PER_ROOM_CAP. Reviving a minion fills a live slot in its
+// assigned room, so we count current live roster minions per room (the SAME slot
+// definition NightPhase enforces on placement) and hand out the remaining slots
+// to the fallen, in order. This closes the exploit of filling a wiped room with
+// fresh minions and then reviving the dead to double up — the dead can't revive
+// into a room that's already full. (Unassigned minions, if any, aren't gated.)
+export function reviveCapAllowed(gameState, fallen) {
+  const cap = Balance.MINIONS_PER_ROOM_CAP ?? 5
+  const liveInRoom = {}
+  for (const m of (gameState?.minions ?? [])) {
+    if (m.aiState !== 'dead' && (m.class ?? 'roster') === 'roster' && m.assignedRoomId != null) {
+      liveInRoom[m.assignedRoomId] = (liveInRoom[m.assignedRoomId] ?? 0) + 1
+    }
+  }
+  const out = []
+  for (const m of (fallen ?? [])) {
+    const room = m.assignedRoomId
+    if (room == null) { out.push(m); continue }
+    if ((liveInRoom[room] ?? 0) >= cap) continue   // room full of live minions → can't revive here
+    liveInRoom[room] = (liveInRoom[room] ?? 0) + 1  // reserve the slot for this revive
+    out.push(m)
+  }
+  return out
+}
+
 // Locate a minion id's evolution chain root + tier index. `chains` is the
 // raw minionEvolutions.json object ({ rootId: { chain: [...] } }). Returns
 // null when the id isn't part of any chain (e.g. mimic, or unknown ids).
@@ -125,7 +151,8 @@ export function totalReviveCost(gameState, minionDefs, chains = null) {
   for (const d of (minionDefs ?? [])) byId[d.id] = d
   const ctx = { defsById: byId, chains }
   let sum = 0
-  for (const m of fallenRevivable(gameState)) sum += reviveCost(gameState, byId[m.definitionId], ctx)
+  // Only the fallen that fit their rooms are chargeable — the rest can't revive.
+  for (const m of reviveCapAllowed(gameState, fallenRevivable(gameState))) sum += reviveCost(gameState, byId[m.definitionId], ctx)
   return sum
 }
 
@@ -136,7 +163,8 @@ export function reviveCandidates(gameState, minionDefs, chains = null) {
   const byId = {}
   for (const d of (minionDefs ?? [])) byId[d.id] = d
   const ctx = { defsById: byId, chains }
-  return fallenRevivable(gameState).map(m => ({
+  // Cap-filtered: a fallen minion whose room is full isn't offered for revive.
+  return reviveCapAllowed(gameState, fallenRevivable(gameState)).map(m => ({
     instanceId: m.instanceId,
     cost:       reviveCost(gameState, byId[m.definitionId], ctx),
     maxHp:      m.resources?.maxHp ?? 0,
