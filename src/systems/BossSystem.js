@@ -476,12 +476,28 @@ export class BossSystem {
       const cap = this._orbitRingCapacity(ring)
       if (index - base < cap) {
         const ai   = index - base
+        // SPREAD the arrival order around the ring instead of filling the angular
+        // slots sequentially (0,1,2,…). Sequential fill starts at angle 0 (+X /
+        // screen-RIGHT) and creeps round, so a small party all bunched against the
+        // boss's right side — the "everyone walks to the right wall" report. A van
+        // der Corput permutation makes the 1st fighter take angle 0, the 2nd the
+        // opposite side, the 3rd/4th the quarters, etc., so they SURROUND the boss.
+        const pos  = this._spreadRingPos(ai, cap)
         const half = (ring % 2) * (Math.PI / cap)   // interleave odd rings between even ones
-        return { ring, angle: (Math.PI * 2 * ai) / cap + half }
+        return { ring, angle: (Math.PI * 2 * pos) / cap + half }
       }
       base += cap
       ring++
     }
+  }
+
+  // Permutation of [0,cap): each prefix is angularly well-spread, so the k-th
+  // fighter to arrive lands opposite/between the earlier ones rather than next to
+  // them. (Van der Corput / bit-reversal order — collision-free, any cap.)
+  _spreadRingPos(ai, cap) {
+    if (ai <= 0 || cap <= 1) return 0
+    const vdc = (i) => { let v = 0, d = 2; while (i > 0) { v += (i % 2) / d; i = (i / 2) | 0; d *= 2 } return v }
+    return [...Array(cap).keys()].sort((a, b) => vdc(a) - vdc(b))[ai]
   }
 
   _takeOrbitSlot(isRanged) {

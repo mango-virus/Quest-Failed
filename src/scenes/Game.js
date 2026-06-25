@@ -2046,10 +2046,15 @@ export class Game extends Phaser.Scene {
     // speed, and run in both phases so leftover trauma always bleeds off.
     this.screenShakeSystem?.update(delta)
 
-    // Phase 1b.4 — Lich Phylactery damage tick. Always runs (real time so
-    // hunters keep biting through pause-fast-slow). Gated internally by
-    // archetype + phylactery presence.
-    this.bossArchetypeSystem?.tick?.(delta)
+    // Boss-archetype real-time tick — the passive zone DoTs (golem fissure,
+    // myconid bloom, lizardman miasma) + lich phylactery bite. It runs on the
+    // real clock (so it's speed-independent), which means it kept dealing
+    // periodic damage while the day was PAUSED — the player saw damage numbers
+    // tick on frozen, unmoving characters. Freeze it when the day is paused so a
+    // paused dungeon takes no damage at all. (Still runs at night and at every
+    // live speed incl. hit-stop; only a true pause — time scale 0 — stops it.)
+    const _dayPausedTick = this.gameState.meta.phase === 'day' && this._getDayTimeScale() === 0
+    if (!_dayPausedTick) this.bossArchetypeSystem?.tick?.(delta)
 
     if (this.gameState.meta.phase === 'day') {
       const ts = this._getDayTimeScale() * this._hitStopFactor()
