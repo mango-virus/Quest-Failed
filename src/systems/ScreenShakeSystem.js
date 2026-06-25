@@ -25,6 +25,7 @@
 import { EventBus } from './EventBus.js'
 import { Balance }  from '../config/balance.js'
 import { userSettings } from '../hud/userSettings.js'
+import { canvasShake } from '../hud/screenShake.js'
 
 const SHAKE_MIN_GAP_MS = 80
 
@@ -87,6 +88,11 @@ export class ScreenShakeSystem {
     this._trauma = Math.min(1, this._trauma + amount)
     this._biasX  = biasX
     this._biasY  = biasY
+    // Also jolt the canvas DOM element — the reliable, always-visible shake (the
+    // Phaser camera-matrix shake doesn't move the dungeon in the native-res
+    // RESIZE setup). Scaled by this event's trauma; px amplitude maps the 0..1
+    // trauma range to a punchy ~6..26px jolt.
+    canvasShake(6 + amount * 20, 200 + amount * 260)
   }
 
   // Per-frame tick (called from Game.update with the REAL frame delta, so shake
@@ -122,6 +128,8 @@ export class ScreenShakeSystem {
     const cam = this._scene._cam ?? this._scene.cameras?.main
     if (!cam?.shake) return
     cam.shake(durationMs, intensity)
+    // Reliable canvas-DOM jolt alongside the camera shake (see _addTrauma).
+    canvasShake(6 + intensity * 1400, durationMs)
     this._lastShake = now
   }
 

@@ -116,6 +116,7 @@ import { Balance }  from '../config/balance.js'
 import { createMinion, applyMinionScaling, applyBossLevelToMinion } from '../entities/Minion.js'
 import { TILE }     from './DungeonGrid.js'
 import { AbilityVfx } from '../ui/AbilityVfx.js'
+import { canvasShake } from '../hud/screenShake.js'
 import { classifyTrophy, TROPHY_BY_ID, TROPHY_TYPES } from '../config/orcTrophies.js'
 import { currentAct } from '../config/acts.js'
 
@@ -2025,13 +2026,12 @@ export class BossArchetypeSystem {
     const now  = this._scene?.time?.now ?? 0
     const TS   = Balance.TILE_SIZE
 
-    // The signature quake MUST shake the screen. Fire it FIRST — directly on the
-    // live dungeon camera — so it lands even if a downstream VFX call throws (which
-    // EventBus would swallow, skipping the seismicSlamFx shake AND the trauma shake
-    // fired off GOLEM_EARTHQUAKE_FIRED). Also routes through the trauma system so it
-    // respects the player's shake setting and stacks with the per-room slam shakes.
-    try { this._scene?.cameras?.main?.shake?.(420 + tier * 40, 0.014 + tier * 0.002) } catch {}
-    try { this._scene?.screenShakeSystem?.shake?.('big') } catch {}
+    // The signature quake MUST shake the screen — fire a strong, reliable canvas
+    // jolt FIRST (the Phaser camera shake doesn't visibly move the dungeon in this
+    // native-res setup; canvasShake jolts the canvas DOM element, always visible).
+    // Up front so it lands even if a downstream VFX call throws (EventBus swallows
+    // it). Tier-scaled so a late-game quake is bigger.
+    try { canvasShake(18 + tier * 3, 460 + tier * 50) } catch {}
 
     const main = this._seismicHitRoom(room, tier, now, 1)
     // T4 Cataclysm — adjacent rooms convulse too (reduced).

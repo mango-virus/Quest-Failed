@@ -48,3 +48,33 @@ export function domShake(el, { intensity = 8, durationMs = 340 } = {}) {
   frames[frames.length - 1] = { transform: 'translate(0, 0)' }
   try { el.animate(frames, { duration: durationMs, easing: 'linear' }) } catch {}
 }
+
+// canvasShake — jolt the WebGL game CANVAS itself (the dungeon view) with a
+// decaying jitter. This is the RELIABLE screen shake: the Phaser camera-matrix
+// shake (ScreenShakeSystem / cam.shake) doesn't visibly move the dungeon in the
+// native-res RESIZE setup, so we shake the canvas DOM element instead. The HUD
+// is a separate DOM layer (#hud-stage), so chrome stays rock-steady. Gated on
+// the SCREEN SHAKE setting only — matching ScreenShakeSystem, which likewise
+// doesn't fold in reduced-motion. `composite:'add'` so it stacks on top of any
+// transform Phaser put on the canvas instead of clobbering it.
+let _canvasShakeAnim = null
+export function canvasShake(intensity = 10, durationMs = 400) {
+  let on = true
+  try { on = userSettings.isShakeEnabled() } catch {}
+  if (!on || !(intensity > 0)) return
+  const canvas = (typeof window !== 'undefined') ? window.__game?.canvas : null
+  if (!canvas || typeof canvas.animate !== 'function') return
+  const steps = Math.max(8, Math.round(durationMs / 28))
+  const frames = []
+  for (let i = 0; i <= steps; i++) {
+    const decay = 1 - i / steps
+    const amp = intensity * decay * decay   // quadratic ease-out so it settles
+    const dx = (Math.random() * 2 - 1) * amp
+    const dy = (Math.random() * 2 - 1) * amp
+    frames.push({ transform: `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)` })
+  }
+  frames[0] = { transform: 'translate(0,0)' }
+  frames[frames.length - 1] = { transform: 'translate(0,0)' }
+  try { _canvasShakeAnim?.cancel?.() } catch {}
+  try { _canvasShakeAnim = canvas.animate(frames, { duration: durationMs, easing: 'linear', composite: 'add' }) } catch {}
+}
