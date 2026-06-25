@@ -25,6 +25,12 @@
   } catch { /* defineProperty unavailable / page in a weird sandbox — drop silently */ }
 })()
 
+// Localhost dev preview detection — drives the setTimeout loop + boot watchdog
+// below (the offscreen preview browser never fires requestAnimationFrame).
+const IS_LOCALHOST = (() => {
+  try { const h = location.hostname; return h === 'localhost' || h === '127.0.0.1' } catch { return false }
+})()
+
 import { Boot }            from './scenes/Boot.js'
 import { Preload }         from './scenes/Preload.js'
 import { MainMenu }        from './scenes/MainMenu.js'
@@ -109,6 +115,14 @@ const config = {
     antialias:   true,
     roundPixels: true,
   },
+  // Localhost dev preview (Claude Code preview pane / embedded offscreen browser):
+  // that host renders the page offscreen and NEVER fires requestAnimationFrame, so
+  // Phaser's rAF-driven game loop never ticks — the boot wedges on a black screen
+  // ("stuck on Boot", window.__game present but isRunning:false, scenes never
+  // register). setTimeout DOES fire there, so drive the loop off setTimeout instead.
+  // Real browsers / Electron (app://) keep the normal rAF loop. Paired with the
+  // Page Visibility shim at the top of this file (which stops setTimeout throttling).
+  fps: IS_LOCALHOST ? { forceSetTimeOut: true, target: 60, min: 30 } : undefined,
 }
 
 // Bump the default Text resolution. Phaser renders each Text to an off-screen
@@ -126,6 +140,25 @@ Phaser.GameObjects.GameObjectFactory.prototype.text = function (x, y, text, styl
 }
 
 window.__game = new Phaser.Game(config)
+
+// Localhost preview boot watchdog. In the offscreen preview browser the
+// requestAnimationFrame that Phaser uses to kick its first step can fail to
+// fire, so the game boots (isBooted) but never STARTS (isRunning stays false →
+// the scene queue is never processed → permanent black screen). Force-start it
+// if it hasn't begun running shortly after creation; with forceSetTimeOut above
+// the loop then ticks via setTimeout. No-op on real browsers / Electron, where
+// the game starts itself well before the first check.
+if (IS_LOCALHOST) {
+  let tries = 0
+  const kick = () => {
+    const g = window.__game
+    if (!g) return
+    if (!g.isRunning) { try { g.start() } catch { /* race with real start — ignore */ } }
+    const ticking = g.isRunning && g.loop && g.loop.running && g.loop.frame > 0
+    if (!ticking && tries++ < 40) setTimeout(kick, 120)
+  }
+  setTimeout(kick, 150)
+}
 
 // Pixel-art cursor overlay. Hides the native browser cursor (via the
 // `cursor: none` reset in styles.css) and paints a fixed-position
