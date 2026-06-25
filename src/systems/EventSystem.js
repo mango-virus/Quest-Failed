@@ -1166,13 +1166,12 @@ export class EventSystem {
     })
   }
 
-  // The full upgrade catalog — 19 rooms, one entry each. Keep
+  // The full upgrade catalog — one entry per upgradeable room. Keep
   // descriptions short (build-menu hover tooltips have limited room).
   _tinkerCatalog() {
     return {
       // Description text appears on the picker cards AND the build-menu
       // hover tooltip — kept short (~30-50 chars) so cards don't bloat.
-      starter_corridor:    { name: 'Greased Corridor',  description: '−25% damage taken in Corridors' },
       starter_barracks:    { name: 'Drill Sergeant',    description: '+5 roster slots per Barracks' },
       starter_guard_post:  { name: 'Eagle Eye',         description: '+25% Guard Post ambush damage' },
       crypt:               { name: 'Crowded Crypt',     description: '+2 Risen Bones per Crypt (6 total)' },

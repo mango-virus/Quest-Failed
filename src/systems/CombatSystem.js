@@ -1033,20 +1033,6 @@ export class CombatSystem {
       }
     }
 
-    // Tinkerer's Workshop "Greased Corridor" — minions defending inside
-    // a corridor take 25% less damage (slippery to pin down). Inverse
-    // sense: applied as a damage REDUCTION when the TARGET is a minion
-    // standing inside a corridor.
-    if (tinkered.includes('starter_corridor') &&
-        target.faction === 'dungeon' &&
-        Number.isFinite(target.tileX) && Number.isFinite(target.tileY)) {
-      const grid = this._scene?.dungeonGrid
-      const here = grid?.getRoomAtTile?.(target.tileX, target.tileY)
-      if (here?.definitionId === 'starter_corridor') {
-        raw = Math.round(raw * 0.75)
-      }
-    }
-
     // Room redesign 2026-04-30 — Wishing Well "Marked" debuff: dungeon
     // minions deal +50% damage to a Marked adventurer for the rest of
     // that day.

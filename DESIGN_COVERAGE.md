@@ -239,7 +239,7 @@ Normal-schema legendaries (massive upside/downside). Boss-stat boons flow throug
 
 | ID | Name | Cap | Unlock | Phase | Status | Notes |
 |---|---|---|---|---|---|---|
-| starter_corridor | Corridor | scales 2→20 (+2/level) | L1, free | 2 | ⏳ PENDING (audit 2026-05-22) | Room exists, no behaviour. Cap-scaling-by-level still not implemented. |
+| ~~starter_corridor~~ | ~~Corridor~~ | — | — | — | ❌ REMOVED (2026-06-25) | Placeable Corridor room removed at user request — redundant under the 1-tile-gap auto-connector. Also dropped its Tinkerer "Greased Corridor" upgrade. |
 | starter_barracks | Barracks | scales 1→5 | L1, free | 2 | 🟡 PARTIAL (audit 2026-05-22) | ✅ +10 roster slots per Barracks wired (`NightPhase.js` ~line 1714); ✅ sneakable behaviour data present; ✅ roster-vs-garrison minion split shipped (`Minion.js` `class` field defaults to `'roster'`, NightPhase enforces cap, garrison minions exempt). **Remaining**: per-Barracks 1→5 cap-scaling-by-level. |
 | starter_guard_post | Guard Post | unlimited | L1 | TBD | ✅ DONE (audit 2026-05-22) | `MinionAISystem._pickTarget` adds a Guard-Post forward-operating-base check (`isGuardPost`) — minions whose home room is a starter_guard_post engage adventurers in any room directly door-connected to the post, bypassing the same-room requirement but NOT escalating to whole-dungeon hunt. Existing `_walkAlongPath` handles cross-door travel; existing no-target return-home flow brings them back when the connected rooms clear. Garrison minions still hard-bound. |
 

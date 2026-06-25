@@ -22,7 +22,6 @@ import { EventBus } from '../systems/EventBus.js'
 // cards never share the same glyph. Falls back to '⚒️' (workshop
 // hammer) for any room id not in this map.
 const ROOM_EMOJI = {
-  starter_corridor:    '↔️',
   starter_barracks:    '🏰',
   starter_guard_post:  '🛡️',
   crypt:               '💀',

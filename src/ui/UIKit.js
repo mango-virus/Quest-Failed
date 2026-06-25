@@ -170,12 +170,6 @@ export function drawRoomIcon(g, cx, cy, roomId, color) {
       g.fillRect(cx - s, cy + 5, s * 2, 2)
       break
 
-    case 'starter_corridor':
-      // Arrow (passage)
-      g.fillRect(cx - s, cy - 1, s * 2, 2)
-      g.fillTriangle(cx + 2, cy - 4, cx + s, cy, cx + 2, cy + 4)
-      break
-
     case 'starter_guard_post':
       // Cross (four-way)
       g.fillRect(cx - 1, cy - s, 2, s * 2)

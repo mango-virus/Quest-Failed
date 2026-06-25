@@ -1426,7 +1426,7 @@ Top-level rules:
 
 | Room | Cap | Unlock | Effect |
 |---|---|---|---|
-| **Corridor** | scales 2 → 20 (+2/level) | L1, first 2 free / 8g+ after (escalating) | No effect. Connects rooms. |
+| ~~**Corridor**~~ | — | — | **REMOVED 2026-06-25.** Was a thin "kill-funnel" room with no effect. Made redundant by the 1-tile-gap auto-connector (rooms link without it); removed at the user's request. Generic "corridor" still refers to the auto doorway-connector geometry, not a placeable room. |
 | **Barracks** | scales 1 → 9 (one extra per boss level from L3) | L1, first 1 free / 45g+ after (escalating) | Each Barracks adds **+10 roster minion slots**. Roster minions are the only ones that can patrol, follow, or be assigned. Gateway: without one, no roster minions. |
 | **Guard Post** | scales 1 → 3 (extras at L4 and L7) | L1, first 1 free / 24g+ after (escalating) | Minions placed here leave to hunt adventurers in any **directly door-connected** room. They return after the kill. |
 

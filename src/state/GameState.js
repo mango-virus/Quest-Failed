@@ -193,7 +193,7 @@ export function createGameState(
       // Boss-level gating via room.unlockLevel is a separate phase — for now everything is in the allowlist.
       rooms: [
         'boss_chamber', 'entry_hall',
-        'starter_corridor', 'starter_barracks', 'starter_guard_post',
+        'starter_barracks', 'starter_guard_post',
         'crypt',
         'trap_factory', 'treasury', 'armory',
         'library_of_whispers',

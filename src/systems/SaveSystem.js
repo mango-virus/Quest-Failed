@@ -15,7 +15,10 @@ const SAVE_KEY_BASE   = 'quest_failed_save'
 // connector model (see ROOM_CONNECTIONS.md). Old dungeons were laid out touching and
 // cannot satisfy the new "exactly 1 tile apart" rule, so 1.1.0 saves are discarded
 // on load (the _migrate stub returns null) — an accepted reset for this change.
-const CURRENT_VERSION = '1.2.0'
+// 1.3.0 (2026-06-25): the placeable "Corridor" (starter_corridor) room was removed.
+// A 1.2.0 save with a placed corridor would reference a now-undefined room def and
+// crash on load, so 1.2.0 saves are discarded too — an accepted reset.
+const CURRENT_VERSION = '1.3.0'
 
 function _saveKey() {
   const name = (PlayerProfile.getName?.() ?? '').trim()
