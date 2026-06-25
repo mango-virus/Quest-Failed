@@ -13,7 +13,7 @@
 
 import { EventBus } from './EventBus.js'
 import {
-  actForDay, actDayIndex, actDef, isActFinalDay, ACT_COUNT,
+  actForDay, actDayIndex, actDef, isActFinalDay, ACT_COUNT, ACT_DAYS,
 } from '../config/acts.js'
 
 export class ActSystem {
@@ -102,6 +102,16 @@ export class ActSystem {
     // overtime day we're already on.
     const act = meta.act.current ?? actForDay(finishedDay)
     const def = actDef(act)
+
+    // Self-heal a stale overtime flag. Overtime can only be real once the run has
+    // reached the act's nominal final day; if it's set on an earlier day (an old
+    // save / drifted state) it would otherwise re-fire ACT_OVERTIME + re-arm the
+    // Champion raid every day. Clear it here so the day's normal flow resumes.
+    if (meta.act.overtime && finishedDay < act * ACT_DAYS) {
+      meta.act.overtime     = false
+      meta.act.overtimeDays = 0
+    }
+
     if (!isActFinalDay(finishedDay) && !meta.act.overtime) return
 
     // KR P3 HARD GATE — drafted acts (II/III) clear ONLY by beating the Champion.

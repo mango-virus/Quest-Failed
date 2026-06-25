@@ -139,8 +139,19 @@ export function currentAct(gameState) {
 // True while the run is in P3 overtime — the current (drafted) act's Champion
 // survived its final day, so the act hasn't advanced and the raid re-runs each
 // day until it falls. `meta.act.overtime` is set/cleared by ActSystem.
+//
+// HARD INVARIANT: overtime is only real once the run has actually reached the
+// current act's nominal final day (act × ACT_DAYS). A flag sitting on an act's
+// EARLY days is stale / out-of-sync (e.g. an old save, or state that drifted) —
+// honoring it there would re-spawn the act's Champion on every day from the act's
+// first day onward, instead of only at the climax. Guard against that so a stale
+// flag can never trigger the raid before the climax.
 export function isActOvertime(gameState) {
-  return !!gameState?.meta?.act?.overtime
+  const a = gameState?.meta?.act
+  if (!a?.overtime) return false
+  const act = Number.isFinite(a.current) ? a.current : 1
+  const day = gameState?.meta?.dayNumber ?? 1
+  return day >= act * ACT_DAYS
 }
 
 // Per-act boss form names (T1..T4), indexed by tier.
