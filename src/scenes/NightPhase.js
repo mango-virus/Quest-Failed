@@ -1773,13 +1773,20 @@ export class NightPhase extends Phaser.Scene {
         const tx = Math.floor(wp.x / TS)
         const ty = Math.floor(wp.y / TS)
         if (this._toolMode === 'sell') {
-          this._executeSellAt(tx, ty)
+          // Generous minion targeting (user 2026-06-24): a click ON or NEAR a
+          // minion sells THAT minion, so the player doesn't accidentally sell the
+          // ROOM under it. Falls back to the clicked tile (the room) only when no
+          // minion is in range.
+          const hit = this._minionForActionClick(wp, p)
+          this._executeSellAt(hit ? hit.tileX : tx, hit ? hit.tileY : ty)
           return
         }
         if (this._toolMode === 'upgrade') {
           // Upgrade is sticky like SELL — stays armed so the player can
-          // upgrade several minions in a row. Each click opens a confirm.
-          this._executeUpgradeAt(tx, ty)
+          // upgrade several minions in a row. Each click opens a confirm. Same
+          // generous minion targeting as SELL so a near-miss doesn't hit the room.
+          const hit = this._minionForActionClick(wp, p)
+          this._executeUpgradeAt(hit ? hit.tileX : tx, hit ? hit.tileY : ty)
           return
         }
         if (this._toolMode === 'reassign') {
@@ -2354,6 +2361,31 @@ export class NightPhase extends Phaser.Scene {
       m.instanceId !== exceptId &&
       m.tileX === tx && m.tileY === ty
     )
+  }
+
+  // Which minion a SELL/UPGRADE click is targeting — a forgiving, "bigger click
+  // area" lookup so a click near a minion targets IT, not the room under it.
+  // (The plain tile match missed: a click just beside a small minion, or on the
+  // overflowing art of a big multi-tile minion, both land on a neighbour tile.)
+  //   • If a minion SPRITE consumed this pointerdown (MinionRenderer's pixel-perfect
+  //     hit sets `pointer._consumedByMinion`), the click is ON a minion's art — pick
+  //     the nearest one (works for big minions whose art spills past their tile).
+  //   • Otherwise allow a generous ~0.9-tile near-miss radius around minion centres.
+  // Returns the minion (use its tile) or null (→ fall back to the clicked tile/room).
+  _minionForActionClick(wp, pointer) {
+    if (!wp) return null
+    const TS = Balance.TILE_SIZE
+    const onSprite = !!pointer?._consumedByMinion
+    const capPx = onSprite ? TS * 2.5 : TS * 0.9   // sprite hit → allow big-minion reach
+    let best = null, bestD = capPx * capPx
+    for (const m of (this._gameState.minions ?? [])) {
+      if (!m || m.aiState === 'dead' || (m.resources?.hp ?? 1) <= 0) continue
+      const mx = Number.isFinite(m.worldX) ? m.worldX : (m.tileX * TS + TS / 2)
+      const my = Number.isFinite(m.worldY) ? m.worldY : (m.tileY * TS + TS / 2)
+      const d = (wp.x - mx) ** 2 + (wp.y - my) ** 2
+      if (d < bestD) { bestD = d; best = m }
+    }
+    return best
   }
 
   _validateTrapPlacement(def, tx, ty) {
