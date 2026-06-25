@@ -3110,6 +3110,12 @@ export class NightPhase extends Phaser.Scene {
       this._showPlacementError('No doorway here')
       return
     }
+    // Hard cap: one Door Lock per dungeon (the build menu also hides the item at
+    // the cap via items.json maxPerDungeon; this guards the placement path too).
+    if ((this._gameState.dungeon.locks ?? []).length >= 1) {
+      this._showPlacementError('Only one Door Lock allowed — sell the existing one first')
+      return
+    }
     // Reject if any of these tiles already belong to an existing lock.
     const tileKey = (t) => `${t.x},${t.y}`
     const newKeys = new Set(doorTiles.map(tileKey))

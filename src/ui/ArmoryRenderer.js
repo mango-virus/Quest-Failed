@@ -8,7 +8,7 @@
 // trace real door ports). +ATK mechanic in CombatSystem.
 
 import { Balance }  from '../config/balance.js'
-import { AbilityVfx, VfxShapes } from './AbilityVfx.js'
+import { VfxShapes } from './AbilityVfx.js'
 import { connectedDoorPorts } from '../util/roomPorts.js'
 
 const TS  = Balance.TILE_SIZE
@@ -161,7 +161,10 @@ export class ArmoryRenderer {
       const sp = 60 + Math.random() * 90
       arr.push({ x: bx, y: by, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, maxLife: 0.35 + Math.random() * 0.4 })
     }
-    AbilityVfx.screenShake?.(this._scene, { intensity: 0.6, duration: 60 })
+    // No screen shake: this is an AMBIENT room animation that strikes ~once a
+    // second, so a per-strike camera shake (×N armouries) makes the whole view
+    // jitter constantly. The spark burst + billet flash + flame flare carry the
+    // impact in-world. (Camera shake stays reserved for real combat moments.)
   }
 
   _tickSparks(g, room, dt) {

@@ -164,15 +164,27 @@ export class NewThreatsReveal {
       try { ensureAdventurerBaseSheet(game, c.id, 'v01') } catch (e) {}
     }
 
-    // Wait for any act/response/ascension set-piece to clear AND the sprites to
-    // load, then show. Hard cap so a stuck wait never swallows the reveal.
+    // Hold the reveal until any act / kingdom-response / ascension set-piece has
+    // been READ AND DISMISSED — and never slam it up in the race window BEFORE
+    // that card has even mounted. The old code only checked "is a card up right
+    // now?", so if the reveal's first poll landed a beat before the act card
+    // mounted, it would show underneath/over it. Now we track whether we've SEEN
+    // a blocking intro: while one is up we wait; once we've seen one and it's
+    // gone, the player pressed continue, so we show. If no card ever appears
+    // (endless mode / a non-boundary night), a short grace window shows promptly.
     const t0 = Date.now()
+    let sawIntro = false
     const ready = () => {
-      const blocked = !!document.querySelector(BLOCKING_INTROS)
-      const spritesIn = newClasses.every(c => window.__game?.textures?.exists?.(`adv-${c.id}-v01`))
+      if (document.querySelector(BLOCKING_INTROS)) {       // a set-piece card is up → wait it out
+        sawIntro = true
+        this._timers.push(setTimeout(ready, 200))
+        return
+      }
       const waited = Date.now() - t0
-      if ((!blocked && spritesIn) || waited > 12000) { this._show(newClasses, day); return }
-      this._timers.push(setTimeout(ready, 250))
+      const introCleared = sawIntro || waited > 2000        // dismissed, or no card was coming
+      const spritesIn = newClasses.every(c => window.__game?.textures?.exists?.(`adv-${c.id}-v01`))
+      if ((introCleared && spritesIn) || waited > 12000) { this._show(newClasses, day); return }
+      this._timers.push(setTimeout(ready, 200))
     }
     this._timers.push(setTimeout(ready, 350))
   }

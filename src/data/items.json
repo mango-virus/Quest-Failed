@@ -28,7 +28,8 @@
       "denial"
     ],
     "goldCost": 50,
-    "unlockLevel": 2
+    "unlockLevel": 2,
+    "maxPerDungeon": 1
   },
   {
     "id": "key_chest",
