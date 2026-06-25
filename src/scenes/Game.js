@@ -2182,9 +2182,15 @@ export class Game extends Phaser.Scene {
         try { fn() } catch (err) { console.error(`[Game.update] ${sys} threw:`, err) }
         _rstats[sys] = (_rstats[sys] ?? 0) + (performance.now() - t0)
       }
+      // Day-pause (⏸ / SPACE → time scale 0) is meant to FREEZE the battlefield
+      // so the player can read it. Combat/AI already stop (the ts>0 sim block is
+      // skipped), but barks + emotes run on the always-on renderer tick — so a
+      // paused dungeon kept chattering and emoting. Hold those while paused.
+      // (Hit-stop keeps ts at 0.04, never 0, so it stays lively as intended.)
+      const _dayPaused = this._getDayTimeScale() === 0
       rtick('adventurerRenderer',  () => this.adventurerRenderer?.update())
       rtick('statusVfxSystem',     () => this.statusVfxSystem?.update())
-      rtick('emoteSystem',         () => this.emoteSystem?.update())
+      rtick('emoteSystem',         () => { if (!_dayPaused) this.emoteSystem?.update() })
       rtick('minionRenderer',      () => this.minionRenderer?.update())
       rtick('bossRenderer',        () => this.bossRenderer?.update())
       rtick('succubusBatRenderer', () => this.succubusBatRenderer?.update())
@@ -2222,7 +2228,7 @@ export class Game extends Phaser.Scene {
       rtick('bloodSplatRenderer',  () => this.bloodSplatRenderer?.update())
       rtick('hazardRenderer',      () => this.hazardRenderer?.update())
       rtick('plunderMarkRenderer', () => this.plunderMarkRenderer?.update())
-      rtick('chatBubbles',         () => this.chatBubbles?.update())
+      rtick('chatBubbles',         () => { if (!_dayPaused) this.chatBubbles?.update() })
       rtick('replayGhostRenderer', () => this.replayGhostRenderer?.update())
       rtick('cartographerOverlay', () => this.cartographerOverlay?.tick())
     } else {

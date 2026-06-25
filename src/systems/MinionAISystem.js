@@ -1568,6 +1568,14 @@ export class MinionAISystem {
       for (const b of this._gameState.dungeon?.beacons        ?? []) blocked.add(`${b.tileX},${b.tileY}`)
       for (const f of this._gameState.dungeon?.fountains      ?? []) blocked.add(`${f.tileX},${f.tileY}`)
       for (const c of this._gameState.dungeon?.treasureChests ?? []) blocked.add(`${c.tileX},${c.tileY}`)
+      // Locked doors are real barriers for minions too — they carry no keys, so a
+      // door that's still locked (not yet picked open / smashed by an adventurer)
+      // hard-blocks every minion, even roamers crossing the dungeon. This routes
+      // them around it (or holds them) instead of strolling through a sealed door.
+      for (const lock of this._gameState.dungeon?.locks ?? []) {
+        if (lock.unlocked || lock.broken) continue
+        for (const t of lock.doorTiles ?? []) blocked.add(`${t.x},${t.y}`)
+      }
       const fresh = PathfinderSystem.findPath(
         { x: minion.tileX, y: minion.tileY },
         targetTile,

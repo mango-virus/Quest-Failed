@@ -115,7 +115,7 @@
       "attack": 12,
       "defense": 1,
       "speed": 1.7,
-      "attackRange": 4
+      "attackRange": 3
     },
     "startingResources": {},
     "tags": [
@@ -144,7 +144,7 @@
       "attack": 6,
       "defense": 4,
       "speed": 1.5,
-      "attackRange": 3
+      "attackRange": 2
     },
     "startingResources": {},
     "tags": [
@@ -174,7 +174,7 @@
       "attack": 10,
       "defense": 2,
       "speed": 1.6,
-      "attackRange": 5
+      "attackRange": 4
     },
     "startingResources": {},
     "tags": [
@@ -205,7 +205,7 @@
       "attack": 9,
       "defense": 3,
       "speed": 1.9,
-      "attackRange": 4
+      "attackRange": 3
     },
     "startingResources": {
       "arrows": 18
@@ -332,7 +332,7 @@
       "attack": 5,
       "defense": 2,
       "speed": 1.7,
-      "attackRange": 4
+      "attackRange": 3
     },
     "startingResources": {},
     "tags": [
@@ -523,7 +523,7 @@
       "attack": 0,
       "defense": 3,
       "speed": 1.5,
-      "attackRange": 3
+      "attackRange": 2
     },
     "startingResources": {},
     "tags": [
@@ -570,7 +570,7 @@
       "attack": 22,
       "defense": 1,
       "speed": 1.6,
-      "attackRange": 4
+      "attackRange": 3
     },
     "startingResources": {},
     "tags": [

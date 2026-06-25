@@ -156,7 +156,14 @@ export class ScreenShakeSystem {
   }
 
   _onMedium() { this.shake('medium') }
-  _onBig()    { this.shake('big')    }
+  // The Golem Earthquake is the game's signature "the ground itself heaves" beat.
+  // Generic 'big' (0.78 trauma) reads as a faint wobble under the trauma curve —
+  // give the quake the FULL trauma so it actually slams. (_onBig is bound ONLY to
+  // GOLEM_EARTHQUAKE_FIRED, so this doesn't touch any other shake.)
+  _onBig() {
+    if (this._traumaMode()) this._addTrauma(1.0)
+    else                    this._shake('big')
+  }
 
   // Per-axis emphasis from the attacker→target direction so the shake leans
   // along the impact axis. Returns {bx,by} multipliers (~0.6..1.4); isotropic
