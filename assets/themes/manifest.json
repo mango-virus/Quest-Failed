@@ -381,80 +381,20 @@
     "basic_boss_room": {
       "file": "assets/themes/roomskins/basic_boss_room.png"
     },
-    "entry_skin": {
-      "file": "assets/themes/roomskins/entry_skin.png"
-    },
     "treasure_room": {
       "file": "assets/themes/roomskins/treasure_room.png"
-    },
-    "trap_factory1": {
-      "file": "assets/themes/roomskins/trap_factory1.png"
     },
     "12x12_3": {
       "file": "assets/themes/roomskins/12x12_3.png"
     },
-    "14x14": {
-      "file": "assets/themes/roomskins/14x14.png"
-    },
-    "12x12_2": {
-      "file": "assets/themes/roomskins/12x12_2.png"
-    },
-    "14x10_2": {
-      "file": "assets/themes/roomskins/14x10_2.png"
-    },
-    "8x8_3": {
-      "file": "assets/themes/roomskins/8x8_3.png"
-    },
-    "12x8": {
-      "file": "assets/themes/roomskins/12x8.png"
-    },
-    "14x8": {
-      "file": "assets/themes/roomskins/14x8.png"
-    },
-    "8x8_2": {
-      "file": "assets/themes/roomskins/8x8_2.png"
-    },
-    "10x10": {
-      "file": "assets/themes/roomskins/10x10.png"
-    },
-    "8x8": {
-      "file": "assets/themes/roomskins/8x8.png"
-    },
-    "14x10": {
-      "file": "assets/themes/roomskins/14x10.png"
-    },
-    "8x12": {
-      "file": "assets/themes/roomskins/8x12.png"
-    },
-    "10x8": {
-      "file": "assets/themes/roomskins/10x8.png"
-    },
-    "12x10": {
-      "file": "assets/themes/roomskins/12x10.png"
-    },
     "12x12": {
       "file": "assets/themes/roomskins/12x12.png"
-    },
-    "gemini_generated_image_odh4q8odh4q8odh4_7": {
-      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_7.png"
-    },
-    "gemini_generated_image_odh4q8odh4q8odh4_6": {
-      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_6.png"
-    },
-    "gemini_generated_image_odh4q8odh4q8odh4_5": {
-      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_5.png"
-    },
-    "gemini_generated_image_odh4q8odh4q8odh4_2": {
-      "file": "assets/themes/roomskins/gemini_generated_image_odh4q8odh4q8odh4_2.png"
-    },
-    "6x12": {
-      "file": "assets/themes/roomskins/6x12.png"
     },
     "16x16": {
       "file": "assets/themes/roomskins/16x16.png"
     },
-    "gemini_generated_image_rw93q5rw93q5rw93": {
-      "file": "assets/themes/roomskins/gemini_generated_image_rw93q5rw93q5rw93.png"
+    "golem_boss_room": {
+      "file": "assets/themes/roomskins/golem_boss_room.png"
     }
   },
   "doorSkins": {
@@ -582,6 +522,22 @@
     },
     "entry_closed_final": {
       "file": "assets/themes/doorskins/entry_closed_final.png"
+    },
+    "golem_door_closed": {
+      "file": "assets/themes/doorskins/golem_door_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "golem_door_open": {
+      "file": "assets/themes/doorskins/golem_door_open.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.2,
+        "nudge": 0
+      }
     }
   },
   "defaultDoorSkin": {

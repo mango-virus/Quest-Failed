@@ -13,9 +13,9 @@
                 null,
                 "pillar2_l",
                 null,
-                "wall_l",
+                "door_closed_l",
                 null,
-                "wall_r",
+                "door_closed_r",
                 null,
                 "pillar3_r",
                 null,
@@ -497,7 +497,7 @@
             "wraith": "wraith_boss_room",
             "myconid": "myconid_boss_room",
             "beholder": "beholder_boss_room",
-            "golem": "basic_boss_room"
+            "golem": "golem_boss_room"
         },
         "doorSkinByBoss": {
             "gnoll": {
@@ -541,7 +541,8 @@
                 "open": "basic_open"
             },
             "golem": {
-                "open": "basic_open"
+                "open": "golem_door_open",
+                "closed": "golem_door_closed"
             },
             "demon": {
                 "open": "basic_open"
@@ -563,254 +564,12 @@
         "id": "entry_hall",
         "name": "Entry Hall",
         "category": "starter",
-        "width": 14,
-        "height": 10,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_l",
-                null,
-                "wall_c",
-                null,
-                "wall_r",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 0,
-                    "flipH": true
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor9",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor9",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 270,
-                    "flipV": true
-                },
-                null,
-                "floor11",
-                null,
-                "dirt_floor",
-                null,
-                "floor10",
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 90,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor9",
-                null,
-                {
-                    "id": "floor15",
-                    "rot": 0,
-                    "flipH": true
-                },
-                null,
-                "floor15",
-                null,
-                "floor15",
-                null,
-                {
-                    "id": "floor9",
-                    "rot": 0,
-                    "flipH": true
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 0,
-                    "flipH": true,
-                    "flipV": true
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [
             {
-                "x": 7,
+                "x": 9,
                 "y": 0,
                 "direction": "N",
                 "external": true,
@@ -855,7 +614,6 @@
             "h": 4,
             "nudge": 0
         },
-        "backgroundImage": "entry_skin",
         "doorSkinSize": {
             "w": 3.1,
             "h": 2.1,
@@ -863,71 +621,22 @@
         }
     },
     {
-        "id": "starter_corridor",
-        "name": "Corridor",
-        "category": "starter",
-        "width": 6,
-        "height": 12,
-        "tileLayout": [],
-        "connectionPoints": [],
-        "goldCost": 8,
-        "costStep": 3,
-        "powerCostToUnlock": 0,
-        "unlockLevel": 1,
-        "placementRules": {
-            "minDepthFromBoss": 0,
-            "maxPerDungeon": 2,
-            "freeFirstN": 2,
-            "fixed": false,
-            "maxPerDungeonByBossLevel": {
-                "1": 2,
-                "2": 4,
-                "3": 6,
-                "4": 8,
-                "5": 10,
-                "6": 12,
-                "7": 14,
-                "8": 16,
-                "9": 18,
-                "10": 20
-            }
-        },
-        "tags": [
-            "starter",
-            "corridor",
-            "free"
-        ],
-        "description": "A basic connecting passage. Place between rooms to link them. Cap scales with boss level.",
-        "flavorText": "Every dungeon starts with a hallway.",
-        "theme": null,
-        "doorTheme": null,
-        "doorSkin": {
-            "closed": "entry_closed_final",
-            "open": "entry_open_final",
-            "locked": "entry_locked"
-        },
-        "doorSkinSize": {
-            "w": 3.1,
-            "h": 2.1,
-            "nudge": 0
-        },
-        "backgroundImage": "gemini_generated_image_rw93q5rw93q5rw93"
-    },
-    {
         "id": "starter_barracks",
         "name": "Barracks",
         "category": "starter",
-        "width": 14,
-        "height": 10,
+        "width": 16,
+        "height": 12,
         "tileLayout": [
             [
-                null,
-                null,
-                null,
+                "corner",
                 null,
                 "wall_l",
                 null,
                 "wall_l",
+                null,
+                "wall_l",
+                null,
+                "wall_r",
                 null,
                 "wall_r",
                 null,
@@ -953,12 +662,73 @@
                 null,
                 null,
                 null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
                 null
             ],
             [
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_r",
+                    "rot": 270
+                },
+                null,
+                "floor18",
+                null,
+                "floor18",
                 null,
                 "floor18",
                 null,
@@ -972,6 +742,60 @@
                 {
                     "id": "floor18",
                     "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                "floor18",
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
                 },
                 null,
                 {
@@ -994,61 +818,33 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
                 null,
-                null,
-                null,
+                {
+                    "id": "floor18",
+                    "rot": 270
+                },
                 null,
                 "floor18",
-                null,
-                "floor1",
-                null,
-                "floor1",
                 null,
                 {
                     "id": "floor18",
                     "rot": 180
                 },
                 null,
+                "floor18",
+                null,
                 {
-                    "id": "wall_c",
+                    "id": "floor18",
                     "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 180
-                },
-                null,
-                "floor18",
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 180
                 },
                 null,
                 "floor18",
@@ -1073,12 +869,15 @@
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             ],
             [
-                null,
-                null,
-                null,
+                {
+                    "id": "corner",
+                    "rot": 270
+                },
                 null,
                 {
                     "id": "wall_r",
@@ -1087,6 +886,16 @@
                 null,
                 {
                     "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_r",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "wall_l",
                     "rot": 180
                 },
                 null,
@@ -1107,6 +916,8 @@
                 null
             ],
             [
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -1157,161 +968,15 @@
         "description": "+10 roster minion slots each (scales with boss level). Required for any roster minions — the only ones that can patrol or follow.",
         "flavorText": "The bones rest cheap.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "gemini_generated_image_odh4q8odh4q8odh4_7",
-        "backgroundImagePool": [
-            "gemini_generated_image_odh4q8odh4q8odh4_7",
-            "gemini_generated_image_odh4q8odh4q8odh4_2",
-            "gemini_generated_image_odh4q8odh4q8odh4_5",
-            "gemini_generated_image_odh4q8odh4q8odh4_6"
-        ]
+        "doorTheme": null
     },
     {
         "id": "starter_guard_post",
         "name": "Guard Post",
         "category": "starter",
-        "width": 10,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_c",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor18",
-                null,
-                "floor18",
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 24,
         "costStep": 18,
@@ -1341,197 +1006,15 @@
         "description": "Minions placed here leave to hunt adventurers in any directly door-connected room. They return to the Guard Post after the kill.",
         "flavorText": "Four doors. One choice.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "10x8"
+        "doorTheme": null
     },
     {
         "id": "crypt",
         "name": "Crypt",
         "category": "combat",
-        "width": 8,
+        "width": 16,
         "height": 12,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                "floor2",
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor5",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor5",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor5",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor5",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 35,
         "costStep": 25,
@@ -1556,8 +1039,7 @@
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
-        "onDayStart": "crypt_spawnUndead",
-        "backgroundImage": "8x12"
+        "onDayStart": "crypt_spawnUndead"
     },
     {
         "id": "trap_factory",
@@ -1603,13 +1085,16 @@
                     "rot": 270
                 },
                 null,
-                "floor15",
+                "floor18",
                 null,
-                "floor15",
+                "floor18",
                 null,
-                "floor15",
+                {
+                    "id": "floor18",
+                    "rot": 270
+                },
                 null,
-                "floor15",
+                "floor18",
                 null,
                 {
                     "id": "wall_l",
@@ -1633,63 +1118,29 @@
             ],
             [
                 {
-                    "id": "wall_hole",
+                    "id": "wall_r",
                     "rot": 270
                 },
                 null,
-                "floor16",
-                null,
-                "floor1",
-                null,
                 {
-                    "id": "floor10",
-                    "rot": 270
+                    "id": "floor18",
+                    "rot": 180
                 },
                 null,
-                "floor16",
+                "floor18",
                 null,
                 {
-                    "id": "wall_hole",
+                    "id": "floor18",
+                    "rot": 180
+                },
+                null,
+                {
+                    "id": "floor18",
                     "rot": 90
                 },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_hole",
-                    "rot": 270
-                },
                 null,
                 {
-                    "id": "floor16",
-                    "rot": 180
-                },
-                null,
-                "floor11",
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor16",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_hole",
+                    "id": "wall_l",
                     "rot": 90
                 },
                 null
@@ -1715,24 +1166,67 @@
                 },
                 null,
                 {
-                    "id": "floor15",
+                    "id": "floor18",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor18",
                     "rot": 180
                 },
                 null,
                 {
-                    "id": "floor15",
+                    "id": "floor18",
                     "rot": 180
                 },
                 null,
                 {
-                    "id": "floor15",
+                    "id": "floor18",
                     "rot": 180
                 },
                 null,
                 {
-                    "id": "floor15",
+                    "id": "wall_r",
+                    "rot": 90
+                },
+                null
+            ],
+            [
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+            ],
+            [
+                {
+                    "id": "wall_l",
+                    "rot": 270
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor18",
+                    "rot": 90
+                },
+                null,
+                {
+                    "id": "floor18",
                     "rot": 180
                 },
+                null,
+                "floor18",
                 null,
                 {
                     "id": "wall_r",
@@ -1835,12 +1329,12 @@
             "open": "entry_open_final",
             "locked": "entry_locked"
         },
-        "backgroundImage": "trap_factory1",
         "doorSkinSize": {
             "w": 3.1,
             "h": 2.1,
             "nudge": 0
-        }
+        },
+        "backgroundImagePoolByBoss": null
     },
     {
         "id": "treasury",
@@ -2149,201 +1643,9 @@
         "id": "armory",
         "name": "Armory",
         "category": "utility",
-        "width": 12,
-        "height": 10,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "pillar3_r",
-                null,
-                "pillar2_l",
-                null,
-                "pillar3_r",
-                null,
-                "pillar2_l",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                "floor11",
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 180
-                },
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                "dirt_floor_long",
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "floor11",
-                    "rot": 180
-                },
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "floor11",
-                    "rot": 90
-                },
-                null,
-                "dirt_floor",
-                null,
-                "dirt_floor_long",
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "pillar2_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar3_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar2_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar3_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 22,
         "costStep": 15,
@@ -2372,251 +1674,15 @@
         "description": "Minions in directly door-connected rooms get +ATK while this Armory is active. Cap scales with boss level.",
         "flavorText": "A well-armed skeleton is a happy skeleton.",
         "theme": null,
-        "doorTheme": null,
-        "colorAdjust": {
-            "walls": {
-                "sat": -1
-            }
-        },
-        "backgroundImage": "12x10"
+        "doorTheme": null
     },
     {
         "id": "library_of_whispers",
         "name": "Library of Whispers",
         "category": "utility",
-        "width": 14,
-        "height": 10,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_l",
-                null,
-                "wall_c",
-                null,
-                "wall_hole",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor14",
-                    "rot": 90
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor14",
-                    "rot": 90
-                },
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "floor14",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 270
-                },
-                null,
-                "floor12",
-                null,
-                "floor1",
-                null,
-                "floor12",
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor14",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "dirt_floor",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor13",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor13",
-                    "rot": 90
-                },
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 26,
         "powerCostToUnlock": 0,
@@ -2635,136 +1701,15 @@
         "description": "Reveals the next party’s full intel — size, classes, personalities, scaled stats and planned route — on the Intel panel the night before. One Library tells all. No Library = intel unknown.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "14x10"
+        "doorTheme": null
     },
     {
         "id": "watchtower",
         "name": "Watchtower",
         "category": "utility",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "pillar1_l",
-                null,
-                "pillar4_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar4_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar1_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "dirt_floor",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor14",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 30,
         "costStep": 22,
@@ -2787,191 +1732,15 @@
         "description": "Minions in directly door-connected rooms get a first-strike hit when adventurers enter. Counters Speed Runners and surprise tactics.",
         "flavorText": "We see them before they see themselves.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "8x8"
+        "doorTheme": null
     },
     {
         "id": "wandering_gate",
         "name": "Wandering Gate",
         "category": "special",
-        "width": 10,
-        "height": 10,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_c",
-                null,
-                "wall_c",
-                null,
-                "wall_c",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                "dirt_floor_long",
-                null,
-                "dirt_floor",
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                "floor10",
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 38,
         "powerCostToUnlock": 0,
@@ -2990,133 +1759,15 @@
         "description": "On entry, teleports the adventurer to a random room — heavily favouring those far from the boss, flinging them back toward the entrance and scrambling their path. Never the Boss Chamber.",
         "flavorText": "Step in. Step out. Hopefully not the same room.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "10x10"
+        "doorTheme": null
     },
     {
         "id": "veil_of_forgetting",
         "name": "Veil of Forgetting",
         "category": "special",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_r",
-                null,
-                "wall_l",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
@@ -3135,133 +1786,15 @@
         "description": "Each Night Phase, erases adventurer intel of all rooms directly door-connected to this one.",
         "flavorText": "What was here? Nothing. Nothing was ever here.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "8x8_2"
+        "doorTheme": null
     },
     {
         "id": "tar_pit",
         "name": "Tar Pit",
         "category": "special",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_r",
-                null,
-                "wall_l",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 30,
         "costStep": 22,
@@ -3290,130 +1823,15 @@
         "description": "Adventurers caught inside wade at half speed (Sucking Mire upgrade also roots them on entry). A chokepoint — route the path through it into your traps and minions. Does not slow your minions.",
         "flavorText": "Slow down. Stay a while. Stay forever.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "8x8_2"
+        "doorTheme": null
     },
     {
         "id": "silence_ward",
         "name": "Silence Ward",
         "category": "utility",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_r",
-                null,
-                "wall_l",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 34,
         "costStep": 0,
@@ -3446,126 +1864,9 @@
         "id": "thorn_hall",
         "name": "Bramble Hall",
         "category": "combat",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_r",
-                null,
-                "wall_l",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor1",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 32,
         "costStep": 24,
@@ -3592,184 +1893,15 @@
         "description": "Choked with barbed brambles. An adventurer who makes a melee attack while inside takes 30% of the damage they deal back as thorns. Wrap it around a tanky minion. Iron Thorns upgrade: 50% reflect, and ranged attackers get pricked too.",
         "flavorText": "Every blow you land, the briars return.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "8x8_2"
+        "doorTheme": null
     },
     {
         "id": "catacombs",
         "name": "Catacombs",
         "category": "combat",
-        "width": 14,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_hole",
-                null,
-                "wall_c",
-                null,
-                "wall_hole",
-                null,
-                "wall_c",
-                null,
-                "wall_hole",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                "dirt_floor_long",
-                null,
-                "floor6",
-                null,
-                "dirt_floor",
-                null,
-                "floor18",
-                null,
-                {
-                    "id": "dirt_floor_long",
-                    "rot": 90
-                },
-                null,
-                null,
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                "dirt_floor_long",
-                null,
-                "floor10",
-                null,
-                "floor10",
-                null,
-                "floor10",
-                null,
-                {
-                    "id": "floor10",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_hole",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_hole",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_hole",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 38,
         "costStep": 26,
@@ -3794,174 +1926,15 @@
         "description": "When an adventurer dies here, a room-bound Tier-2 Revenant rises in their place (max 2; no respawn if killed).",
         "flavorText": "Old bones don't die. They just wait their turn.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "14x8"
+        "doorTheme": null
     },
     {
         "id": "mimic_vault",
         "name": "Mimic Vault",
         "category": "trap",
         "width": 12,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_l",
-                null,
-                "wall_c",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                "floor2",
-                null,
-                "floor8",
-                null,
-                "floor8",
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 270
-                },
-                null,
-                null,
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 38,
         "powerCostToUnlock": 0,
@@ -3982,8 +1955,7 @@
         "flavorText": "It even has the right sparkle.",
         "theme": null,
         "doorTheme": null,
-        "onDayStart": "mimicVault_respawnMimics",
-        "backgroundImage": "12x8"
+        "onDayStart": "mimicVault_respawnMimics"
     },
     {
         "id": "hall_of_trials",
@@ -4268,126 +2240,9 @@
         "id": "wishing_well",
         "name": "Wishing Well",
         "category": "special",
-        "width": 8,
-        "height": 8,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "wall_l",
-                null,
-                "wall_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                "floor11",
-                null,
-                {
-                    "id": "floor11",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_hole",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_hole",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor11",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor11",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 12,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 28,
         "powerCostToUnlock": 0,
@@ -4406,247 +2261,15 @@
         "description": "Coin flip on entry — usually Marked (taking +50% minion damage that day); rarely a small boon to the adventurer, who then drops bonus gold when slain.",
         "flavorText": "Wish carefully. The well listens to one in two.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "8x8_3"
+        "doorTheme": null
     },
     {
         "id": "false_exit",
         "name": "The False Exit",
         "category": "special",
-        "width": 14,
-        "height": 10,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "door_open_l",
-                null,
-                "door_open_r",
-                null,
-                "wall_c",
-                null,
-                "door_open_l",
-                null,
-                "door_open_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 270
-                },
-                null,
-                "floor6",
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor6",
-                    "rot": 0,
-                    "flipH": true
-                },
-                null,
-                "floor18",
-                null,
-                {
-                    "id": "wall_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                "floor12",
-                null,
-                "floor12",
-                null,
-                "floor1",
-                null,
-                "floor12",
-                null,
-                "floor12",
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor6",
-                    "rot": 0,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "floor6",
-                    "rot": 0,
-                    "flipH": true,
-                    "flipV": true
-                },
-                null,
-                {
-                    "id": "floor18",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "door_open_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "door_open_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "door_open_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "door_open_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 12,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 34,
         "powerCostToUnlock": 0,
@@ -4666,8 +2289,7 @@
         "description": "A decoy exit. Fleeing adventurers may run here; trying to leave teleports them to a random built room.",
         "flavorText": "They thought they were getting out. They were getting in.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "14x10_2"
+        "doorTheme": null
     },
     {
         "id": "hall_of_madness",
@@ -4944,340 +2566,15 @@
         "description": "On entry each adventurer has a 60% chance to turn on a party-mate until one leaves or dies, then resumes their goal.",
         "flavorText": "He looked at me and I saw the rest of them looking back.",
         "theme": null,
-        "doorTheme": null,
-        "backgroundImage": "12x12_2"
+        "doorTheme": null
     },
     {
         "id": "throne_room",
         "name": "Throne Room",
         "category": "combat",
-        "width": 14,
-        "height": 14,
-        "tileLayout": [
-            [
-                "corner",
-                null,
-                "pillar1_l",
-                null,
-                "pillar4_r",
-                null,
-                "wall_c",
-                null,
-                "pillar1_l",
-                null,
-                "pillar4_r",
-                null,
-                {
-                    "id": "corner",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar4_r",
-                    "rot": 270
-                },
-                null,
-                "floor2",
-                null,
-                "floor8",
-                null,
-                "floor8",
-                null,
-                "floor8",
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar1_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 90
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "wall_c",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 180
-                },
-                null,
-                "floor1",
-                null,
-                "floor12",
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar4_r",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor12",
-                    "rot": 270
-                },
-                null,
-                "floor1",
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 90
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "pillar1_l",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor8",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "floor2",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 90
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ],
-            [
-                {
-                    "id": "corner",
-                    "rot": 270
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "wall_c",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar4_r",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "pillar1_l",
-                    "rot": 180
-                },
-                null,
-                {
-                    "id": "corner",
-                    "rot": 180
-                },
-                null
-            ],
-            [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            ]
-        ],
+        "width": 16,
+        "height": 16,
+        "tileLayout": [],
         "connectionPoints": [],
         "goldCost": 65,
         "costStep": 45,
@@ -5302,8 +2599,7 @@
         "flavorText": "Every kingdom has a deputy. Mine has teeth.",
         "theme": null,
         "doorTheme": null,
-        "onDayStart": "throneRoom_spawnMiniBoss",
-        "backgroundImage": "14x14"
+        "onDayStart": "throneRoom_spawnMiniBoss"
     },
     {
         "id": "sanctum",
