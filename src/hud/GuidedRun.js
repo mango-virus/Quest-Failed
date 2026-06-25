@@ -232,12 +232,13 @@ export class GuidedRun {
     this._setPlace(null)
     await wait(450)
 
-    // ── 3. Connection — rooms auto-link with doorways where they touch ─
+    // ── 3. Connection — rooms auto-link with doorways when placed ONE TILE
+    //      APART (touching is rejected; the 1-tile gap becomes the connector) ─
     if (this._ready) {
-      if (await this._coach({ eyebrow: 'CONNECTED', text: 'See? Touching rooms link with doorways', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
+      if (await this._coach({ eyebrow: 'CONNECTED', text: 'See? A one-tile gap links rooms with a doorway', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
     } else {
       if (await this._coach(
-        { eyebrow: 'CONNECT THE ROOMS', text: 'Place rooms touching so doorways link them', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
+        { eyebrow: 'CONNECT THE ROOMS', text: 'Place rooms one tile apart so doorways link them', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
         'DUNGEON_READINESS', this._isReady()) === 'skip') return
     }
 
