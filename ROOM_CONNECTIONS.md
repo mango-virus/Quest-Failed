@@ -5,6 +5,38 @@ Canonical spec for changing room-to-room connections from **wall-to-wall** to a
 from memory. Supersedes the touching-doorway behaviour described in `DESIGN.md`
 "Core concept" (deviation noted there).
 
+> ## ⚠ REVISION 2026-06-25 — connectors are now VISIBLE dug passages (not black walk-unders)
+> The original render (Step 3 below) made the gap connector a **near-black tile
+> drawn ABOVE entities** so travellers walked *under* it and it blended into the
+> flat void — i.e. invisible. The user reversed this: the gaps now read as the
+> **solid bedrock the dungeon is carved into**, and connectors as **visible dug
+> tunnels** characters walk *along*. So as of this revision:
+> - **Void = textured bedrock**, not flat black. `_drawBedrockTexture` stamps subtle
+>   cold mottle/fleck/crack onto the `_gVoidOcc` void layer (depth 12, masked to
+>   void); `_drawCarveHalo` (cool 1-tile rim, `BEDROCK_HALO`) softens the room→void
+>   cut. Both moved onto `_gVoidOcc` so they show above the occluder.
+> - **Connector = visible dug passage, drawn ABOVE entity bodies but BELOW the
+>   skins (walk-UNDER).** `_drawDugPassage` (renamed from `_drawGapStubCap`)
+>   paints a bare dug-rock floor (`PASSAGE_FLOOR`) on `_gConnector` (re-added,
+>   **depth 8.8**: above entity bodies — which y-sort ~7-8 — so it COVERS a
+>   traveller crossing the gap like the room arches; BELOW the door/room skin
+>   layers — door skin high 9, skin-wall 9.1, procedural arch 9 — so the skinned
+>   arch + room art draw OVER it instead of being overdrawn). Light (9.5) is
+>   masked off the gap cell so sitting below it doesn't brighten the tunnel.
+>   The floor is extended `SEAM=3` px toward each room-opening end so it meets
+>   the skin with no sliver. `_drawConnectorPassages` (ex-`_drawConnectorOccluders`)
+>   does the same for the skinned-door gap case. `CONNECTOR_BLACK` is **removed**.
+>   (Fixes 2026-06-25: char popped out visible in the gap → walk-under; then
+>   connector tucked under the skins so it doesn't overdraw the arch.)
+> - **Passage side-flares.** `_drawPassageSideFlares` extends the dug look ½ tile
+>   SIDEWAYS into the VOID cells flanking a connector (along the wall seam, *next
+>   to* the rooms — NOT into the doorways), on `_gVoidOcc` so it shows over bedrock.
+> - **Lighting unchanged** — light stays masked to room footprints, so passages +
+>   bedrock are dark dug tunnels (user choice: "dark, subtle & moody").
+> - Everything below about the connector being **black / walk-under / above
+>   entities / excluded from the void mask** is the OLD model — superseded here.
+> All in `src/ui/DungeonRenderer.js`; user-confirmed in the preview 2026-06-25; `npm test` 50/50.
+
 ## Progress
 
 - ✅ **Step 1 (grid/connection core)** — DONE + `npm test` 50/50. Auto-connect detects 1-gap

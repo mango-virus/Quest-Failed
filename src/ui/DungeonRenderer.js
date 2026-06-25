@@ -53,9 +53,10 @@ const MORTAR           = 0x0a1420
 // on-screen the walls read as grey — not the navy WALL_BASE constant. This
 // is tuned to the mid-tone of that desaturated masonry (base bricks +
 // lighter capstones/cornerstones averaged). Replaced the `void_bg.png` tile.
-// Near-black so the empty void reads the SAME as the inter-room connectors
-// (CONNECTOR_BLACK is defined from this) — the connectors then blend into the
-// void and can't be seen, so rooms read as joined through one seamless dark.
+// Near-black base for the bedrock void; the subtle BEDROCK_* stone texture +
+// carved room rim are stamped over it (see _drawBedrockTexture / _drawCarveHalo)
+// so the gaps read as solid dug rock. Inter-room connectors are now VISIBLE dug
+// passages (PASSAGE_FLOOR), not blended-black walk-unders.
 const VOID_BG_COLOR    = 0x06070d
 // The "deep dark" the bedrock fades INTO past the build space — so the player
 // never hits a hard bedrock→black-void edge. Matches Game's camera background
@@ -163,7 +164,6 @@ const INNER_COL_COUNT = COL_WIDTHS_FULL_WIDELEFT.length
 // Doorway palette — stone jambs (capstone-toned), dark passage interior,
 // and a worn threshold slab at the floor-side edge.
 const DOOR_PASSAGE_DARK   = 0x121826    // shaded passage interior, "stone shadow"
-const CONNECTOR_BLACK     = VOID_BG_COLOR  // identical to the void so connectors blend in / can't be seen
 const DOOR_PASSAGE_LIGHT  = 0x1f2940    // lit centre stripe of passage (worn footpath)
 const DOOR_THRESHOLD      = 0x4a5868    // worn stone sill where doorway meets floor
 const DOOR_THRESHOLD_HI   = 0x6a7888    // 1-px highlight along the threshold
@@ -175,17 +175,37 @@ const DOOR_ARCH_INNER     = 0x2a3548    // thin arched-shadow line under capston
 // ease-out for a slightly punchy slide.
 const DOOR_OPEN_DURATION_S = 0.5
 
-// Stone bedrock palette — warm gray-brown, deliberately contrasting with the
-// blue-gray brick walls so the player reads the empty grid as "uncarved
-// rock" rather than just background. Used by _drawBackground +
-// _drawVoidStoneTexture for per-cell variation, plus _drawCarveHalo for
-// the freshly-chiseled rim around each room.
+// Stone bedrock base — warm gray-brown, still used as a procedural floor/wall
+// accent. (The cold bedrock VOID texture + the carved room rim use the
+// BEDROCK_* palette below; the old warm STONE_DARK/LIGHT/VEIN/HALO tones were
+// retired with the flat-black void rework.)
 const STONE_BASE   = 0x2a221c
-const STONE_DARK   = 0x1a1410
-const STONE_LIGHT  = 0x3a322a
-const STONE_VEIN   = 0x4a4238
-const STONE_HALO   = 0x4a3e30   // 1-tile rim around rooms (lighter, "freshly carved")
-const STONE_HALO_HI = 0x6a5a48  // 1-px highlight on the inside edge of the halo
+
+// ── Bedrock void (the solid rock the dungeon is carved INTO) ─────────────────
+// The gaps between rooms are unexcavated rock, NOT empty void. These cold,
+// near-black tones are stamped over the flat VOID_BG_COLOR occluder (in
+// _drawBedrockTexture, on the high-depth void layer so they actually show) to
+// give the dark a subtle, moody stone material instead of dead flat black.
+// Kept very close to VOID_BG_COLOR (0x06070d) so the void stays recessive and
+// the lit rooms remain the focus — "subtle & moody", not "busy rocky".
+const BEDROCK_MOTTLE_DK = 0x030308   // recessed darker rock patch
+const BEDROCK_MOTTLE_LT = 0x0d1019   // faintly-lifted rock patch (catching ambient)
+const BEDROCK_FLECK     = 0x1a2030   // tiny cold mineral fleck (rare)
+const BEDROCK_CRACK     = 0x020204   // hairline crack / vein (rare)
+// Carved-out rim around each room — a cool, dim lift so the lit chamber reads
+// as chiselled INTO the rock and falls off to bedrock over ~1 tile instead of
+// hard-cutting to black. Replaces the old warm STONE_HALO (too bright/earthy
+// for the cold moody void).
+const BEDROCK_HALO    = 0x141722   // 1-tile rim around rooms (cool, slightly lifted)
+const BEDROCK_HALO_HI = 0x222a39   // 1px highlight on the room-facing edge
+// Dug-passage floor — the visible tunnel a character walks along when crossing
+// the 1-tile gap between two connected rooms. A shadowed, bare-rock path: read
+// as "dug through the bedrock", darker than a room floor, never lit (light is
+// masked to rooms). Replaces the old pure-black walk-under connector.
+const PASSAGE_FLOOR   = 0x0e1019   // bare dug-rock floor (between bedrock & room)
+const PASSAGE_FLOOR_DK = 0x070810  // shadow scuffs in the passage
+const PASSAGE_FLOOR_LT = 0x181c28  // faint trodden highlights
+const PASSAGE_WALL_SHADE = 0x040509 // recess shadow where the passage meets rock
 
 // Direction-vector lookup for cp-pairing (mirror of DungeonGrid's private
 // DIR_VEC). Used by the closed-door overlay to find a doorway's partner room
@@ -394,12 +414,19 @@ export class DungeonRenderer {
     // visually frames entities passing underneath. The dark passage floor
     // and threshold stay on _gTiles (depth 1) so entities walk over them.
     this._gOverhead  = scene.add.graphics().setDepth(9)
-    // Inter-room CONNECTOR layer — the black gap connector draws here at depth
-    // 9.7: ABOVE the torch/ability light pools (LightingSystem LIGHT_DEPTH 9.5)
-    // so the additive glow can't brighten it (the connector stays pure black),
-    // still ABOVE entities (~7-8) so travellers pass under it, and below the
-    // void mask (12). See ROOM_CONNECTIONS.md.
-    this._gConnector = scene.add.graphics().setDepth(9.7)
+    // Inter-room CONNECTOR passage layer — the dug-tunnel floor of the 1-tile
+    // gap between two rooms draws here at depth 8.8: ABOVE entity bodies (which
+    // y-sort in the ~7-8 range) so a traveller crossing the gap passes UNDER it
+    // (the connector is the outer doorway seam, so it covers the traveller like
+    // the room arches), but BELOW the door/room skin layers (door skin high 9,
+    // skin-wall 9.1, procedural arch overhead 9) so the skinned arch + room art
+    // draw OVER the connector instead of the connector overdrawing them. It
+    // still reads as an unlit dark dug tunnel — light (LIGHT_DEPTH 9.5) is masked
+    // OFF the gap cell (outside any room footprint), so sitting below the light
+    // doesn't brighten it. The dug-passage art shows when no one's crossing.
+    // (Replaced the original pure-black walk-under connector; see
+    // ROOM_CONNECTIONS.md revision 2026-06-25.)
+    this._gConnector = scene.add.graphics().setDepth(8.8)
     // Void mask — re-paints VOID tile fills on a layer ABOVE characters
     // (which sit at depth 7-8) so any sprite whose head intrudes into a
     // void cell gets occluded by the gap. Same colour family as _gBg so
@@ -664,7 +691,7 @@ export class DungeonRenderer {
     }
     this._drawDoorAprons()
     this._drawDoorSkins()
-    this._drawConnectorOccluders()
+    this._drawConnectorPassages()
   }
 
   // ── Single-image door skins ───────────────────────────────────────────────────
@@ -2643,24 +2670,54 @@ export class DungeonRenderer {
   // adjacent rooms' capstone bands seamlessly. The gap-facing edges get no
   // highlight/shadow because the neighbour walls' caps already provide the
   // visual line on those sides — accents only paint on edges facing void.
-  // The 1-tile inter-room CONNECTOR cell (in the gap, owned by no room). Drawn
-  // on _gConnector (depth 9.7 — above the torch light AND above entities) so the
-  // additive glow can't brighten it and travellers still pass UNDER it: a flat
-  // near-black tile the two rooms visibly join through. The `g` passed in is that
-  // layer. (Was a stone capstone bridge; now the black connector — see ROOM_CONNECTIONS.md.)
-  _drawGapStubCap(g, px, py, tx, ty) {
+  // The 1-tile inter-room CONNECTOR cell (in the gap, owned by no room): a
+  // VISIBLE dug passage the two rooms join through, drawn on `_gConnector`
+  // (depth 8.8 — above entity bodies, below the door/room skins) so travellers
+  // crossing pass UNDER it but the skinned arch still draws over it. A bare,
+  // shadowed dug-rock floor — darker than a room floor, never lit — framed so
+  // it reads as a tunnel chiselled through the bedrock: a soft recess shadow on
+  // the VOID-facing edges (where it meets solid rock) and a faint scuffed
+  // highlight on the WALL-facing edges (the mouth of each opening).
+  // (Was a flat-black walk-under connector — see ROOM_CONNECTIONS.md.)
+  _drawDugPassage(g, px, py, tx, ty) {
     const tiles = this._gameState.dungeon.tiles
+    const grid = this._scene?.dungeonGrid
     const get = (cx, cy) => tiles?.[cy]?.[cx] ?? TILE.VOID
     const isWallish = (t) => t === TILE.WALL || t === TILE.BOSS_WALL || t === TILE.WALL_CAP
+    const isVoid = (t) => t === TILE.VOID
+    const isRoomDoor = (cx, cy) => get(cx, cy) === TILE.DOOR && !!grid?.getRoomAtTile?.(cx, cy)
+    const h = _tileHash(tx, ty)
 
-    // Flat black body — the connector reads as a dark passage between rooms.
-    g.fillStyle(CONNECTOR_BLACK, 1)
-    g.fillRect(px, py, TS, TS)
+    // Bare dug-rock floor body. Extended a few px toward each room-opening END
+    // (the room-door neighbours along the corridor axis) so the dug floor meets
+    // the room's door skin with no sliver of seam showing between them.
+    const SEAM = 3
+    let fx = px, fy = py, fr = px + TS, fb = py + TS
+    if (isRoomDoor(tx - 1, ty)) fx -= SEAM
+    if (isRoomDoor(tx + 1, ty)) fr += SEAM
+    if (isRoomDoor(tx, ty - 1)) fy -= SEAM
+    if (isRoomDoor(tx, ty + 1)) fb += SEAM
+    g.fillStyle(PASSAGE_FLOOR, 1)
+    g.fillRect(fx, fy, fr - fx, fb - fy)
 
-    // A faint inner highlight on the WALL-facing edges frames the mouth where
-    // the connector meets each opened wall (so the black tile doesn't merge
-    // invisibly into the wall shadow). Void-facing edges stay open/black.
-    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.18)
+    // Hash-driven scuffs so the path isn't a flat slab — a dark gouge + a faint
+    // trodden highlight, both subtle.
+    g.fillStyle(PASSAGE_FLOOR_DK, 0.55)
+    g.fillRect(px + ((h >>> 8) & 0x0f), py + ((h >>> 12) & 0x0f), 9, 7)
+    g.fillStyle(PASSAGE_FLOOR_LT, 0.35)
+    g.fillRect(px + ((h >>> 16) & 0x0f) + 4, py + ((h >>> 20) & 0x0f) + 4, 5, 4)
+
+    // Recess shadow on edges meeting solid rock (void) — the passage sits below
+    // the bedrock walls, so its rock-facing sides fall into shadow.
+    g.fillStyle(PASSAGE_WALL_SHADE, 0.85)
+    if (isVoid(get(tx, ty - 1))) g.fillRect(px, py, TS, 2)
+    if (isVoid(get(tx, ty + 1))) g.fillRect(px, py + TS - 2, TS, 2)
+    if (isVoid(get(tx - 1, ty))) g.fillRect(px, py, 2, TS)
+    if (isVoid(get(tx + 1, ty))) g.fillRect(px + TS - 2, py, 2, TS)
+
+    // Faint scuffed highlight where the passage meets each opened wall (the
+    // mouth), so the tunnel reads as continuous into the room.
+    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.12)
     if (isWallish(get(tx, ty - 1))) g.fillRect(px, py, TS, 1)
     if (isWallish(get(tx, ty + 1))) g.fillRect(px, py + TS - 1, TS, 1)
     if (isWallish(get(tx - 1, ty))) g.fillRect(px, py, 1, TS)
@@ -3068,11 +3125,6 @@ export class DungeonRenderer {
   // multi-cell-aware rework but no longer dispatched.
   _drawDoorCell(g, x, y) {
     const px = x * TS, py = y * TS
-    // Passage floor is intentionally darker than the room floor so the
-    // doorway reads as a recessed underpass (fallback for unskinned doors;
-    // skinned doors suppress this cell and supply their own art).
-    g.fillStyle(DOOR_PASSAGE_DARK, 1)
-    g.fillRect(px, py, TS, TS)
     const over = this._gOverhead
     // Find which room (if any) contains this cell. Gap-stub cells between
     // two rooms aren't in any room rect — they get the full wall-cap look.
@@ -3080,13 +3132,20 @@ export class DungeonRenderer {
       x >= r.gridX && x < r.gridX + r.width &&
       y >= r.gridY && y < r.gridY + r.height)
     if (!room) {
-      // Gap stub: paint the whole cell as wall-cap surface so the gap reads
-      // as a continuation of the capstone band running over both walls.
-      // Orientation matches the walkway axis so seams + edge accents line
-      // up with the neighbour rooms' capstones on either side.
-      this._drawGapStubCap(this._gConnector, px, py, x, y)
+      // Inter-room CONNECTOR gap (owned by no room): the VISIBLE dug passage the
+      // two rooms join through, drawn on _gConnector (depth 8.8 — above entity
+      // bodies, below the door/room skins) so a traveller crossing the gap
+      // passes UNDER it (the connector is the outer doorway seam, covering them
+      // like the room arches) while the skinned arch still draws over it. Still
+      // the dug-tunnel styling; shows when no one's crossing.
+      this._drawDugPassage(this._gConnector, px, py, x, y)
       return
     }
+    // Passage floor is intentionally darker than the room floor so the
+    // doorway reads as a recessed underpass (fallback for unskinned doors;
+    // skinned doors suppress this cell and supply their own art).
+    g.fillStyle(DOOR_PASSAGE_DARK, 1)
+    g.fillRect(px, py, TS, TS)
     // For DOOR cells in a room's OUTER wall ring, repaint the outward
     // strip with a capstone band — keeps the wall-cap line continuous
     // across the doorway and lets the closed door sit underneath it.
@@ -3100,29 +3159,29 @@ export class DungeonRenderer {
     else if (dr === 0) this._drawCapstoneBand(over, null, px + TS - CAPSTONE_W, py, CAPSTONE_W, TS, 'right')
   }
 
-  // Black walk-under for the 1-tile inter-room CONNECTOR gap ONLY. The gap cell
-  // sits in NO room (it's the void between two rooms that the connection joins).
-  // For SKINNED doors it lives inside the door-skin footprint, so the per-cell
-  // draw skips it and its black never gets painted — leaving a traveller visible
-  // in the gap. This pass paints it black on _gConnector (depth 9.7 — above the
-  // torch light AND above entities) independent of the door-skin path, so the
-  // traveller is hidden while crossing the gap. It deliberately touches NOTHING
-  // inside any room: the doorway openings, arches and door skins are untouched.
-  _drawConnectorOccluders() {
+  // Dug-passage floor for the 1-tile inter-room CONNECTOR gap. The gap cell
+  // sits in NO room (it's the rock between two rooms the connection joins).
+  // The unskinned per-cell path (_drawDoorCell → _drawDugPassage) already
+  // paints it, but for SKINNED doors the gap cell lives inside the door-skin
+  // footprint and the per-cell draw skips it — so this pass paints the visible
+  // dug passage on _gConnector (depth 8.8 — above entity bodies, below the
+  // door/room skins) for those cells too, so a traveller crossing passes UNDER
+  // it (the connector is the outer doorway seam) while the skin draws over it.
+  // It touches ONLY no-room gap cells: doorway openings inside rooms are left alone.
+  _drawConnectorPassages() {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
     if (!tiles) return
     const grid = this._scene?.dungeonGrid
     const g = this._gConnector
     if (!g) return
-    g.fillStyle(CONNECTOR_BLACK, 1)
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
       for (let x = 0; x < gw; x++) {
         if (row[x] !== TILE.DOOR) continue
         if (grid?.getRoomAtTile?.(x, y)) continue   // in a room → it's a doorway opening, leave it ALONE
-        // no-room gap connector cell → black it (the only thing this pass touches)
-        g.fillRect(x * TS, y * TS, TS, TS)
+        // no-room gap connector cell → paint the visible dug passage floor
+        this._drawDugPassage(g, x * TS, y * TS, x, y)
       }
     }
   }
@@ -3535,20 +3594,76 @@ export class DungeonRenderer {
       }
     }
     // Crisp Graphics occluder, clipped to those VOID cells by the mask (no
-    // TileSprite edge bleed).
+    // TileSprite edge bleed). The flat VOID_BG_COLOR fill is the opaque base
+    // that hides any sprite overdraw into the void; on TOP of it (same masked
+    // layer, so still clipped to void cells AND still above sprites) we stamp
+    // the subtle bedrock stone texture + the carved-out room rim, so the gaps
+    // read as solid dug rock instead of dead flat black.
     if (this._gVoidOcc) {
       this._gVoidOcc.clear()
       this._gVoidOcc.fillStyle(VOID_BG_COLOR, 1)
       this._gVoidOcc.fillRect(0, 0, gw * TS, gh * TS)
+      this._drawBedrockTexture(this._gVoidOcc)
+      this._drawCarveHalo(this._gVoidOcc)
+      this._drawPassageSideFlares(this._gVoidOcc)
+    }
+  }
+
+  // Flare the dug-passage look ~half a tile SIDEWAYS into the bedrock next to
+  // the rooms — the VOID cells flanking a connector along the wall seam (NOT
+  // into the room openings). The 2-wide connector is TILE.DOOR, so its outer
+  // perpendicular neighbour is a VOID cell sitting in the gap, right beside both
+  // rooms' walls; we carve a half-tile dug patch on that cell's connector-facing
+  // side so the tunnel mouth spreads beside the rooms. Drawn on the void layer
+  // (`g` = _gVoidOcc, depth 12, masked to void) because those flanking cells are
+  // VOID and would otherwise be buried under the bedrock occluder.
+  _drawPassageSideFlares(g) {
+    const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    const grid = this._scene?.dungeonGrid
+    if (!grid) return
+    const isConnector = (x, y) =>
+      tiles?.[y]?.[x] === TILE.DOOR && !grid.getRoomAtTile?.(x, y)
+    const EXT = TS >> 1   // half a tile
+    for (let y = 0; y < gh; y++) {
+      const row = tiles[y]
+      if (!row) continue
+      for (let x = 0; x < gw; x++) {
+        if (row[x] !== TILE.VOID) continue
+        // Only flank cells that border a connector get the flare; carve the
+        // patch on the side of THIS void cell facing that connector.
+        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+          if (!isConnector(x + dx, y + dy)) continue
+          const px = x * TS, py = y * TS
+          const h = _tileHash(x, y)
+          let rx, ry, rw, rh
+          if      (dx === -1) { rx = px;          ry = py;          rw = EXT; rh = TS  } // connector to the left
+          else if (dx ===  1) { rx = px + TS - EXT; ry = py;        rw = EXT; rh = TS  } // connector to the right
+          else if (dy === -1) { rx = px;          ry = py;          rw = TS;  rh = EXT } // connector above
+          else                { rx = px;          ry = py + TS - EXT; rw = TS; rh = EXT } // connector below
+          g.fillStyle(PASSAGE_FLOOR, 1)
+          g.fillRect(rx, ry, rw, rh)
+          g.fillStyle(PASSAGE_FLOOR_DK, 0.5)
+          g.fillRect(rx + ((h >>> 8) & 0x07), ry + ((h >>> 12) & 0x07), Math.min(8, rw - 2), Math.min(6, rh - 2))
+          // Recess shadow on the OUTER edge of the flare (away from the connector)
+          // so the dug patch falls back into the surrounding rock.
+          g.fillStyle(PASSAGE_WALL_SHADE, 0.85)
+          if      (dx === -1) g.fillRect(rx + rw - 2, ry, 2, rh)
+          else if (dx ===  1) g.fillRect(rx, ry, 2, rh)
+          else if (dy === -1) g.fillRect(rx, ry + rh - 2, rw, 2)
+          else                g.fillRect(rx, ry, rw, 2)
+        }
+      }
     }
   }
 
   _drawBackground() {
     // The flat bedrock backdrop fill + the edge fade that darkens its outer
-    // margin into DEEP_DARK (so there's no hard bedrock→void seam) are both
-    // drawn in _drawEdgeFade(); then the "freshly chiseled" carve halo.
+    // margin into DEEP_DARK (so there's no hard bedrock→void seam) are drawn in
+    // _drawEdgeFade(). The bedrock STONE TEXTURE + the carved-out room rim are
+    // NOT drawn here — they're stamped onto the high-depth void occluder in
+    // _drawVoidMask() so they render ABOVE it (drawing them on _gBg here would
+    // bury them under the depth-12 flat void fill that hides sprite overdraw).
     this._drawEdgeFade()
-    this._drawCarveHalo()
   }
 
   // Uniform-width border fade: the bedrock darkens to DEEP_DARK over a FIXED
@@ -3592,14 +3707,18 @@ export class DungeonRenderer {
     g.fillGradientStyle(C, C, C, C, 0, 1, 1, 1); g.fillRect(W,    H,  FD, FD) // BR (grid corner = TL)
   }
 
-  // Per-cell stone-texture pass. Walks every TILE.VOID cell and stamps a
-  // few hash-driven detail bits — light speckles, dark pock marks, the
-  // occasional vein streak — so the empty grid doesn't read as a flat
-  // fill. Only paints VOID cells; floor/wall cells get their own art
-  // from _drawTiles.
-  _drawVoidStoneTexture() {
+  // Subtle bedrock texture. Walks every TILE.VOID cell and stamps a few
+  // hash-driven, cold, near-black detail bits over the flat VOID_BG_COLOR
+  // occluder — soft mottle patches, the odd mineral fleck, a rare hairline
+  // crack — so the gaps read as solid dug ROCK instead of dead flat black.
+  // Deliberately "subtle & moody": every tone sits within a hair of the void
+  // colour and alphas stay low, so the rock is felt, not busy, and the lit
+  // rooms keep all the contrast. Drawn on the masked high-depth void layer
+  // (`g` = _gVoidOcc) so it shows above the occluder and still clips to void
+  // cells / hides sprite overdraw. Only VOID cells; floor/wall/passage cells
+  // get their own art elsewhere.
+  _drawBedrockTexture(g) {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
-    const g = this._gBg
     for (let y = 0; y < gh; y++) {
       const row = tiles[y]
       if (!row) continue
@@ -3607,32 +3726,28 @@ export class DungeonRenderer {
         if (row[x] !== TILE.VOID) continue
         const h  = _tileHash(x, y)
         const px = x * TS, py = y * TS
-        // Bucket 0..255 → light/dark/vein/clean
         const tint = h & 0xff
-        if (tint < 32) {
-          // Heavier shadow patch — covers most of the cell.
-          g.fillStyle(STONE_DARK, 0.55)
-          g.fillRect(px + ((h >>> 8) & 0x0f), py + ((h >>> 12) & 0x0f), 14, 14)
-        } else if (tint < 80) {
-          // Single dark pock.
-          g.fillStyle(STONE_DARK, 0.7)
-          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 4), py + ((h >>> 13) & 0x1f) % (TS - 4), 2, 2)
-        } else if (tint > 220) {
-          // Lighter speckle.
-          g.fillStyle(STONE_LIGHT, 0.55)
-          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 6), py + ((h >>> 13) & 0x1f) % (TS - 6), 4, 3)
-        } else if (tint > 196) {
-          // Tiny highlight chip.
-          g.fillStyle(STONE_LIGHT, 0.45)
-          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 2), py + ((h >>> 13) & 0x1f) % (TS - 2), 1, 1)
+        if (tint < 96) {
+          // Soft recessed shadow patch — covers most of the cell, very faint.
+          g.fillStyle(BEDROCK_MOTTLE_DK, 0.5)
+          g.fillRect(px + ((h >>> 8) & 0x07), py + ((h >>> 12) & 0x07), 18, 18)
+        } else if (tint > 168) {
+          // Faintly-lifted rock patch (catches a little ambient).
+          g.fillStyle(BEDROCK_MOTTLE_LT, 0.45)
+          g.fillRect(px + ((h >>> 8) & 0x0f), py + ((h >>> 12) & 0x0f), 12, 12)
         }
-        // Rare vein — diagonal streak crossing the cell.
-        if (((h >>> 16) & 0xff) > 246) {
-          g.fillStyle(STONE_VEIN, 0.45)
-          const len = 8 + ((h >>> 24) & 0x07)
+        // Rare cold mineral fleck — a single chip, kept tiny so it's spec, not noise.
+        if (((h >>> 16) & 0xff) > 238) {
+          g.fillStyle(BEDROCK_FLECK, 0.4)
+          g.fillRect(px + ((h >>> 8) & 0x1f) % (TS - 2), py + ((h >>> 13) & 0x1f) % (TS - 2), 2, 1)
+        }
+        // Rare hairline crack — short diagonal vein through the rock.
+        if (((h >>> 24) & 0xff) > 246) {
+          g.fillStyle(BEDROCK_CRACK, 0.6)
+          const len = 7 + ((h >>> 4) & 0x07)
           const dir = (h >>> 20) & 1 ? 1 : -1
-          const sx  = px + 4 + ((h >>> 21) & 0x07)
-          const sy  = py + 4 + ((h >>> 18) & 0x07)
+          const sx  = px + 6 + ((h >>> 21) & 0x07)
+          const sy  = py + 6 + ((h >>> 18) & 0x07)
           for (let i = 0; i < len; i++) {
             const cx = sx + i * dir
             const cy = sy + i
@@ -3645,13 +3760,14 @@ export class DungeonRenderer {
     }
   }
 
-  // Lighter rim around every placed room — frames the rooms against the
-  // deep bedrock so they read as "carved out". For each VOID cell that
-  // sits 1 tile outside any room's outer perimeter, paint a soft lighter
-  // stone wash with a 1-px brighter edge on the side facing the room.
-  _drawCarveHalo() {
+  // Carved-out rim around every placed room — softens the hard room→void cut
+  // so the lit chamber falls off into the bedrock instead of snapping to
+  // black. For each VOID cell 1 tile outside a room's outer perimeter, paint a
+  // cool dim lift with a 1-px brighter edge on the side facing the room. Drawn
+  // on the masked high-depth void layer (`g` = _gVoidOcc) so it shows above the
+  // flat void occluder (drawing it on _gBg buried it under the depth-12 fill).
+  _drawCarveHalo(g) {
     const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
-    const g = this._gBg
     const isVoid = (tx, ty) =>
       tx >= 0 && ty >= 0 && tx < gw && ty < gh && tiles[ty]?.[tx] === TILE.VOID
     const isInsideRoom = (tx, ty) => {
@@ -3828,9 +3944,9 @@ export class DungeonRenderer {
   // cell touches the room (so the highlight goes there).
   _stampHalo(g, tx, ty, side, isInsideRoom) {
     const px = tx * TS, py = ty * TS
-    g.fillStyle(STONE_HALO, 0.55)
+    g.fillStyle(BEDROCK_HALO, 0.6)
     g.fillRect(px, py, TS, TS)
-    g.fillStyle(STONE_HALO_HI, 0.8)
+    g.fillStyle(BEDROCK_HALO_HI, 0.7)
     if      (side === 'top'    && isInsideRoom(tx, ty + 1)) g.fillRect(px, py + TS - 1, TS, 1)
     else if (side === 'bottom' && isInsideRoom(tx, ty - 1)) g.fillRect(px, py,           TS, 1)
     else if (side === 'left'   && isInsideRoom(tx + 1, ty)) g.fillRect(px + TS - 1, py, 1, TS)
