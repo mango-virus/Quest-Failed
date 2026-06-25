@@ -119,8 +119,8 @@ export const ABILITY_DEFS = {
   // this entry is just the registry label).
   valkyrie_flight: { id: 'winged_flight', label: 'Winged Flight' },
   // Rally the Fallen — a 3s INTERRUPTIBLE channel (cast bar) that revives the
-  // most-recently-fallen ally nearby at HALF HP. Once per valkyrie. Mirrors
-  // White Mage's Raise. NO buff component.
+  // most-recently-fallen ally nearby at HALF HP. Once per valkyrie. A classic
+  // channeled battlefield-resurrection. NO buff component.
   valkyrie_rally: { id: 'rally_the_fallen', usesPerDay: 1, castMs: 3000, reviveFrac: 0.5, rangeTiles: 6, label: 'Rally the Fallen' },
 
   // ── Gambler ────────────────────────────────────────────────────────────

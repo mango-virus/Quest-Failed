@@ -4485,9 +4485,9 @@ export const AbilityVfx = {
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Composite "limit-break-grade" effects. Bigger, layered, self-destroying.
-  // Built for ability / Limit Break moments that need to read as STUNNING, not
-  // a single ring. World-space; depth 29-33 draws above all world sprites
+  // Composite "ultimate-grade" effects. Bigger, layered, self-destroying.
+  // Built for big-finisher / ultimate ability moments that need to read as
+  // STUNNING, not a single ring. World-space; depth 29-33 draws above all world sprites
   // (sprites sit at ~7-8; the HUD is separate DOM, so high depths are safe).
   // All respect _validXY + the particles quality multiplier where heavy.
   // ─────────────────────────────────────────────────────────────────────────
@@ -4673,7 +4673,7 @@ export const AbilityVfx = {
   // ABOVE (29-33). All self-destroy and respect _validXY + the quality mult.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // FFXIV-style ground telegraph that FILLS over `durationMs` then detonates
+  // Telegraphed ground AoE that FILLS over `durationMs` then detonates
   // (a bright flash) so a mechanic reads before it lands. shape: 'circle'
   // (radius), 'line' (length+width at `angle`), or 'cone' (length, ±0.5rad).
   groundTelegraph(scene, x, y, opts = {}) {
@@ -4719,7 +4719,7 @@ export const AbilityVfx = {
   },
 
   // "Stack here" marker — a pulsing ringed circle with inward chevrons that
-  // rotate over the cast, then flash. Reads as the FFXIV stack mechanic.
+  // rotate over the cast, then flash. Reads as a "stack up" group-marker.
   stackMarker(scene, x, y, opts = {}) {
     if (!_validXY(x, y)) return null
     const o = { color: 0xffd66b, radius: 60, arrows: 6, durationMs: 2200, depth: 5, ...opts }

@@ -160,7 +160,7 @@ export class CombatSystem {
     // the attacker and target must be in the SAME room for any swing — melee
     // OR ranged — to land. Two entities on floor tiles either side of a shared
     // door are within raw attack range but in different rooms, so they can't
-    // trade blows; a ranged class (mage / black mage, reach 4) likewise only
+    // trade blows; a ranged class (mage / sorcerer) likewise only
     // hits across its OWN room, never into the next one. getRoomAtTile is null
     // on a door/void tile so a null room never matches (belt-and-braces with
     // the doorway gate above). Corridors are rooms, so two entities in the same

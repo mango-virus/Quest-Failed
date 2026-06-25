@@ -144,8 +144,8 @@ export class Game extends Phaser.Scene {
     this.gameState = data?.gameState || SaveSystem.load()
     // Reset per-start runtime camera flags. Phaser runs the constructor only
     // ONCE (at scene registration), NOT on scene.start — so a flag left set
-    // when the player exits mid-cinematic (e.g. _duelCamLock during the Shadow
-    // Monarch duel) would persist into the reloaded run and leave the camera
+    // when the player exits mid-cinematic (e.g. _duelCamLock during the Aldric
+    // duel) would persist into the reloaded run and leave the camera
     // stuck locked. Clear them here so every (re)start begins unlocked.
     this._duelCamLock    = false
     this._fightCamActive = false
