@@ -46,6 +46,9 @@ export function domPrompt({
           if (e.key === 'Enter')  { e.preventDefault(); finish(input.value) }
           else if (e.key === 'Escape') { e.preventDefault(); finish(null) }
         },
+        // Belt-and-suspenders: if anything suppressed the default focus-on-click
+        // (a global pointer handler / custom cursor), force focus after the click.
+        pointerdown: () => { setTimeout(() => { try { if (document.activeElement !== input) input.focus() } catch {} }, 0) },
       },
     })
 
@@ -71,7 +74,13 @@ export function domPrompt({
     // eslint-disable-next-line no-unused-expressions
     layer.offsetHeight
     layer.classList.add('show')
-    input.focus()
-    input.select()
+    // Defer the focus. domPrompt is opened from a CLICK handler; focusing the
+    // field synchronously here lets the browser then apply the click's default
+    // focus to the button that was just clicked, stealing focus back — so the
+    // field silently ignores typing (the "can't change the value" bug). Running
+    // after the current event settles (rAF + a late fallback) makes focus stick.
+    const grab = () => { try { input.focus(); input.select() } catch {} }
+    requestAnimationFrame(grab)
+    setTimeout(grab, 60)
   })
 }
