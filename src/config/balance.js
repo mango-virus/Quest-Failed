@@ -61,7 +61,12 @@ export const Balance = {
   CAMERA_SCROLL_SPEED: 8,
 
   // --- Boss progression ---
-  BOSS_XP_BASE:      50,   // XP needed to reach lv 2
+  BOSS_XP_LV2:       20,   // XP for the FIRST level-up (lv1→2) — a dedicated,
+                           // cheaper threshold so the player reaches lv 2 by ~day 3
+                           // (cumulative kills are 1/2/4 over days 1-3 at 7 XP each).
+                           // Levels 2+ use BOSS_XP_BASE/SCALE below, so this does NOT
+                           // re-accelerate the rest of the (deliberately slowed) curve.
+  BOSS_XP_BASE:      50,   // XP needed to reach lv 3+ (curve anchor; see _xpToNextLevel)
   BOSS_XP_SCALE:    1.4,   // XP curve: xpForLv(n) = BASE * SCALE^(n-1)
                            // Tuned 2026-05-27 from 1.5 → 1.4 so the
                            // 20-step progression (achievements ladder

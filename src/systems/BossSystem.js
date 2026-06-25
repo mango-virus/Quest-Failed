@@ -135,7 +135,9 @@ export class BossSystem {
       worldY: cy * TS + TS / 2,
       level:    1,
       xp:       0,
-      xpToNext: Balance.BOSS_XP_BASE,
+      // lv1→2 uses the dedicated cheaper threshold (player hits lv 2 by ~day 3);
+      // every level after recomputes via _xpToNextLevel on the normal curve.
+      xpToNext: Balance.BOSS_XP_LV2 ?? Balance.BOSS_XP_BASE,
     }
     // Fresh-init at day 1 — the recompute will produce the same numbers
     // as the literal init above (no level/day scaling at day 1, level 1)
