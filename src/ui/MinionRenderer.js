@@ -1332,43 +1332,20 @@ export class MinionRenderer {
     return rec
   }
 
-  // Per-family idle "personality" for the night ambient micro-motion.
-  //   float — hovering drifters (ghosts, bats, imps): slow vertical + side drift
-  //   sway  — rooted/plant things (plants, mushrooms, ents): gentle side-to-side
-  //   hop   — bouncy bodies (slimes): little upward bobs
-  //   bob   — everyone else: a soft breathing rise/fall
-  _idleStyle(defId) {
-    const id = defId ?? ''
-    if (/^(ghost|wisp|bat|imp|wraith|specter|spirit|banshee)/.test(id)) return 'float'
-    if (/^(plant|mushroom|ent|vine|fungal|treant|shroom)/.test(id))     return 'sway'
-    if (/^(slime|ooze|blob|jelly|goo)/.test(id))                        return 'hop'
-    return 'bob'
-  }
-
-  // Apply the night-only idle micro-motion. Position-only and recomputed from the
-  // container's per-frame world position, so it can never accumulate or persist
-  // into the day combat phase. Skips moving minions (their walk anim is the life).
+  // Night-idle position pin. The per-family "breathing" micro-motion (bob/sway/
+  // float/hop) was REMOVED 2026-06-24 (user request) — this now just keeps a
+  // standing minion's container locked to its flat world position during the
+  // build phase. Skips moving minions (their walk anim is the life).
   _applyNightIdle(s, m) {
     if (!s?.container || !s?.sprite) return
     if (this._gameState?.meta?.phase !== 'night') return
     if (s.isMoving) return
-    // Stable per-minion phase so a roomful doesn't pulse in lockstep.
-    if (s._idleSeed == null) {
-      let h = 0; const str = String(m.instanceId ?? '')
-      for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0
-      s._idleSeed = ((h >>> 0) % 628) / 100   // 0..~2π
-    }
-    const t = (this._scene.time?.now ?? 0) / 1000
-    const ph = s._idleSeed
-    let ox = 0, oy = 0
-    switch (this._idleStyle(m.definitionId)) {
-      case 'float': oy = Math.sin(t * 1.5 + ph) * 3.2; ox = Math.sin(t * 0.85 + ph) * 1.6; break
-      case 'sway':  ox = Math.sin(t * 1.25 + ph) * 2.3; oy = Math.sin(t * 2.5 + ph) * 0.5; break
-      case 'hop':   oy = -Math.abs(Math.sin(t * 2.1 + ph)) * 3.0; break
-      default:      oy = Math.sin(t * 1.7 + ph) * 1.4; break
-    }
-    s.container.x = m.worldX + ox
-    s.container.y = m.worldY + oy
+    // Breathing idle REMOVED 2026-06-24 (user request): standing minions sit FLAT
+    // at their world position — no per-family bob / sway / float / hop. Kept as the
+    // night-idle position pin so a standing sprite still tracks worldX/worldY, just
+    // with zero offset.
+    s.container.x = m.worldX
+    s.container.y = m.worldY
   }
 
   // Texture key for the idle frame — boss-skin finals use the boss texture
