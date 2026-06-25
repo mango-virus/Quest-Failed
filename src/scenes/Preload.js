@@ -99,6 +99,8 @@ const MINION_FRAMES_128 = new Set([
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
   'goblin1',   // PixelLab goblin-with-sword (80px art in 128 cells)
+  'goblin2',   // PixelLab Hooded Goblin / Cutpurse (84px art in 128 cells, 8-dir)
+  'goblin3',   // PixelLab Plunder King (80px art in 128 cells, 8-dir)
   'golem1', 'golem2',
   'rat1', 'rat2', 'rat3',
 ])
