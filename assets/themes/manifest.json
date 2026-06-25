@@ -375,9 +375,6 @@
     "myconid_boss_room": {
       "file": "assets/themes/roomskins/myconid_boss_room.png"
     },
-    "beholder_boss_room": {
-      "file": "assets/themes/roomskins/beholder_boss_room.png"
-    },
     "basic_boss_room": {
       "file": "assets/themes/roomskins/basic_boss_room.png"
     },
@@ -395,6 +392,15 @@
     },
     "golem_boss_room": {
       "file": "assets/themes/roomskins/golem_boss_room.png"
+    },
+    "slime_boss_room": {
+      "file": "assets/themes/roomskins/slime_boss_room.png"
+    },
+    "beholder_boss_room2": {
+      "file": "assets/themes/roomskins/beholder_boss_room2.png"
+    },
+    "demon_boss_room": {
+      "file": "assets/themes/roomskins/demon_boss_room.png"
     }
   },
   "doorSkins": {
@@ -535,6 +541,54 @@
       "file": "assets/themes/doorskins/golem_door_open.png",
       "size": {
         "w": 4.1,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "slime_door_closed": {
+      "file": "assets/themes/doorskins/slime_door_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.4,
+        "nudge": 0
+      }
+    },
+    "slime_door_open": {
+      "file": "assets/themes/doorskins/slime_door_open.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.4,
+        "nudge": 0
+      }
+    },
+    "beholder_door_closed2": {
+      "file": "assets/themes/doorskins/beholder_door_closed2.png",
+      "size": {
+        "w": 4,
+        "h": 2.5,
+        "nudge": -0.1
+      }
+    },
+    "beholder_door_open2": {
+      "file": "assets/themes/doorskins/beholder_door_open2.png",
+      "size": {
+        "w": 4,
+        "h": 2.5,
+        "nudge": -0.1
+      }
+    },
+    "demon_door_closed": {
+      "file": "assets/themes/doorskins/demon_door_closed.png",
+      "size": {
+        "w": 4.3,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "demon_door_open": {
+      "file": "assets/themes/doorskins/demon_door_open.png",
+      "size": {
+        "w": 4.3,
         "h": 2.2,
         "nudge": 0
       }

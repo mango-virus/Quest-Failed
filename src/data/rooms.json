@@ -496,8 +496,10 @@
             "vampire": "vampire_boss_room",
             "wraith": "wraith_boss_room",
             "myconid": "myconid_boss_room",
-            "beholder": "beholder_boss_room",
-            "golem": "golem_boss_room"
+            "golem": "golem_boss_room",
+            "slime": "slime_boss_room",
+            "beholder": "beholder_boss_room2",
+            "demon": "demon_boss_room"
         },
         "doorSkinByBoss": {
             "gnoll": {
@@ -505,8 +507,8 @@
                 "closed": "gnoll_closed_v2"
             },
             "beholder": {
-                "closed": "beholder_closed",
-                "open": "beholder_opened"
+                "closed": "beholder_door_closed2",
+                "open": "beholder_door_open2"
             },
             "lizardman": {
                 "closed": "lizardman_closed",
@@ -526,8 +528,8 @@
                 "open": "myconid_open"
             },
             "slime": {
-                "closed": "basic_door_closed_skin",
-                "open": "basic_open",
+                "closed": "slime_door_closed",
+                "open": "slime_door_open",
                 "locked": "basic_locked"
             },
             "orc": {
@@ -545,7 +547,8 @@
                 "closed": "golem_door_closed"
             },
             "demon": {
-                "open": "basic_open"
+                "open": "demon_door_open",
+                "closed": "demon_door_closed"
             }
         },
         "backgroundImage": "basic_boss_room",
