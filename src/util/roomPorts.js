@@ -23,8 +23,8 @@ export function connectedDoorPorts(room, grid, opts = {}) {
     if (!v) continue
     const dtx = room.gridX + cp.x            // door tile (on the room wall)
     const dty = room.gridY + cp.y
-    const ox = dtx + v.dx                     // tile just outside the door
-    const oy = dty + v.dy
+    const ox = dtx + 2 * v.dx                 // across the gap to the neighbour's wall
+    const oy = dty + 2 * v.dy
     const other = grid.getRoomAtTile(ox, oy)
     if (!other || other.instanceId === room.instanceId || other.isActive === false) continue
     // Confirm the neighbour faces back at us (mirrors getNeighborRooms).

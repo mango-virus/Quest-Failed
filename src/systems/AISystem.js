@@ -4861,9 +4861,10 @@ export class AISystem {
   }
 
   // Neighbour rooms reachable from `room` via its connectionPoints.
-  // Mirrors the pattern in DungeonGrid._unpairNeighbourCps: each cp
-  // points one tile in cp.direction into the next room. External cps
-  // (dungeon edge) yield nothing. (2026-05-27 — knowledge-gated SEEK_BOSS)
+  // Mirrors DungeonGrid.getNeighborRooms: each cp points TWO tiles in
+  // cp.direction — across the one-tile connector gap to the next room's
+  // outer wall. External cps (dungeon edge) yield nothing. (2026-05-27 —
+  // knowledge-gated SEEK_BOSS; 2026-06-24 — 1-gap connector model.)
   _getRoomNeighbors(room) {
     if (!room) return []
     const DIR = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }
@@ -4872,8 +4873,8 @@ export class AISystem {
       if (cp.external) continue
       const v = DIR[cp.direction]
       if (!v) continue
-      const tx = room.gridX + cp.x + v[0]
-      const ty = room.gridY + cp.y + v[1]
+      const tx = room.gridX + cp.x + 2 * v[0]
+      const ty = room.gridY + cp.y + 2 * v[1]
       const other = this._dungeonGrid?.getRoomAtTile?.(tx, ty)
       if (other && other.instanceId !== room.instanceId && !out.includes(other)) {
         out.push(other)

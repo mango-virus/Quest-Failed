@@ -416,8 +416,11 @@ export class DungeonGrid {
     for (const cp of room.connectionPoints ?? []) {
       const v = DIR_VEC[cp.direction]
       if (!v || cp.external) continue
-      const ox = room.gridX + cp.x + v.dx
-      const oy = room.gridY + cp.y + v.dy
+      // Clear this connection's gap connector cells back to void regardless of
+      // whether the partner is still resolvable.
+      this._clearConnectorCells(room, cp)
+      const ox = room.gridX + cp.x + 2 * v.dx   // 2 steps: across the gap
+      const oy = room.gridY + cp.y + 2 * v.dy
       const other = this.getRoomAtTile(ox, oy)
       if (!other || other.instanceId === room.instanceId) continue
       const oppDir = OPPOSITE_DIR[cp.direction]
@@ -500,11 +503,29 @@ export class DungeonGrid {
       }
     }
 
-    // No gap required between rooms — direct wall-to-wall adjacency is
-    // allowed. The overlap check above already ensures the candidate's
-    // footprint doesn't overlap another room's tiles, so touching walls
-    // are fine. Auto-connect (see _autoConnect) creates paired doors at
-    // the wall midpoint when rooms share a sufficiently long edge.
+    // FORBID TOUCHING — rooms now connect across a ONE-TILE GAP, so a
+    // candidate may not be placed flush (0 gap) against an existing room.
+    // Reject if any existing structure tile is orthogonally adjacent to the
+    // candidate footprint. Diagonal touching is fine. Boss seeding bypasses
+    // via opts.allowFixed. (See ROOM_CONNECTIONS.md.)
+    if (!violations.length && !opts.allowFixed) {
+      let touches = false
+      // top & bottom edge rows
+      for (let tx = gridX; tx < gridX + w && !touches; tx++) {
+        for (const ty of [gridY - 1, gridY + h]) {
+          if (ty < 0 || ty >= gh) continue
+          if (this._d.tiles[ty][tx] !== TILE.VOID) { touches = true; break }
+        }
+      }
+      // left & right edge cols
+      for (let ty = gridY; ty < gridY + h && !touches; ty++) {
+        for (const tx of [gridX - 1, gridX + w]) {
+          if (tx < 0 || tx >= gw) continue
+          if (this._d.tiles[ty][tx] !== TILE.VOID) { touches = true; break }
+        }
+      }
+      if (touches) violations.push('Leave a 1-tile gap between rooms')
+    }
 
     // Boss-level gating (Room redesign 2026-04-30)
     const dungeonLevel = opts.dungeonLevel ?? 1
@@ -792,10 +813,11 @@ export class DungeonGrid {
     return false
   }
 
-  // Two rooms are neighbours iff they have a pair of facing doorways at
-  // their shared wall edge. Walks every doorway on `room` and checks
-  // whether the cell directly outward (1 step, no gap) is owned by
-  // another room with an opposite-facing doorway whose anchor lines up.
+  // Two rooms are neighbours iff they have a pair of facing doorways across
+  // their one-tile connector gap. Walks every doorway on `room` and checks
+  // whether the cell TWO steps outward (across the gap to the other room's
+  // outer wall) is owned by another room with an opposite-facing doorway
+  // whose anchor lines up. (Was 1 step under the old wall-to-wall model.)
   getNeighborRooms(roomId) {
     const room = this._d.rooms.find(r => r.instanceId === roomId)
     if (!room) return []
@@ -805,8 +827,8 @@ export class DungeonGrid {
       const v = DIR_VEC[cp.direction]
       if (!v) continue
       if (cp.external) continue   // entrance cps face outside, no neighbour
-      const ox = room.gridX + cp.x + v.dx
-      const oy = room.gridY + cp.y + v.dy
+      const ox = room.gridX + cp.x + 2 * v.dx
+      const oy = room.gridY + cp.y + 2 * v.dy
       const other = this.getRoomAtTile(ox, oy)
       if (!other || other.instanceId === roomId) continue
       // The other room's doorway must face back at us.
@@ -1046,6 +1068,37 @@ export class DungeonGrid {
     }
   }
 
+  // Stamp the 1-tile gap CONNECTOR between two 1-gap-apart rooms as DOOR
+  // (2 cells wide along the wall). These cells sit OUTSIDE both rooms'
+  // footprints (in the gap), so this writes dungeon-absolute coords. The
+  // connector + both rooms' wall openings form the 2*WT+1-deep corridor.
+  _stampConnectorCells(room, cp) {
+    const v = DIR_VEC[cp.direction]
+    if (!v) return
+    const adx = cp.alongDx ?? 0, ady = cp.alongDy ?? 0
+    const bx = room.gridX + cp.x + v.dx
+    const by = room.gridY + cp.y + v.dy
+    for (const [cx, cy] of [[bx, by], [bx + adx, by + ady]]) {
+      if (cy < 0 || cy >= this._d.tiles.length) continue
+      if (cx < 0 || cx >= this._d.tiles[cy].length) continue
+      if (this._d.tiles[cy][cx] === TILE.VOID) this._d.tiles[cy][cx] = TILE.DOOR
+    }
+  }
+
+  // Inverse — clear the gap connector cells back to VOID (room removed/moved).
+  _clearConnectorCells(room, cp) {
+    const v = DIR_VEC[cp.direction]
+    if (!v) return
+    const adx = cp.alongDx ?? 0, ady = cp.alongDy ?? 0
+    const bx = room.gridX + cp.x + v.dx
+    const by = room.gridY + cp.y + v.dy
+    for (const [cx, cy] of [[bx, by], [bx + adx, by + ady]]) {
+      if (cy < 0 || cy >= this._d.tiles.length) continue
+      if (cx < 0 || cx >= this._d.tiles[cy].length) continue
+      if (this._d.tiles[cy][cx] === TILE.DOOR) this._d.tiles[cy][cx] = TILE.VOID
+    }
+  }
+
   // Auto-create paired cps + doors between `newRoom` and any existing
   // room sharing a wall with a 1-tile gap. Constraints:
   //   - max 1 door per room per wall (so 4 max per regular room)
@@ -1061,6 +1114,7 @@ export class DungeonGrid {
       otherRoom.connectionPoints.push(otherCp)
       this._stampCpDoor(newRoom, newCp)
       this._stampCpDoor(otherRoom, otherCp)
+      this._stampConnectorCells(newRoom, newCp)   // the black connector in the gap
     }
   }
 
@@ -1102,16 +1156,19 @@ export class DungeonGrid {
       let dirNew = null   // direction the new room's wall faces toward `other`
       let oxRange = null  // [start, end] along X (for N/S adjacency)
       let oyRange = null  // [start, end] along Y (for E/W adjacency)
-      if (oB + 1 === nT) {                       // other is NORTH of new
+      // Rooms connect across a ONE-TILE GAP (not wall-to-wall) — the facing
+      // edges are 2 cells apart (other's outer edge, the gap row, our outer
+      // edge). See ROOM_CONNECTIONS.md.
+      if (oB + 2 === nT) {                       // other is NORTH of new
         dirNew = 'N'
         oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
-      } else if (oT - 1 === nB) {                 // other is SOUTH of new
+      } else if (oT - 2 === nB) {                 // other is SOUTH of new
         dirNew = 'S'
         oxRange = [Math.max(nL, oL), Math.min(nR, oR)]
-      } else if (oR + 1 === nL) {                 // other is WEST of new
+      } else if (oR + 2 === nL) {                 // other is WEST of new
         dirNew = 'W'
         oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
-      } else if (oL - 1 === nR) {                 // other is EAST of new
+      } else if (oL - 2 === nR) {                 // other is EAST of new
         dirNew = 'E'
         oyRange = [Math.max(nT, oT), Math.min(nB, oB)]
       } else continue
@@ -1269,9 +1326,11 @@ export class DungeonGrid {
 // ── Module-level helpers ──────────────────────────────────────────────────────
 
 function _rectsAdjacent(a, b) {
-  // True if rects share an edge (rooms now place wall-to-wall with no gap).
-  return !(a.gridX + a.width  - 1 < b.gridX ||
-           b.gridX + b.width  - 1 < a.gridX ||
-           a.gridY + a.height - 1 < b.gridY ||
-           b.gridY + b.height - 1 < a.gridY)
+  // True if rects are within a ONE-TILE GAP of each other (rooms now connect
+  // across a 1-tile gap, not wall-to-wall). Separated only when the gap is
+  // >= 2 on an axis. Used by the minDepthFromBoss BFS at placement time.
+  return !(a.gridX + a.width  - 1 < b.gridX - 1 ||
+           b.gridX + b.width  - 1 < a.gridX - 1 ||
+           a.gridY + a.height - 1 < b.gridY - 1 ||
+           b.gridY + b.height - 1 < a.gridY - 1)
 }

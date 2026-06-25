@@ -5,7 +5,7 @@
 //   Beat 1 (night): the real first-night build loop —
 //     1. place the ENTRY HALL (required; heroes enter here)
 //     2. place a BARRACKS (houses minions — gives the roster slots to place any)
-//     3. learn CONNECTION — rooms auto-link with doorways when placed touching;
+//     3. learn CONNECTION — rooms auto-link with doorways when placed ONE TILE APART;
 //        every room must reach the entry hall or the day can't begin
 //     4. place a MINION in the barracks
 //     5. BEGIN DAY (gated on DUNGEON_READINESS = entry hall + all rooms connected)
@@ -225,9 +225,9 @@ export class GuidedRun {
     if (await this._explain('WHY · BARRACKS', 'Barracks house your minions — without one you cannot deploy any.') === 'skip') return
     if (await this._openBuild('Open the build menu again') === 'skip') return
     await wait(240)
-    this._setPlace('connected')   // rail: can only place touching an existing room
+    this._setPlace('connected')   // rail: can only place where it connects (1 tile from an existing room)
     if (await this._coach(
-      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = touching the entry hall →', passThrough: true, lock: true },
+      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = 1 tile from the entry hall →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('starter_barracks')) === 'skip') return
     this._setPlace(null)
     await wait(450)

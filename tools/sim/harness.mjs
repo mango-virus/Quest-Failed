@@ -60,7 +60,9 @@ function placeOneTrap(scene, gs, grid, def) {
 // the entry's left and right edges. Their onNightStart behaviors (treasury
 // stipend, crypt garrison Risen Bones) then fire on the NIGHT we already emit.
 function attachRoom(grid, gs, def, anchor, side) {
-  const x = side === 'L' ? anchor.gridX - def.width : anchor.gridX + anchor.width
+  // Leave a ONE-TILE GAP between rooms — that gap is the connector under the
+  // 1-gap model (see ROOM_CONNECTIONS.md); touching no longer connects.
+  const x = side === 'L' ? anchor.gridX - def.width - 1 : anchor.gridX + anchor.width + 1
   const y = anchor.gridY
   if (x < 0 || y < 0) return null
   const room = grid.placeRoom(def, x, y, { noSnap: true, dungeonLevel: gs.boss?.level ?? 1 })
@@ -202,7 +204,7 @@ export function buildNight(scene, gs, grid) {
   const boss = gs.dungeon.rooms.find(r => r.definitionId === 'boss_chamber')
   if (!boss) return
   const entryDef = defOf('entry_hall')
-  const gy = boss.gridY - entryDef.height           // flush above the boss
+  const gy = boss.gridY - entryDef.height - 1        // one-tile gap above the boss
   grid.placeRoom(entryDef, boss.gridX, gy, { noSnap: true })
   for (let dx = 1; dx < entryDef.width - 1; dx++) grid.recheckAutoConnect?.(boss.gridX + dx, boss.gridY)
   openAllDoors(gs)

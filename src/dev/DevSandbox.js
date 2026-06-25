@@ -338,13 +338,14 @@ export function installDevSandbox(scene) {
       const dH = id => defOf(id)?.height ?? 8
       const dW = id => defOf(id)?.width  ?? 8
       const libH = dH('library_of_whispers')
-      // Library flush to the boss top row — auto-connects to the boss below.
-      const lib = place('library_of_whispers', bx, by - libH)
-      // Left of the boss: barracks flush to the left wall, trap factory above it.
-      // Placed BEFORE the entry so the entry's adaptive side-search can't land
-      // on top of them.
-      place('starter_barracks',    bx - dW('starter_barracks'), by + 2)
-      place('trap_factory',        bx - dW('trap_factory'),     by + 2 - dH('trap_factory'))
+      // Library a ONE-TILE GAP above the boss top row — auto-connects across the
+      // gap to the boss below (rooms now connect 1 tile apart, not flush).
+      const lib = place('library_of_whispers', bx, by - libH - 1)
+      // Left of the boss: barracks 1-gap from the left wall, trap factory 1-gap
+      // above it. Placed BEFORE the entry so the entry's adaptive side-search
+      // can't land on top of them.
+      place('starter_barracks',    bx - dW('starter_barracks') - 1, by + 2)
+      place('trap_factory',        bx - dW('trap_factory') - 1,     by + 1 - dH('trap_factory'))
       // Entry hall flush against the library. Prefer ABOVE it (the classic
       // column), but the boss can sit too close to the grid's top edge for a
       // full entry+library stack to fit — then the above-spot lands at a
@@ -355,10 +356,10 @@ export function installDevSandbox(scene) {
       if (lib) {
         const ew = dW('entry_hall'), eh = dH('entry_hall')
         for (const [gx, gy] of [
-          [lib.gridX,              lib.gridY - eh],          // N — classic column above
-          [lib.gridX + lib.width,  lib.gridY],               // E — right of library
-          [lib.gridX - ew,         lib.gridY],               // W — left of library
-          [lib.gridX,              lib.gridY + lib.height],  // S — below library
+          [lib.gridX,                  lib.gridY - eh - 1],       // N — classic column above (1-gap)
+          [lib.gridX + lib.width + 1,  lib.gridY],                // E — right of library (1-gap)
+          [lib.gridX - ew - 1,         lib.gridY],                // W — left of library (1-gap)
+          [lib.gridX,                  lib.gridY + lib.height + 1],// S — below library (1-gap)
         ]) { if (place('entry_hall', gx, gy)) break }
       }
 
@@ -369,7 +370,7 @@ export function installDevSandbox(scene) {
       try { required = gridApi.constructor.effectiveMaxPerDungeon?.(entryDef, g.boss?.level ?? 1) ?? 1 } catch (e) {}
       let rightY = by + 2
       while (rooms.filter(r => r.definitionId === 'entry_hall').length < required) {
-        const e = place('entry_hall', bx + boss.width, rightY)
+        const e = place('entry_hall', bx + boss.width + 1, rightY)   // 1-gap right of the boss
         if (!e) break
         gridApi.recheckAutoConnect?.(bx + boss.width - 1, rightY + 1)  // boss tile beside the new entry
         rightY += eh + 1

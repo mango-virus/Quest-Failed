@@ -53,7 +53,10 @@ const MORTAR           = 0x0a1420
 // on-screen the walls read as grey — not the navy WALL_BASE constant. This
 // is tuned to the mid-tone of that desaturated masonry (base bricks +
 // lighter capstones/cornerstones averaged). Replaced the `void_bg.png` tile.
-const VOID_BG_COLOR    = 0x2c2c30
+// Near-black so the empty void reads the SAME as the inter-room connectors
+// (CONNECTOR_BLACK is defined from this) — the connectors then blend into the
+// void and can't be seen, so rooms read as joined through one seamless dark.
+const VOID_BG_COLOR    = 0x06070d
 // The "deep dark" the bedrock fades INTO past the build space — so the player
 // never hits a hard bedrock→black-void edge. Matches Game's camera background
 // so the fade rim and the area beyond it are seamless. (Edge-fade work 2026-06-20.)
@@ -160,6 +163,7 @@ const INNER_COL_COUNT = COL_WIDTHS_FULL_WIDELEFT.length
 // Doorway palette — stone jambs (capstone-toned), dark passage interior,
 // and a worn threshold slab at the floor-side edge.
 const DOOR_PASSAGE_DARK   = 0x121826    // shaded passage interior, "stone shadow"
+const CONNECTOR_BLACK     = VOID_BG_COLOR  // identical to the void so connectors blend in / can't be seen
 const DOOR_PASSAGE_LIGHT  = 0x1f2940    // lit centre stripe of passage (worn footpath)
 const DOOR_THRESHOLD      = 0x4a5868    // worn stone sill where doorway meets floor
 const DOOR_THRESHOLD_HI   = 0x6a7888    // 1-px highlight along the threshold
@@ -390,6 +394,12 @@ export class DungeonRenderer {
     // visually frames entities passing underneath. The dark passage floor
     // and threshold stay on _gTiles (depth 1) so entities walk over them.
     this._gOverhead  = scene.add.graphics().setDepth(9)
+    // Inter-room CONNECTOR layer — the black gap connector draws here at depth
+    // 9.7: ABOVE the torch/ability light pools (LightingSystem LIGHT_DEPTH 9.5)
+    // so the additive glow can't brighten it (the connector stays pure black),
+    // still ABOVE entities (~7-8) so travellers pass under it, and below the
+    // void mask (12). See ROOM_CONNECTIONS.md.
+    this._gConnector = scene.add.graphics().setDepth(9.7)
     // Void mask — re-paints VOID tile fills on a layer ABOVE characters
     // (which sit at depth 7-8) so any sprite whose head intrudes into a
     // void cell gets occluded by the gap. Same colour family as _gBg so
@@ -442,6 +452,7 @@ export class DungeonRenderer {
     this._gIcon.clear()
     this._gCollision.clear()
     this._gOverhead.clear()
+    this._gConnector.clear()
     this._gVoidMask.clear()
 
     this._wallOrient = this._buildWallOrientation()
@@ -546,6 +557,7 @@ export class DungeonRenderer {
     this._gCollision.destroy()
     this._gIcon.destroy()
     this._gOverhead.destroy()
+    this._gConnector.destroy()
     this._gVoidMask.destroy()
   }
 
@@ -1681,16 +1693,16 @@ export class DungeonRenderer {
     return { paintedCol, paintedRow, rotDeg }
   }
 
-  // Find the cp on the room across the seam that pairs with this cp.
+  // Find the cp on the room across the gap that pairs with this cp.
   // Returns { pairedRoom, pairedCp } or null for external/unpaired cps.
-  // With no inter-room gap, the paired cp's room sits 1 cell outward from
-  // this cp; the matching cp anchors on the same dungeon coord.
+  // Rooms connect across a ONE-TILE GAP, so the paired cp's room sits 2 cells
+  // outward (across the connector) and its cp anchors on that cell.
   _findPairedCp(room, cp) {
     if (!cp || cp.external) return null
     const v = ({ N: { dx: 0, dy: -1 }, S: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, W: { dx: -1, dy: 0 } })[cp.direction]
     if (!v) return null
-    const ox = room.gridX + cp.x + v.dx
-    const oy = room.gridY + cp.y + v.dy
+    const ox = room.gridX + cp.x + 2 * v.dx
+    const oy = room.gridY + cp.y + 2 * v.dy
     const otherRoom = this._cellRoomMap?.get(`${ox},${oy}`) ||
       (this._gameState.dungeon.rooms ?? []).find(r =>
         ox >= r.gridX && ox < r.gridX + r.width && oy >= r.gridY && oy < r.gridY + r.height)
@@ -2630,45 +2642,28 @@ export class DungeonRenderer {
   // adjacent rooms' capstone bands seamlessly. The gap-facing edges get no
   // highlight/shadow because the neighbour walls' caps already provide the
   // visual line on those sides — accents only paint on edges facing void.
+  // The 1-tile inter-room CONNECTOR cell (in the gap, owned by no room). Drawn
+  // on _gConnector (depth 9.7 — above the torch light AND above entities) so the
+  // additive glow can't brighten it and travellers still pass UNDER it: a flat
+  // near-black tile the two rooms visibly join through. The `g` passed in is that
+  // layer. (Was a stone capstone bridge; now the black connector — see ROOM_CONNECTIONS.md.)
   _drawGapStubCap(g, px, py, tx, ty) {
     const tiles = this._gameState.dungeon.tiles
     const get = (cx, cy) => tiles?.[cy]?.[cx] ?? TILE.VOID
-    const isWallish = (t) => t === TILE.WALL || t === TILE.BOSS_WALL || t === TILE.DOOR || t === TILE.WALL_CAP
-    const wallN = isWallish(get(tx,     ty - 1))
-    const wallS = isWallish(get(tx,     ty + 1))
-    const wallW = isWallish(get(tx - 1, ty))
-    const wallE = isWallish(get(tx + 1, ty))
-    const vertical = (wallN && wallS) || (!wallW && !wallE)   // default to vertical when ambiguous
+    const isWallish = (t) => t === TILE.WALL || t === TILE.BOSS_WALL || t === TILE.WALL_CAP
 
-    // Base fill.
-    g.fillStyle(CAPSTONE_BASE, 1)
+    // Flat black body — the connector reads as a dark passage between rooms.
+    g.fillStyle(CONNECTOR_BLACK, 1)
     g.fillRect(px, py, TS, TS)
 
-    // Seams oriented along the walkway axis — vertical seams for vertical
-    // walkway, horizontal seams for horizontal walkway. Anchored to global
-    // coords so they line up across the gap and the neighbour walls.
-    g.fillStyle(CAPSTONE_SEAM, 0.7)
-    const SP = CAPSTONE_SEAM_SPACING
-    if (vertical) {
-      const first = Math.ceil(px / SP) * SP
-      for (let wx = first; wx < px + TS; wx += SP) {
-        if (wx > px) g.fillRect(wx, py, 1, TS)
-      }
-    } else {
-      const first = Math.ceil(py / SP) * SP
-      for (let wy = first; wy < py + TS; wy += SP) {
-        if (wy > py) g.fillRect(px, wy, TS, 1)
-      }
-    }
-
-    // Edge accents only on void-facing sides (skip wall-facing sides — the
-    // neighbouring wall's cap already paints its highlight/shadow there).
-    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.7)
-    if (!wallN) g.fillRect(px, py, TS, 1)
-    if (!wallW) g.fillRect(px, py, 1, TS)
-    g.fillStyle(CAPSTONE_SHADOW, 0.85)
-    if (!wallS) g.fillRect(px, py + TS - 1, TS, 1)
-    if (!wallE) g.fillRect(px + TS - 1, py, 1, TS)
+    // A faint inner highlight on the WALL-facing edges frames the mouth where
+    // the connector meets each opened wall (so the black tile doesn't merge
+    // invisibly into the wall shadow). Void-facing edges stay open/black.
+    g.fillStyle(CAPSTONE_HIGHLIGHT, 0.18)
+    if (isWallish(get(tx, ty - 1))) g.fillRect(px, py, TS, 1)
+    if (isWallish(get(tx, ty + 1))) g.fillRect(px, py + TS - 1, TS, 1)
+    if (isWallish(get(tx - 1, ty))) g.fillRect(px, py, 1, TS)
+    if (isWallish(get(tx + 1, ty))) g.fillRect(px + TS - 1, py, 1, TS)
   }
 
   // L-shaped capstone for a corner tile — two perpendicular bands that meet
@@ -3088,7 +3083,7 @@ export class DungeonRenderer {
       // as a continuation of the capstone band running over both walls.
       // Orientation matches the walkway axis so seams + edge accents line
       // up with the neighbour rooms' capstones on either side.
-      this._drawGapStubCap(over, px, py, x, y)
+      this._drawGapStubCap(this._gConnector, px, py, x, y)
       return
     }
     // For DOOR cells in a room's OUTER wall ring, repaint the outward

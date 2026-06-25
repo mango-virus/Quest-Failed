@@ -1,4 +1,5 @@
 import { Balance } from '../config/balance.js'
+import { EventBus } from './EventBus.js'
 
 // LightingSystem — VFX Frontier #2: fake dynamic lighting. Soft additive radial
 // light POOLS that brighten the dark dungeon floor and, crucially, FOLLOW their
@@ -106,7 +107,32 @@ export class LightingSystem {
     this._texSoft = this._enabled ? _ensureSoftTexture(scene) : null
     this._lights = new Map()   // id -> { sprite, follow, baseR, baseAlpha, pulse, seed }
     this._ephemeral = []       // { sprite } (self-cleaning via tween)
+    // Confine ALL light to within rooms — a geometry mask of every room's
+    // footprint, applied to each light sprite, so the additive glow never
+    // spills onto the inter-room connectors or the void. Rebuilt each update().
+    this._roomMaskG = scene.make.graphics({ add: false })
+    this._roomMask  = this._roomMaskG.createGeometryMask()
+    this._rebuildRoomMask()
+    // update() (mask rebuild) is dead during the night build phase, so refresh
+    // the mask whenever rooms change — otherwise a room placed at night gets no
+    // light (masked out) until the next day.
+    this._onRoomsChanged = () => this._rebuildRoomMask()
+    EventBus.on('ROOM_PLACED',  this._onRoomsChanged)
+    EventBus.on('ROOM_REMOVED', this._onRoomsChanged)
+    EventBus.on('ROOM_MOVED',   this._onRoomsChanged)
     if (this._enabled && this._tex) this._registerBossLight()
+  }
+
+  // Fill every room footprint (one rect per room — cheap) so the mask clips
+  // light to within rooms. Light on the wall ring stays; light beyond the
+  // room's edge (connectors, gaps, void) is masked away.
+  _rebuildRoomMask() {
+    const g = this._roomMaskG
+    if (!g) return
+    g.clear()
+    g.fillStyle(0xffffff, 1)
+    const rooms = this._gameState?.dungeon?.rooms ?? []
+    for (const r of rooms) g.fillRect(r.gridX * TS, r.gridY * TS, r.width * TS, r.height * TS)
   }
 
   // Make a tinted, additive radial pool sprite of pixel-radius r. `soft` picks
@@ -119,6 +145,7 @@ export class LightingSystem {
       .setTint(color)
       .setAlpha(alpha)
     spr.setScale(r / TEX_R)
+    if (this._roomMask) spr.setMask(this._roomMask)   // keep the glow within rooms
     return spr
   }
 
@@ -132,6 +159,7 @@ export class LightingSystem {
       .setTint(color)
       .setAlpha(alpha)
     spr.setScale((r * CORE_R_FRAC) / TEX_R)
+    if (this._roomMask) spr.setMask(this._roomMask)   // keep the bloom within rooms
     return spr
   }
 
@@ -235,6 +263,7 @@ export class LightingSystem {
 
   update() {
     if (!this._enabled) return
+    this._rebuildRoomMask()   // rooms may have been placed/moved/sold this frame
     const now = this._scene.time?.now ?? 0
     for (const [, rec] of this._lights) {
       // Externally-driven lights (no follow fn — e.g. torches) are positioned +
@@ -257,5 +286,9 @@ export class LightingSystem {
     this._lights.clear()
     for (const rec of this._ephemeral) { try { rec.sprite.destroy(); rec.core?.destroy() } catch (e) {} }
     this._ephemeral = []
+    EventBus.off('ROOM_PLACED',  this._onRoomsChanged)
+    EventBus.off('ROOM_REMOVED', this._onRoomsChanged)
+    EventBus.off('ROOM_MOVED',   this._onRoomsChanged)
+    try { this._roomMaskG?.destroy() } catch (e) {}
   }
 }
