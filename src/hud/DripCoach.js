@@ -34,6 +34,10 @@ const hasUpgradeableMinion = (gs) => {
   const evo = _evo(); if (!evo?.canUpgrade) return false
   return (gs.minions ?? []).some(m => m && m.faction === 'dungeon' && evo.canUpgrade(m))
 }
+// The kingdom has mapped at least one of your rooms (survivors leaked it) — so
+// there's now intel that can be SCRUBBED. sharedPool is the union of every
+// survivor's knowledge (KnowledgeSystem); `.rooms` is keyed by room instanceId.
+const kingdomKnowsRoom = (gs) => Object.keys(gs.knowledge?.sharedPool?.rooms ?? {}).length > 0
 
 const DRIPS = [
   { id: 'speed',   phase: 'day',                target: '.hc-spd',
@@ -58,9 +62,18 @@ const DRIPS = [
   // Intel — once a Library of Whispers is built, the next wave can be scouted.
   { id: 'intel',   phase: 'night', when: hasLibrary, target: '[data-tray-anchor="INTEL"]',
     eyebrow: 'INTEL',   text: 'Scout the coming wave — open Intel' },
-  // Pacts — event-driven; the dark-pact picker is a modal, so a top, non-blocking note.
-  { id: 'pacts',   on: 'SHOW_DARK_PACT', anchor: 'aboveBar', passThrough: true,
-    eyebrow: 'DARK PACT', text: 'A mighty boon with a dark price — choose one' },
+  // Scrub Intel — the OTHER side of intel: once the kingdom has mapped any of your
+  // rooms (a survivor leaked it), you can pay to SCRUB that knowledge clean. Points
+  // at the Knowledge button (where the per-room SCRUB action lives).
+  { id: 'scrubIntel', phase: 'night', when: kingdomKnowsRoom, target: '[data-tray-anchor="MAP"]',
+    eyebrow: 'SCRUB INTEL',
+    text: 'The kingdom has mapped your halls. Open Knowledge to SCRUB a room — pay gold to wipe what they know, and the next wave walks in blind' },
+  // Pacts — the dark-pact picker. Centered + dimmed "Got it" gate (user 2026-06-24):
+  // the full-screen coach-mark dim (z 4000) covers the picker (z 50) and blocks pact
+  // selection until acknowledged. allowSkip:false → "Got it" is the only way forward.
+  { id: 'pacts',   on: 'SHOW_DARK_PACT', allowSkip: false,
+    eyebrow: 'DARK PACT',
+    text: 'A mighty boon — always with a dark price. Read it, weigh it, then choose one. There is no taking it back.' },
   // Adventurer autonomy — they aren't scripted; they decide for themselves.
   { id: 'autonomy', on: 'ADVENTURER_ENTERED_DUNGEON', minDay: 2, anchor: 'aboveBar', passThrough: true,
     eyebrow: 'THEY THINK FOR THEMSELVES',
@@ -69,6 +82,18 @@ const DRIPS = [
   { id: 'knowledge', on: 'INTEL_LEAKED', anchor: 'aboveBar', passThrough: true,
     eyebrow: 'THE KINGDOM LEARNS',
     text: 'An escapee carried your secrets home — future raids route around what the kingdom now knows' },
+  // Returning heroes — adventurers you let escape come BACK, remembering everything.
+  { id: 'returningHeroes', on: 'VETERAN_APPROACHING', anchor: 'aboveBar', passThrough: true,
+    eyebrow: 'THEY CAME BACK',
+    text: 'A hero you let escape has returned — veterans remember your rooms and traps, hit harder, and pay double when they finally fall' },
+  // Bounties — a minion that racks up kills earns a kingdom bounty on its head.
+  { id: 'bounties', on: 'MINION_BOUNTY_POSTED', anchor: 'aboveBar', passThrough: true,
+    eyebrow: 'BOUNTY POSTED',
+    text: 'A minion killed enough to earn a kingdom bounty — hunters will come for its head. Cut them down in your halls and the gold is yours instead' },
+  // Random events — a day can be hijacked by a one-off twist (heist, rival, visitor).
+  { id: 'events', on: 'DUNGEON_EVENT_ANNOUNCED', anchor: 'aboveBar', passThrough: true,
+    eyebrow: 'A TWIST IN THE TALE',
+    text: 'Some days bring an EVENT — a heist, a rival dungeon, a strange visitor. Read the banner up top and bend your plan to it' },
   // Bestiary — survivors study your MINION types and return with counters.
   { id: 'minionCounter', phase: 'night', anchor: 'aboveBar', passThrough: true,
     when: (gs) => Object.keys(gs.knowledge?.sharedPool?.bestiary ?? {}).length > 0,
@@ -97,6 +122,9 @@ export class DripCoach {
     sub('SHOW_DARK_PACT',            () => setTimeout(() => this._tick(this._phase(), 'SHOW_DARK_PACT'), 300))
     sub('ADVENTURER_ENTERED_DUNGEON', () => this._tick(this._phase(), 'ADVENTURER_ENTERED_DUNGEON'))
     sub('INTEL_LEAKED',              () => this._tick(this._phase(), 'INTEL_LEAKED'))
+    sub('VETERAN_APPROACHING',       () => this._tick(this._phase(), 'VETERAN_APPROACHING'))
+    sub('MINION_BOUNTY_POSTED',      () => this._tick(this._phase(), 'MINION_BOUNTY_POSTED'))
+    sub('DUNGEON_EVENT_ANNOUNCED',   () => this._tick(this._phase(), 'DUNGEON_EVENT_ANNOUNCED'))
     // Player toggled Gameplay Hints in Settings — if they turned it back ON, evaluate
     // drips promptly. (Deferred so TutorialSystem syncs meta.tutorialEnabled first.
     // Turned OFF just re-ticks + bails on the tutorialEnabled gate — harmless.)
@@ -134,7 +162,7 @@ export class DripCoach {
       CoachMark.show({
         target: d.target, eyebrow: d.eyebrow, text: d.text,
         gesture: d.target ? 'tap' : undefined, anchor: d.anchor, passThrough: d.passThrough,
-        advance: 'next', nextLabel: 'Got it ›',
+        advance: 'next', nextLabel: 'Got it ›', allowSkip: d.allowSkip,
       })
       return                                  // one at a time
     }
