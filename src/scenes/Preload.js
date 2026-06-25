@@ -15,6 +15,10 @@ import { Balance } from '../config/balance.js'
 // (sheet.width / frameSize), since every boss × state pair ships with a
 // different number of frames.
 const DEFAULT_ROW_DIRS = ['down', 'up', 'left', 'right']
+// 8-direction minions (e.g. the PixelLab goblin) pack 8 rows in this order.
+// Auto-detected from sheet height in _registerMinionAnimations.
+const ROW_DIRS_8 = ['down', 'up', 'left', 'right',
+  'down-right', 'down-left', 'up-right', 'up-left']
 const DEFAULT_FRAME_SIZE = 64
 const BOSS_SKINS = [
   { id: 'beholder',  prefix: 'Beholder3' },
@@ -94,6 +98,9 @@ const MINION_FRAMES_128 = new Set([
   'demon1', 'demon2',
   'elder_slime1', 'elder_slime2', 'elder_slime3',
   'ent1', 'ent2', 'ent3',
+  'goblin1',   // PixelLab goblin-with-sword (80px art in 128 cells)
+  'goblin2',   // PixelLab Hooded Goblin / Cutpurse (84px art in 128 cells, 8-dir)
+  'goblin3',   // PixelLab Plunder King (80px art in 128 cells, 8-dir)
   'golem1', 'golem2',
   'rat1', 'rat2', 'rat3',
 ])
@@ -1340,10 +1347,14 @@ export class Preload extends Phaser.Scene {
         const tex = texture.source[0]
         const frameCount = Math.floor(tex.width / fs)
         if (frameCount < 1) continue
-        for (let row = 0; row < DEFAULT_ROW_DIRS.length; row++) {
+        // Row count is read from the sheet height: 8-row sheets get the 8
+        // directional anims, 4-row sheets the usual cardinals.
+        const rowCount = Math.floor(tex.height / fs)
+        const rowDirs  = rowCount >= 8 ? ROW_DIRS_8 : DEFAULT_ROW_DIRS
+        for (let row = 0; row < rowDirs.length; row++) {
           const start   = row * frameCount
           const end     = start + frameCount - 1
-          const animKey = `${sheetKey}-${DEFAULT_ROW_DIRS[row]}`
+          const animKey = `${sheetKey}-${rowDirs[row]}`
           if (this.anims.exists(animKey)) continue
           this.anims.create({
             key:       animKey,

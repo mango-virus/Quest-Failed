@@ -43,6 +43,14 @@ function _displayScaleFor(m, def) {
   // the T1 + inherited by the chain; the evolution tier-scale stacks on top.
   return def?.displayScale ?? 1.0
 }
+// 8-way facing for dir8 minions (sheets with diagonal rows). dx>0 = right/east,
+// dy>0 = down/south. Returns one of the 8 ROW_DIRS_8 direction names.
+function _facing8(dx, dy) {
+  const a   = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360   // 0=right, 90=down
+  const idx = Math.round(a / 45) % 8
+  return ['right', 'down-right', 'down', 'down-left',
+          'left', 'up-left', 'up', 'up-right'][idx]
+}
 const PLACEHOLDER_SIZE = 18
 const HURT_FLASH_MS    = 300
 const ATTACK_FLASH_MS  = 400
@@ -337,15 +345,18 @@ export class MinionRenderer {
         s.body?.setVisible?.(true)
       }
 
-      // Facing — snap to cardinal based on per-frame movement delta.
+      // Facing — snap based on per-frame movement delta. 8-way for dir8 minions
+      // (the PixelLab goblin), cardinal-only for everyone else.
+      const def = this._defMap[m.definitionId]
       if (s.lastX !== null) {
         const dx = m.worldX - s.lastX
         const dy = m.worldY - s.lastY
         const adx = Math.abs(dx), ady = Math.abs(dy)
         if (adx > 0.05 || ady > 0.05) {
-          s.facing = (adx > ady)
-            ? (dx > 0 ? 'right' : 'left')
-            : (dy > 0 ? 'down'  : 'up')
+          s.facing = def?.dir8
+            ? _facing8(dx, dy)
+            : (adx > ady) ? (dx > 0 ? 'right' : 'left')
+                          : (dy > 0 ? 'down'  : 'up')
         }
       }
       // Facing pin — night build-phase "face the camera" (sell/move/upgrade) and
@@ -380,8 +391,7 @@ export class MinionRenderer {
       // Anim prefix — final-form minions that reuse a boss texture set use the
       // boss anim prefix (bossSkinId-state-dir); everyone else uses the
       // standard minion-defId-state-dir prefix. Hoisted above the attack latch
-      // so it can resolve the attack key.
-      const def = this._defMap[m.definitionId]
+      // so it can resolve the attack key. (`def` is resolved up in the facing block.)
       const raisedPrefix = this._raisedDeadPrefix(m)
       const prefix = raisedPrefix
         ?? (def?.bossSkinId ? def.bossSkinId : `minion-${m.definitionId}`)
