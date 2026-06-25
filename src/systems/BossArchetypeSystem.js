@@ -2025,6 +2025,14 @@ export class BossArchetypeSystem {
     const now  = this._scene?.time?.now ?? 0
     const TS   = Balance.TILE_SIZE
 
+    // The signature quake MUST shake the screen. Fire it FIRST — directly on the
+    // live dungeon camera — so it lands even if a downstream VFX call throws (which
+    // EventBus would swallow, skipping the seismicSlamFx shake AND the trauma shake
+    // fired off GOLEM_EARTHQUAKE_FIRED). Also routes through the trauma system so it
+    // respects the player's shake setting and stacks with the per-room slam shakes.
+    try { this._scene?.cameras?.main?.shake?.(420 + tier * 40, 0.014 + tier * 0.002) } catch {}
+    try { this._scene?.screenShakeSystem?.shake?.('big') } catch {}
+
     const main = this._seismicHitRoom(room, tier, now, 1)
     // T4 Cataclysm — adjacent rooms convulse too (reduced).
     if (tier >= 4) {
