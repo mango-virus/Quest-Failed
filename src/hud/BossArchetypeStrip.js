@@ -48,6 +48,12 @@ export class BossArchetypeStrip {
     this._listeners = []
     this._golemArmed = false
     this._demonArmed = false
+    // Day-active abilities are usable only while the day sim is RUNNING.
+    // When the player sets speed to PAUSED (scale 0) the world freezes, so
+    // the ability buttons grey out and any armed ability is disarmed — you
+    // can't line up + fire abilities on frozen heroes. Tracks the speed bar's
+    // TIME_SCALE_SET broadcasts.
+    this._paused = false
     // Mount point — provided by HudRoot (BottomBar's slot ref). Falls
     // back to a floating strip on #hud-stage if no slot exists (e.g.
     // BottomBar hasn't built yet).
@@ -152,6 +158,8 @@ export class BossArchetypeStrip {
     sub('NIGHT_PHASE_STARTED', () => this._refresh())
     // The onboarding grants a one-time ability charge mid-day — re-read uses/resources.
     sub('BOSS_ARCH_STRIP_REFRESH', () => this._refresh())
+    // Speed bar — abilities lock out while the day sim is paused (scale 0).
+    sub('TIME_SCALE_SET', ({ scale }) => this._onTimeScale(scale))
     // Echo events from BossArchetypeSystem update our armed labels.
     sub('GOLEM_EARTHQUAKE_ARMED',    () => { this._golemArmed = true;  this._refresh() })
     sub('GOLEM_EARTHQUAKE_DISARMED', () => { this._golemArmed = false; this._refresh() })
@@ -204,6 +212,50 @@ export class BossArchetypeStrip {
     sub('MINION_PLACED',  () => this._refresh())
     sub('MINION_REMOVED', () => this._refresh())
     sub('MINION_DIED',    () => this._refresh())
+  }
+
+  // Each archetype's armed-flag + the DISARM event that tears down its
+  // room/minion-pick flow. Used to cancel an in-flight ability when the
+  // player pauses (only one archetype is ever active, but iterating is safe).
+  _armedSpecs() {
+    return [
+      [this._golemArmed,    'GOLEM_EARTHQUAKE_DISARM'],
+      [this._demonArmed,    'DEMON_SACRIFICE_DISARM'],
+      [this._lichArmed,     'LICH_CHANNEL_DISARM'],
+      [this._slimeArmed,    'SLIME_SURGE_DISARM'],
+      [this._beholderArmed, 'BEHOLDER_GAZE_DISARM'],
+      [this._orcArmed,      'ORC_TROPHY_THROW_DISARM'],
+      [this._myconidArmed,  'MYCONID_SEED_DISARM'],
+      [this._lizardArmed,   'LIZARD_SPIT_DISARM'],
+      [this._vampArmed,     'VAMPIRE_RITE_DISARM'],
+      [this._wraithArmed,   'WRAITH_TERROR_DISARM'],
+      [this._gnollArmed,    'GNOLL_HUNT_DISARM'],
+      [this._succubusArmed, 'SUCCUBUS_KISS_DISARM'],
+    ]
+  }
+
+  // All ability buttons, for the pause-state force-disable pass.
+  _allBtns() {
+    return [
+      this._golemBtn, this._demonBtn, this._lichBtn, this._slimeBtn,
+      this._beholderBtn, this._orcBtn, this._myconidBtn, this._lizardBtn,
+      this._vampBtn, this._wraithBtn, this._gnollBtn, this._succubusBtn,
+    ]
+  }
+
+  _onTimeScale(scale) {
+    if (typeof scale !== 'number') return
+    const paused = scale === 0
+    if (paused === this._paused) return
+    this._paused = paused
+    // Cancel any in-flight ability when entering pause so its world-space
+    // room/minion-pick handler stops listening for clicks.
+    if (paused) {
+      for (const [armed, disarmEvent] of this._armedSpecs()) {
+        if (armed) EventBus.emit(disarmEvent)
+      }
+    }
+    this._refresh()
   }
 
   _onGolemClick() {
@@ -387,6 +439,16 @@ export class BossArchetypeStrip {
       const uses = this._gs?.boss?._succubusKiss?.usesLeft ?? 0
       this._succubusBtn.textContent = this._succubusArmed ? 'PICK A ROOM' : `KISS OF RAPTURE · ${uses}`
       this._succubusBtn.disabled = !(uses > 0)
+    }
+
+    // While the day sim is paused, no ability is usable — force every visible
+    // button into the disabled (greyed, not-allowed) state regardless of
+    // uses/resources. Resuming re-runs _refresh via TIME_SCALE_SET, restoring
+    // each button's real enabled state.
+    if (this._paused) {
+      for (const btn of this._allBtns()) {
+        if (btn && btn.style.display !== 'none') btn.disabled = true
+      }
     }
   }
 
