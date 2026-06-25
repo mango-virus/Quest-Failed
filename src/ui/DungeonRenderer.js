@@ -664,6 +664,7 @@ export class DungeonRenderer {
     }
     this._drawDoorAprons()
     this._drawDoorSkins()
+    this._drawConnectorOccluders()
   }
 
   // ── Single-image door skins ───────────────────────────────────────────────────
@@ -3097,6 +3098,33 @@ export class DungeonRenderer {
     else if (db === 0) this._drawCapstoneBand(over, null, px, py + TS - CAPSTONE_W, TS, CAPSTONE_W, 'bottom')
     else if (dl === 0) this._drawCapstoneBand(over, null, px, py, CAPSTONE_W, TS, 'left')
     else if (dr === 0) this._drawCapstoneBand(over, null, px + TS - CAPSTONE_W, py, CAPSTONE_W, TS, 'right')
+  }
+
+  // Black walk-under for the 1-tile inter-room CONNECTOR gap ONLY. The gap cell
+  // sits in NO room (it's the void between two rooms that the connection joins).
+  // For SKINNED doors it lives inside the door-skin footprint, so the per-cell
+  // draw skips it and its black never gets painted — leaving a traveller visible
+  // in the gap. This pass paints it black on _gConnector (depth 9.7 — above the
+  // torch light AND above entities) independent of the door-skin path, so the
+  // traveller is hidden while crossing the gap. It deliberately touches NOTHING
+  // inside any room: the doorway openings, arches and door skins are untouched.
+  _drawConnectorOccluders() {
+    const { tiles, gridWidth: gw, gridHeight: gh } = this._gameState.dungeon
+    if (!tiles) return
+    const grid = this._scene?.dungeonGrid
+    const g = this._gConnector
+    if (!g) return
+    g.fillStyle(CONNECTOR_BLACK, 1)
+    for (let y = 0; y < gh; y++) {
+      const row = tiles[y]
+      if (!row) continue
+      for (let x = 0; x < gw; x++) {
+        if (row[x] !== TILE.DOOR) continue
+        if (grid?.getRoomAtTile?.(x, y)) continue   // in a room → it's a doorway opening, leave it ALONE
+        // no-room gap connector cell → black it (the only thing this pass touches)
+        g.fillRect(x * TS, y * TS, TS, TS)
+      }
+    }
   }
 
   // Per-frame door-open timer. The open SKIN already swapped to its open

@@ -2886,8 +2886,16 @@ export class AISystem {
           moved = true
         }
         if (inside) {
-          // Pure forward only inside the corridor.
-          if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
+          // Centre on the seam laterally FIRST (then forward). An entity that
+          // was already standing on the approach tile when it started crossing
+          // skips the `entering` lateral align below, so without this it would
+          // walk straight down the canonical column's centre — half a tile off
+          // the doorway middle. Correcting here keeps EVERY crossing dead-centre
+          // regardless of where it started. The seam target is stable, so this
+          // converges (no oscillation); the seam-tile guard below handles the
+          // ½-tile boundary.
+          if (Math.abs(lateralD) > ALIGN_EPS)      moveAxis(lateralKey, lateralD)
+          else if (Math.abs(forwardD) > ALIGN_EPS) moveAxis(forwardKey, forwardD)
         } else if (entering) {
           // Lateral first (while still outside the corridor), then forward.
           if (Math.abs(lateralD) > ALIGN_EPS)      moveAxis(lateralKey, lateralD)
