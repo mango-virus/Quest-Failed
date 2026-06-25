@@ -20,6 +20,7 @@
 import { EventBus }           from './EventBus.js'
 import { Balance }            from '../config/balance.js'
 import { applyMinionScaling } from '../entities/Minion.js'
+import { PlayerProfile }      from './PlayerProfile.js'
 
 export class MinionEvolutionSystem {
   constructor(scene, gameState) {
@@ -68,7 +69,10 @@ export class MinionEvolutionSystem {
   // Nights a family must have been unlocked to reach a given tier (T2=N, T3=2N…).
   _nightsForTier(tier) { return this._unlockNights * Math.max(0, tier - 1) }
   // Is `targetTier` night-unlocked for this minion's family yet?
+  // Cheat name (`mango`) bypasses the tier-unlock night-gate entirely so dev
+  // testing can upgrade any owned minion to any tier immediately.
   tierUnlockedByNight(minion, targetTier) {
+    if (PlayerProfile.isCheatName?.()) return true
     return this._nightsSinceUnlock(minion) >= this._nightsForTier(targetTier)
   }
   // Nights remaining until this minion's NEXT tier opens (0 = available now).
