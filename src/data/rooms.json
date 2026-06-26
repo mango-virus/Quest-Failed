@@ -578,7 +578,7 @@
         "tileLayout": [],
         "connectionPoints": [
             {
-                "x": 9,
+                "x": 8,
                 "y": 0,
                 "direction": "N",
                 "external": true,

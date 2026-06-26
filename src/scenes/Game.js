@@ -717,7 +717,16 @@ export class Game extends Phaser.Scene {
         ? { ...dcp, open: saved.open, opening: saved.opening, openProgress: saved.openProgress }
         : dcp
     })
-    const autoPairs = savedCPs.filter(s => !defCPs.some(dcp => sameSpot(dcp, s)))
+    // Auto-pair CPs (created by DungeonGrid._autoConnect when the room was
+    // placed next to a neighbour) are the only saved CPs we keep that aren't
+    // in the def. External / entrance CPs are template-defined — they come from
+    // the def, never from auto-connect (auto-pairs are always external:false).
+    // So a saved external/entrance CP that no longer matches a def CP means the
+    // def MOVED the entrance (e.g. re-centred it); keep only the def's new
+    // position, or the stale one survives as a phantom duplicate doorway.
+    const autoPairs = savedCPs.filter(s =>
+      !s.external && s.style !== 'entrance' &&
+      !defCPs.some(dcp => sameSpot(dcp, s)))
     room.connectionPoints = [...merged, ...autoPairs]
   }
 
