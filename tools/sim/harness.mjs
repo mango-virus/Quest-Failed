@@ -55,8 +55,9 @@ function placeOneTrap(scene, gs, grid, def) {
 }
 
 // ── Functional rooms — attach to the entry hall (the connect hub) ─────────────
-// The boss chamber resists lateral auto-connect, but non-boss rooms connect to
-// each other / the entry hall fine. So we chain functional rooms outward from
+// Under the midpoint rule any room only connects when its facing-wall center
+// aligns with the neighbour's, so the chain center-aligns each room on the
+// shared axis. So we chain functional rooms outward from
 // the entry's left and right edges. Their onNightStart behaviors (treasury
 // stipend, crypt garrison Risen Bones) then fire on the NIGHT we already emit.
 function attachRoom(grid, gs, def, anchor, side) {

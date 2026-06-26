@@ -37,5 +37,14 @@ console.log('\n[3] Wrong gap does not connect')
   ok(grid._computeAutoConnectPairs(touching).length === 0, 'touching (0-gap) → no auto-connect pair')
 }
 
+// Candidate C directly EAST of A, 1-gap: C.gridX = A.gridX + A.width + 1 = 37.
+const mkC = (gridY) => ({ definitionId: 'starter_barracks', instanceId: 'C', gridX: 37, gridY, width: 16, height: 12, connectionPoints: [] })
+
+console.log('\n[4] E/W adjacency obeys the same midpoint rule')
+{
+  ok(grid._computeAutoConnectPairs(mkC(40)).length === 1, 'aligned (centerY 45 match) → 1 connection (E/W axis)')
+  ok(grid._computeAutoConnectPairs(mkC(41)).length === 0, 'shifted +1 (centerY 46 ≠ 45) → no connection')
+}
+
 console.log(fails === 0 ? '\n✅ room-midpoint-connect-check: ALL PASS' : `\n❌ room-midpoint-connect-check: ${fails} FAILURE(S)`)
 process.exit(fails === 0 ? 0 : 1)

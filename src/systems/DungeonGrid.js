@@ -574,6 +574,9 @@ export class DungeonGrid {
   //   candidate WEST  of other: gx = o.gridX - w - 1
   // The off-axis coord aligns wall-centers via origin + floor((size-2)/2).
   findSnap(definition, gridX, gridY) {
+    // Assumes rooms are large enough that their wall-center cell clears their
+    // own mid-wall band; the smallest shipping room (12×12) does. A tiny room
+    // could snap to a spot the connect rule then rejects — none exist today.
     if (!definition) return null
     const w = definition.width, h = definition.height
     if (!w || !h) return null

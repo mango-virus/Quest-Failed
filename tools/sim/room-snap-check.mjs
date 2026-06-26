@@ -33,5 +33,12 @@ console.log('\n[3] Too far → no snap')
   ok(grid.findSnap(def, 20, 80) === null, 'drag far below → null')
 }
 
+console.log('\n[4] E/W axis snaps too')
+{
+  const s = grid.findSnap(def, 37, 41)   // 1 tile off in Y (within radius 1)
+  ok(s && s.gridX === 37 && s.gridY === 40, 'drag at (37,41) snaps to (37,40) — EAST of A')
+  ok(grid.findSnap(def, 37, 44) === null, 'drag at (37,44) (3 off) → null')
+}
+
 console.log(fails === 0 ? '\n✅ room-snap-check: ALL PASS' : `\n❌ room-snap-check: ${fails} FAILURE(S)`)
 process.exit(fails === 0 ? 0 : 1)

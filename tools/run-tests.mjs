@@ -26,6 +26,7 @@ const LINTS = [
   ['lint-content', 'tools/lint-content.mjs'],
   ['lint-vfx', 'tools/lint-vfx.mjs'],
   ['lint-hex', 'tools/lint-hex.mjs'],
+  ['lint-syntax', 'tools/lint-syntax.mjs'],
 ]
 
 let checks = readdirSync(new URL('sim/', import.meta.url))
