@@ -378,9 +378,6 @@
     "basic_boss_room": {
       "file": "assets/themes/roomskins/basic_boss_room.png"
     },
-    "treasure_room": {
-      "file": "assets/themes/roomskins/treasure_room.png"
-    },
     "12x12_3": {
       "file": "assets/themes/roomskins/12x12_3.png"
     },
@@ -419,6 +416,18 @@
     },
     "library": {
       "file": "assets/themes/roomskins/library.png"
+    },
+    "barracks_room": {
+      "file": "assets/themes/roomskins/barracks_room.png"
+    },
+    "treasure_room_1": {
+      "file": "assets/themes/roomskins/treasure_room_1.png"
+    },
+    "mimc_room": {
+      "file": "assets/themes/roomskins/mimc_room.png"
+    },
+    "trap_factory_1": {
+      "file": "assets/themes/roomskins/trap_factory_1.png"
     }
   },
   "doorSkins": {
@@ -522,20 +531,8 @@
     "entry_open_1": {
       "file": "assets/themes/doorskins/entry_open_1.png"
     },
-    "entry2_closed": {
-      "file": "assets/themes/doorskins/entry2_closed.png"
-    },
-    "entry2_open2": {
-      "file": "assets/themes/doorskins/entry2_open2.png"
-    },
-    "entry2_closed_2": {
-      "file": "assets/themes/doorskins/entry2_closed_2.png"
-    },
     "entry_open_final": {
       "file": "assets/themes/doorskins/entry_open_final.png"
-    },
-    "treasury_locked": {
-      "file": "assets/themes/doorskins/treasury_locked.png"
     },
     "entry_locked": {
       "file": "assets/themes/doorskins/entry_locked.png"
@@ -696,6 +693,58 @@
       "size": {
         "w": 4,
         "h": 2.6,
+        "nudge": 0
+      }
+    },
+    "barracks_closed": {
+      "file": "assets/themes/doorskins/barracks_closed.png"
+    },
+    "barracks_open": {
+      "file": "assets/themes/doorskins/barracks_open.png"
+    },
+    "barracks_locked": {
+      "file": "assets/themes/doorskins/barracks_locked.png",
+      "size": {
+        "w": 4,
+        "h": 2.1,
+        "nudge": 0
+      }
+    },
+    "treasure_door_closed": {
+      "file": "assets/themes/doorskins/treasure_door_closed.png"
+    },
+    "treasure_door_open": {
+      "file": "assets/themes/doorskins/treasure_door_open.png"
+    },
+    "treasure_door_closed_2": {
+      "file": "assets/themes/doorskins/treasure_door_closed_2.png",
+      "size": {
+        "w": 3.2,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "treasure_door_open_2": {
+      "file": "assets/themes/doorskins/treasure_door_open_2.png",
+      "size": {
+        "w": 3.2,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "trap_factory_open_1": {
+      "file": "assets/themes/doorskins/trap_factory_open_1.png",
+      "size": {
+        "w": 2.9,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "trap_factory_closed_1": {
+      "file": "assets/themes/doorskins/trap_factory_closed_1.png",
+      "size": {
+        "w": 2.9,
+        "h": 2.2,
         "nudge": 0
       }
     }
