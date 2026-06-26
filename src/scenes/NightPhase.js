@@ -2619,8 +2619,8 @@ export class NightPhase extends Phaser.Scene {
   }
   _onboardingConnectHint() {
     return this._gameState.meta?.guidedPlace === 'boss'
-      ? 'Leave a 1-tile gap by the boss to connect'
-      : 'Leave a 1-tile gap by another room to connect'
+      ? 'Line the room up with the middle of the boss chamber to connect'
+      : 'Line the room up with another room's middle to connect'
   }
 
   _confirmPlacement(tx, ty) {
