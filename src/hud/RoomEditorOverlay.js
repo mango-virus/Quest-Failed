@@ -512,12 +512,14 @@ export class RoomEditorOverlay {
           }, bossTargets.map((t) => h('option', { value: t.key, selected: t.key === bossTarget }, t.label))),
         ]) : null,
         ...(this.scene.uiDoorSkinTargets?.() ? [
-          h('span', { className: 'qf-redit__field-label' }, 'Room skin'),
-          h('select', {
-            className: 'qf-themes__theme-sel',
-            on: { change: (e) => this.scene.uiSetDoorSkinTarget?.(e.target.value) },
-          }, this.scene.uiDoorSkinTargets().map(t =>
-            h('option', { value: t.key, selected: t.key === this.scene.uiDoorSkinTarget() }, t.label))),
+          h('label', { className: 'qf-redit__field' }, [
+            h('span', { className: 'qf-redit__field-label' }, 'Room skin'),
+            h('select', {
+              className: 'qf-redit__select',
+              on: { change: (e) => this.scene.uiSetDoorSkinTarget?.(e.target.value) },
+            }, this.scene.uiDoorSkinTargets().map(t =>
+              h('option', { value: t.key, selected: t.key === this.scene.uiDoorSkinTarget() }, t.label))),
+          ]),
         ] : []),
         h('span', { className: 'qf-redit__field-label' }, 'Door state'),
         this._segment(DOOR_STATES.map((d) => ({ val: d.key, label: d.label })), cur,
