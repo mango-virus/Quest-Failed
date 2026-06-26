@@ -55,15 +55,18 @@ function placeOneTrap(scene, gs, grid, def) {
 }
 
 // ── Functional rooms — attach to the entry hall (the connect hub) ─────────────
-// The boss chamber resists lateral auto-connect, but non-boss rooms connect to
-// each other / the entry hall fine. So we chain functional rooms outward from
+// Under the midpoint rule any room only connects when its facing-wall center
+// aligns with the neighbour's, so the chain center-aligns each room on the
+// shared axis. So we chain functional rooms outward from
 // the entry's left and right edges. Their onNightStart behaviors (treasury
 // stipend, crypt garrison Risen Bones) then fire on the NIGHT we already emit.
 function attachRoom(grid, gs, def, anchor, side) {
   // Leave a ONE-TILE GAP between rooms — that gap is the connector under the
   // 1-gap model (see ROOM_CONNECTIONS.md); touching no longer connects.
   const x = side === 'L' ? anchor.gridX - def.width - 1 : anchor.gridX + anchor.width + 1
-  const y = anchor.gridY
+  // Center-align on the shared (vertical) axis so the facing-wall MIDPOINTS
+  // coincide — required for a connection under the midpoint rule.
+  const y = anchor.gridY + Math.floor((anchor.height - 2) / 2) - Math.floor((def.height - 2) / 2)
   if (x < 0 || y < 0) return null
   const room = grid.placeRoom(def, x, y, { noSnap: true, dungeonLevel: gs.boss?.level ?? 1 })
   if (!room) return null
@@ -205,8 +208,9 @@ export function buildNight(scene, gs, grid) {
   if (!boss) return
   const entryDef = defOf('entry_hall')
   const gy = boss.gridY - entryDef.height - 1        // one-tile gap above the boss
-  grid.placeRoom(entryDef, boss.gridX, gy, { noSnap: true })
-  for (let dx = 1; dx < entryDef.width - 1; dx++) grid.recheckAutoConnect?.(boss.gridX + dx, boss.gridY)
+  const ex = boss.gridX + Math.floor((boss.width - 2) / 2) - Math.floor((entryDef.width - 2) / 2)
+  grid.placeRoom(entryDef, ex, gy, { noSnap: true })
+  for (let dx = 1; dx < entryDef.width - 1; dx++) grid.recheckAutoConnect?.(ex + dx, boss.gridY)
   openAllDoors(gs)
 }
 

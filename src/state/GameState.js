@@ -103,7 +103,7 @@ export function createGameState(
       // Must match SaveSystem CURRENT_VERSION, or new saves fail the load
       // version check and get discarded. Bumped to 1.2.0 with the room
       // connection-model change (see ROOM_CONNECTIONS.md).
-      version: '1.2.0',
+      version: '1.4.0',
       dayNumber: 1,
       bossDefeatedCount: 0,
       runId: _generateRunId(),

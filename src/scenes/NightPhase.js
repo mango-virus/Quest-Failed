@@ -1668,7 +1668,9 @@ export class NightPhase extends Phaser.Scene {
         const rotDef = this._getRotatedDef(this._selected)
         tx = Math.round(wp.x / TS - rotDef.width  / 2)
         ty = Math.round(wp.y / TS - rotDef.height / 2)
-        // Free placement — no snap. Doors auto-create at adjacency time.
+        // Snap onto the center-aligned, 1-gap connecting spot when near one.
+        const snapped = this._dungeonGrid.findSnap?.(rotDef, tx, ty)
+        if (snapped) { tx = snapped.gridX; ty = snapped.gridY }
       } else if (this._selectedKind === 'trap') {
         const fp = this._selected.footprint ?? { w: 1, h: 1 }
         if (fp.w > 1 || fp.h > 1) {
@@ -2617,8 +2619,8 @@ export class NightPhase extends Phaser.Scene {
   }
   _onboardingConnectHint() {
     return this._gameState.meta?.guidedPlace === 'boss'
-      ? 'Leave a 1-tile gap by the boss to connect'
-      : 'Leave a 1-tile gap by another room to connect'
+      ? 'Line the room up with the middle of the boss chamber to connect'
+      : "Line the room up with another room's middle to connect"
   }
 
   _confirmPlacement(tx, ty) {

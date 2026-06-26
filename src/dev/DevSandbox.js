@@ -337,15 +337,22 @@ export function installDevSandbox(scene) {
       // fail to place. Each room is laid flush against the boss's outer wall.
       const dH = id => defOf(id)?.height ?? 8
       const dW = id => defOf(id)?.width  ?? 8
+      // Center-align helper: for a room placed N/S of anchor (sharing the vertical
+      // axis), align gx so both wall midpoints coincide. For E/W, align gy.
+      const cAlignX = (anchorRoom, defId) =>
+        anchorRoom.gridX + Math.floor((anchorRoom.width  - 2) / 2) - Math.floor((dW(defId) - 2) / 2)
+      const cAlignY = (anchorRoom, defId) =>
+        anchorRoom.gridY + Math.floor((anchorRoom.height - 2) / 2) - Math.floor((dH(defId) - 2) / 2)
       const libH = dH('library_of_whispers')
       // Library a ONE-TILE GAP above the boss top row — auto-connects across the
       // gap to the boss below (rooms now connect 1 tile apart, not flush).
-      const lib = place('library_of_whispers', bx, by - libH - 1)
+      // Center-align on the X axis so facing wall midpoints coincide.
+      const lib = place('library_of_whispers', cAlignX(boss, 'library_of_whispers'), by - libH - 1)
       // Left of the boss: barracks 1-gap from the left wall, trap factory 1-gap
       // above it. Placed BEFORE the entry so the entry's adaptive side-search
-      // can't land on top of them.
-      place('starter_barracks',    bx - dW('starter_barracks') - 1, by + 2)
-      place('trap_factory',        bx - dW('trap_factory') - 1,     by + 1 - dH('trap_factory'))
+      // can't land on top of them. Center-align on the Y axis (E/W neighbours).
+      place('starter_barracks', bx - dW('starter_barracks') - 1, cAlignY(boss, 'starter_barracks'))
+      place('trap_factory',     bx - dW('trap_factory') - 1,     cAlignY(boss, 'trap_factory'))
       // Entry hall flush against the library. Prefer ABOVE it (the classic
       // column), but the boss can sit too close to the grid's top edge for a
       // full entry+library stack to fit — then the above-spot lands at a
@@ -353,13 +360,14 @@ export function installDevSandbox(scene) {
       // (the old bug). So fall back to the library's E / W / S side, taking the
       // first in-bounds, non-overlapping spot. placeRoom auto-connects whichever
       // side lands, so the entry always wires into the library.
+      // Each candidate is center-aligned on the shared axis.
       if (lib) {
         const ew = dW('entry_hall'), eh = dH('entry_hall')
         for (const [gx, gy] of [
-          [lib.gridX,                  lib.gridY - eh - 1],       // N — classic column above (1-gap)
-          [lib.gridX + lib.width + 1,  lib.gridY],                // E — right of library (1-gap)
-          [lib.gridX - ew - 1,         lib.gridY],                // W — left of library (1-gap)
-          [lib.gridX,                  lib.gridY + lib.height + 1],// S — below library (1-gap)
+          [cAlignX(lib, 'entry_hall'),   lib.gridY - eh - 1],       // N — classic column above (1-gap)
+          [lib.gridX + lib.width + 1,    cAlignY(lib, 'entry_hall')],// E — right of library (1-gap)
+          [lib.gridX - ew - 1,           cAlignY(lib, 'entry_hall')],// W — left of library (1-gap)
+          [cAlignX(lib, 'entry_hall'),   lib.gridY + lib.height + 1],// S — below library (1-gap)
         ]) { if (place('entry_hall', gx, gy)) break }
       }
 
@@ -368,7 +376,8 @@ export function installDevSandbox(scene) {
       const entryDef = defOf('entry_hall'); const eh = entryDef?.height ?? 8
       let required = 1
       try { required = gridApi.constructor.effectiveMaxPerDungeon?.(entryDef, g.boss?.level ?? 1) ?? 1 } catch (e) {}
-      let rightY = by + 2
+      // Center-align on the Y axis for E/W placement against the boss.
+      let rightY = cAlignY(boss, 'entry_hall')
       while (rooms.filter(r => r.definitionId === 'entry_hall').length < required) {
         const e = place('entry_hall', bx + boss.width + 1, rightY)   // 1-gap right of the boss
         if (!e) break

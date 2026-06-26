@@ -564,11 +564,39 @@ export class DungeonGrid {
     return { valid: violations.length === 0, violations }
   }
 
-  // Free placement — rooms no longer snap. Doors are auto-created at
-  // adjacency time (see _autoConnect). Kept as a no-op for callers that
-  // still ask for a snap; they all handle null cleanly.
-  findSnap(_definition, _gridX, _gridY) {
-    return null
+  // Snap a dragged/moved room onto the center-aligned, 1-tile-gap connecting
+  // spot relative to the nearest placed room, if the cursor position is within
+  // SNAP_RADIUS of it. Returns { gridX, gridY } or null (free placement).
+  // Geometry mirrors _computeAutoConnectPairs' adjacency tests exactly:
+  //   candidate SOUTH of other: gy = o.gridY + o.height + 1
+  //   candidate NORTH of other: gy = o.gridY - h - 1
+  //   candidate EAST  of other: gx = o.gridX + o.width  + 1
+  //   candidate WEST  of other: gx = o.gridX - w - 1
+  // The off-axis coord aligns wall-centers via origin + floor((size-2)/2).
+  findSnap(definition, gridX, gridY) {
+    // Assumes rooms are large enough that their wall-center cell clears their
+    // own mid-wall band; the smallest shipping room (12×12) does. A tiny room
+    // could snap to a spot the connect rule then rejects — none exist today.
+    if (!definition) return null
+    const w = definition.width, h = definition.height
+    if (!w || !h) return null
+    const cOff = (size) => Math.floor((size - 2) / 2)   // center offset along an axis
+    let best = null, bestDist = Infinity
+    for (const o of this._d.rooms ?? []) {
+      const alignX = o.gridX + cOff(o.width)  - cOff(w)   // gx so X-centers coincide
+      const alignY = o.gridY + cOff(o.height) - cOff(h)   // gy so Y-centers coincide
+      const spots = [
+        { gx: alignX, gy: o.gridY + o.height + 1 },   // S of o
+        { gx: alignX, gy: o.gridY - h - 1 },          // N of o
+        { gx: o.gridX + o.width + 1, gy: alignY },    // E of o
+        { gx: o.gridX - w - 1,       gy: alignY },    // W of o
+      ]
+      for (const s of spots) {
+        const d = Math.abs(s.gx - gridX) + Math.abs(s.gy - gridY)
+        if (d <= SNAP_RADIUS && d < bestDist) { bestDist = d; best = { gridX: s.gx, gridY: s.gy } }
+      }
+    }
+    return best
   }
 
   getRoomAtTile(tileX, tileY) {
@@ -1214,22 +1242,22 @@ export class DungeonGrid {
                       other.gridY   + other.height   - WT - 2)
       }
       if (lo > hi) continue
-      // Boss connection — the boss chamber's one allowed door must sit at
-      // the exact centre of one of its four walls (no off-centre doors).
-      // Force wcenter to the midpoint of the boss wall and skip the pair
-      // entirely if that midpoint isn't reachable from the other room (i.e.
-      // the rooms are offset such that the boss wall centre falls outside
-      // the overlap or outside the other room's mid-wall band).
-      const bossRoom = isBossNew ? newRoom : (isBossOther ? other : null)
-      let wcenter
-      if (bossRoom) {
-        const sz     = oxRange ? bossRoom.width  : bossRoom.height
-        const origin = oxRange ? bossRoom.gridX  : bossRoom.gridY
-        wcenter = origin + Math.floor((sz - 2) / 2)
-        if (wcenter < lo || wcenter > hi) continue
+      // Connection is allowed ONLY when both facing walls' MIDPOINTS coincide
+      // on the same cell (the boss rule, now universal). Each room's wall-center
+      // cell (the lower-coord cell of its 2-wide door) uses the boss formula
+      // origin + floor((size - 2) / 2). If the centers differ, or the shared
+      // center falls outside the legal mid-wall band [lo,hi], no door forms.
+      let centerNew, centerOther
+      if (oxRange) {
+        centerNew   = newRoom.gridX + Math.floor((newRoom.width  - 2) / 2)
+        centerOther = other.gridX   + Math.floor((other.width    - 2) / 2)
       } else {
-        wcenter = Math.floor((lo + hi) / 2)
+        centerNew   = newRoom.gridY + Math.floor((newRoom.height - 2) / 2)
+        centerOther = other.gridY   + Math.floor((other.height   - 2) / 2)
       }
+      if (centerNew !== centerOther) continue
+      const wcenter = centerNew
+      if (wcenter < lo || wcenter > hi) continue
 
       let cpNew, cpOther
       if (oxRange) {

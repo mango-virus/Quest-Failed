@@ -227,7 +227,7 @@ export class GuidedRun {
     await wait(240)
     this._setPlace('connected')   // rail: can only place where it connects (1 tile from an existing room)
     if (await this._coach(
-      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = 1 tile from the entry hall →', passThrough: true, lock: true },
+      { target: () => this._roomCard('Barracks'), eyebrow: 'STEP 2 · BARRACKS', text: 'Drop it where it glows green', gesture: 'tap', advance: 'hold', hint: 'Green = lined up with the entry hall →', passThrough: true, lock: true },
       'ROOM_PLACED', this._placedRoom('starter_barracks')) === 'skip') return
     this._setPlace(null)
     await wait(450)
@@ -235,10 +235,10 @@ export class GuidedRun {
     // ── 3. Connection — rooms auto-link with doorways when placed ONE TILE
     //      APART (touching is rejected; the 1-tile gap becomes the connector) ─
     if (this._ready) {
-      if (await this._coach({ eyebrow: 'CONNECTED', text: 'See? A one-tile gap links rooms with a doorway', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
+      if (await this._coach({ eyebrow: 'CONNECTED', text: 'See? Rooms snap together at their middles to link up', advance: 'next', nextLabel: 'Got it ›' }) === 'skip') return
     } else {
       if (await this._coach(
-        { eyebrow: 'CONNECT THE ROOMS', text: 'Place rooms one tile apart so doorways link them', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
+        { eyebrow: 'CONNECT THE ROOMS', text: 'Line rooms up by their middles — they snap together with a doorway', advance: 'hold', passThrough: true, hint: 'Connect every room →' },
         'DUNGEON_READINESS', this._isReady()) === 'skip') return
     }
 
