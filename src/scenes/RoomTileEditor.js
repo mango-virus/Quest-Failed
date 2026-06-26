@@ -419,6 +419,8 @@ export class RoomTileEditor extends Phaser.Scene {
       doorSkinSize:    room.doorSkinSize ? structuredClone(room.doorSkinSize) : null,
       doorSkinEntrance:     room.doorSkinEntrance ? structuredClone(room.doorSkinEntrance) : null,
       doorSkinSizeEntrance: room.doorSkinSizeEntrance ? structuredClone(room.doorSkinSizeEntrance) : null,
+      doorSkinBySkin:         room.doorSkinBySkin ? structuredClone(room.doorSkinBySkin) : null,
+      doorSkinEntranceBySkin: room.doorSkinEntranceBySkin ? structuredClone(room.doorSkinEntranceBySkin) : null,
       colorAdjust:     room.colorAdjust ? structuredClone(room.colorAdjust) : null,
       connectionPoints: structuredClone(room.connectionPoints ?? []),
       theme:           room.theme ?? null,
@@ -460,6 +462,8 @@ export class RoomTileEditor extends Phaser.Scene {
       room.doorSkinSize    = snap.doorSkinSize
       room.doorSkinEntrance     = snap.doorSkinEntrance
       room.doorSkinSizeEntrance = snap.doorSkinSizeEntrance
+      room.doorSkinBySkin         = snap.doorSkinBySkin
+      room.doorSkinEntranceBySkin = snap.doorSkinEntranceBySkin
       room.colorAdjust     = snap.colorAdjust
       room.connectionPoints = snap.connectionPoints
       room.theme           = snap.theme
@@ -2729,6 +2733,19 @@ export class RoomTileEditor extends Phaser.Scene {
         }
         const dsb = pruneSkinByBoss(r.doorSkinByBoss)
         if (dsb) cleaned.doorSkinByBoss = dsb; else delete cleaned.doorSkinByBoss
+        // Per-room-skin door overrides: drop entries whose skin left the pool,
+        // then prune empty state-maps (reuses pruneSkinByBoss — same shape).
+        const _pool = new Set(Array.isArray(r.backgroundImagePool) ? r.backgroundImagePool : [])
+        const pruneBySkin = (m) => {
+          if (!m || typeof m !== 'object') return null
+          const kept = {}
+          for (const [skin, states] of Object.entries(m)) if (_pool.has(skin)) kept[skin] = states
+          return pruneSkinByBoss(kept)
+        }
+        const dbs = pruneBySkin(r.doorSkinBySkin)
+        if (dbs) cleaned.doorSkinBySkin = dbs; else delete cleaned.doorSkinBySkin
+        const debs = pruneBySkin(r.doorSkinEntranceBySkin)
+        if (debs) cleaned.doorSkinEntranceBySkin = debs; else delete cleaned.doorSkinEntranceBySkin
         return cleaned
       })
       // 4-space to match the committed rooms.json format (writeJson would emit
