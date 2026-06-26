@@ -17,6 +17,7 @@ import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
 import { carveDoorOpening, fillDoorTopOccluder, buildDoorSkyMask, shadePassageInterior } from '../util/doorSkinCarve.js'
+import { resolveDoorSkinId } from './doorSkinResolve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -717,11 +718,10 @@ export class DungeonRenderer {
   // connecting), WITHOUT the global default — lets size resolution tell an
   // explicit room skin from one that fell through to the default.
   _roomOwnDoorSkinId(room, state, cp = null) {
-    const boss = this._gameState?.player?.bossArchetypeId
-    let id = null
-    if (this._cpIsEntrance(cp)) id = room.doorSkinEntrance?.[state] || null
-    if (!id) id = (boss && room.doorSkinByBoss?.[boss]?.[state]) || room.doorSkin?.[state] || null
-    return id
+    return resolveDoorSkinId(room, state, {
+      isEntrance: this._cpIsEntrance(cp),
+      boss: this._gameState?.player?.bossArchetypeId,
+    })
   }
   // True when this cp's door has a skin for its current state — used to
   // suppress the sliced / procedural door so the single image stands alone.
