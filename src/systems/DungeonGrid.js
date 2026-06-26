@@ -564,11 +564,36 @@ export class DungeonGrid {
     return { valid: violations.length === 0, violations }
   }
 
-  // Free placement — rooms no longer snap. Doors are auto-created at
-  // adjacency time (see _autoConnect). Kept as a no-op for callers that
-  // still ask for a snap; they all handle null cleanly.
-  findSnap(_definition, _gridX, _gridY) {
-    return null
+  // Snap a dragged/moved room onto the center-aligned, 1-tile-gap connecting
+  // spot relative to the nearest placed room, if the cursor position is within
+  // SNAP_RADIUS of it. Returns { gridX, gridY } or null (free placement).
+  // Geometry mirrors _computeAutoConnectPairs' adjacency tests exactly:
+  //   candidate SOUTH of other: gy = o.gridY + o.height + 1
+  //   candidate NORTH of other: gy = o.gridY - h - 1
+  //   candidate EAST  of other: gx = o.gridX + o.width  + 1
+  //   candidate WEST  of other: gx = o.gridX - w - 1
+  // The off-axis coord aligns wall-centers via origin + floor((size-2)/2).
+  findSnap(definition, gridX, gridY) {
+    if (!definition) return null
+    const w = definition.width, h = definition.height
+    if (!w || !h) return null
+    const cOff = (size) => Math.floor((size - 2) / 2)   // center offset along an axis
+    let best = null, bestDist = Infinity
+    for (const o of this._d.rooms ?? []) {
+      const alignX = o.gridX + cOff(o.width)  - cOff(w)   // gx so X-centers coincide
+      const alignY = o.gridY + cOff(o.height) - cOff(h)   // gy so Y-centers coincide
+      const spots = [
+        { gx: alignX, gy: o.gridY + o.height + 1 },   // S of o
+        { gx: alignX, gy: o.gridY - h - 1 },          // N of o
+        { gx: o.gridX + o.width + 1, gy: alignY },    // E of o
+        { gx: o.gridX - w - 1,       gy: alignY },    // W of o
+      ]
+      for (const s of spots) {
+        const d = Math.abs(s.gx - gridX) + Math.abs(s.gy - gridY)
+        if (d <= SNAP_RADIUS && d < bestDist) { bestDist = d; best = { gridX: s.gx, gridY: s.gy } }
+      }
+    }
+    return best
   }
 
   getRoomAtTile(tileX, tileY) {
