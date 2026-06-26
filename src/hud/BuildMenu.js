@@ -526,11 +526,13 @@ export class BuildMenu {
       // bsh-vis slot stays empty; h() skips null children).
       const src = roomCardSkinSrc(def)
       if (!src) return null
-      const MAX_W = 120, MAX_H = 64
       const img = document.createElement('img')
       img.style.display = 'block'
       img.style.imageRendering = 'auto'   // smooth downscale — skins are detailed art, not pixel art
-      img.style.maxWidth = `${MAX_W}px`; img.style.maxHeight = `${MAX_H}px`
+      // Fill the card's icon area (.bsh-vis) — cap at the container on both
+      // axes, aspect preserved, so the skin art fills the card instead of
+      // floating in empty space.
+      img.style.maxWidth = '100%'; img.style.maxHeight = '100%'
       img.style.width = 'auto'; img.style.height = 'auto'; img.style.objectFit = 'contain'
       img.className = 'qf-snap qf-snap-room'
       img.onerror = () => { img.style.display = 'none' }
