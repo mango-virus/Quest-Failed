@@ -483,6 +483,7 @@ export class RoomTileEditor extends Phaser.Scene {
   uiListRoomSkins() {
     return ThemeManager.listRoomSkins().map(s => ({ id: s.id, thumb: this._texThumb(roomSkinTextureKey(s.id)) }))
   }
+  uiRoomSkinThumb(id) { return id ? this._texThumb(roomSkinTextureKey(id)) : null }
   // ── Skin targets ────────────────────────────────────────────────────────────
   // The boss chamber can hold a unique skin per boss. The active "skin target"
   // is 'default' (room.backgroundImage) or a boss archetype id (a key in

@@ -511,6 +511,14 @@ export class RoomEditorOverlay {
             on: { change: (e) => this.scene.uiSetSkinTarget?.(e.target.value) },
           }, bossTargets.map((t) => h('option', { value: t.key, selected: t.key === bossTarget }, t.label))),
         ]) : null,
+        ...(this.scene.uiDoorSkinTargets?.() ? [
+          h('span', { className: 'qf-redit__field-label' }, 'Room skin'),
+          h('select', {
+            className: 'qf-themes__theme-sel',
+            on: { change: (e) => this.scene.uiSetDoorSkinTarget?.(e.target.value) },
+          }, this.scene.uiDoorSkinTargets().map(t =>
+            h('option', { value: t.key, selected: t.key === this.scene.uiDoorSkinTarget() }, t.label))),
+        ] : []),
         h('span', { className: 'qf-redit__field-label' }, 'Door state'),
         this._segment(DOOR_STATES.map((d) => ({ val: d.key, label: d.label })), cur,
           (v) => this.scene.uiSetDoorState?.(v)),
@@ -1019,8 +1027,11 @@ export class RoomEditorOverlay {
     const curThumb = current ? (skins.find((s) => s.id === current)?.thumb) : null
     const doorState = this.scene.uiDoorState?.() || 'closed'
     // The room's own background art (used as the preview's floor) + its dims.
-    const bgId = this.scene.uiCurrentRoomSkin?.()
-    const bgThumb = bgId ? (this.scene.uiListRoomSkins?.() || []).find((s) => s.id === bgId)?.thumb : null
+    // When a specific pool skin is the door target, preview the pairing on
+    // THAT skin's room art; else the room's current/default skin.
+    const _dsTarget = this.scene.uiDoorSkinTarget?.()
+    const _bgSkinId = (_dsTarget && _dsTarget !== '__all__') ? _dsTarget : this.scene.uiCurrentRoomSkin?.()
+    const bgThumb = _bgSkinId ? this.scene.uiRoomSkinThumb?.(_bgSkinId) : null
     const roomW = st.activeRoom?.width || 14
     const roomH = st.activeRoom?.height || 10
     const targets = this.scene.uiSkinTargets?.()
@@ -1069,6 +1080,14 @@ export class RoomEditorOverlay {
             className: 'qf-themes__theme-sel',
             on: { change: (e) => { this.scene.uiSetSkinTarget?.(e.target.value); this._renderDoorSkins() } },
           }, targets.map((t) => h('option', { value: t.key, selected: t.key === curTarget }, t.label))) : null,
+          ...(this.scene.uiDoorSkinTargets?.() ? [
+            h('span', { className: 'qf-skins__roomnote' }, '·  Room skin:'),
+            h('select', {
+              className: 'qf-themes__theme-sel',
+              on: { change: (e) => { this.scene.uiSetDoorSkinTarget?.(e.target.value); this._renderDoorSkins() } },
+            }, this.scene.uiDoorSkinTargets().map(t =>
+              h('option', { value: t.key, selected: t.key === this.scene.uiDoorSkinTarget() }, t.label))),
+          ] : []),
         ]),
         h('div', { className: 'qf-themes__head-right' }, [
           h('button', { className: 'qf-themes__close', title: 'Close', on: { click: () => this.closeDoorSkins() } }, '✕'),
