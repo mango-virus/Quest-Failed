@@ -774,6 +774,8 @@ export class Game extends Phaser.Scene {
     room.doorApronByBoss = (def.doorApronByBoss && typeof def.doorApronByBoss === 'object') ? def.doorApronByBoss : null
     room.doorSkin        = (def.doorSkin && typeof def.doorSkin === 'object') ? def.doorSkin : null
     room.doorSkinByBoss  = (def.doorSkinByBoss && typeof def.doorSkinByBoss === 'object') ? def.doorSkinByBoss : null
+    room.doorSkinBySkin         = (def.doorSkinBySkin && typeof def.doorSkinBySkin === 'object') ? def.doorSkinBySkin : null
+    room.doorSkinEntranceBySkin = (def.doorSkinEntranceBySkin && typeof def.doorSkinEntranceBySkin === 'object') ? def.doorSkinEntranceBySkin : null
     room.doorSkinSize    = (def.doorSkinSize && typeof def.doorSkinSize === 'object') ? def.doorSkinSize : null
     room.doorSkinEntrance     = (def.doorSkinEntrance && typeof def.doorSkinEntrance === 'object') ? def.doorSkinEntrance : null
     room.doorSkinSizeEntrance = (def.doorSkinSizeEntrance && typeof def.doorSkinSizeEntrance === 'object') ? def.doorSkinSizeEntrance : null
