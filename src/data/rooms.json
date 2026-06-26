@@ -614,9 +614,9 @@
             "open": "entry_open_final"
         },
         "doorSkinEntrance": {
-            "open": "entry_open_1",
+            "open": "entry_door_open_1_alt",
             "locked": "entry_closed_1",
-            "closed": "entry_closed_1"
+            "closed": "entry_door_closed_1_alt"
         },
         "doorSkinSizeEntrance": {
             "w": 5,
@@ -627,6 +627,25 @@
             "w": 3.1,
             "h": 2.1,
             "nudge": 0
+        },
+        "backgroundImage": "entry_room_1",
+        "backgroundImagePool": [
+            "entry_room_1",
+            "entry_egyptian"
+        ],
+        "doorSkinBySkin": {
+            "entry_egyptian": {
+                "open": "entry_open_final"
+            }
+        },
+        "doorSkinEntranceBySkin": {
+            "entry_egyptian": {
+                "closed": "egyptian_door_closed",
+                "open": "egyptian_door_open"
+            },
+            "entry_room_1": {
+                "closed": "entry_door_closed_1_alt"
+            }
         }
     },
     {
@@ -1710,7 +1729,12 @@
         "description": "Reveals the next party’s full intel — size, classes, personalities, scaled stats and planned route — on the Intel panel the night before. One Library tells all. No Library = intel unknown.",
         "flavorText": "Every footstep leaves a rumour. Every rumour leaves a page.",
         "theme": null,
-        "doorTheme": null
+        "doorTheme": null,
+        "backgroundImage": "library",
+        "doorSkin": {
+            "closed": "library_closed",
+            "open": "library_open"
+        }
     },
     {
         "id": "watchtower",

@@ -410,18 +410,18 @@
     },
     "succubus_boss_room": {
       "file": "assets/themes/roomskins/succubus_boss_room.png"
+    },
+    "entry_room_1": {
+      "file": "assets/themes/roomskins/entry_room_1.png"
+    },
+    "entry_egyptian": {
+      "file": "assets/themes/roomskins/entry_egyptian.png"
+    },
+    "library": {
+      "file": "assets/themes/roomskins/library.png"
     }
   },
   "doorSkins": {
-    "basic_door_closed_skin": {
-      "file": "assets/themes/doorskins/basic_door_closed_skin.png"
-    },
-    "basic_open": {
-      "file": "assets/themes/doorskins/basic_open.png"
-    },
-    "basic_locked": {
-      "file": "assets/themes/doorskins/basic_locked.png"
-    },
     "beholder_closed": {
       "file": "assets/themes/doorskins/beholder_closed.png",
       "size": {
@@ -439,12 +439,7 @@
       }
     },
     "lizardman_closed": {
-      "file": "assets/themes/doorskins/lizardman_closed.png",
-      "size": {
-        "w": 4.1,
-        "h": 3.1,
-        "nudge": 0
-      }
+      "file": "assets/themes/doorskins/lizardman_closed.png"
     },
     "lizardman_opened": {
       "file": "assets/themes/doorskins/lizardman_opened.png",
@@ -458,10 +453,20 @@
       "file": "assets/themes/doorskins/lizardman_locked.png"
     },
     "vampire_closed": {
-      "file": "assets/themes/doorskins/vampire_closed.png"
+      "file": "assets/themes/doorskins/vampire_closed.png",
+      "size": {
+        "w": 4.3,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "vampire_open": {
-      "file": "assets/themes/doorskins/vampire_open.png"
+      "file": "assets/themes/doorskins/vampire_open.png",
+      "size": {
+        "w": 4.3,
+        "h": 3.1,
+        "nudge": 0
+      }
     },
     "wraith_closed": {
       "file": "assets/themes/doorskins/wraith_closed.png",
@@ -472,12 +477,7 @@
       }
     },
     "wraith_open": {
-      "file": "assets/themes/doorskins/wraith_open.png",
-      "size": {
-        "w": 4.1,
-        "h": 3.1,
-        "nudge": 0
-      }
+      "file": "assets/themes/doorskins/wraith_open.png"
     },
     "myconid_closed": {
       "file": "assets/themes/doorskins/myconid_closed.png",
@@ -539,12 +539,7 @@
       "file": "assets/themes/doorskins/entry_closed_final.png"
     },
     "golem_door_closed": {
-      "file": "assets/themes/doorskins/golem_door_closed.png",
-      "size": {
-        "w": 4.1,
-        "h": 2.2,
-        "nudge": 0
-      }
+      "file": "assets/themes/doorskins/golem_door_closed.png"
     },
     "golem_door_open": {
       "file": "assets/themes/doorskins/golem_door_open.png",
@@ -647,6 +642,50 @@
       "size": {
         "w": 4.6,
         "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "entry_door_closed_1_alt": {
+      "file": "assets/themes/doorskins/entry_door_closed_1_alt.png",
+      "size": {
+        "w": 4,
+        "h": 2.6,
+        "nudge": 0
+      }
+    },
+    "entry_door_open_1_alt": {
+      "file": "assets/themes/doorskins/entry_door_open_1_alt.png",
+      "size": {
+        "w": 4,
+        "h": 2.6,
+        "nudge": 0
+      }
+    },
+    "entry_door_open_1": {
+      "file": "assets/themes/doorskins/entry_door_open_1.png"
+    },
+    "entry_door_closed_1": {
+      "file": "assets/themes/doorskins/entry_door_closed_1.png"
+    },
+    "library_closed": {
+      "file": "assets/themes/doorskins/library_closed.png"
+    },
+    "library_open": {
+      "file": "assets/themes/doorskins/library_open.png"
+    },
+    "egyptian_door_closed": {
+      "file": "assets/themes/doorskins/egyptian_door_closed.png",
+      "size": {
+        "w": 4,
+        "h": 2.6,
+        "nudge": 0
+      }
+    },
+    "egyptian_door_open": {
+      "file": "assets/themes/doorskins/egyptian_door_open.png",
+      "size": {
+        "w": 4,
+        "h": 2.6,
         "nudge": 0
       }
     }
