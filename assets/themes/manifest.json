@@ -401,6 +401,15 @@
     },
     "demon_boss_room": {
       "file": "assets/themes/roomskins/demon_boss_room.png"
+    },
+    "orc_boss_room": {
+      "file": "assets/themes/roomskins/orc_boss_room.png"
+    },
+    "lich_boss_room": {
+      "file": "assets/themes/roomskins/lich_boss_room.png"
+    },
+    "succubus_boss_room": {
+      "file": "assets/themes/roomskins/succubus_boss_room.png"
     }
   },
   "doorSkins": {
@@ -589,6 +598,54 @@
       "file": "assets/themes/doorskins/demon_door_open.png",
       "size": {
         "w": 4.3,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "orc_door_closed": {
+      "file": "assets/themes/doorskins/orc_door_closed.png",
+      "size": {
+        "w": 4.2,
+        "h": 2.5,
+        "nudge": 0
+      }
+    },
+    "orc_door_open": {
+      "file": "assets/themes/doorskins/orc_door_open.png",
+      "size": {
+        "w": 4.2,
+        "h": 2.5,
+        "nudge": 0
+      }
+    },
+    "lich_door_closed": {
+      "file": "assets/themes/doorskins/lich_door_closed.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.5,
+        "nudge": 0
+      }
+    },
+    "lich_door_open": {
+      "file": "assets/themes/doorskins/lich_door_open.png",
+      "size": {
+        "w": 4.1,
+        "h": 2.5,
+        "nudge": 0
+      }
+    },
+    "image_7": {
+      "file": "assets/themes/doorskins/image_7.png",
+      "size": {
+        "w": 4.6,
+        "h": 2.2,
+        "nudge": 0
+      }
+    },
+    "succubus_door_open": {
+      "file": "assets/themes/doorskins/succubus_door_open.png",
+      "size": {
+        "w": 4.6,
         "h": 2.2,
         "nudge": 0
       }

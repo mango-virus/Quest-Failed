@@ -499,7 +499,10 @@
             "golem": "golem_boss_room",
             "slime": "slime_boss_room",
             "beholder": "beholder_boss_room2",
-            "demon": "demon_boss_room"
+            "demon": "demon_boss_room",
+            "orc": "orc_boss_room",
+            "lich": "lich_boss_room",
+            "succubus": "succubus_boss_room"
         },
         "doorSkinByBoss": {
             "gnoll": {
@@ -533,14 +536,17 @@
                 "locked": "basic_locked"
             },
             "orc": {
-                "open": "basic_open",
-                "locked": "basic_locked"
+                "open": "orc_door_open",
+                "locked": "basic_locked",
+                "closed": "orc_door_closed"
             },
             "succubus": {
-                "open": "basic_open"
+                "open": "succubus_door_open",
+                "closed": "image_7"
             },
             "lich": {
-                "open": "basic_open"
+                "open": "lich_door_open",
+                "closed": "lich_door_closed"
             },
             "golem": {
                 "open": "golem_door_open",
