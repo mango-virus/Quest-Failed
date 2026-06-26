@@ -1000,19 +1000,13 @@ export class MinionRenderer {
         s._seetheRats = []
       }
 
-      // Status badge — bounty star (★) + evolution TIER (T2/T3…). Tier 1 (base)
-      // shows no tier mark so the badge stays clean; upgraded minions get a
-      // "T{n}" so the player reads their roster investment at a glance. (Minion
-      // LEVEL tracks the BOSS level now and is shown in the roster / inspector.)
-      const tier = this._tierOf(m.definitionId)
+      // Status badge — bounty star (★) only. The evolution tier is read from
+      // the roster / inspector, not labelled above the minion's head (the
+      // sprite size + tier-scale already telegraph an upgraded minion).
       const hasBounty = !!m.hasBounty
-      if (s._lastTier !== tier || s._lastBounty !== hasBounty) {
-        s._lastTier = tier
+      if (s._lastBounty !== hasBounty) {
         s._lastBounty = hasBounty
-        const parts = []
-        if (hasBounty) parts.push('★')
-        if (tier >= 2) parts.push(`T${tier}`)
-        const txt = parts.join(' ')
+        const txt = hasBounty ? '★' : ''
         s.lvLabel.setText(txt).setVisible(txt.length > 0)
       }
 
