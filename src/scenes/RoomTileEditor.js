@@ -1106,7 +1106,15 @@ export class RoomTileEditor extends Phaser.Scene {
   }
   uiResetDoorSkinSize() {
     const id = this.uiCurrentDoorSkin()
-    if (id) ThemeManager.setDoorSkinSize(id, null)
+    if (id) {
+      // "Reset" restores the door skin to its PNG's native proportions (anchor
+      // width 4, derive height from the image aspect). BAKE it as the per-skin
+      // size so it wins over any legacy per-room doorSkinSize/doorSkinSizeEntrance
+      // — clearing to null would fall back to those instead of the native aspect,
+      // so reset only reached native proportions in rooms without legacy sizes.
+      const dims = this._doorSkinSrcDims(id)
+      ThemeManager.setDoorSkinSize(id, dims ? defaultDoorSkinSize(dims.w, dims.h) : null)
+    }
     this._populatePaintCanvas()
     this._notifyDom()
   }
