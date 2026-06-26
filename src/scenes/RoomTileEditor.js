@@ -39,6 +39,7 @@ import {
   roomSkinPath, roomSkinTextureKey, doorSkinPath, doorSkinTextureKey,
 } from '../systems/ThemeManager.js'
 import { DecorManager, DECOR_TEXTURE_KEY, DECOR_MANIFEST_PATH } from '../systems/DecorManager.js'
+import { defaultDoorSkinSize } from '../ui/doorSkinResolve.js'
 
 // ── Palette (paint-canvas cell rendering) ───────────────────────────────────
 const COL_BG          = 0x0a0514
@@ -1065,7 +1066,22 @@ export class RoomTileEditor extends Phaser.Scene {
     const d = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
     const id = this.uiCurrentDoorSkin()
     const s = (id && ThemeManager.doorSkinSize(id)) || this._activeRoom()?.doorSkinSize
-    return { w: s?.w ?? d.w, h: s?.h ?? d.h, nudge: s?.nudge ?? d.nudge }
+    if (s) return { w: s.w ?? d.w, h: s.h ?? d.h, nudge: s.nudge ?? d.nudge }
+    // No manual size yet → default to the PNG's native aspect (anchor width 4,
+    // derive height) so a freshly-applied skin reads at its real proportions
+    // instead of being stretched into a fixed 4:3 box. The first slider drag
+    // bakes these aspect-correct values, so tuning starts from the right shape.
+    const dims = this._doorSkinSrcDims(id)
+    return dims ? defaultDoorSkinSize(dims.w, dims.h) : { w: d.w, h: d.h, nudge: d.nudge }
+  }
+
+  // Native pixel dimensions of a door skin's loaded texture, or null.
+  _doorSkinSrcDims(id) {
+    if (!id) return null
+    const key = doorSkinTextureKey(id)
+    if (!this.textures.exists(key)) return null
+    const src = this.textures.get(key).getSourceImage()
+    return (src && src.width && src.height) ? { w: src.width, h: src.height } : null
   }
   // Per-skin size lives in the manifest (not the room), so there's no room-state
   // to snapshot for undo here — saved via "Save skins + assignments".

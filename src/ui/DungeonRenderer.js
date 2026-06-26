@@ -17,7 +17,7 @@ import { DebugOverlay } from '../systems/DebugOverlay.js'
 import { PALETTE }      from './UIKit.js'
 import { loadCornerPattern } from '../data/cornerPattern.js'
 import { carveDoorOpening, fillDoorTopOccluder, buildDoorSkyMask, shadePassageInterior } from '../util/doorSkinCarve.js'
-import { resolveDoorSkinId } from './doorSkinResolve.js'
+import { resolveDoorSkinId, defaultDoorSkinSize } from './doorSkinResolve.js'
 import { ThemeManager, FLOOR_SLOT, spriteCoverage, spriteCoverageHW, readCellEntry, doorSkinTextureKey } from '../systems/ThemeManager.js'
 
 // Public hook for the CornerEditor: paint a procedural corner-tile (no user
@@ -751,7 +751,21 @@ export class DungeonRenderer {
       ?? room?.doorSkinSize
       ?? (!ownId ? ThemeManager.defaultDoorSkinSize?.() : null)
     if (s) return { w: s.w ?? 4, h: s.h ?? 3, nudge: s.nudge ?? 0 }
-    return { w: 4, h: 3, nudge: 0 }
+    // No explicit size anywhere → default to the skin PNG's native aspect (anchor
+    // width 4, derive height) so the art isn't stretched into a fixed 4:3 box.
+    // A 4:3 source yields {4,3}, identical to the old hardcoded fallback.
+    const dims = this._doorSkinSrcDims(skinId)
+    return dims ? defaultDoorSkinSize(dims.w, dims.h) : { w: 4, h: 3, nudge: 0 }
+  }
+
+  // Native pixel dimensions of a door skin's loaded texture, or null if the
+  // skin id is absent / its texture hasn't loaded.
+  _doorSkinSrcDims(skinId) {
+    if (!skinId) return null
+    const key = doorSkinTextureKey(skinId)
+    if (!this._scene.textures.exists(key)) return null
+    const src = this._scene.textures.get(key).getSourceImage()
+    return (src && src.width && src.height) ? { w: src.width, h: src.height } : null
   }
   // Dungeon-space center + rotation of a door's canonical 4×3 region (cols =
   // jambs+door, rows = outer/inner/apron), so one image can be drawn over it.

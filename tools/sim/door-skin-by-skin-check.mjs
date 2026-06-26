@@ -1,13 +1,14 @@
 // Headless check for resolveDoorSkinId — the per-room-skin door override
 // resolution. Run standalone: `node tools/sim/door-skin-by-skin-check.mjs`
 // (also picked up by `npm test`).
-import { resolveDoorSkinId } from '../../src/ui/doorSkinResolve.js'
+import { resolveDoorSkinId, defaultDoorSkinSize } from '../../src/ui/doorSkinResolve.js'
 
 let failures = 0
 const eq = (label, got, want) => {
   if (got !== want) { console.error(`FAIL ${label}: got ${JSON.stringify(got)} want ${JSON.stringify(want)}`); failures++ }
   else console.log(`ok   ${label}`)
 }
+const eqObj = (label, got, want) => eq(label, JSON.stringify(got), JSON.stringify(want))
 
 // A room that rolled skin "sk2", with a per-skin entrance + connecting override,
 // plus the existing all-skins fields and a per-boss override.
@@ -35,6 +36,14 @@ const legacy = { doorSkin: { open: 'c' }, doorSkinEntrance: { open: 'e' } }
 eq('legacy entrance',   resolveDoorSkinId(legacy, 'open', { isEntrance: true }),  'e')
 eq('legacy connecting', resolveDoorSkinId(legacy, 'open', { isEntrance: false }), 'c')
 eq('missing state → null', resolveDoorSkinId(legacy, 'locked', { isEntrance: true }), null)
+
+// defaultDoorSkinSize — native-aspect default (anchor width 4, derive height).
+eqObj('4:3 source → {4,3} (legacy, no change)', defaultDoorSkinSize(256, 192), { w: 4, h: 3, nudge: 0 })
+eqObj('demon door 512x280 → h 2.2',  defaultDoorSkinSize(512, 280), { w: 4, h: 2.2, nudge: 0 })
+eqObj('beholder2 671x376 → h 2.2',   defaultDoorSkinSize(671, 376), { w: 4, h: 2.2, nudge: 0 })
+eqObj('portrait 376x671 → tall door', defaultDoorSkinSize(376, 671), { w: 4, h: 7.1, nudge: 0 })
+eqObj('zero dims → {4,3} fallback',  defaultDoorSkinSize(0, 0), { w: 4, h: 3, nudge: 0 })
+eq('width is always anchored at 4',  defaultDoorSkinSize(512, 280).w, 4)
 
 if (failures) { console.error(`\n${failures} failure(s)`); process.exit(1) }
 console.log('\nall passed')
