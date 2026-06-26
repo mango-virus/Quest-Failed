@@ -542,7 +542,7 @@
             },
             "succubus": {
                 "open": "succubus_door_open",
-                "closed": "image_7"
+                "closed": "succubus_door_closed"
             },
             "lich": {
                 "open": "lich_door_open",

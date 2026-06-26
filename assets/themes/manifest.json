@@ -634,8 +634,8 @@
         "nudge": 0
       }
     },
-    "image_7": {
-      "file": "assets/themes/doorskins/image_7.png",
+    "succubus_door_closed": {
+      "file": "assets/themes/doorskins/succubus_door_closed.png",
       "size": {
         "w": 4.6,
         "h": 2.2,
