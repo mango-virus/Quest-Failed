@@ -439,13 +439,18 @@
       }
     },
     "lizardman_closed": {
-      "file": "assets/themes/doorskins/lizardman_closed.png"
+      "file": "assets/themes/doorskins/lizardman_closed.png",
+      "size": {
+        "w": 4,
+        "h": 3,
+        "nudge": 0
+      }
     },
     "lizardman_opened": {
       "file": "assets/themes/doorskins/lizardman_opened.png",
       "size": {
-        "w": 4.1,
-        "h": 3.1,
+        "w": 4,
+        "h": 3,
         "nudge": 0
       }
     },
@@ -539,13 +544,18 @@
       "file": "assets/themes/doorskins/entry_closed_final.png"
     },
     "golem_door_closed": {
-      "file": "assets/themes/doorskins/golem_door_closed.png"
+      "file": "assets/themes/doorskins/golem_door_closed.png",
+      "size": {
+        "w": 4,
+        "h": 2.3,
+        "nudge": 0
+      }
     },
     "golem_door_open": {
       "file": "assets/themes/doorskins/golem_door_open.png",
       "size": {
-        "w": 4.1,
-        "h": 2.2,
+        "w": 4,
+        "h": 2.3,
         "nudge": 0
       }
     },
@@ -692,7 +702,7 @@
   },
   "defaultDoorSkin": {
     "closed": "entry_closed_final",
-    "open": "entry_open_final",
+    "open": "lizardman_opened",
     "locked": "entry_locked",
     "size": {
       "w": 3.1,
