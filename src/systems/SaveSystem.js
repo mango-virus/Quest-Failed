@@ -20,7 +20,7 @@ const SAVE_KEY_BASE   = 'quest_failed_save'
 // them forward (stripping any placed corridor so the missing room def can't crash
 // load) since they're otherwise fully compatible. Only 1.1.0-and-earlier (pre-
 // connector layouts) are still discarded.
-const CURRENT_VERSION = '1.3.0'
+const CURRENT_VERSION = '1.4.0'
 
 function _saveKey() {
   const name = (PlayerProfile.getName?.() ?? '').trim()
