@@ -1065,7 +1065,16 @@ export class RoomTileEditor extends Phaser.Scene {
   uiGetDoorSkinSize() {
     const d = RoomTileEditor.DOOR_SKIN_SIZE_DEFAULT
     const id = this.uiCurrentDoorSkin()
-    const s = (id && ThemeManager.doorSkinSize(id)) || this._activeRoom()?.doorSkinSize
+    const room = this._activeRoom()
+    // Mirror DungeonRenderer._doorSkinSizeTiles's role-aware fallback so the
+    // editor shows/edits the SAME size the game renders. The ENTRANCE role falls
+    // back to the room's per-entrance size (doorSkinSizeEntrance) before the
+    // connecting size; without this the entrance sliders showed the connecting
+    // size (room.doorSkinSize) while the game used doorSkinSizeEntrance.
+    const perRoom = this._doorRoleEntrance()
+      ? (room?.doorSkinSizeEntrance ?? room?.doorSkinSize)
+      : room?.doorSkinSize
+    const s = (id && ThemeManager.doorSkinSize(id)) || perRoom
     if (s) return { w: s.w ?? d.w, h: s.h ?? d.h, nudge: s.nudge ?? d.nudge }
     // No manual size yet → default to the PNG's native aspect (anchor width 4,
     // derive height) so a freshly-applied skin reads at its real proportions
