@@ -246,7 +246,34 @@ function checkPactGraph() {
 }
 
 // =============================================================================
-// CHECK 7 — duplicate ids within any content file.
+// CHECK 7 — per-room-skin door-skin refs resolve in manifest.json.
+// doorSkinBySkin / doorSkinEntranceBySkin on a room def map room-skin ids to
+// { state: doorSkinId }. Any doorSkinId that isn't a key in the theme
+// manifest's doorSkins registry is a dangling reference that will silently
+// show the wrong/no door in-game.
+// =============================================================================
+function checkDoorSkinBySkinRefs() {
+  let doorSkins = {}
+  try { doorSkins = JSON.parse(readFileSync(resolve(ROOT, 'assets/themes/manifest.json'), 'utf8'))?.doorSkins ?? {} }
+  catch { return }  // no manifest in this context → skip (matches class-sprites guard)
+  const rooms = tryData('rooms.json') ?? []
+  for (const r of rooms) {
+    for (const field of ['doorSkinBySkin', 'doorSkinEntranceBySkin']) {
+      const m = r?.[field]
+      if (!m || typeof m !== 'object') continue
+      for (const [skin, states] of Object.entries(m)) {
+        for (const id of Object.values(states || {})) {
+          if (id && !(id in doorSkins)) {
+            ERR('door-skin-by-skin', `room "${r.id}" ${field}["${skin}"] → "${id}" is not a door skin in manifest.json`)
+          }
+        }
+      }
+    }
+  }
+}
+
+// =============================================================================
+// CHECK 8 — duplicate ids within any content file.
 // A duplicated id silently shadows an entry (last-wins on lookup maps).
 // =============================================================================
 function checkDuplicateIds() {
@@ -270,6 +297,7 @@ const CHECKS = [
   ['achievement-rewards', checkAchievementRewards],
   ['class-sprites',       checkAdventurerSprites],
   ['pact-graph',          checkPactGraph],
+  ['door-skin-by-skin',   checkDoorSkinBySkinRefs],
   ['duplicate-ids',       checkDuplicateIds],
 ]
 for (const [, fn] of CHECKS) {
