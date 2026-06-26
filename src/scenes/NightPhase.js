@@ -756,7 +756,7 @@ export class NightPhase extends Phaser.Scene {
       return {
         ready: false,
         blocker: 'PATH OPEN',
-        message: `Disconnected ${noun}: ${names}${extra} — place adjacent to existing rooms`,
+        message: `Disconnected ${noun}: ${names}${extra} — place them one tile from existing rooms`,
         disconnected,
       }
     }

@@ -2328,8 +2328,8 @@ export class DayPhase extends Phaser.Scene {
       fontSize: '14px', color: '#ffd99a', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(32)
     const sub = this.add.text(W / 2, py + 60,
-      'Place a corridor or hallway connecting one of your rooms\n' +
-      'to the boss chamber. Adventurers cannot find their way in.', {
+      'Place rooms one tile apart so they connect, linking an\n' +
+      'Entry Hall to the boss chamber. Adventurers cannot find their way in.', {
         fontSize: '10px', color: '#ffeeaa', fontFamily: 'monospace',
         align: 'center',
       }).setOrigin(0.5).setDepth(32)

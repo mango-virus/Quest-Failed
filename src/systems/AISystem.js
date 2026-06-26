@@ -4115,9 +4115,6 @@ export class AISystem {
       } else if (gold >= 60) {
         reaction = 'awe'; nudge(-2)                          // an imposing, costly chamber gives pause
         EventBus.emit('SAY_awe', { adventurer: adv })
-      } else if (def === 'starter_corridor' && Math.max(room.width, room.height) >= 6) {
-        reaction = 'dread'; nudge(-2)                         // "this corridor's a death-trap"
-        EventBus.emit('SAY_dread', { adventurer: adv })
       }
     }
     if (reaction) EventBus.emit('ADV_REACT_ROOM', { adventurer: adv, roomId, reaction })

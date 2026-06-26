@@ -15,7 +15,12 @@ const SAVE_KEY_BASE   = 'quest_failed_save'
 // connector model (see ROOM_CONNECTIONS.md). Old dungeons were laid out touching and
 // cannot satisfy the new "exactly 1 tile apart" rule, so 1.1.0 saves are discarded
 // on load (the _migrate stub returns null) — an accepted reset for this change.
-const CURRENT_VERSION = '1.2.0'
+// 1.3.0 (2026-06-25): the placeable "Corridor" (starter_corridor) room was removed.
+// Unlike the 1.1.0->1.2.0 bump, 1.2.0 saves are NOT discarded — `_migrate` carries
+// them forward (stripping any placed corridor so the missing room def can't crash
+// load) since they're otherwise fully compatible. Only 1.1.0-and-earlier (pre-
+// connector layouts) are still discarded.
+const CURRENT_VERSION = '1.3.0'
 
 function _saveKey() {
   const name = (PlayerProfile.getName?.() ?? '').trim()
@@ -336,9 +341,40 @@ function _verifySavedMeta(payload) {
 }
 
 function _migrate(state) {
-  // Future migration logic goes here as save format evolves.
-  // Return null to discard saves that cannot be migrated cleanly.
-  console.warn('[SaveSystem] Version mismatch — save discarded. Was:', state?.meta?.version)
+  const was = state?.meta?.version
+
+  // 1.2.0 -> 1.3.0: the placeable "Corridor" (starter_corridor) room was removed.
+  // A 1.2.0 save is otherwise fully forward-compatible, so we DON'T discard it —
+  // we just strip any placed corridor instances (so a missing room def can't crash
+  // load) and re-stamp the version. Most 1.2.0 saves have no corridor at all, so
+  // this is a no-op beyond the version bump for them.
+  if (was === '1.2.0') {
+    try {
+      const d = state.dungeon
+      if (d && Array.isArray(d.rooms)) {
+        d.rooms = d.rooms.filter(r => r?.definitionId !== 'starter_corridor')
+      }
+      // `dungeon.corridors` is a dead legacy field; never read — clear it.
+      if (d && 'corridors' in d) d.corridors = []
+      // Drop any Tinkerer "Greased Corridor" reference to the removed room.
+      if (Array.isArray(state._tinkeredRoomTypes)) {
+        state._tinkeredRoomTypes = state._tinkeredRoomTypes.filter(id => id !== 'starter_corridor')
+      }
+      // NOTE: a corridor's footprint/connector cells linger in dungeon.tiles as
+      // orphan walkable floor (harmless — getRoomAtTile returns null there, combat
+      // is room-bound, pathing just treats them as floor). Corridor-bridged layouts
+      // are rare; the player can re-place a room to reconnect if needed.
+      state.meta.version = CURRENT_VERSION
+      return state
+    } catch (e) {
+      console.warn('[SaveSystem] 1.2.0 -> 1.3.0 migration failed — discarding. Error:', e)
+      return null
+    }
+  }
+
+  // 1.1.0 and earlier predate the one-tile-gap connector (1.2.0) and were laid out
+  // wall-to-wall, which can't satisfy the new connection rules — discard.
+  console.warn('[SaveSystem] Version mismatch — save discarded. Was:', was)
   return null
 }
 
