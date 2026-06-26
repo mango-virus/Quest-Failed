@@ -16,7 +16,7 @@ import { EventBus } from '../systems/EventBus.js'
 import { DungeonGrid } from '../systems/DungeonGrid.js'
 import { pixelSprite, roomIcon, spriteKindForDefId } from './sprites.js'
 import { liveMinion, snapshotItem, snapshotTrap } from './inGameSnapshot.js'
-import { getRoomThumbnail } from './roomThumbnailCache.js'
+import { roomCardSkinSrc } from './roomCardSkin.js'
 import { applyMerchantPrice, buildScaleMul } from '../util/merchantPricing.js'
 import { rosterCap, trapCap } from '../util/slotCaps.js'
 
@@ -521,27 +521,20 @@ export class BuildMenu {
       return pixelSprite(spriteKindForDefId(def.id), 64)
     }
     if (cat.kind === 'room') {
+      // Use the room's actual skin PNG so the card shows the exact room that
+      // will be placed. Rooms with no skin render blank (return null → the
+      // bsh-vis slot stays empty; h() skips null children).
+      const src = roomCardSkinSrc(def)
+      if (!src) return null
       const MAX_W = 120, MAX_H = 64
       const img = document.createElement('img')
-      img.style.display = 'block'; img.style.imageRendering = 'pixelated'
+      img.style.display = 'block'
+      img.style.imageRendering = 'auto'   // smooth downscale — skins are detailed art, not pixel art
       img.style.maxWidth = `${MAX_W}px`; img.style.maxHeight = `${MAX_H}px`
       img.style.width = 'auto'; img.style.height = 'auto'; img.style.objectFit = 'contain'
       img.className = 'qf-snap qf-snap-room'
-      img.onerror = () => {
-        const cached = getRoomThumbnail(def.id)
-        if (!cached || !img.parentElement) { img.style.display = 'none'; return }
-        const c = document.createElement('canvas')
-        const aspect = cached.width / cached.height
-        let dispH = MAX_H, dispW = MAX_H * aspect
-        if (dispW > MAX_W) { dispW = MAX_W; dispH = MAX_W / aspect }
-        dispW = Math.max(1, Math.round(dispW)); dispH = Math.max(1, Math.round(dispH))
-        c.width = dispW; c.height = dispH
-        const cctx = c.getContext('2d'); cctx.imageSmoothingEnabled = false
-        cctx.drawImage(cached, 0, 0, cached.width, cached.height, 0, 0, dispW, dispH)
-        c.style.display = 'block'; c.style.imageRendering = 'pixelated'; c.className = 'qf-snap qf-snap-room'
-        img.parentElement.replaceChild(c, img)
-      }
-      img.src = `assets/ui/room-thumbnails/${def.id}.png`
+      img.onerror = () => { img.style.display = 'none' }
+      img.src = src
       return img
     }
     if (cat.kind === 'trap') {
