@@ -1214,22 +1214,22 @@ export class DungeonGrid {
                       other.gridY   + other.height   - WT - 2)
       }
       if (lo > hi) continue
-      // Boss connection — the boss chamber's one allowed door must sit at
-      // the exact centre of one of its four walls (no off-centre doors).
-      // Force wcenter to the midpoint of the boss wall and skip the pair
-      // entirely if that midpoint isn't reachable from the other room (i.e.
-      // the rooms are offset such that the boss wall centre falls outside
-      // the overlap or outside the other room's mid-wall band).
-      const bossRoom = isBossNew ? newRoom : (isBossOther ? other : null)
-      let wcenter
-      if (bossRoom) {
-        const sz     = oxRange ? bossRoom.width  : bossRoom.height
-        const origin = oxRange ? bossRoom.gridX  : bossRoom.gridY
-        wcenter = origin + Math.floor((sz - 2) / 2)
-        if (wcenter < lo || wcenter > hi) continue
+      // Connection is allowed ONLY when both facing walls' MIDPOINTS coincide
+      // on the same cell (the boss rule, now universal). Each room's wall-center
+      // cell (the lower-coord cell of its 2-wide door) uses the boss formula
+      // origin + floor((size - 2) / 2). If the centers differ, or the shared
+      // center falls outside the legal mid-wall band [lo,hi], no door forms.
+      let centerNew, centerOther
+      if (oxRange) {
+        centerNew   = newRoom.gridX + Math.floor((newRoom.width  - 2) / 2)
+        centerOther = other.gridX   + Math.floor((other.width    - 2) / 2)
       } else {
-        wcenter = Math.floor((lo + hi) / 2)
+        centerNew   = newRoom.gridY + Math.floor((newRoom.height - 2) / 2)
+        centerOther = other.gridY   + Math.floor((other.height   - 2) / 2)
       }
+      if (centerNew !== centerOther) continue
+      const wcenter = centerNew
+      if (wcenter < lo || wcenter > hi) continue
 
       let cpNew, cpOther
       if (oxRange) {
