@@ -361,6 +361,7 @@ export class RoomTileEditor extends Phaser.Scene {
     this._clearHeld()
     this._skinTarget = 'default'
     this._doorRole = 'interior'
+    this._doorSkinTarget = '__all__'
     this._activeRoomId = id
     this._refreshAll()
   }
@@ -515,6 +516,31 @@ export class RoomTileEditor extends Phaser.Scene {
   uiDoorRole() { return this._doorRole === 'entrance' ? 'entrance' : 'interior' }
   uiSetDoorRole(role) { this._doorRole = role === 'entrance' ? 'entrance' : 'interior'; this._refreshAll() }
   _doorRoleEntrance() { return this.uiDoorRole() === 'entrance' && this._roomHasEntrance(this._activeRoom()) }
+
+  // ── Per-room-skin door target ────────────────────────────────────────────
+  // A room with a multi-skin POOL can bind a specific door skin to a specific
+  // pool skin. The active target is '__all__' (the room's normal doorSkin /
+  // doorSkinEntrance fields) or a room-skin id in the pool. Only non-boss rooms
+  // with a 2+ skin pool expose this.
+  _roomSkinPool(room) {
+    return Array.isArray(room?.backgroundImagePool)
+      ? room.backgroundImagePool.filter(s => typeof s === 'string') : []
+  }
+  uiDoorSkinTargets() {
+    if (this._isBossChamber()) return null
+    const pool = this._roomSkinPool(this._activeRoom())
+    if (pool.length < 2) return null
+    return [
+      { key: '__all__', label: 'All skins' },
+      ...pool.map(id => ({ key: id, label: id, thumb: this._texThumb(roomSkinTextureKey(id)) })),
+    ]
+  }
+  uiDoorSkinTarget() { return this._doorSkinTarget || '__all__' }
+  uiSetDoorSkinTarget(key) { this._doorSkinTarget = key || '__all__'; this._refreshAll() }
+  _doorSkinTargetActive(room) {
+    const t = this.uiDoorSkinTarget()
+    return t !== '__all__' && this._roomSkinPool(room || this._activeRoom()).includes(t)
+  }
 
   // Skin id assigned to the active room for a given target.
   _skinIdForTarget(room, target) {
@@ -910,6 +936,12 @@ export class RoomTileEditor extends Phaser.Scene {
   // The applied door-skin id for the active room / target / current state
   // (boss target falls back to the default, like room skins).
   _editorDoorSkinId(room, state) {
+    if (this._doorSkinTargetActive(room)) {
+      const skin  = this.uiDoorSkinTarget()
+      const field = this._doorRoleEntrance() ? 'doorSkinEntranceBySkin' : 'doorSkinBySkin'
+      const fallback = this._doorRoleEntrance() ? room?.doorSkinEntrance?.[state] : room?.doorSkin?.[state]
+      return room?.[field]?.[skin]?.[state] || fallback || null
+    }
     if (this._doorRoleEntrance()) {
       return room?.doorSkinEntrance?.[state] || null
     }
@@ -923,6 +955,15 @@ export class RoomTileEditor extends Phaser.Scene {
     return room ? this._editorDoorSkinId(room, this._curDoorState()) : null
   }
   _setDoorSkinId(room, state, id) {
+    if (this._doorSkinTargetActive(room)) {
+      const skin  = this.uiDoorSkinTarget()
+      const field = this._doorRoleEntrance() ? 'doorSkinEntranceBySkin' : 'doorSkinBySkin'
+      room[field] = room[field] || {}
+      room[field][skin] = room[field][skin] || {}
+      if (id) room[field][skin][state] = id
+      else delete room[field][skin][state]
+      return
+    }
     if (this._doorRoleEntrance()) {
       room.doorSkinEntrance = room.doorSkinEntrance || {}
       if (id) room.doorSkinEntrance[state] = id
