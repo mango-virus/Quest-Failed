@@ -1466,7 +1466,7 @@ export class NightPhase extends Phaser.Scene {
 
   _buildHints(W, H) {
     this.add.text(W - 8, H - BOTTOM_H - 6,
-      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate room / right-click to cancel pick  ·  left-click room to pick up  ·  use SELL tool to remove rooms/minions  ·  Ctrl+Z to undo  ·  ESC = pause  ·  HALLS tab: left=draw  right=erase',
+      'WASD / drag to scroll  ·  scroll to zoom  ·  R = rotate trap / right-click to cancel pick  ·  left-click room to pick up  ·  use SELL tool to remove rooms/minions  ·  Ctrl+Z to undo  ·  ESC = pause  ·  HALLS tab: left=draw  right=erase',
       { fontSize: '8px', color: PALETTE.textDim, fontFamily: 'monospace' }
     ).setOrigin(1, 1).setDepth(11)
   }
@@ -1837,10 +1837,7 @@ export class NightPhase extends Phaser.Scene {
       if (e.ctrlKey || e.metaKey || e.altKey) return
       const t = e.target
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      if (this._selectedKind === 'room') {
-        this._rotation = (this._rotation + 90) % 360
-        if (this._previewTileX >= 0) this._drawPreview(this._previewTileX, this._previewTileY)
-      } else if (this._selectedKind === 'trap' && this._selected?.rotatable) {
+      if (this._selectedKind === 'trap' && this._selected?.rotatable) {
         this._trapFacing = this._nextTrapFacing(this._selected, this._trapFacing)
         // MOVE TOOL: the actual placed trap is following the cursor — push the
         // new facing onto the entity so TrapRenderer._syncSprite rebuilds the
@@ -2142,13 +2139,8 @@ export class NightPhase extends Phaser.Scene {
         }
       }
 
-      // Rotation label — short, centred above the ghost (origin 0.5, 1 set at
-      // creation in _buildPreview). Matches the trap rotate hint.
-      if (this._rotLabel) {
-        this._rotLabel.setText('[R] ROTATE')
-        this._rotLabel.setPosition(wx + (rw * TS) / 2, wy - 6)
-        this._rotLabel.setVisible(true)
-      }
+      // Rooms can't be rotated, so no [R] ROTATE prompt for them.
+      this._rotLabel?.setVisible(false)
     }
   }
 
