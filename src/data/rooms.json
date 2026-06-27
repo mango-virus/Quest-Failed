@@ -1073,7 +1073,12 @@
         "flavorText": "They always come back. That's the point.",
         "theme": null,
         "doorTheme": null,
-        "onDayStart": "crypt_spawnUndead"
+        "onDayStart": "crypt_spawnUndead",
+        "backgroundImage": "crypt_room",
+        "doorSkin": {
+            "closed": "crypt_door_closed",
+            "open": "crypt_door_open"
+        }
     },
     {
         "id": "trap_factory",

@@ -428,6 +428,9 @@
     },
     "trap_factory_1": {
       "file": "assets/themes/roomskins/trap_factory_1.png"
+    },
+    "crypt_room": {
+      "file": "assets/themes/roomskins/crypt_room.png"
     }
   },
   "doorSkins": {
@@ -747,6 +750,12 @@
         "h": 2.2,
         "nudge": 0
       }
+    },
+    "crypt_door_closed": {
+      "file": "assets/themes/doorskins/crypt_door_closed.png"
+    },
+    "crypt_door_open": {
+      "file": "assets/themes/doorskins/crypt_door_open.png"
     }
   },
   "defaultDoorSkin": {
