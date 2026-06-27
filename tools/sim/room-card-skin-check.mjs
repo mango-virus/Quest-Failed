@@ -15,14 +15,19 @@ const ok = (cond, msg) => { if (!cond) { console.error('  ✗ ' + msg); fails++ 
 
 console.log('\n[1] Skinned rooms map to assets/themes/roomskins/<skin>.png')
 {
-  ok(roomCardSkinSrc(byId('entry_hall'))       === 'assets/themes/roomskins/entry_room_1.png',  'entry_hall → entry_room_1.png')
-  ok(roomCardSkinSrc(byId('starter_barracks')) === 'assets/themes/roomskins/barracks_room.png', 'starter_barracks → barracks_room.png')
-  ok(roomCardSkinSrc(byId('treasury'))         === 'assets/themes/roomskins/treasure_room_1.png','treasury → treasure_room_1.png')
+  // Derive the expectation from the data so the art pipeline adding/renaming
+  // skins doesn't make this stale — it asserts the URL FORMAT, not fixed pairs.
+  const skinned = rooms.filter(r => typeof r.backgroundImage === 'string')
+  ok(skinned.length > 0, `at least one skinned room exists (${skinned.length})`)
+  ok(skinned.every(r => roomCardSkinSrc(r) === `assets/themes/roomskins/${r.backgroundImage}.png`),
+     'every skinned room → assets/themes/roomskins/<backgroundImage>.png')
 }
 
 console.log('\n[2] Skinless rooms → null')
 {
-  ok(roomCardSkinSrc(byId('crypt')) === null, 'crypt (no backgroundImage) → null')
+  // Pick whatever room is currently skinless rather than hardcoding a name.
+  const skinless = rooms.find(r => typeof r.backgroundImage !== 'string')
+  ok(!skinless || roomCardSkinSrc(skinless) === null, `a real skinless room (${skinless?.id ?? 'none left'}) → null`)
   ok(roomCardSkinSrc({ id: 'x' })   === null, 'def with no backgroundImage → null')
   ok(roomCardSkinSrc(null)          === null, 'null def → null (defensive)')
 }
